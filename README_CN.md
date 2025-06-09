@@ -2,6 +2,12 @@
 
 [English](./README.md) | [中文](./README_CN.md)
 
+**联系我们**：
+- [ICPanda DAO](https://panda.fans/): ICPanda is a technical panda fully running on the [Internet Computer](https://internetcomputer.org/) blockchain, building chain-native infrastructures, Anda.AI and dMsg.net.
+- [Anda.AI](https://anda.ai/): Create next-generation AI agents with persistent memory, decentralized trust, and swarm intelligence.
+- [GitHub: LDC Labs](https://github.com/ldclabs/KIP)
+- [X: ICPanda DAO](https://x.com/ICPandaDAO)
+
 ## 0. 前言
 
 我们正处在一个由大型语言模型（LLM）驱动的认知革命的黎明。LLM 以其强大的自然语言理解、生成和推理能力，展现了通用人工智能（AGI）的曙光。然而，当前的 LLM 如同一个**才华横溢却健忘的天才**：它拥有惊人的即时推理能力，却缺乏稳定、可累积、可追溯的长期记忆。它能进行精彩的对话，但对话结束后，知识便随风消散；它可能产生令人信服的“幻觉”，却无法对其知识来源进行核查与验证。
@@ -23,12 +29,6 @@
 本规范旨在为所有致力于构建下一代智能体的开发者、架构师和研究者，提供一套开放、通用且强大的标准。我们相信，智能的未来，并非源于一个孤立的、无所不知的“黑箱”，而是源于一个懂得如何学习、如何与可信知识高效协作的开放系统。
 
 欢迎您与我们一道，共同探索并完善 KIP，开启 AI 自我进化与可持续学习的新纪元。
-
-联系我们：
-- [ICPanda DAO](https://panda.fans/)
-- [X (Twitter)](https://x.com/ICPandaDAO)
-- [Anda.AI](https://anda.ai/)
-- [GitHub](https://github.com/ldclabs/KIP)
 
 ## 1. 简介与设计哲学
 
