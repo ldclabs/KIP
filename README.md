@@ -754,17 +754,17 @@ As the "cognitive strategist," the LLM must follow this protocol workflow to int
 **Example Flowchart**:
 ```mermaid
 graph TD
-    A[User Request] --> B(1. Deconstruct Intent);
-    B --> C{Need more info?};
-    C -- Yes --> D[2. Explore & Ground (META)];
-    D --> E[3. Generate Code (KQL/KML)];
-    C -- No --> E;
-    E --> F[4. Execute & Respond (Cognitive Nexus)];
-    F --> G{New knowledge generated?};
-    G -- Yes --> H[5. Solidify Knowledge (KML)];
-    H --> I[6. Synthesize Results];
-    G -- No --> I;
-    I --> J[Respond to User];
+    A[User Request] --> B(Deconstruct Intent)
+    B --> C{Need more info?}
+    C -- Yes --> D["Explore & Ground (META)"]
+    D --> E["Generate Code (KQL/KML)"]
+    C -- No --> E
+    E --> F["Execute & Respond (Cognitive Nexus)"]
+    F --> G{New knowledge generated?}
+    G -- Yes --> H["Solidify Knowledge (KML)"]
+    H --> I[Synthesize Results]
+    G -- No --> I
+    I --> J[Respond to User]
 ```
 
 1.  **Deconstruct Intent**:
