@@ -2,7 +2,10 @@
 
 [English](./README.md) | [中文](./README_CN.md)
 
-**联系我们**：
+**KIP 实现**:
+- [Anda KIP](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): [WIP] A Rust implementation of KIP (Knowledge Interaction Protocol) with Anda DB.
+
+**关于我们**：
 - [ICPanda DAO](https://panda.fans/): ICPanda is a technical panda fully running on the [Internet Computer](https://internetcomputer.org/) blockchain, building chain-native infrastructures, Anda.AI and dMsg.net.
 - [Anda.AI](https://anda.ai/): Create next-generation AI agents with persistent memory, decentralized trust, and swarm intelligence.
 - [GitHub: LDC Labs](https://github.com/ldclabs/KIP)
