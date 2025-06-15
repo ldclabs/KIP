@@ -1,4 +1,4 @@
-# KIP (Knowledge Interaction Protocol) Specification (Draft)
+# 🧬 KIP (Knowledge Interaction Protocol) Specification (Draft)
 
 [English](./README.md) | [中文](./README_CN.md)
 
@@ -108,7 +108,7 @@ FIND(?drug_class, COUNT(?drug) AS ?drug_count)
 *   **Filter Clause (`FILTER`)**: `FILTER(boolean_expression)`
 *   **Negation Clause (`NOT`)**: `NOT { ... }`
 *   **Optional Clause (`OPTIONAL`)**: `OPTIONAL { ... }`
-*   **Union Clause (`UNION`)**: `{ ... } UNION { ... }`
+*   **Union Clause (`UNION`)**: `UNION { ... }`
 *   **Subquery (`SELECT`)**: Used for internal calculations, the results of which can be used in an outer `FILTER`.
 
 #### 3.3.1. Type Assertion / Entity Grounding Clause
@@ -241,20 +241,19 @@ OPTIONAL {
 
 #### 3.3.7. Union Clause (`UNION`)
 
-**Function**: Combines the results of two or more independent logical blocks, implementing a logical **OR**.
+**Function**: Combines the results of logical blocks, implementing a logical **OR**. Note that the clauses inside the `WHERE` block are implicitly connected by **AND**.
 
-**Syntax**: `{ ... } UNION { ... }`
+**Syntax**: `UNION { ... }`
 
 **Example**:
 
 ```prolog
 // Find drugs that treat "Headache" or "Fever"
-{
-  ?headache(name: "Headache")
-  PROP(?drug, "treats", ?headache)
-}
-UNION
-{
+
+?headache(name: "Headache")
+PROP(?drug, "treats", ?headache)
+
+UNION {
   ?fever(name: "Fever")
   PROP(?drug, "treats", ?fever)
 }
@@ -638,11 +637,11 @@ The Cognitive Primer contains two parts:
 
 **Syntax**: `DESCRIBE CONCEPT TYPES`
 
-#### 5.1.4. Describe a Specific Concept Type (`DESCRIBE CONCEPT TYPE <TypeName>`)
+#### 5.1.4. Describe a Specific Concept Type (`DESCRIBE CONCEPT TYPE <type_name>`)
 
 **Function**: Describes the details of a specific node type, including its attributes and common relationships.
 
-**Syntax**: `DESCRIBE CONCEPT TYPE <TypeName>`
+**Syntax**: `DESCRIBE CONCEPT TYPE <type_name>`
 
 **Example**:
 
@@ -656,19 +655,19 @@ DESCRIBE CONCEPT TYPE "Drug"
 
 **Syntax**: `DESCRIBE PROPOSITION TYPES`
 
-#### 5.1.6. Describe a Specific Proposition Link Type (`DESCRIBE PROPOSITION TYPE <PredicateName>`)
+#### 5.1.6. Describe a Specific Proposition Link Type (`DESCRIBE PROPOSITION TYPE <predicate_name>`)
 
 **Function**: Describes the details of a specific proposition link predicate, including the common types of its subject and object (its domain and range).
 
-**Syntax**: `DESCRIBE PROPOSITION TYPE <PredicateName>`
+**Syntax**: `DESCRIBE PROPOSITION TYPE <predicate_name>`
 
 ### 5.2 `SEARCH` Statement
 
 **Function**: The `SEARCH` command is used to link natural language terms to specific entities in the knowledge graph. It focuses on efficient, text-index-driven lookups rather than full graph pattern matching.
 
-**Syntax**: `SEARCH CONCEPT "<search_term>" <options>`
+**Syntax**: `SEARCH CONCEPT <search_term> <options>`
     **Options (`<options>`)**:
-    *   `WITH TYPE "TypeName"`: Restricts the search scope to a specific node type.
+    *   `WITH TYPE <type_name>`: Restricts the search scope to a specific node type.
     *   `LIMIT N`: Limits the number of returned results, defaulting to 10.
 
 **Examples**:

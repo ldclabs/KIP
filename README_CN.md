@@ -1,4 +1,4 @@
-# KIP（Knowledge Interaction Protocol）规范（草案）
+# 🧬 KIP（Knowledge Interaction Protocol）规范（草案）
 
 [English](./README.md) | [中文](./README_CN.md)
 
@@ -108,7 +108,7 @@ FIND(?drug_class, COUNT(?drug) AS ?drug_count)
 *   **过滤器子句（`FILTER`）**：`FILTER(boolean_expression)`
 *   **否定子句（`NOT`）**：`NOT { ... }`
 *   **可选子句（`OPTIONAL`）**：`OPTIONAL { ... }`
-*   **合并子句（`UNION`）**：`{ ... } UNION { ... }`
+*   **合并子句（`UNION`）**：`UNION { ... }`
 *   **子查询（`SELECT`）**：用于内部计算，其结果可用于外部 `FILTER`。
 
 #### 3.3.1. 类型断言/实体接地子句
@@ -241,20 +241,19 @@ OPTIONAL {
 
 #### 3.3.7. 合并子句（`UNION`）
 
-**功能**：合并两个或多个独立逻辑块的结果，实现逻辑 **OR**。
+**功能**：合并子句的结果，实现逻辑 **OR**。注意，`where` 块所有子句之间默认为逻辑 **AND** 关系。
 
-**语法**：`{ ... } UNION { ... }`
+**语法**：`UNION { ... }`
 
 **示例**：
 
 ```prolog
 // 找到能治疗“头痛”或“发烧”的药物
-{
-  ?headache(name: "Headache")
-  PROP(?drug, "treats", ?headache)
-}
-UNION
-{
+
+?headache(name: "Headache")
+PROP(?drug, "treats", ?headache)
+
+UNION {
   ?fever(name: "Fever")
   PROP(?drug, "treats", ?fever)
 }
@@ -641,11 +640,11 @@ META 是 KIP 的一个轻量级子集，专注于“自省”（Introspection）
 
 **语法**：`DESCRIBE CONCEPT TYPES`
 
-#### 5.1.4. 描述一个特定节点类型（`DESCRIBE CONCEPT TYPE <TypeName>`）
+#### 5.1.4. 描述一个特定节点类型（`DESCRIBE CONCEPT TYPE <type_name>`）
 
 **功能**：描述一个特定节点类型的详细信息，包括其拥有的属性和常见关系。
 
-**语法**：`DESCRIBE CONCEPT TYPE <TypeName>`
+**语法**：`DESCRIBE CONCEPT TYPE <type_name>`
 
 **示例**：
 
@@ -659,19 +658,19 @@ DESCRIBE CONCEPT TYPE "Drug"
 
 **语法**：`DESCRIBE PROPOSITION TYPES`
 
-#### 5.1.6. 描述一个特定命题链接类型的详细信息 (`DESCRIBE PROPOSITION TYPE <PredicateName>`)
+#### 5.1.6. 描述一个特定命题链接类型的详细信息 (`DESCRIBE PROPOSITION TYPE <predicate_name>`)
 
 **功能**：描述一个特定命题链接谓词的详细信息，包括其主语和宾语的常见类型（定义域和值域）。
 
-**语法**：`DESCRIBE PROPOSITION TYPE <PredicateName>`
+**语法**：`DESCRIBE PROPOSITION TYPE <predicate_name>`
 
 ### 5.2 `SEARCH` 语句
 
 **功能**：`SEARCH` 命令用于将自然语言术语链接到知识图谱中明确的实体。它专注于高效的、文本索引驱动的查找，而非完整的图模式匹配。
 
-**语法**：`SEARCH CONCEPT "<search_term>" <options>`
+**语法**：`SEARCH CONCEPT <search_term> <options>`
     **选项 (`<options>`)**：
-    *   `WITH TYPE "TypeName"`：将搜索范围限制在某个节点类型内。
+    *   `WITH TYPE <type_name>`：将搜索范围限制在某个节点类型内。
     *   `LIMIT N`：限制返回结果数量，默认为 10。
 
 **示例**：
