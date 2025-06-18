@@ -1,59 +1,128 @@
 # 🧬 KIP (Knowledge Interaction Protocol) Specification (Draft)
 
-[English](./README.md) | [中文](./README_CN.md)
+**[English](./README.md) | [中文](./README_CN.md)**
 
-**Implementations**:
-- [Anda KIP](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): [WIP] A Rust implementation of KIP (Knowledge Interaction Protocol) with Anda DB.
+**Version History**:
+| Version     | Date       | Change Description                                                                                                       |
+| ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------------ |
+| v1.0-draft1 | 2025-06-09 | Initial draft                                                                                                            |
+| v1.0-draft2 | 2025-06-15 | Optimized `UNION` clause                                                                                                 |
+| v1.0-draft3 | 2025-06-18 | Refined terminology, simplified syntax, removed `SELECT` subquery, added `META` clause, enhanced proposition link clause |
+
+**KIP Implementation**:
+- [Anda KIP](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust implementation of KIP for building sustainable AI knowledge memory systems.
 
 **About Us**:
 - [ICPanda DAO](https://panda.fans/): ICPanda is a technical panda fully running on the [Internet Computer](https://internetcomputer.org/) blockchain, building chain-native infrastructures, Anda.AI and dMsg.net.
 - [Anda.AI](https://anda.ai/): Create next-generation AI agents with persistent memory, decentralized trust, and swarm intelligence.
-- [GitHub: LDC Labs](https://github.com/ldclabs/KIP)
-- [X: ICPanda DAO](https://x.com/ICPandaDAO)
+- GitHub: [LDC Labs](https://github.com/ldclabs/KIP)
+- Follow Us on X: [ICPanda DAO](https://x.com/ICPandaDAO)
 
 ## 0. Preamble
 
-We are at the dawn of a cognitive revolution driven by Large Language Models (LLMs). With their powerful capabilities in natural language understanding, generation, and reasoning, LLMs show the glimmer of Artificial General Intelligence (AGI). However, current LLMs are like **a brilliant yet forgetful genius**: they possess astonishing instantaneous reasoning abilities but lack stable, cumulative, and traceable long-term memory. They can hold wonderful conversations, but once the dialogue ends, the knowledge dissipates into thin air; they can produce convincing "hallucinations" but cannot verify or trace the source of their knowledge.
+We are at the dawn of a cognitive revolution driven by Large Language Models (LLMs). With their powerful capabilities in natural language understanding, generation, and reasoning, LLMs show the promise of Artificial General Intelligence (AGI). However, a current LLM is like a **brilliant but forgetful genius**: it possesses astounding real-time reasoning abilities but lacks a stable, cumulative, and traceable long-term memory. It can hold fascinating conversations, but once the dialogue ends, the knowledge dissipates; it may produce convincing "hallucinations" but cannot verify or validate its knowledge sources.
 
-This chasm between the "neural core" and persistent, structured knowledge is the primary obstacle preventing AI Agents from evolving from "smart tools" into "true intelligent partners." How can we build an equally powerful, trustworthy "symbolic core" for this potent "neural core," one that can evolve alongside it? This is a pivotal question of our era that we must answer.
+This chasm between the "neural core" and persistent, structured knowledge is the central obstacle preventing AI Agents from evolving from "clever tools" to "true intelligent partners." How can we build an equally powerful, trustworthy "symbolic core" for this potent "neural core," one that can co-evolve with it? This is the question of our time that we must answer.
 
-**KIP (Knowledge Interaction Protocol) was born to answer this very question.**
+**KIP (Knowledge Interaction Protocol) was born to answer this question.**
 
-It is not merely a set of technical specifications but a design philosophy, a new paradigm for AI architecture. KIP's core mission is to build a solid and efficient bridge connecting the transient, fluid "working memory" of LLMs with the persistent, stable "long-term memory" of a knowledge graph. Through KIP, we aim to elevate the interaction between an AI and its knowledge base **from a one-way "tool-call" to a two-way "cognitive symbiosis."**
+It is not merely a technical specification but a design philosophy, a new paradigm for AI architecture. KIP's core mission is to build a solid and efficient bridge connecting the LLM's transient, fluid "working memory" with the knowledge graph's persistent, stable "long-term memory."
+KIP elevates the interaction paradigm between AI and knowledge bases **from a one-way "tool call" to a two-way "cognitive symbiosis"**:
+- The **Neural Core** (LLM) provides real-time reasoning capabilities.
+- The **Symbolic Core** (Knowledge Graph) provides structured memory.
+- **KIP** enables the synergistic evolution of both.
 
 In this specification, we are committed to achieving three core objectives:
 
-1.  **Empower AI with Persistent Memory**: Through KIP, an AI Agent can atomically and reliably solidify new knowledge gained from conversations, observations, and reasoning into its knowledge graph in the form of structured "Knowledge Capsules." Memory is no longer volatile but a precipitable, compoundable asset.
+1.  **Empowering AI with Persistent Memory**: Through KIP, an AI Agent can atomically and reliably solidify new knowledge acquired from conversations, observations, and reasoning into its knowledge graph in the form of structured "Knowledge Capsules." Memory is no longer volatile but a depositable, compoundable asset.
 
-2.  **Enable AI Self-Evolution**: Learning and forgetting are hallmarks of intelligence. KIP provides a complete Knowledge Manipulation Language (KML), allowing an Agent to autonomously update, revise, or even delete obsolete knowledge based on new evidence. This lays the foundation for building AI systems that can continuously learn, self-improve, and adapt to changing environments.
+2.  **Enabling AI Self-Evolution**: Learning and forgetting are hallmarks of intelligence. KIP provides a complete Knowledge Manipulation Language (KML) that enables an Agent to autonomously update, correct, or even delete outdated knowledge based on new evidence. This lays the foundation for building AI that can continuously learn, self-improve, and adapt to changing environments.
 
-3.  **Establish a Foundation of Trust for AI**: Trust stems from transparency. Every interaction in KIP is an explicit, auditable "chain of thought." When an AI provides an answer, it can not only state "what" it knows but also clearly demonstrate "how I know it" through the KIP code it generates. This provides indispensable underlying support for building responsible and explainable AI systems.
+3.  **Building a Foundation of Trust for AI**: Trust stems from transparency. Every interaction in KIP is an explicit, auditable "chain of thought." When an AI provides an answer, it can not only state "what" but also clearly demonstrate "how I know it" through the KIP code it generates. This provides indispensable underlying support for building responsible and explainable AI systems.
 
-This specification aims to provide an open, universal, and powerful standard for all developers, architects, and researchers dedicated to building the next generation of intelligent agents. We believe that the future of intelligence lies not in an isolated, omniscient "black box," but in an open system that understands how to learn and how to collaborate efficiently with trusted knowledge.
+This specification is dedicated to providing all developers, architects, and researchers with an open, universal, and powerful standard for building the next generation of intelligent agents. We believe that the future of intelligence does not lie in an isolated, omniscient "black box," but in an open system that knows how to learn and how to collaborate efficiently with trusted knowledge.
 
 We welcome you to join us in exploring and refining KIP, to usher in a new era of AI self-evolution and sustainable learning.
 
 ## 1. Introduction & Design Philosophy
 
-**KIP (Knowledge Interaction Protocol)** is a knowledge memory interaction protocol designed for Large Language Models (LLMs), aimed at building a sustainable learning and self-evolving knowledge memory system for AI Agents.
-
-**KIP** defines a **complete interaction model** for efficient, reliable, and bidirectional knowledge exchange between the neural core (Large Language Model, LLM) and the symbolic core (Cognitive Nexus).
+**KIP (Knowledge Interaction Protocol)** is a knowledge interaction protocol designed specifically for Large Language Models (LLMs). Through a standardized instruction set (KQL/KML) and data structures, it defines a complete model for efficient, reliable, and bidirectional knowledge exchange between a neural core (LLM) and a symbolic core (knowledge graph). Its goal is to build a long-term memory system for AI Agents capable of sustainable learning and self-evolution.
 
 **Design Principles:**
 
-*   **LLM-Friendly**: The syntax is clear and straightforward, making it easy for LLMs to generate code.
+*   **LLM-Friendly**: The syntax is clear and well-structured, making it easy for LLMs to generate code.
 *   **Declarative**: The initiator of an interaction only needs to describe the "intent," not the "implementation."
 *   **Graph-Native**: Deeply optimized for the structure and query patterns of knowledge graphs.
-*   **Explainable**: The KIP code itself serves as a transparent record of the LLM's reasoning process—an auditable and verifiable "chain of thought."
-*   **Comprehensive**: Provides full lifecycle management capabilities, from data querying to knowledge evolution, forming the basis for an Agent's true learning.
+*   **Explainable**: The KIP code itself is a transparent record of the LLM's reasoning process, serving as an auditable and verifiable "chain of thought."
+*   **Comprehensive**: Provides full lifecycle management capabilities, from data querying to knowledge evolution, which is fundamental for an Agent to achieve true learning.
 
-## 2. Core Terminology
+## 2. Core Definitions
 
-*   **Cognitive Nexus**: A knowledge graph composed of **Concept Nodes** and **Proposition Links**.
-*   **Concept Node**: Represents a reified concept. It has a unique `id`, a `type`, multiple **Attributes**, and metadata (e.g., source, confidence). All facts, relationships, and attributes about this concept are attached to this node.
-*   **Proposition Link**: Represents a reified fact in the form of `(Subject, Predicate, Object)`, connecting Concept Nodes or other Proposition Links. A proposition itself can also have metadata (e.g., source, confidence).
-*   **Knowledge Capsule**: An atomic unit of knowledge update, a collection of Concept Nodes and Proposition Links, designed to solve the problem of packaging, distributing, and reusing high-quality knowledge.
-*   **Cognitive Primer**: A highly structured, information-dense JSON object specifically designed for LLMs. It contains a universal abstract and a domain map of the Cognitive Nexus, helping the LLM to quickly understand and utilize it.
+### 2.1. Cognitive Nexus
+
+A knowledge graph composed of **Concept Nodes** and **Proposition Links**, serving as the long-term memory system for an AI Agent.
+
+### 2.2. Concept Node
+
+*   **Definition**: An **entity** or **abstract concept** within the knowledge graph, representing the basic unit of knowledge (like a "node" in a graph).
+*   **Example**: A `Drug` node named "Aspirin," a `Symptom` node named "Headache."
+*   **Components**:
+    *   `id`: String, a unique identifier used to locate the node within the graph.
+    *   `type`: String, the type of the node, such as `Drug`, `Symptom`, etc.
+    *   `name`: String, the name of the node, such as "Aspirin," "Headache," etc. The combination of `type` + `name` also uniquely identifies a node in the graph.
+    *   `attributes`: Object, the node's properties, describing its intrinsic characteristics, such as `molecular_formula`, `risk_level`, etc.
+    *   `metadata`: Object, the node's metadata, describing its source, credibility, etc., such as `source`, `confidence`, etc.
+
+### 2.3. Proposition Link
+
+*   **Definition**: A **reified proposition** that asserts a **fact** in the form of a `(subject, predicate, object)` triple. It acts as a **link** in the graph, connecting two concept nodes or enabling higher-order connections (i.e., higher-order proposition, or Reification), where the subject or object is itself another proposition link.
+*   **Example**: A proposition link stating the fact "(Aspirin) - [treats] -> (Headache)."
+*   **Components**:
+    *   `subject`: Object ID, the originator of the relation, which can be a concept node or another proposition link.
+    *   `predicate`: String, defines the type of **relation** between the subject and object.
+    *   `object`: Object ID, the receiver of the relation, which can be a concept node or another proposition link.
+    *   `attributes`: Object, the proposition's properties, describing its intrinsic characteristics.
+    *   `metadata`: Object, the proposition's metadata, describing its source, credibility, etc., such as `source`, `confidence`, etc.
+
+### 2.4. Knowledge Capsule
+
+An atomic unit for knowledge updates, containing a collection of **Concept Nodes** and **Proposition Links**. It is used to address the encapsulation, distribution, and reuse of high-quality knowledge.
+
+### 2.5. Cognitive Primer
+
+A highly structured, information-dense JSON object specifically designed for LLMs. It contains a global summary and a domain map of the Cognitive Nexus, helping the LLM to quickly understand and use it.
+
+### 2.6. Attributes
+
+*   **Definition**: Key-value pairs that describe the intrinsic characteristics of a **concept** or **fact**. They are part of the knowledge memory.
+*   **Example**:
+    *   **Concept Attribute**: The `molecular_formula` of the drug "Aspirin" is "C9H8O4".
+    *   **Proposition Attribute**: The `dosage` for the fact "Aspirin treats Headache" is "500mg".
+
+### 2.7. Metadata
+
+*   **Definition**: Key-value pairs that describe the **source, credibility, and context** of knowledge. It does not alter the content of the knowledge itself but describes "knowledge about the knowledge." See Appendix 1 for metadata field design.
+*   **Example**: The `source` of a concept or proposition is "The Lancet, 2023, some paper," and its `confidence` is `0.98`.
+
+### 2.8. Value Types & Literals
+
+KIP adopts the **JSON** data model. This means all values used in KIP clauses follow the JSON standard for types and literal representations. This ensures unambiguous data exchange and makes it extremely easy for LLMs to generate and parse.
+
+#### 2.8.1. Basic Types
+
+*   **String**: A sequence of characters enclosed in double quotes `"`.
+*   **Number**: An integer or a floating-point number.
+*   **Boolean**: The logical value `true` or `false`.
+*   **Null**: The special value `null`, representing "nothing" or "undefined."
+
+#### 2.8.2. Complex Types
+
+*   **Array**: An ordered list of values enclosed in square brackets `[]`. Array elements can be any KIP-supported value type.
+*   **Object**: An unordered collection of key-value pairs enclosed in curly braces `{}`. Keys must be strings, and values can be any KIP-supported value type.
+
+#### 2.8.3. Usage Restrictions
+
+Although `Array` and `Object` types can be stored as attribute or metadata values, KQL's `FILTER` clause **primarily operates on basic types (String, Number, Boolean, Null)**. The core KIP query engine does not guarantee support for direct indexing and filtering of array elements or object fields (e.g., syntax like `FILTER(?array[0] == "value")` is not supported).
 
 ## 3. KIP-KQL Instruction Set: Knowledge Query Language
 
@@ -77,17 +146,20 @@ OFFSET M
 
 **Syntax**: `FIND( ... )`
 
-*   **Multiple Variable Return**: You can specify one or more variables, e.g., `FIND(?drug, ?symptom)`.
-*   **Aggregated Return**: You can use aggregation functions to perform calculations on variables. You must use the `AS` keyword to assign a new variable name to the aggregated result, e.g., `FIND(?var1, agg_func(?var2) AS ?result_var)`.
+*   **Multi-variable Return**: You can specify one or more variables, e.g., `FIND(?drug, ?symptom)`.
+*   **Aggregate Return**: You can use aggregate functions to perform calculations on variables. You must use the `AS` keyword to assign a new variable name to the aggregate result, e.g., `FIND(?var1, ?agg_func(?var2) AS ?result_var)`.
 
     **Aggregation Functions**:
     *   `COUNT(?var)`: Counts the number of times `?var` is bound. `COUNT(DISTINCT ?var)` counts the number of distinct bindings.
     *   `COLLECT(?var)`: Collects all values of `?var` within a group into a list.
     *   `SUM(?var)`, `AVG(?var)`, `MIN(?var)`, `MAX(?var)`: Other common mathematical aggregation functions.
 
-**Examples**:
+**Example**:
 
 ```prolog
+// Return concept node objects
+FIND(?drug)
+
 // Return multiple variables
 FIND(?drug_name, ?symptom_name)
 
@@ -95,97 +167,103 @@ FIND(?drug_name, ?symptom_name)
 FIND(?drug_class, COUNT(?drug) AS ?drug_count)
 ```
 
-### 3.3 `WHERE` Clause
+### 3.3. `WHERE` Clause
 
-**Function**: Contains a series of graph pattern matching and filter clauses. All clauses are implicitly connected by a logical **AND**.
+**Function**: Contains a series of graph pattern matching and filtering clauses. All clauses are implicitly connected by a logical **AND**.
 
 **Syntax**: `WHERE { ... }`
 
-*   **Type Assertion / Entity Grounding**: `?variable(type: "...", name: "...", id: "...")`
-*   **Proposition Clause (`PROP`)**: `PROP(Subject, Predicate, Object) { meta_key: ?meta_var }`
-    *   **Supports property paths**: `predicate{m,n}`, `predicate1 | predicate2`
-*   **Attribute Clause (`ATTR`)**: `ATTR(?node, "attribute_name", ?value_variable)`
+*   **Concept Node Clause**: `?node_var {type: "<type>", name: "<name>", id: "<id>"}`
+*   **Proposition Link Clause**: `?link_var (?subject, "<predicate>", ?object)`
+*   **Attribute Clause (`ATTR`)**: `ATTR(?node, "<attribute_name>", ?value_var)`
+*   **Metadata Clause (`META`)**: `META(?node, "<metadata_key>", ?value_var)`
 *   **Filter Clause (`FILTER`)**: `FILTER(boolean_expression)`
 *   **Negation Clause (`NOT`)**: `NOT { ... }`
 *   **Optional Clause (`OPTIONAL`)**: `OPTIONAL { ... }`
 *   **Union Clause (`UNION`)**: `UNION { ... }`
-*   **Subquery (`SELECT`)**: Used for internal calculations, the results of which can be used in an outer `FILTER`.
 
-#### 3.3.1. Type Assertion / Entity Grounding Clause
+#### 3.3.1. Concept Node Clause
 
-**Function**: Constrains a variable's type or "grounds" a variable to a specific node in the graph.
+**Function**: Matches concept nodes in the knowledge graph by `type`, `name`, or `id`, and can bind them to a variable.
 
-**Syntax**: `?variable(type: "...", name: "...", id: "...")`
+**Syntax**: `?node_var {type: "<type>", name: "<name>", id: "<id>"}`
 
-*   Parameters are optional, but at least one must be provided. This clause is **only for constraining and locating**.
+*   `?node_var` is optional and binds the matched concept node to a variable for later use.
+*   The `type`, `name`, and `id` parameters are optional, but at least one must be provided. The `id` or the `type` + `name` combination must uniquely identify a node.
 
-**Examples**:
+**Example**:
 
 ```prolog
-?drug(type: "Drug")                // Constrains ?drug to be of type Drug
-?aspirin(name: "Aspirin")          // Grounds ?aspirin to the node named "Aspirin"
-?headache(id: "snomedct_25064002") // Grounds ?headache to the node with the specified ID
+// Bind nodes of type "Drug" to the ?drug variable
+?drug {type: "Drug"}
+
+// Bind the "Aspirin" node to the ?aspirin variable
+?aspirin {type: "Drug", name: "Aspirin"}
+
+// Bind the node with a specific ID to the ?headache variable
+?headache {id: "snomedct_25064002"}
 ```
 
-#### 3.3.2. Proposition Clause (`PROP`)
+#### 3.3.2. Proposition Link Clause
 
-**Function**: Traverses the knowledge graph using a `(Subject, Predicate, Object)` pattern.
+**Function**: Matches proposition links in the knowledge graph using a `(subject, predicate, object)` pattern and can bind them to a variable.
 
-**Syntax**: `PROP(Subject, Predicate, Object) { <metadata_filter> }`
+**Syntax**: `?link_var (?subject, "<predicate>", ?object)`
 
-The subject or object of a `PROP` can be a proposition:
-*   `PROP(?subject, predicate, (?drug, "treats", ?symptom))`: Uses a proposition as the object, meaning its internal structure must match the `(?drug, "treats", ?symptom)` pattern.
+*   `?link_var` is optional and binds the matched proposition link to a variable for later use.
+*   Propositions can also serve as the subject or object. For instance, `?link_var (?subject, "predicate", (?drug, "treats", ?symptom))` uses a proposition as the object, meaning the object must match the pattern `(?drug, "treats", ?symptom)`.
+*   The subject and object can be not only bound variables but also inline concept node clauses, e.g., `(?drug, "treats", {name: "Headache"})`, which makes the query more compact.
+*   The predicate section supports path operators:
+    *   `predicate{m,n}`: Matches a path of length m to n.
+    *   `predicate1 | predicate2`: Matches `predicate1` or `predicate2`.
 
-The predicate part of `PROP` supports path operators:
-*   `predicate{m,n}`: Matches a path of length m to n.
-*   `predicate1 | predicate2`: Matches `predicate1` or `predicate2`.
-
-**Examples**:
+**Example**:
 
 ```prolog
-// Find all drugs that treat headaches
-PROP(?drug, "treats", ?headache)
+// Find all drugs that can treat headache
+(?drug, "treats", ?headache)
+
+// Bind all "treats" propositions to the variable ?treatment_link
+?treatment_link (?drug, "treats", ?headache)
 ```
 
 ```prolog
-// Find parent concepts of a concept up to 5 levels away (transitive closure)
-PROP(?concept, "is_subclass_of{0,5}", ?parent_concept)
-```
-
-```prolog
-// Find all "treats" relationships with a confidence greater than 0.9
-FIND(?drug_name, ?symptom_name)
-WHERE {
-  ?drug(type: "Drug")
-  ?symptom(type: "Symptom")
-  // Filter metadata directly on the proposition
-  PROP(?drug, "treats", ?symptom) { confidence: ?conf }
-  FILTER(?conf > 0.9)
-
-  ATTR(?drug, "name", ?drug_name)
-  ATTR(?symptom, "name", ?symptom_name)
-}
+// Find parent concepts of a concept within 5 levels
+(?concept, "is_subclass_of{0,5}", ?parent_concept)
 ```
 
 #### 3.3.3. Attribute Clause (`ATTR`)
 
-**Function**: Retrieves the attribute value of a node and binds it to a new variable.
+**Function**: Retrieves the value of an intrinsic attribute from a **concept node** or a **proposition link** and binds it to a variable.
 
-**Syntax**: `ATTR(?node_variable, "attribute_name", ?value_variable)`
+**Syntax**: `ATTR(?node_variable, "<attribute_name>", ?value_variable)`
 
-**Examples**:
+**Example**:
 
 ```prolog
-// Get the "name" attribute of the ?drug node and store it in ?drug_name
+// Get the "name" attribute value of the ?drug node and bind it to ?drug_name
 ATTR(?drug, "name", ?drug_name)
 
-// Get the "risk_level" attribute of the ?drug node and store it in ?risk
-ATTR(?drug, "risk_level", ?risk)
+// Get the "dosage" attribute value of the ?treatment_link proposition and bind it to ?dosage
+ATTR(?treatment_link, "dosage", ?dosage)
 ```
 
-#### 3.3.4. Filter Clause (`FILTER`)
+#### 3.3.4. Metadata Clause (`META`)
 
-**Function**: Applies more complex filtering conditions to already bound variables (typically values obtained via `ATTR`).
+**Function**: Retrieves metadata from a **concept node** or a **proposition link** and binds it to a variable.
+
+**Syntax**: `META(?target_variable, "<metadata_key>", ?value_variable)`
+
+**Example**:
+
+```prolog
+// Get the confidence value from the metadata of the ?treatment_link proposition and bind it to ?conf
+META(?treatment_link, "confidence", ?conf)
+```
+
+#### 3.3.5. Filter Clause (`FILTER`)
+
+**Function**: Applies more complex filtering conditions to bound variables (usually values obtained via `ATTR` or `META`).
 
 **Syntax**: `FILTER(boolean_expression)`
 
@@ -195,18 +273,36 @@ ATTR(?drug, "risk_level", ?risk)
 *   **Logical Operators**: `&&` (AND), `||` (OR), `!` (NOT)
 *   **String Functions**: `CONTAINS(?str, "sub")`, `STARTS_WITH(?str, "prefix")`, `ENDS_WITH(?str, "suffix")`, `REGEX(?str, "pattern")`
 
-**Examples**:
+**Example**:
 ```prolog
 // Filter for drugs with a risk level less than 3
 ATTR(?drug, "risk_level", ?risk)
 FILTER(?risk < 3)
 
-// Filter for drugs whose name contains "acid"
+// Filter for drugs whose names contain "acid"
 ATTR(?drug, "name", ?drug_name)
 FILTER(CONTAINS(?drug_name, "acid"))
 ```
 
-#### 3.3.5. Negation Clause (`NOT`)
+```prolog
+// Find all "treats" relationships with a confidence higher than 0.9
+FIND(?drug_name, ?symptom_name)
+WHERE {
+  ?drug {type: "Drug"}
+  ?symptom {type: "Symptom"}
+
+  // Bind the "treats" proposition to the variable ?treatment_link
+  ?treatment_link (?drug, "treats", ?symptom)
+  // Use the META clause to get the metadata of ?treatment_link
+  META(?treatment_link, "confidence", ?conf)
+  FILTER(?conf > 0.9)
+
+  ATTR(?drug, "name", ?drug_name)
+  ATTR(?symptom, "name", ?symptom_name)
+}
+```
+
+#### 3.3.6. Negation Clause (`NOT`)
 
 **Function**: Excludes solutions that satisfy a specific pattern.
 
@@ -217,14 +313,22 @@ FILTER(CONTAINS(?drug_name, "acid"))
 ```prolog
 // Exclude all drugs belonging to the NSAID class
 NOT {
-  ?nsaid_class(name: "NSAID")
-  PROP(?drug, "is_class_of", ?nsaid_class)
+  ?nsaid_class {name: "NSAID"}
+  (?drug, "is_class_of", ?nsaid_class)
 }
 ```
 
-#### 3.3.6. Optional Clause (`OPTIONAL`)
+Simpler version:
+```prolog
+// Exclude all drugs belonging to the NSAID class
+NOT {
+  (?drug, "is_class_of", {name: "NSAID"})
+}
+```
 
-**Function**: Attempts to match an optional graph pattern. If the pattern matches, its internal variables are bound; if it fails, the query continues, but the internal variables remain unbound. This is similar to a `LEFT JOIN` in SQL.
+#### 3.3.7. Optional Clause (`OPTIONAL`)
+
+**Function**: Attempts to match an optional pattern. If the pattern matches, its internal variables are bound; if it fails, the query continues, but the internal variables remain unbound. This is similar to a `LEFT JOIN` in SQL.
 
 **Syntax**: `OPTIONAL { ... }`
 
@@ -232,16 +336,17 @@ NOT {
 
 ```prolog
 // Find all drugs and, if they exist, their side effects
-?drug(type: "Drug")
+?drug {type: "Drug"}
+
 OPTIONAL {
-  PROP(?drug, "has_side_effect", ?side_effect)
+  (?drug, "has_side_effect", ?side_effect)
   ATTR(?side_effect, "name", ?side_effect_name)
 }
 ```
 
-#### 3.3.7. Union Clause (`UNION`)
+#### 3.3.8. Union Clause (`UNION`)
 
-**Function**: Combines the results of logical blocks, implementing a logical **OR**. Note that the clauses inside the `WHERE` block are implicitly connected by **AND**.
+**Function**: Merges the results of clauses, implementing a logical **OR**. Note that all clauses within a `WHERE` block are implicitly connected by logical **AND**.
 
 **Syntax**: `UNION { ... }`
 
@@ -250,37 +355,14 @@ OPTIONAL {
 ```prolog
 // Find drugs that treat "Headache" or "Fever"
 
-?headache(name: "Headache")
-PROP(?drug, "treats", ?headache)
+(?drug, "treats", {name: "Headache"})
 
 UNION {
-  ?fever(name: "Fever")
-  PROP(?drug, "treats", ?fever)
+  (?drug, "treats", {name: "Fever"})
 }
 ```
 
-#### 3.3.8. Subquery (`SELECT`)
-
-**Function**: Nests an independent query inside a `WHERE` clause. Its result can be used for filtering in the outer query.
-
-**Syntax**: `SELECT(...) WHERE { ... }` can be used in clauses like `FILTER`. A subquery can capture variables already bound in its outer scope. New variables defined with `AS` inside a subquery are scoped only to the parent clause (e.g., the `FILTER`) containing it.
-
-**Example**:
-
-```prolog
-// Find "broad-spectrum" drugs that treat more than 3 symptoms
-FIND(?drug_name) WHERE {
-  ?drug(type: "Drug")
-  ATTR(?drug, "name", ?drug_name)
-
-  FILTER( ?symptom_count > 3 ) {
-    SELECT(COUNT(?symptom) AS ?symptom_count)
-    WHERE { PROP(?drug, "treats", ?symptom) }
-  }
-}
-```
-
-### 3.4 Solution Modifiers
+### 3.4. Solution Modifiers
 
 These clauses post-process the result set after the `WHERE` logic has been executed.
 
@@ -295,19 +377,18 @@ These clauses post-process the result set after the `WHERE` logic has been execu
 
 **Example 1**: Advanced query with filtering and sorting
 
-**Intent**: "Find all non-NSAID drugs that can treat 'Headache', with a risk level below 4. Sort them by risk level in ascending order and return the drug name and risk level."
+**Intent**: "Find all non-NSAID drugs that treat 'Headache', with a risk level below 4. Sort them by risk level in ascending order, and return the drug names and risk levels."
 
 ```prolog
 FIND(?drug_name, ?risk)
 WHERE {
-  ?drug(type: "Drug")
-  ?headache(name: "Headache")
-  ?nsaid_class(name: "NSAID")
+  ?drug {type: "Drug"}
+  ?headache {name: "Headache"}
 
-  PROP(?drug, "treats", ?headache)
+  (?drug, "treats", ?headache)
 
   NOT {
-    PROP(?drug, "is_class_of", ?nsaid_class)
+    (?drug, "is_class_of", {name: "NSAID"})
   }
 
   ATTR(?drug, "name", ?drug_name)
@@ -320,35 +401,34 @@ LIMIT 20
 
 **Example 2**: Analytical query using aggregation
 
-**Intent**: "List the names of all drugs for each drug class."
+**Intent**: "List the names of all drugs under each drug class."
 
 ```prolog
 FIND(?class_name, COLLECT(?drug_name) AS ?drug_list)
 WHERE {
-  ?class(type: "DrugClass")
+  ?class {type: "DrugClass"}
   ATTR(?class, "name", ?class_name)
 
-  ?drug(type: "Drug")
-  PROP(?drug, "is_class_of", ?class)
+  ?drug {type: "Drug"}
+  (?drug, "is_class_of", ?class)
   ATTR(?drug, "name", ?drug_name)
 }
 ORDER BY ?class_name
 ```
 
-**Example 3**: Using `OPTIONAL` to handle missing information
+**Example 3**: Handling missing information with `OPTIONAL`
 
 **Intent**: "List all drugs in the NSAID class and, if present, show their known side effects."
 
 ```prolog
 FIND(?drug_name, ?side_effect_name)
 WHERE {
-  ?nsaid_class(name: "NSAID")
-  PROP(?drug, "is_class_of", ?nsaid_class)
+  (?drug, "is_class_of", {name: "NSAID"})
 
   ATTR(?drug, "name", ?drug_name)
 
   OPTIONAL {
-    PROP(?drug, "has_side_effect", ?side_effect)
+    (?drug, "has_side_effect", ?side_effect)
     ATTR(?side_effect, "name", ?side_effect_name)
   }
 }
@@ -357,17 +437,16 @@ WHERE {
 
 **Example 4**: Using a proposition as an object
 
-**Intent**: "Find an assertion stated by 'Zhang San' about 'a paper citing a piece of evidence'."
+**Intent**: "Find an assertion stated by 'Zhang San' about a paper citing a piece of evidence."
 
 ```prolog
 FIND(?paper_doi, ?drug_name)
 WHERE {
-  // ?stmt1 is the outermost assertion
-  PROP(
-    ?zhangsan(name: "Zhang San"),
+  ?paper { type: "Paper" }
+  (
+    {type: "User", name: "Zhang San"},
     "stated",
-    // The object of ?stmt1 is ?stmt2
-    (?paper(type: "Paper"), "cites_as_evidence", (?drug, "treats", ?symptom))
+    (?paper, "cites_as_evidence", (?drug, "treats", ?symptom))
   )
 
   // Subsequent operations
@@ -379,68 +458,72 @@ WHERE {
 
 ## 4. KIP-KML Instruction Set: Knowledge Manipulation Language
 
-KML is the part of KIP responsible for knowledge evolution, serving as the core tool for an Agent to achieve learning.
+KML is the part of KIP responsible for knowledge evolution and is the core tool for an Agent to achieve learning.
 
-### 4.1 `UPSERT` Statement
+### 4.1. `UPSERT` Statement
 
-**Function**: **Atomically** creates or updates knowledge. It is the primary vehicle for carrying a "**Knowledge Capsule**."
-An `UPSERT` operation must be idempotent (repeated executions produce no side effects).
+**Function**: **Atomically** creates or updates knowledge. It is the primary way to carry a "**Knowledge Capsule**."
+The `UPSERT` operation must be **Idempotent**, meaning that repeatedly executing the same command yields the same result as executing it once, without creating duplicate data or unexpected side effects.
 
 **Syntax**:
 
 ```prolog
 UPSERT {
   CONCEPT @local_handle {
-    ON { <unique_key_attributes> }
+    {type: "<type>", name: "<name>", id: "<id>"}
     SET ATTRIBUTES { <key>: <value>, ... }
     SET PROPOSITIONS {
-      PROP("<predicate>", ON { <keys_for_existing_concept_or_proposition> })
-      PROP("<predicate>", @other_handle) WITH METADATA { <metadata> }
+      ("<predicate>", { <existing_concept> })
+      ("<predicate>", ( <existing_proposition> ))
+      ("<predicate>", @other_handle) WITH METADATA { <key>: <value>, ... }
       ...
     }
   }
-  WITH METADATA { <metadata> }
+  WITH METADATA { <key>: <value>, ... }
 
   PROPOSITION @local_prop {
-    (ON { <keys_for_existing_concept> }, "<predicate>", ON { <keys_for_existing_concept_or_proposition> })
+    (?subject, "<predicate>", ?object)
+    SET ATTRIBUTES { <key>: <value>, ... }
   }
-  WITH METADATA { <metadata> }
+  WITH METADATA { <key>: <value>, ... }
 
   CONCEPT @local_handle_2 {
-    ON { <unique_key_attributes> }
+    {type: "<type>", name: "<name>", id: "<id>"}
     SET PROPOSITIONS {
-      PROP("<predicate>", @local_prop)
+      ("<predicate>", @local_prop)
     }
   }
   ...
 }
-WITH METADATA { <global_metadata> }
+WITH METADATA { <key>: <value>, ... }
 ```
 
 **Key Components**:
 
-*   **`UPSERT` Block**: The container for the entire operation, guaranteeing the atomicity of all internal operations.
-*   **`CONCEPT` Block**: Defines a concept node.
-    *   `@local_handle`: A local handle (or anchor) starting with `@`, used to reference this new concept within the transaction. It is only valid within this `UPSERT` block.
-    *   `ON { ... }`: **The key to UPSERT**, defining the unique key(s) to match an existing node. If a match is found, it updates; otherwise, it creates. The key can be an `id` or a combination of attributes, e.g., `{ type: "Drug", name: "Aspirin" }`.
-    *   `SET ATTRIBUTES { ... }`: A simple list of key-value pairs to set or update the node's attributes.
-    *   `SET PROPOSITIONS { ... }`: Defines or updates "proposition links" originating from this concept node. The behavior of `SET PROPOSITIONS` is incremental. For each defined `PROP`, if a proposition with the exact same subject-predicate-object already exists, its metadata is updated (if provided); otherwise, the new proposition is created.
-        *   `PROP("predicate", @local_handle)`: Links to **another concept defined within this capsule**.
-        *   `PROP("predicate", ON { ... })`: Links to an **existing concept in the database**, located via its unique key(s).
-*   **`PROPOSITION` Block**: Defines a standalone proposition link, typically used for creating complex relationships within a capsule.
-    *   `@local_prop`: A local handle to reference this proposition link.
-    *   `(ON { ... }, "predicate", ON { ... })`: Defines a proposition link where the subject and object can be existing concepts or other proposition links.
-*   **`WITH METADATA` Block**: Appends metadata to a `CONCEPT`, `PROPOSITION`, or globally to the entire `UPSERT`.
+*   **`UPSERT` block**: The container for the entire operation, ensuring the atomicity of all operations within it.
+*   **`CONCEPT` block**: Defines a concept node.
+    *   `@local_handle`: A local handle (or anchor) starting with `@`, used to reference this new concept within the transaction. It is only valid within the current `UPSERT` block.
+    *   `{type: "<type>", name: "<name>", id: "<id>"}`: The concept clause. The combination of `id` or `type` + `name` defines a unique concept node. If an existing node is matched, it will be updated. If creation is desired only if it doesn't exist, a clause with `type` + `name` should be used, like `{type: "Drug", name: "Aspirin"}`.
+    *   `SET ATTRIBUTES { ... }`: Sets or updates the node's attributes.
+    *   `SET PROPOSITIONS { ... }`: Defines or updates proposition links originating from this concept node. The behavior of `SET PROPOSITIONS` is incremental. For each defined PROPOSITION, if the proposition already exists, its metadata is updated (if provided); otherwise, a new proposition is created. Note that this clause is for quickly establishing relationships and attaching metadata. If a proposition itself needs to carry complex intrinsic attributes, it is recommended to define it in a separate `PROPOSITION` block and reference it via a local handle `@handle`.
+        *   `("<predicate>", @local_handle)`: Links to another concept or proposition defined within this capsule.
+        *   `("<predicate>", {type: "<type>", name: "<name>"})`, `("<predicate>", {id: "<id>"})`: Links to an existing concept in the graph. If it doesn't exist, it is ignored.
+        *   `("<predicate>", (?subject, "<predicate>", ?object))`: Links to an existing proposition in the graph. If it doesn't exist, it is ignored.
+*   **`PROPOSITION` block**: Defines a standalone proposition link, typically used for creating complex relationships within a capsule.
+    *   `@local_prop`: A local handle for referencing this proposition link.
+    *   `(<subject>, "<predicate>", <object>)`: Defines a proposition link. The subject and object can be existing concepts or other proposition links.
+    *   `SET ATTRIBUTES { ... }`: A simple list of key-value pairs to set or update the proposition link's attributes.
+*   **`WITH METADATA` block**: Appends metadata to a `CONCEPT`, `PROPOSITION`, or `UPSERT` block.
 
 **Example**:
 
-Suppose we have a knowledge capsule to define a new, hypothetical nootropic drug called "Cognizine." This capsule contains:
+Suppose we have a knowledge capsule to define a new, hypothetical nootropic drug called "Cognizine." This capsule includes:
 *   The concept and attributes of the drug itself.
-*   The fact that it treats "Brain Fog."
-*   That it belongs to the "Nootropic" class (an existing class).
-*   A newly discovered side effect: "Neural Bloom" (also a new concept).
+*   It treats "Brain Fog."
+*   It belongs to the "Nootropic" class (which is an existing class).
+*   It has a newly discovered side effect: "Neural Bloom" (also a new concept).
 
-**Content of Knowledge Capsule `cognizine_capsule.kml`:**
+**Content of `cognizine_capsule.kip`:**
 
 ```prolog
 // Knowledge Capsule: cognizin.v1.0
@@ -449,21 +532,22 @@ Suppose we have a knowledge capsule to define a new, hypothetical nootropic drug
 UPSERT {
   // Define the main drug concept: Cognizine
   CONCEPT @cognizine {
-    ON { type: "Drug", name: "Cognizine" }
+    { type: "Drug", name: "Cognizine" }
     SET ATTRIBUTES {
       molecular_formula: "C12H15N5O3",
+      dosage_form: { "type": "tablet", "strength": "500mg" },
       risk_level: 2,
       description: "A novel nootropic drug designed to enhance cognitive functions."
     }
     SET PROPOSITIONS {
       // Link to an existing concept (Nootropic)
-      PROP("is_class_of", ON { type: "DrugClass", name: "Nootropic" })
+      ("is_class_of", { type: "DrugClass", name: "Nootropic" })
 
       // Link to an existing concept (Brain Fog)
-      PROP("treats", ON { type: "Symptom", name: "Brain Fog" })
+      ("treats", { type: "Symptom", name: "Brain Fog" })
 
       // Link to another new concept defined within this capsule (@neural_bloom)
-      PROP("has_side_effect", @neural_bloom) WITH METADATA {
+      ("has_side_effect", @neural_bloom) WITH METADATA {
         // This specific proposition has its own metadata
         confidence: 0.75,
         source: "Preliminary Clinical Trial NCT012345"
@@ -473,7 +557,7 @@ UPSERT {
 
   // Define the new side effect concept: Neural Bloom
   CONCEPT @neural_bloom {
-    ON { type: "Symptom", name: "Neural Bloom" }
+    { type: "Symptom", name: "Neural Bloom" }
     SET ATTRIBUTES {
       description: "A rare side effect characterized by a temporary burst of creative thoughts."
     }
@@ -489,80 +573,50 @@ WITH METADATA {
 }
 ```
 
-### 4.2 `DELETE` Statement
+### 4.2. `DELETE` Statement
 
 **Function**: A unified interface for selectively removing knowledge (attributes, propositions, or entire concepts) from the Cognitive Nexus.
 
-**Syntax**: `DELETE [TARGET] [IDENTIFIER]`
-
-*   **`[TARGET]`**: Specifies the type of object to delete, such as `ATTRIBUTES`, `PROPOSITION`, or `CONCEPT`.
-*   **`[IDENTIFIER]`**: Describes how to locate the target for deletion.
-
 #### 4.2.1. Delete Attributes (`DELETE ATTRIBUTES`)
 
-**Function**: Deletes a list of attributes from a specified concept, while leaving the concept and its other attributes and relationships intact.
+**Function**: Bulk deletes multiple attributes from concept nodes or proposition links that match the `WHERE` clause.
 
-**Syntax**:
+**Syntax**: `DELETE ATTRIBUTES { "attribute_name", ... } WHERE { ... }`
 
-```prolog
-DELETE ATTRIBUTES { "attribute_name_1", "attribute_name_2", ... }
-FROM ON { <unique_key> }
-```
-
-```prolog
-DELETE ATTRIBUTES { "attribute_name_1", "attribute_name_2", ... }
-WHERE { ... }
-```
-
-*   **`{ "attribute_name_1", ... }`**: A set of attribute names to be deleted.
-*   **`FROM ON { <unique_key> }`**: Precisely locates the target concept using its unique key(s) (e.g., `id` or a `type` + `name` combination).
-*   **`WHERE { ... }`**: Uses a KQL graph pattern to locate multiple concept nodes from which to delete attributes.
+*   **`{ "attribute_name", ... }`**: A set containing the names of the attributes to be deleted.
+*   **`WHERE { ... }`**: The matching condition for the concept nodes or proposition links whose attributes are to be deleted.
 
 **Example**:
 
 ```prolog
-// Delete the "risk_category" attribute from the "Aspirin" concept
+// Delete the "risk_category" attribute from the "Aspirin" node
 DELETE ATTRIBUTES { "risk_category" }
-FROM ON { type: "Drug", name: "Aspirin" }
-```
-
-#### 4.2.2 Precise Deletion of a Proposition (`DELETE PROPOSITION`)
-
-**Function**: Deletes a single proposition that is fully defined by its `(Subject, Predicate, Object)`.
-
-**Syntax**:
-
-```prolog
-DELETE PROPOSITION (
-  ON { <unique_key_for_subject> },
-  "predicate_name",
-  ON { <unique_key_for_object> }
-)
-```
-
-**Example**:
-
-```prolog
-// Precisely delete the "treats" relationship between "Cognizine" and "Brain Fog"
-DELETE PROPOSITION (
-    ON { type: "Drug", name: "Cognizine" },
-    "treats",
-    ON { type: "Symptom", name: "Brain Fog" }
-)
-```
-
-#### 4.2.3. Pattern-Based Deletion of Propositions (`DELETE PROPOSITIONS`)
-
-**Function**: Uses a `WHERE` clause to match one or more propositions and delete them all.
-
-**Syntax**:
-
-```prolog
-DELETE PROPOSITIONS
 WHERE {
-  ... KQL graph pattern and filter clauses ...
+  { type: "Drug", name: "Aspirin" }
 }
 ```
+
+```prolog
+// Delete the "risk_category" attribute from all drug nodes
+DELETE ATTRIBUTES { "risk_category" }
+WHERE {
+  { type: "Drug" }
+}
+```
+
+```prolog
+// Delete the "category" attribute from all proposition links
+DELETE ATTRIBUTES { "category" }
+WHERE {
+  (?s, ?p, ?o)
+}
+```
+
+#### 4.2.2. Delete Propositions (`DELETE PROPOSITIONS`)
+
+**Function**: Bulk deletes proposition links that match the `WHERE` clause.
+
+**Syntax**: `DELETE PROPOSITIONS WHERE { ... }`
 
 **Example**:
 
@@ -570,38 +624,35 @@ WHERE {
 // Delete all propositions from a specific untrusted source
 DELETE PROPOSITIONS
 WHERE {
-  PROP(?s, ?p, ?o) { source: "untrusted_source_v1" }
+  ?all_links (?s, ?p, ?o)
+  META(?all_links, "source", ?source)
+  FILTER(?source == "untrusted_source_v1")
 }
 ```
 
-#### 4.2.4. Delete Concept (`DELETE CONCEPT`)
+#### 4.2.3. Delete Concept (`DELETE CONCEPT`)
 
-**Function**: Completely removes a concept node and all of its attached (incoming and outgoing) proposition links.
+**Function**: Completely deletes a concept node and all of its associated (incoming and outgoing) proposition links.
 
-**Syntax**:
+**Syntax**: `DELETE CONCEPT {type: "<type>", name: "<name>", id: "<id>"} DETACH`
 
-```prolog
-DELETE CONCEPT
-ON { <unique_key> }
-DETACH
-```
-
-*   The `DETACH` keyword is still required as a safety mechanism, forcing the LLM to confirm its intent—to delete both the concept and all its associated relationships, thus avoiding orphaned relations.
+*   `{type: "<type>", name: "<name>", id: "<id>"}` describes the concept node to be deleted. It should provide `type` + `name` or a unique `id`. If no unique node is matched, the operation is ignored.
+*   The `DETACH` keyword is mandatory. This is a safety mechanism that forces the LLM to confirm its intent—to delete both the concept and all related relationships, preventing orphaned relationships.
 
 **Example**:
 
 ```prolog
 // Delete the "OutdatedDrug" concept and all its relationships
 DELETE CONCEPT
-ON { type: "Drug", name: "OutdatedDrug" }
+{ type: "Drug", name: "OutdatedDrug" }
 DETACH
 ```
 
-## 5. KIP-META Instruction Set: Knowledge Exploration & Grounding
+## 5. KIP-META Instruction Set: Knowledge Exploration and Grounding
 
 META is a lightweight subset of KIP focused on "Introspection" and "Disambiguation." These are fast, metadata-driven commands that do not involve complex graph traversals.
 
-### 5.1 `DESCRIBE` Statement
+### 5.1. `DESCRIBE` Statement
 
 **Function**: The `DESCRIBE` command is used to query the "schema" information of the Cognitive Nexus, helping the LLM understand "what's inside."
 
@@ -609,39 +660,41 @@ META is a lightweight subset of KIP focused on "Introspection" and "Disambiguati
 
 #### 5.1.1. Igniting the Cognitive Engine (`DESCRIBE PRIMER`)
 
-**Function**: Retrieves the "Cognitive Primer," which guides the LLM on how to efficiently use the Cognitive Nexus.
+**Function**: Retrieves the "Cognitive Primer," which guides the LLM on how to efficiently utilize the Cognitive Nexus.
 
-The Cognitive Primer contains two parts:
-1.  **Universal Abstract** - "Who am I?"
-    This is the highest-level summary, defining the AI Agent's core identity, capability boundaries, and fundamental principles. It includes:
-    *   The Agent's role and goal (e.g., "I am a professional medical knowledge assistant, designed to provide accurate and traceable medical information").
-    *   The existence and role of the Cognitive Nexus ("My memory and knowledge are stored in a Cognitive Nexus, which I can query using KIP").
+The Cognitive Primer consists of two parts:
+1.  **Universal Abstract Layer** - "Who am I?"
+    This is the highest level of abstraction, defining the AI Agent's core identity, capability boundaries, and fundamental principles. It includes:
+
+    *   The Agent's role and objectives (e.g., "I am a professional medical knowledge assistant, designed to provide accurate and traceable medical information").
+    *   The existence and role of the Cognitive Nexus ("My memory and knowledge are stored in a Cognitive Nexus, which I can query via KIP calls").
     *   A summary of core capabilities ("I can perform disease diagnosis, drug queries, interpret lab reports...").
-2.  **Domain Map** - "What do I know?"
-    This is the core of the Cognitive Primer. It is not a list of facts but a **topological summary** of the Cognitive Nexus. It includes:
-    *   **Major Domains**: Lists the top-level domains in the knowledge base, such as `[Disease, Drug, Lab Test, Treatment Plan, Medical Expert, Clinical Guideline]`.
-    *   **Key Concepts**: Under each domain, lists the most important or frequently queried **Concept Nodes**. For example, under "Disease," this might be `[Hypertension, Diabetes, Migraine, Influenza]`.
-    *   **Key Propositions**: Lists the predicates from the most important or frequently queried **Proposition Links**, such as `[treats, causes, has_symptom, prevents, contraindicates]`.
+2.  **Domain Map Layer** - "What do I know?"
+    This is the core of the "Cognitive Primer." It is not a list of knowledge but a **topological summary** of the Cognitive Nexus. It includes:
+
+    *   **Major Domains**: Lists the top-level domains in the knowledge base.
+    *   **Key Concepts**: Under each domain, lists the most important or frequently queried **concept nodes**.
+    *   **Key Propositions**: Lists the predicates from the most important or frequently queried **proposition links**.
 
 **Syntax**: `DESCRIBE PRIMER`
 
 #### 5.1.2. List All Existing Cognitive Domains (`DESCRIBE DOMAINS`)
 
-**Function**: Lists all available cognitive domains to guide the LLM in efficient grounding.
+**Function**: Lists all available cognitive domains to help guide the LLM's grounding process.
 
 **Syntax**: `DESCRIBE DOMAINS`
 
 #### 5.1.3. List All Existing Concept Node Types (`DESCRIBE CONCEPT TYPES`)
 
-**Function**: Lists all existing concept node types to guide the LLM in efficient grounding.
+**Function**: Lists all existing concept node types to help guide the LLM's grounding process.
 
 **Syntax**: `DESCRIBE CONCEPT TYPES`
 
-#### 5.1.4. Describe a Specific Concept Type (`DESCRIBE CONCEPT TYPE <type_name>`)
+#### 5.1.4. Describe a Specific Node Type (`DESCRIBE CONCEPT TYPE "<type_name>"`)
 
 **Function**: Describes the details of a specific node type, including its attributes and common relationships.
 
-**Syntax**: `DESCRIBE CONCEPT TYPE <type_name>`
+**Syntax**: `DESCRIBE CONCEPT TYPE "<type_name>"`
 
 **Example**:
 
@@ -651,42 +704,44 @@ DESCRIBE CONCEPT TYPE "Drug"
 
 #### 5.1.5. List All Proposition Link Types (`DESCRIBE PROPOSITION TYPES`)
 
-**Function**: Lists the predicates of all proposition links to guide the LLM in efficient grounding.
+**Function**: Lists all proposition link predicates to help guide the LLM's grounding process.
 
 **Syntax**: `DESCRIBE PROPOSITION TYPES`
 
-#### 5.1.6. Describe a Specific Proposition Link Type (`DESCRIBE PROPOSITION TYPE <predicate_name>`)
+#### 5.1.6. Describe a Specific Proposition Link Type (`DESCRIBE PROPOSITION TYPE "<predicate>"`)
 
-**Function**: Describes the details of a specific proposition link predicate, including the common types of its subject and object (its domain and range).
+**Function**: Describes the details of a specific proposition link predicate, including the common types of its subject and object (domain and range).
 
-**Syntax**: `DESCRIBE PROPOSITION TYPE <predicate_name>`
+**Syntax**: `DESCRIBE PROPOSITION TYPE "<predicate>"`
 
-### 5.2 `SEARCH` Statement
+### 5.2. `SEARCH` Statement
 
 **Function**: The `SEARCH` command is used to link natural language terms to specific entities in the knowledge graph. It focuses on efficient, text-index-driven lookups rather than full graph pattern matching.
 
-**Syntax**: `SEARCH CONCEPT <search_term> <options>`
-    **Options (`<options>`)**:
-    *   `WITH TYPE <type_name>`: Restricts the search scope to a specific node type.
-    *   `LIMIT N`: Limits the number of returned results, defaulting to 10.
+**Syntax**: `SEARCH [CONCEPT|PROPOSITION] "<search_term>" <options>`. Options (`<options>`):
+*   `WITH TYPE "<type_name>"`: Restricts the search to a specific node type.
+*   `LIMIT N`: Limits the number of returned results, defaulting to 10.
 
-**Examples**:
+**Example**:
 
 ```prolog
-// Search for "aspirin" across the entire graph
+// Search for the concept "aspirin" across the entire graph
 SEARCH CONCEPT "aspirin" LIMIT 5
 
-// Search for "阿司匹林" (Aspirin) within a specific type
+// Search for the concept "阿司匹林" within a specific type
 SEARCH CONCEPT "阿司匹林" WITH TYPE "Drug"
+
+// Search for propositions of "treats" across the entire graph
+SEARCH PROPOSITION "treats" LIMIT 10
 ```
 
 ## 6. Request & Response Structure
 
 All interactions with the Cognitive Nexus are conducted through a standardized request-response model. The LLM Agent sends KIP commands to the Cognitive Nexus via a structured request (often encapsulated in a Function Call), and the Cognitive Nexus returns a structured JSON response.
 
-### 6.1 Request Structure
+### 6.1. Request Structure
 
-KIP commands generated by the LLM should be sent to the Cognitive Nexus via a structured request like the following Function Call:
+KIP commands generated by the LLM should be sent to the Cognitive Nexus via the following Function Calling structured request:
 ```js
 {
   "id": "call_abc123",
@@ -694,11 +749,19 @@ KIP commands generated by the LLM should be sent to the Cognitive Nexus via a st
   "function": {
     "name": "execute_kip",
     "arguments": JSON.stringify({
-      "command": "FIND(?drug_name) WHERE { ... }",
+      "command": `
+        FIND(?drug_name)
+        WHERE {
+          ?symptom {name: $symptom_name}
+          (?drug, "treats", ?symptom)
+          ATTR(?drug, "name", ?drug_name)
+        }
+        LIMIT $limit
+      `,
       "parameters": {
-        "symptom_name": "Headache"
-      },
-      "dry_run": true
+        "symptom_name": "Headache",
+        "limit": 10
+      }
     })
   }
 }
@@ -706,78 +769,178 @@ KIP commands generated by the LLM should be sent to the Cognitive Nexus via a st
 
 **`execute_kip` Function Arguments Explained**:
 
-| Parameter        | Type    | Required | Description                                                                                                                                             |
-| :--------------- | :------ | :------- | :------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **`command`**    | String  | Yes      | Contains the complete, unmodified KIP command text. Use multi-line strings for format and readability.                                                  |
-| **`parameters`** | Object  | No       | An optional key-value object for passing execution context parameters beyond the command text. Placeholders in command text use the `$key_name` format. |
-| **`dry_run`**    | Boolean | No       | If `true`, the command's syntax and logic are validated, but no changes are executed or persisted.                                                      |
+| Parameter        | Type    | Required | Description                                                                                                                                                                                                                                                                                                                       |
+| :--------------- | :------ | :------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`command`**    | String  | Yes      | The complete, unmodified KIP command text. Use a multi-line string to maintain formatting and readability.                                                                                                                                                                                                                        |
+| **`parameters`** | Object  | No       | An optional key-value object for passing execution context parameters outside of the command text. Placeholders in the command text (e.g., $symptom_name) are safely replaced by the corresponding values in the `parameters` object before execution. This helps prevent injection attacks and makes command templates reusable. |
+| **`dry_run`**    | Boolean | No       | If `true`, the command's syntax and logic will be validated, but no changes will be executed or persisted.                                                                                                                                                                                                                        |
 
-**Example**:
-```js
-// command_text in the request body
-"command_text": `
-  FIND(?drug_name)
-  WHERE {
-    ?symptom(name: $symptom_name)
-    PROP(?drug, "treats", ?symptom)
-    ATTR(?drug, "name", ?drug_name)
-  }
-  LIMIT $limit
-`,
-
-// Corresponding parameters object
-"parameters": {
-  "symptom_name": "Headache",
-  "limit": 10
-}
-```
-
-### 6.2 Response Structure
+### 6.2. Response Structure
 
 **All responses from the Cognitive Nexus are a JSON object with the following structure:**
 
 | Key          | Type   | Required | Description                                                                                                                                  |
 | :----------- | :----- | :------- | :------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`result`** | Object | No       | **Must** be present on success. Contains the successful result of the request. Its internal structure is defined by the KIP request command. |
-| **`error`**  | Object | No       | **Must** be present on error. Contains structured details of the error.                                                                      |
-
+| **`error`**  | Object | No       | **Must** be present on failure. Contains structured details about the error.                                                                 |
 
 ## 7. Protocol Interaction Workflow
 
-As the "cognitive strategist," the LLM must follow this protocol workflow to interact with the Cognitive Nexus, ensuring accuracy and robustness of communication.
+The LLM, acting as a "Cognitive Strategist," must follow the protocol workflow below to interact with the Cognitive Nexus, ensuring accurate and robust communication.
 
 **Example Flowchart**:
 ```mermaid
 graph TD
-    A[User Request] --> B(Deconstruct Intent)
-    B --> C{Need more info?}
-    C -- Yes --> D["Explore & Ground (META)"]
-    D --> E["Generate Code (KQL/KML)"]
-    C -- No --> E
-    E --> F["Execute & Respond (Cognitive Nexus)"]
-    F --> G{New knowledge generated?}
-    G -- Yes --> H["Solidify Knowledge (KML)"]
-    H --> I[Synthesize Results]
-    G -- No --> I
-    I --> J[Respond to User]
+    A[User Request] --> B(Deconstruct Intent);
+    B --> C{Need more info?};
+    C -- Yes --> D["Explore & Ground (META)"];
+    D --> E["Generate Code (KQL/KML)"];
+    C -- No --> E;
+    E --> F["Execute & Respond (Cognitive Nexus)"];
+    F --> G{New knowledge generated?};
+    G -- Yes --> H["Solidify Knowledge (KML)"];
+    H --> I[Synthesize Results];
+    G -- No --> I;
+    I --> J[Return to User];
 ```
 
 1.  **Deconstruct Intent**:
-    The LLM breaks down the user's ambiguous request into a series of clear logical objectives: whether it's querying information, updating knowledge, or a combination of both.
+    The LLM breaks down the user's ambiguous request into a series of clear, logical objectives: whether to query information, update knowledge, or a combination of both.
 
 2.  **Explore & Ground**:
-    The LLM converses with the Cognitive Nexus by generating a series of KIP-META commands to resolve ambiguities and obtain the exact "coordinates" needed to build the final query.
+    The LLM communicates with the Cognitive Nexus by generating a series of KIP-META commands to clarify ambiguities and obtain the exact "coordinates" needed to build the final query.
 
 3.  **Generate Code**:
     Using the **precise IDs, types, and attribute names** obtained from the META interaction, the LLM generates a high-quality KQL or KML query.
 
 4.  **Execute & Respond**:
-    The generated code is sent to the Cognitive Nexus's inference engine for execution. The engine returns a structured data result or a status of successful operation.
+    The generated code is sent to the Cognitive Nexus's inference engine for execution. The engine returns structured data results or a status of successful operation.
 
 5.  **Solidify Knowledge**:
-    If new, trustworthy knowledge is generated during the interaction (e.g., the user confirms a new fact), the LLM should fulfill its duty to "learn":
+    If new, trustworthy knowledge is generated during the interaction (e.g., the user confirms a new fact), the LLM should fulfill its "learning" duty:
     *   Generate an `UPSERT` statement encapsulating the new knowledge.
     *   Execute the statement to permanently solidify the new knowledge into the Cognitive Nexus, completing the learning loop.
 
 6.  **Synthesize Results**:
-    The LLM translates the structured data or operational receipt received from the symbolic core into fluent, human-like, and **explainable** natural language. It is recommended that the LLM explains its reasoning process (i.e., the logic represented by the KIP code) to the user, thereby building trust.
+    The LLM translates the structured data or operational receipt received from the symbolic core into fluent, human-like, and **explainable** natural language. It is recommended that the LLM explain its reasoning process (i.e., the logic represented by the KIP code) to the user to build trust.
+
+## Appendix 1. Metadata Field Design
+
+Well-designed metadata is key to building a memory system that is self-evolving, traceable, and auditable. In addition to the basic `source` and `confidence`, we recommend the following metadata fields categorized under **Provenance & Trustworthiness**, **Temporality & Lifecycle**, and **Context & Auditing**. Together, they form a powerful memory management framework.
+
+### 1.1. Provenance & Trustworthiness
+
+This category of metadata answers the question, "**Where did this knowledge come from? How much should we trust it?**"
+
+*   **`source`** - **(Core)**
+    *   **Type**: `String` or `Array<String>`.
+    *   **Description**: Records the direct origin of the knowledge. This should be an identifier that is as specific and traceable as possible.
+    *   **Example**: `"PMID:31536137"`, `"https://en.wikipedia.org/wiki/Aspirin"`, `"UserInteraction:session_xyz123"`, `"KnowledgeCapsule:nootropics_v1.2"`. Use an array if it's a fusion of multiple sources.
+
+*   **`confidence`** - **(Core)**
+    *   **Type**: `Number` (typically between 0.0 and 1.0).
+    *   **Description**: A confidence score for the assertion of this knowledge being true. This value can be calculated based on various factors, such as the authority of the source, corroboration from multiple sources, user feedback, etc.
+    *   **Example**: `0.95`.
+
+*   **`evidence`**
+    *   **Type**: `Array<String>`.
+    *   **Description**: Links or references to specific evidence supporting the knowledge assertion. While `source` might be the "container" of knowledge (like a paper), `evidence` points to the specific "content" within that container (like a table or a sentence).
+    *   **Example**: `["Table 2 in PMID:31536137", "Quote: 'Aspirin significantly reduced risk...'"]`.
+
+### 1.2. Temporality & Lifecycle
+
+This category of metadata answers the question, "**When is this knowledge valid? Is it still applicable now?**"
+
+*   **`created_at`**
+    *   **Type**: `String` (ISO 8601 format).
+    *   **Description**: A timestamp of when this knowledge record was first added to the Cognitive Nexus. Crucial for tracing the evolution of memory.
+    *   **Example**: `"2023-10-27T10:00:00Z"`.
+
+*   **`last_updated_at`**
+    *   **Type**: `String` (ISO 8601 format).
+    *   **Description**: A timestamp of the last time this knowledge record (including its attributes or metadata) was modified.
+    *   **Example**: `"2024-05-21T15:30:00Z"`.
+
+*   **`valid_from`**
+    *   **Type**: `String` (ISO 8601 format).
+    *   **Description**: The date from which the knowledge assertion becomes valid. Very useful for describing facts with a temporal nature, like contracts, historical events, or policies.
+    *   **Example**: For a contract effective in 2025, its `valid_from` would be `"2025-01-01T00:00:00Z"`.
+
+*   **`valid_until`**
+    *   **Type**: `String` (ISO 8601 format).
+    *   **Description**: The date when the knowledge assertion becomes invalid or expires.
+    *   **Example**: A coupon's validity ends at `valid_until` `"2024-12-31T23:59:59Z"`.
+
+*   **`status`**
+    *   **Type**: `String`.
+    *   **Description**: The lifecycle status of the knowledge. This is more useful than direct deletion because it preserves the historical record.
+    *   **Recommended Enum Values**: `"active"`, `"deprecated"`, `"retracted"`, `"pending_review"`.
+    *   **Example**: `"active"`.
+
+### 1.3. Context & Auditing
+
+This category of metadata answers the question, "**How was this knowledge created? Who is responsible for it?**"
+
+*   **`relevance_tags`**
+    *   **Type**: `Array<String>`.
+    *   **Description**: Tags used to mark the topic or domain of this knowledge, facilitating quick classification and retrieval.
+    *   **Example**: `["cardiology", "stroke prevention", "high-risk patients"]`.
+
+*   **`author`**
+    *   **Type**: `String`.
+    *   **Description**: The entity that created this knowledge record. This could be the AI Agent itself, a specific user, or an automated data import pipeline.
+    *   **Example**: `"Agent:self_learning"`, `"User:john_doe"`.
+
+*   **`access_level`**
+    *   **Type**: `String`.
+    *   **Description**: Defines who can access or use this piece of knowledge. Crucial for building multi-tenant or privacy-aware systems.
+    *   **Recommended Enum Values**: `"public"`, `"private"`, `"internal"`.
+    *   **Example**: `"public"`.
+
+*   **`review_info`**
+    *   **Type**: `Object`
+    *   **Description**: A structured object containing review history and status.
+    *   **Example**:
+        ```json
+        {
+          "last_reviewed_by": "Expert:dr_jane_smith",
+          "last_reviewed_at": "2024-01-15T09:00:00Z",
+          "review_notes": "Confirmed with latest clinical trials."
+        }
+        ```
+
+**Comprehensive Metadata Field Example**:
+
+```prolog
+// Aspirin is used at a 100mg dosage to prevent stroke in high-risk adults.
+UPSERT {
+  PROPOSITION @prevention_link {
+    (
+      { type: "Drug", name: "Aspirin" },
+      "prevents",
+      { type: "Condition", name: "Stroke" }
+    )
+    // Intrinsic attributes of the fact
+    SET ATTRIBUTES {
+      dosage: "100mg",
+      patient_group: "high-risk adults"
+    }
+  }
+  // Metadata about this fact
+  WITH METADATA {
+    source: "Clinical Guideline XYZ-2023",
+    confidence: 0.98,
+    evidence: ["Section 3.1, Guideline XYZ-2023"],
+    created_at: "2023-11-10T14:20:10Z",
+    last_updated_at: "2023-11-10T14:20:10Z",
+    valid_from: "2023-01-01T00:00:00Z",
+    status: "active",
+    author: "DataPipeline:guideline_importer",
+    access_level: "public",
+    review_info: {
+      "last_reviewed_by": "Expert:dr_smith",
+      "last_reviewed_at": "2024-02-20T11:00:00Z"
+    }
+  }
+}
+```
