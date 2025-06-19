@@ -218,8 +218,8 @@ FIND(?drug_class, COUNT(?drug))
 *   Propositions can also serve as the subject or object. For instance, `?link_var (?subject, "predicate", (?drug, "treats", ?symptom))` uses a proposition as the object, meaning the object must match the pattern `(?drug, "treats", ?symptom)`.
 *   The subject and object can be not only bound variables but also inline concept node clauses, e.g., `(?drug, "treats", {name: "Headache"})`, which makes the query more compact.
 *   The predicate section supports path operators:
-    *   `predicate{m,n}`: Matches a path of length m to n.
-    *   `predicate1 | predicate2`: Matches `predicate1` or `predicate2`.
+    *   `predicate{m,n}`: Matches a path of length m to n, such as `"follows"{1,5}`, `"follows"{1,}`, `"follows"{5}`.
+    *   `predicate1 | predicate2`: Matches `predicate1` or `predicate2`, such as `"follows" | "connects" | "links"`.
 
 **Example**:
 

@@ -218,8 +218,8 @@ FIND(?drug_class, COUNT(?drug))
 *   命题也可以作为主语或宾语，如 `?link_var (?subject, "predicate", (?drug, "treats", ?symptom))` 使用命题作为宾语，表示宾语必须匹配 `(?drug, "treats", ?symptom)` 的模式。
 *   主语和宾语不仅可以是已绑定的变量，也可以是内联定义的概念节点子句，例如 `(?drug, "treats", {name: "Headache"})`，这种写法可以使查询更紧凑。
 *   谓词部分支持路径操作符：
-    *   `predicate{m,n}`：匹配 m 到 n 跳。
-    *   `predicate1 | predicate2`：匹配 `predicate1` 或 `predicate2`。
+    *   `predicate{m,n}`：匹配 m 到 n 跳，如 `"follows"{1,5}`，`"follows"{1,}`，`"follows"{5}`。
+    *   `predicate1 | predicate2`：匹配 `predicate1` 或 `predicate2`，如 `"follows" | "connects" | "links"`。
 
 **示例**：
 
