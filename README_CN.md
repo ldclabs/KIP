@@ -8,6 +8,7 @@
 | v1.0-draft1 | 2025-06-09 | 初始草案                                                                     |
 | v1.0-draft2 | 2025-06-15 | 优化 `UNION` 子句                                                            |
 | v1.0-draft3 | 2025-06-18 | 优化术语，简化语法，移除 `SELECT` 子查询，添加 `META` 子句，增强命题链接子句 |
+| v1.0-draft4 | 2025-06-19 | 简化语法，移除 `COLLECT`，`AS`，`@`                                          |
 
 **KIP 实现**：
 - [Anda KIP](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust implementation of KIP for building sustainable AI knowledge memory systems.
@@ -104,7 +105,7 @@ KIP 将 AI 与知识库的交互范式，**从单向的“工具调用”，升�
 *   **定义**：描述**知识来源、可信度和上下文**的键值对。它不改变知识本身的内容，而是描述关于这条知识的“知识”。元数据字段设计见附录 1。
 *   **示例**：一个概念或命题的 `source`（来源）是 "《柳叶刀》2023年某论文"，其 `confidence`（可信度）是 `0.98`。
 
-### 2.8. 值类型与字面量 (Value Types & Literals)
+### 2.8. 值类型（Value Types）
 
 KIP 采用 **JSON** 的数据模型，即 KIP 所有子句中使用的值，其类型和字面量表示方法遵循 JSON 标准。这确保了数据交换的无歧义性，并使得 LLM 极易生成和解析。
 
@@ -123,6 +124,10 @@ KIP 采用 **JSON** 的数据模型，即 KIP 所有子句中使用的值，其�
 #### 2.8.3. 使用限制
 
 虽然 `Array` 和 `Object` 类型可以作为属性或元数据的值存储，但 KQL 的 `FILTER` 子句**主要针对基本类型（String, Number, Boolean, Null）进行操作**。KIP 核心查询引擎不保证支持对数组元素或对象内部字段的直接索引和过滤（例如 `FILTER(?array[0] == "value")` 这样的语法是不支持的）。
+
+### 2.9. 标志符（Identifier）
+
+KIP 的标识符以字母或下划线开头，后跟字母、数字或下划线的任意组合。标志符用于变量名、属性名、元数据键等。
 
 ## 3. KIP-KQL 指令集：知识查询语言
 
@@ -147,11 +152,10 @@ OFFSET M
 **语法**：`FIND( ... )`
 
 *   **多变量返回**：可以指定一个或多个变量，如 `FIND(?drug, ?symptom)`。
-*   **聚合返回**：可以使用聚合函数对变量进行计算。必须使用 `AS` 关键字为聚合结果指定一个新的变量名，如 `FIND(?var1, ?agg_func(?var2) AS ?result_var)`。
+*   **聚合返回**：可以使用聚合函数对变量进行计算，如 `FIND(?var1, ?agg_func(?var2))`。
 
     **聚合函数（Aggregation Functions）**：
     *   `COUNT(?var)`：计算 `?var` 被绑定的次数。`COUNT(DISTINCT ?var)` 计算不同绑定的数量。
-    *   `COLLECT(?var)`：将一个分组内 `?var` 的所有值收集成一个列表。
     *   `SUM(?var)`, `AVG(?var)`, `MIN(?var)`, `MAX(?var)`：其它常见的数学聚合函数。
 
 **示例**：
@@ -164,7 +168,7 @@ FIND(?drug)
 FIND(?drug_name, ?symptom_name)
 
 // 返回一个变量和它的计数值
-FIND(?drug_class, COUNT(?drug) AS ?drug_count)
+FIND(?drug_class, COUNT(?drug))
 ```
 
 ### 3.3. `WHERE` 子句
@@ -236,7 +240,7 @@ FIND(?drug_class, COUNT(?drug) AS ?drug_count)
 
 **功能**：获取一个**概念节点**或一个**命题链接**的内在属性值，并将其绑定到变量。
 
-**语法**：`ATTR(?node_variable, "<attribute_name>", ?value_variable)`
+**语法**：`ATTR(?target_variable, "<attribute_name>", ?value_variable)`
 
 **示例**：
 
@@ -404,7 +408,7 @@ LIMIT 20
 **意图**："按药物类别，列出该类别下所有药物的名称。"
 
 ```prolog
-FIND(?class_name, COLLECT(?drug_name) AS ?drug_list)
+FIND(?class_name, COUNT(?drug_name))
 WHERE {
   ?class {type: "DrugClass"}
   ATTR(?class, "name", ?class_name)
@@ -469,28 +473,28 @@ KML 是 KIP 中负责知识演化的部分，是 Agent 实现学习的核心工�
 
 ```prolog
 UPSERT {
-  CONCEPT @local_handle {
+  CONCEPT ?local_handle {
     {type: "<type>", name: "<name>", id: "<id>"}
     SET ATTRIBUTES { <key>: <value>, ... }
     SET PROPOSITIONS {
       ("<predicate>", { <existing_concept> })
       ("<predicate>", ( <existing_proposition> ))
-      ("<predicate>", @other_handle) WITH METADATA { <key>: <value>, ... }
+      ("<predicate>", ?other_handle) WITH METADATA { <key>: <value>, ... }
       ...
     }
   }
   WITH METADATA { <key>: <value>, ... }
 
-  PROPOSITION @local_prop {
+  PROPOSITION ?local_prop {
     (?subject, "<predicate>", ?object)
     SET ATTRIBUTES { <key>: <value>, ... }
   }
   WITH METADATA { <key>: <value>, ... }
 
-  CONCEPT @local_handle_2 {
+  CONCEPT ?local_handle_2 {
     {type: "<type>", name: "<name>", id: "<id>"}
     SET PROPOSITIONS {
-      ("<predicate>", @local_prop)
+      ("<predicate>", ?local_prop)
     }
   }
   ...
@@ -502,15 +506,15 @@ WITH METADATA { <key>: <value>, ... }
 
 *   **`UPSERT` 块**： 整个操作的容器，保证内部所有操作的原子性。
 *   **`CONCEPT` 块**：定义一个概念节点。
-    *   `@local_handle`：以 `@` 开头的本地句柄（或称锚点），用于在事务内引用此新概念，它只在本次 `UPSERT` 块事务中有效。
+    *   `?local_handle`：以 `?` 开头的本地句柄（或称锚点），用于在事务内引用此新概念，它只在本次 `UPSERT` 块事务中有效。
     *   `{type: "<type>", name: "<name>", id: "<id>"}`：概念子句，`id` 或者 `type` + `name` 的组合，定义唯一概念节点，若匹配到已有节点则更新。如果期望不存在则创建，应该使用 `type` + `name` 定义子句，如 `{type: "Drug", name: "Aspirin"}`。
     *   `SET ATTRIBUTES { ... }`：设置或更新节点的属性。
-    *   `SET PROPOSITIONS { ... }`：定义或更新该概念节点发起的命题链接。SET PROPOSITIONS 的行为是增量式的。对于每一个定义的 PROPOSITION，如果命题已存在，则更新其元数据（如果有）；不存在则创建该新命题。注意，此子句用于快速建立关系并附加元数据。如果一个命题本身需要携带复杂的内在属性，建议使用独立的 `PROPOSITION` 块来定义它，并通过本地句柄 `@handle` 进行引用。
-        *   `("<predicate>", @local_handle)`：链接到本次胶囊中定义的另一个概念或命题。
+    *   `SET PROPOSITIONS { ... }`：定义或更新该概念节点发起的命题链接。SET PROPOSITIONS 的行为是增量式的。对于每一个定义的 PROPOSITION，如果命题已存在，则更新其元数据（如果有）；不存在则创建该新命题。注意，此子句用于快速建立关系并附加元数据。如果一个命题本身需要携带复杂的内在属性，建议使用独立的 `PROPOSITION` 块来定义它，并通过本地句柄 `?handle` 进行引用。
+        *   `("<predicate>", ?local_handle)`：链接到本次胶囊中定义的另一个概念或命题。
         *   `("<predicate>", {type: "<type>", name: "<name>"})`，`("<predicate>", {id: "<id>"})`：链接到图中已存在的概念，不存在则忽略。
         *   `("<predicate>", (?subject, "<predicate>", ?object))`：链接到图中已存在的命题，不存在则忽略。
 *   **`PROPOSITION` 块**：定义一个独立的命题链接，通常用于在胶囊内创建复杂的关系。
-    *   `@local_prop`：本地句柄，用于引用此命题链接。
+    *   `?local_prop`：本地句柄，用于引用此命题链接。
     *   `(<subject>, "<predicate>", <object>)`：定义一个命题链接，主语和宾语可以是现有概念或其它命题链接。
     *   `SET ATTRIBUTES { ... }`：一个简单的键值对列表，用于设置或更新命题链接的属性。
 *   **`WITH METADATA` 块**： 追加在 `CONCEPT`，`PROPOSITION` 或 `UPSERT` 块的元数据。
@@ -531,7 +535,7 @@ WITH METADATA { <key>: <value>, ... }
 
 UPSERT {
   // Define the main drug concept: Cognizine
-  CONCEPT @cognizine {
+  CONCEPT ?cognizine {
     { type: "Drug", name: "Cognizine" }
     SET ATTRIBUTES {
       molecular_formula: "C12H15N5O3",
@@ -546,8 +550,8 @@ UPSERT {
       // Link to an existing concept (Brain Fog)
       ("treats", { type: "Symptom", name: "Brain Fog" })
 
-      // Link to another new concept defined within this capsule (@neural_bloom)
-      ("has_side_effect", @neural_bloom) WITH METADATA {
+      // Link to another new concept defined within this capsule (?neural_bloom)
+      ("has_side_effect", ?neural_bloom) WITH METADATA {
         // This specific proposition has its own metadata
         confidence: 0.75,
         source: "Preliminary Clinical Trial NCT012345"
@@ -556,7 +560,7 @@ UPSERT {
   }
 
   // Define the new side effect concept: Neural Bloom
-  CONCEPT @neural_bloom {
+  CONCEPT ?neural_bloom {
     { type: "Symptom", name: "Neural Bloom" }
     SET ATTRIBUTES {
       description: "A rare side effect characterized by a temporary burst of creative thoughts."
@@ -914,7 +918,7 @@ graph TD
 ```prolog
 // Aspirin 以 100mg 的剂量用于预防高危成年人的中风。
 UPSERT {
-  PROPOSITION @prevention_link {
+  PROPOSITION ?prevention_link {
     (
       { type: "Drug", name: "Aspirin" },
       "prevents",

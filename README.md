@@ -8,6 +8,7 @@
 | v1.0-draft1 | 2025-06-09 | Initial draft                                                                                                            |
 | v1.0-draft2 | 2025-06-15 | Optimized `UNION` clause                                                                                                 |
 | v1.0-draft3 | 2025-06-18 | Refined terminology, simplified syntax, removed `SELECT` subquery, added `META` clause, enhanced proposition link clause |
+| v1.0-draft4 | 2025-06-19 | simplified syntax, removed `COLLECT`，`AS`，`@`                                                                          |
 
 **KIP Implementation**:
 - [Anda KIP](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust implementation of KIP for building sustainable AI knowledge memory systems.
@@ -104,7 +105,7 @@ A highly structured, information-dense JSON object specifically designed for LLM
 *   **Definition**: Key-value pairs that describe the **source, credibility, and context** of knowledge. It does not alter the content of the knowledge itself but describes "knowledge about the knowledge." See Appendix 1 for metadata field design.
 *   **Example**: The `source` of a concept or proposition is "The Lancet, 2023, some paper," and its `confidence` is `0.98`.
 
-### 2.8. Value Types & Literals
+### 2.8. Value Types
 
 KIP adopts the **JSON** data model. This means all values used in KIP clauses follow the JSON standard for types and literal representations. This ensures unambiguous data exchange and makes it extremely easy for LLMs to generate and parse.
 
@@ -123,6 +124,10 @@ KIP adopts the **JSON** data model. This means all values used in KIP clauses fo
 #### 2.8.3. Usage Restrictions
 
 Although `Array` and `Object` types can be stored as attribute or metadata values, KQL's `FILTER` clause **primarily operates on basic types (String, Number, Boolean, Null)**. The core KIP query engine does not guarantee support for direct indexing and filtering of array elements or object fields (e.g., syntax like `FILTER(?array[0] == "value")` is not supported).
+
+### 2.9. Identifier
+
+The identifier in KIP starts with a letter or an underscore, followed by any combination of letters, digits, or underscores. Identifiers are used for variable names, attribute names, metadata keys, etc.
 
 ## 3. KIP-KQL Instruction Set: Knowledge Query Language
 
@@ -147,11 +152,10 @@ OFFSET M
 **Syntax**: `FIND( ... )`
 
 *   **Multi-variable Return**: You can specify one or more variables, e.g., `FIND(?drug, ?symptom)`.
-*   **Aggregate Return**: You can use aggregate functions to perform calculations on variables. You must use the `AS` keyword to assign a new variable name to the aggregate result, e.g., `FIND(?var1, ?agg_func(?var2) AS ?result_var)`.
+*   **Aggregate Return**: You can use aggregate functions to perform calculations on variables, e.g., `FIND(?var1, ?agg_func(?var2))`.
 
     **Aggregation Functions**:
     *   `COUNT(?var)`: Counts the number of times `?var` is bound. `COUNT(DISTINCT ?var)` counts the number of distinct bindings.
-    *   `COLLECT(?var)`: Collects all values of `?var` within a group into a list.
     *   `SUM(?var)`, `AVG(?var)`, `MIN(?var)`, `MAX(?var)`: Other common mathematical aggregation functions.
 
 **Example**:
@@ -164,7 +168,7 @@ FIND(?drug)
 FIND(?drug_name, ?symptom_name)
 
 // Return a variable and its count
-FIND(?drug_class, COUNT(?drug) AS ?drug_count)
+FIND(?drug_class, COUNT(?drug))
 ```
 
 ### 3.3. `WHERE` Clause
@@ -236,7 +240,7 @@ FIND(?drug_class, COUNT(?drug) AS ?drug_count)
 
 **Function**: Retrieves the value of an intrinsic attribute from a **concept node** or a **proposition link** and binds it to a variable.
 
-**Syntax**: `ATTR(?node_variable, "<attribute_name>", ?value_variable)`
+**Syntax**: `ATTR(?target_variable, "<attribute_name>", ?value_variable)`
 
 **Example**:
 
@@ -404,7 +408,7 @@ LIMIT 20
 **Intent**: "List the names of all drugs under each drug class."
 
 ```prolog
-FIND(?class_name, COLLECT(?drug_name) AS ?drug_list)
+FIND(?class_name, COUNT(?drug_name))
 WHERE {
   ?class {type: "DrugClass"}
   ATTR(?class, "name", ?class_name)
@@ -469,28 +473,28 @@ The `UPSERT` operation must be **Idempotent**, meaning that repeatedly executing
 
 ```prolog
 UPSERT {
-  CONCEPT @local_handle {
+  CONCEPT ?local_handle {
     {type: "<type>", name: "<name>", id: "<id>"}
     SET ATTRIBUTES { <key>: <value>, ... }
     SET PROPOSITIONS {
       ("<predicate>", { <existing_concept> })
       ("<predicate>", ( <existing_proposition> ))
-      ("<predicate>", @other_handle) WITH METADATA { <key>: <value>, ... }
+      ("<predicate>", ?other_handle) WITH METADATA { <key>: <value>, ... }
       ...
     }
   }
   WITH METADATA { <key>: <value>, ... }
 
-  PROPOSITION @local_prop {
+  PROPOSITION ?local_prop {
     (?subject, "<predicate>", ?object)
     SET ATTRIBUTES { <key>: <value>, ... }
   }
   WITH METADATA { <key>: <value>, ... }
 
-  CONCEPT @local_handle_2 {
+  CONCEPT ?local_handle_2 {
     {type: "<type>", name: "<name>", id: "<id>"}
     SET PROPOSITIONS {
-      ("<predicate>", @local_prop)
+      ("<predicate>", ?local_prop)
     }
   }
   ...
@@ -502,15 +506,15 @@ WITH METADATA { <key>: <value>, ... }
 
 *   **`UPSERT` block**: The container for the entire operation, ensuring the atomicity of all operations within it.
 *   **`CONCEPT` block**: Defines a concept node.
-    *   `@local_handle`: A local handle (or anchor) starting with `@`, used to reference this new concept within the transaction. It is only valid within the current `UPSERT` block.
+    *   `?local_handle`: A local handle (or anchor) starting with `?`, used to reference this new concept within the transaction. It is only valid within the current `UPSERT` block.
     *   `{type: "<type>", name: "<name>", id: "<id>"}`: The concept clause. The combination of `id` or `type` + `name` defines a unique concept node. If an existing node is matched, it will be updated. If creation is desired only if it doesn't exist, a clause with `type` + `name` should be used, like `{type: "Drug", name: "Aspirin"}`.
     *   `SET ATTRIBUTES { ... }`: Sets or updates the node's attributes.
-    *   `SET PROPOSITIONS { ... }`: Defines or updates proposition links originating from this concept node. The behavior of `SET PROPOSITIONS` is incremental. For each defined PROPOSITION, if the proposition already exists, its metadata is updated (if provided); otherwise, a new proposition is created. Note that this clause is for quickly establishing relationships and attaching metadata. If a proposition itself needs to carry complex intrinsic attributes, it is recommended to define it in a separate `PROPOSITION` block and reference it via a local handle `@handle`.
-        *   `("<predicate>", @local_handle)`: Links to another concept or proposition defined within this capsule.
+    *   `SET PROPOSITIONS { ... }`: Defines or updates proposition links originating from this concept node. The behavior of `SET PROPOSITIONS` is incremental. For each defined PROPOSITION, if the proposition already exists, its metadata is updated (if provided); otherwise, a new proposition is created. Note that this clause is for quickly establishing relationships and attaching metadata. If a proposition itself needs to carry complex intrinsic attributes, it is recommended to define it in a separate `PROPOSITION` block and reference it via a local handle `?handle`.
+        *   `("<predicate>", ?local_handle)`: Links to another concept or proposition defined within this capsule.
         *   `("<predicate>", {type: "<type>", name: "<name>"})`, `("<predicate>", {id: "<id>"})`: Links to an existing concept in the graph. If it doesn't exist, it is ignored.
         *   `("<predicate>", (?subject, "<predicate>", ?object))`: Links to an existing proposition in the graph. If it doesn't exist, it is ignored.
 *   **`PROPOSITION` block**: Defines a standalone proposition link, typically used for creating complex relationships within a capsule.
-    *   `@local_prop`: A local handle for referencing this proposition link.
+    *   `?local_prop`: A local handle for referencing this proposition link.
     *   `(<subject>, "<predicate>", <object>)`: Defines a proposition link. The subject and object can be existing concepts or other proposition links.
     *   `SET ATTRIBUTES { ... }`: A simple list of key-value pairs to set or update the proposition link's attributes.
 *   **`WITH METADATA` block**: Appends metadata to a `CONCEPT`, `PROPOSITION`, or `UPSERT` block.
@@ -531,7 +535,7 @@ Suppose we have a knowledge capsule to define a new, hypothetical nootropic drug
 
 UPSERT {
   // Define the main drug concept: Cognizine
-  CONCEPT @cognizine {
+  CONCEPT ?cognizine {
     { type: "Drug", name: "Cognizine" }
     SET ATTRIBUTES {
       molecular_formula: "C12H15N5O3",
@@ -546,8 +550,8 @@ UPSERT {
       // Link to an existing concept (Brain Fog)
       ("treats", { type: "Symptom", name: "Brain Fog" })
 
-      // Link to another new concept defined within this capsule (@neural_bloom)
-      ("has_side_effect", @neural_bloom) WITH METADATA {
+      // Link to another new concept defined within this capsule (?neural_bloom)
+      ("has_side_effect", ?neural_bloom) WITH METADATA {
         // This specific proposition has its own metadata
         confidence: 0.75,
         source: "Preliminary Clinical Trial NCT012345"
@@ -556,7 +560,7 @@ UPSERT {
   }
 
   // Define the new side effect concept: Neural Bloom
-  CONCEPT @neural_bloom {
+  CONCEPT ?neural_bloom {
     { type: "Symptom", name: "Neural Bloom" }
     SET ATTRIBUTES {
       description: "A rare side effect characterized by a temporary burst of creative thoughts."
@@ -914,7 +918,7 @@ This category of metadata answers the question, "**How was this knowledge create
 ```prolog
 // Aspirin is used at a 100mg dosage to prevent stroke in high-risk adults.
 UPSERT {
-  PROPOSITION @prevention_link {
+  PROPOSITION ?prevention_link {
     (
       { type: "Drug", name: "Aspirin" },
       "prevents",
