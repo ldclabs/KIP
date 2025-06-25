@@ -3,15 +3,17 @@
 **[English](./README.md) | [中文](./README_CN.md)**
 
 **版本历史**：
-| 版本        | 日期       | 变更说明                                                                     |
-| ----------- | ---------- | ---------------------------------------------------------------------------- |
-| v1.0-draft1 | 2025-06-09 | 初始草案                                                                     |
-| v1.0-draft2 | 2025-06-15 | 优化 `UNION` 子句                                                            |
-| v1.0-draft3 | 2025-06-18 | 优化术语，简化语法，移除 `SELECT` 子查询，添加 `META` 子句，增强命题链接子句 |
-| v1.0-draft4 | 2025-06-19 | 简化语法，移除 `COLLECT`，`AS`，`@`                                          |
+| 版本        | 日期       | 变更说明                                                                                |
+| ----------- | ---------- | --------------------------------------------------------------------------------------- |
+| v1.0-draft1 | 2025-06-09 | 初始草案                                                                                |
+| v1.0-draft2 | 2025-06-15 | 优化 `UNION` 子句                                                                       |
+| v1.0-draft3 | 2025-06-18 | 优化术语，简化语法，移除 `SELECT` 子查询，添加 `META` 子句，增强命题链接子句            |
+| v1.0-draft4 | 2025-06-19 | 简化语法，移除 `COLLECT`，`AS`，`@`                                                     |
+| v1.0-draft5 | 2025-06-25 | 移除 `ATTR` 和 `META`，引入“点表示法”取代；添加 `(id: "<link_id>")`；优化 `DELETE` 语句 |
 
 **KIP 实现**：
-- [Anda KIP](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust implementation of KIP for building sustainable AI knowledge memory systems.
+- [Anda KIP](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust SDK of KIP for building sustainable AI knowledge memory systems.
+- [Anda Cognitive Nexus (WIP)](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus): A Rust implementation of KIP (Knowledge Interaction Protocol) base on Anda DB.
 
 **关于我们**：
 - [ICPanda DAO](https://panda.fans/): ICPanda is a technical panda fully running on the [Internet Computer](https://internetcomputer.org/) blockchain, building chain-native infrastructures, Anda.AI and dMsg.net.
@@ -76,12 +78,13 @@ KIP 将 AI 与知识库的交互范式，**从单向的“工具调用”，升�
 
 ### 2.3. 命题链接（Proposition Link）
 
-*   **定义**：一个**实体化的命题（Proposition）**，它以 `(主语, 谓词, 宾语)` 的三元组形式，陈述了一个**事实（Fact）**。它在图中作为**链接（Link）**，将两个概念节点连接起来，或实现更高阶的连接（即高阶命题，Reification），其中主语或宾语本身就是另一个命题链接。
+*   **定义**：一个**实体化的命题（Proposition）**，它以 `(主语, 谓词, 宾语)` 的三元组形式，陈述了一个**事实（Fact）**。它在图中作为**链接（Link）**，将两个概念节点连接起来，或实现更高阶的连接。
 *   **示例**：一个陈述“（阿司匹林）- [用于治疗] ->（头痛）”这一事实的命题链接。
 *   **构成**：
-    *   `subject`：对象 ID，关系的发起者，可以是一个概念节点或另一个命题链接。
+    *   `id`：String，唯一标识符，用于在图中唯一定位该链接。
+    *   `subject`：String，关系的发起者，一个概念节点或另一个命题链接的 ID。
     *   `predicate`：String，定义了主语和宾语之间的**关系（Relation）**类型。
-    *   `object`：对象 ID，关系的接受者，可以是一个概念节点或另一个命题链接。
+    *   `object`：String，关系的接受者，一个概念节点或另一个命题链接的 ID。
     *   `attributes`：Object，命题的属性，描述该命题的内在特性。
     *   `metadata`：Object，命题的元数据，描述该命题的来源、可信度等信息，如 `source`、`confidence` 等。
 
@@ -93,39 +96,20 @@ KIP 将 AI 与知识库的交互范式，**从单向的“工具调用”，升�
 
 一个高度结构化、信息密度极高、专门为 LLM 设计的 JSON 对象，它包含了认知中枢的全局摘要和领域地图，帮助 LLM 快速理解和使用认知中枢。
 
-### 2.6. 属性（Attributes）
+### 2.6. 属性（Attributes）与元数据（Metadata）
 
-*   **定义**：描述**概念**或**事实**内在特性的键值对，是构成知识记忆的一部分。
-*   **示例**：
-    *   **概念属性**：药物“阿司匹林”的 `molecular_formula` 是 "C9H8O4"。
-    *   **命题属性**：“阿司匹林用于治疗头痛”这一事实的 `dosage`（剂量）是 "500mg"。
+*   **属性（Attributes）**：描述**概念**或**事实**内在特性的键值对，是构成知识记忆的一部分。
+*   **元数据（Metadata）**：描述**知识来源、可信度和上下文**的键值对。它不改变知识本身的内容，而是描述关于这条知识的“知识”。（元数据字段设计见附录 1）
 
-### 2.7. 元数据（Metadata）
-
-*   **定义**：描述**知识来源、可信度和上下文**的键值对。它不改变知识本身的内容，而是描述关于这条知识的“知识”。元数据字段设计见附录 1。
-*   **示例**：一个概念或命题的 `source`（来源）是 "《柳叶刀》2023年某论文"，其 `confidence`（可信度）是 `0.98`。
-
-### 2.8. 值类型（Value Types）
+### 2.7. 值类型（Value Types）
 
 KIP 采用 **JSON** 的数据模型，即 KIP 所有子句中使用的值，其类型和字面量表示方法遵循 JSON 标准。这确保了数据交换的无歧义性，并使得 LLM 极易生成和解析。
 
-#### 2.8.1. 基本类型
+*   **基本类型**：`string`, `number`, `boolean`, `null`。
+*   **复杂类型**：`Array`, `Object`。
+*   **使用限制**: 虽然 `Array` 和 `Object` 可作为属性或元数据的值存储，但 KQL 的 `FILTER` 子句**主要针对基本类型进行操作**。
 
-*   **String (字符串)**：一个由双引号 `"` 包围的字符序列。
-*   **Number (数字)**：一个整数或浮点数。
-*   **Boolean (布尔值)**：逻辑值 `true` 或 `false`。
-*   **Null (空值)**：代表“无”或“未定义”的特殊值 `null`。
-
-#### 2.8.2. 复杂类型
-
-*   **Array (数组)**：一个由方括号 `[]` 包围的、有序的值列表。数组元素可以是任何 KIP 支持的值类型。
-*   **Object (对象)**：一个由花括号 `{}` 包围的、无序的键值对集合。键必须是字符串，值可以是任何 KIP 支持的值类型。
-
-#### 2.8.3. 使用限制
-
-虽然 `Array` 和 `Object` 类型可以作为属性或元数据的值存储，但 KQL 的 `FILTER` 子句**主要针对基本类型（String, Number, Boolean, Null）进行操作**。KIP 核心查询引擎不保证支持对数组元素或对象内部字段的直接索引和过滤（例如 `FILTER(?array[0] == "value")` 这样的语法是不支持的）。
-
-### 2.9. 标志符（Identifier）
+### 2.8. 标志符（Identifier）
 
 KIP 的标识符以字母或下划线开头，后跟字母、数字或下划线的任意组合。标志符用于变量名、属性名、元数据键等。
 
@@ -145,7 +129,30 @@ LIMIT N
 OFFSET M
 ```
 
-### 3.2. `FIND` 子句
+### 3.2. 点表示法（Dot Notation）
+
+**点表示法是 KIP 中访问概念节点和命题链接内部数据的首选方式**。它提供了一种统一、直观且强大的机制，用于在 `FIND`, `FILTER`, 和 `ORDER BY` 等子句中直接使用数据。
+
+一个绑定到变量 `?var` 上的节点或链接，其内部数据可以通过以下路径访问：
+
+*   **访问顶级字段**:
+    *   `?var.id`, `?var.type`, `?var.name` (用于概念节点)
+    *   `?var.id`, `?var.subject`, `?var.predicate`, `?var.object` (用于命题链接)
+*   **访问属性 (Attributes)**:
+    *   `?var.attributes.<attribute_name>`
+*   **访问元数据 (Metadata)**:
+    *   `?var.metadata.<metadata_key>`
+
+**示例**:
+```prolog
+// 查找药物名称及其风险等级
+FIND(?drug.name, ?drug.attributes.risk_level)
+
+// 筛选置信度高于 0.9 的命题
+FILTER(?link.metadata.confidence > 0.9)
+```
+
+### 3.3. `FIND` 子句
 
 **功能**：声明查询的最终输出。
 
@@ -153,70 +160,43 @@ OFFSET M
 
 *   **多变量返回**：可以指定一个或多个变量，如 `FIND(?drug, ?symptom)`。
 *   **聚合返回**：可以使用聚合函数对变量进行计算，如 `FIND(?var1, ?agg_func(?var2))`。
+    *  **聚合函数**：`COUNT(?var)`，`COUNT(DISTINCT ?var)`，`SUM(?var)`，`AVG(?var)`，`MIN(?var)`，`MAX(?var)`。
 
-    **聚合函数（Aggregation Functions）**：
-    *   `COUNT(?var)`：计算 `?var` 被绑定的次数。`COUNT(DISTINCT ?var)` 计算不同绑定的数量。
-    *   `SUM(?var)`, `AVG(?var)`, `MIN(?var)`, `MAX(?var)`：其它常见的数学聚合函数。
-
-**示例**：
-
-```prolog
-// 返回概念节点对象
-FIND(?drug)
-
-// 返回多个变量
-FIND(?drug_name, ?symptom_name)
-
-// 返回一个变量和它的计数值
-FIND(?drug_class, COUNT(?drug))
-```
-
-### 3.3. `WHERE` 子句
+### 3.4. `WHERE` 子句
 
 **功能**：包含一系列图模式匹配和过滤子句，所有子句之间默认为逻辑 **AND** 关系。
 
-**语法**：`WHERE { ... }`
+#### 3.4.1. 概念节点子句
 
-*   **概念节点子句**：`?node_var {type: "<type>", name: "<name>", id: "<id>"}`
-*   **命题链接子句**：`?link_var (?subject, "<predicate>", ?object)`
-*   **属性子句（`ATTR`）**：`ATTR(?node, "<attribute_name>", ?value_var)`
-*   **元数据子句（`META`）**：`META(?node, "<metadata_key>", ?value_var)`
-*   **过滤器子句（`FILTER`）**：`FILTER(boolean_expression)`
-*   **否定子句（`NOT`）**：`NOT { ... }`
-*   **可选子句（`OPTIONAL`）**：`OPTIONAL { ... }`
-*   **合并子句（`UNION`）**：`UNION { ... }`
+**功能**：匹配概念节点并绑定到变量。使用 `{...}` 语法。
 
-#### 3.3.1. 概念节点子句
-
-**功能**：在知识图谱中根据 `type`、`name` 或 `id` 匹配概念节点，可绑定到变量。
-
-**语法**：`?node_var {type: "<type>", name: "<name>", id: "<id>"}`
-
+**语法**：
+*   `?node_var {id: "<id>"}` (通过唯一 ID 匹配唯一概念节点)
+*   `?node_var {type: "<type>", name: "<name>"}` (通过类型和名称匹配唯一概念节点)
+*   `?nodes_var {type: "<type>"}`，`?nodes_var {name: "<name>"}` (通过类型或者名称匹配一批概念节点)
 *   `?node_var` 是可选的，将匹配到的概念节点绑定到变量上，便于后续操作。
-*   `type`、`name`、`id` 参数是可选的，但至少提供一个，并且 `id` 或者 `type` + `name` 组合必须唯一定位一个节点。
 
 **示例**：
 
 ```prolog
-// 将药物类型的节点绑定到 ?drug 变量
+// 匹配所有药物类型的节点
 ?drug {type: "Drug"}
 
-// 将 "Aspirin" 节点绑定到 ?aspirin 变量
+// 匹配名为 "Aspirin" 的药物
 ?aspirin {type: "Drug", name: "Aspirin"}
 
-// 将指定 ID 的节点绑定到 ?headache 变量
-?headache {id: "snomedct_25064002"}
+// 匹配指定 ID 的节点
+?headache {id: "C:123"}
 ```
 
-#### 3.3.2. 命题链接子句
+#### 3.4.2. 命题链接子句
 
-**功能**：在知识图谱中按 `(主语, 谓词, 宾语)` 模式匹配命题链接，可绑定到变量。
+**功能**：匹配命题链接并绑定到变量。使用 `(...)` 语法。
 
-**语法**：`?link_var (?subject, "<predicate>", ?object)`
-
+**语法**：
+*   `?link_var (id: "<link_id>")` (通过唯一 ID 匹配唯一命题链接)
+*   `?link_var (?subject, "<predicate>", ?object)` (通过结构模式匹配一批命题链接)
 *   `?link_var` 是可选的，将匹配到的命题链接绑定到变量上，便于后续操作。
-*   命题也可以作为主语或宾语，如 `?link_var (?subject, "predicate", (?drug, "treats", ?symptom))` 使用命题作为宾语，表示宾语必须匹配 `(?drug, "treats", ?symptom)` 的模式。
-*   主语和宾语不仅可以是已绑定的变量，也可以是内联定义的概念节点子句，例如 `(?drug, "treats", {name: "Headache"})`，这种写法可以使查询更紧凑。
 *   谓词部分支持路径操作符：
     *   `predicate{m,n}`：匹配 m 到 n 跳，如 `"follows"{1,5}`，`"follows"{1,}`，`"follows"{5}`。
     *   `predicate1 | predicate2`：匹配 `predicate1` 或 `predicate2`，如 `"follows" | "connects" | "links"`。
@@ -227,8 +207,11 @@ FIND(?drug_class, COUNT(?drug))
 // 找到所有能治疗头痛的药物
 (?drug, "treats", ?headache)
 
-// 将所有 "treats" 命题绑定到变量 ?treatment_link
-?treatment_link (?drug, "treats", ?headache)
+// 将一个已知ID的命题绑定到变量
+?specific_fact (id: "P:12345:treats")
+
+// 高阶命题: 宾语是另一个命题
+(?user, "stated", (?drug, "treats", ?symptom))
 ```
 
 ```prolog
@@ -236,77 +219,24 @@ FIND(?drug_class, COUNT(?drug))
 (?concept, "is_subclass_of{0,5}", ?parent_concept)
 ```
 
-#### 3.3.3. 属性子句（`ATTR`）
+#### 3.4.3. 过滤器子句（`FILTER`）
 
-**功能**：获取一个**概念节点**或一个**命题链接**的内在属性值，并将其绑定到变量。
-
-**语法**：`ATTR(?target_variable, "<attribute_name>", ?value_variable)`
-
-**示例**：
-
-```prolog
-// 获取 ?drug 节点的 "name" 属性值，绑定到 ?drug_name 变量
-ATTR(?drug, "name", ?drug_name)
-
-// 获取 ?treatment_link 命题的 "dosage" 属性值，绑定到 ?dosage 变量
-ATTR(?treatment_link, "dosage", ?dosage)
-```
-
-#### 3.3.4. 元数据子句（`META`）
-
-**功能**：获取一个**概念节点**或一个**命题链接**的元数据，并将其绑定到变量。
-
-**语法**：`META(?target_variable, "<metadata_key>", ?value_variable)`
-
-**示例**：
-
-```prolog
-// 获取 ?treatment_link 命题的元数据的 confidence 值，绑定到 ?conf 变量
-META(?treatment_link, "confidence", ?conf)
-```
-
-#### 3.3.5. 过滤器子句（`FILTER`）
-
-**功能**：对已绑定的变量（通常是 `ATTR` 或 `META` 获取的值）应用更复杂的过滤条件。
+**功能**：对已绑定的变量应用更复杂的过滤条件。**强烈推荐使用点表示法**。
 
 **语法**：`FILTER(boolean_expression)`
 
-**过滤器函数与运算符（Filter Functions & Operators）**：
-
-*   **比较运算符**：`==`, `!=`, `<`, `>`, `<=`, `>=`
-*   **逻辑运算符**：`&&`（AND）, `||`（OR）, `!`（NOT）
-*   **字符串函数**：`CONTAINS(?str, "sub")`, `STARTS_WITH(?str, "prefix")`, `ENDS_WITH(?str, "suffix")`, `REGEX(?str, "pattern")`
+**函数与运算符**:
+*   **比较**: `==`, `!=`, `<`, `>`, `<=`, `>=`
+*   **逻辑**: `&&` (AND), `||` (OR), `!` (NOT)
+*   **字符串**：`CONTAINS(?str, "sub")`, `STARTS_WITH(?str, "prefix")`, `ENDS_WITH(?str, "suffix")`, `REGEX(?str, "pattern")`
 
 **示例**：
 ```prolog
-// 筛选出风险等级小于 3 的药物
-ATTR(?drug, "risk_level", ?risk)
-FILTER(?risk < 3)
-
-// 筛选出名称包含 "acid" 的药物
-ATTR(?drug, "name", ?drug_name)
-FILTER(CONTAINS(?drug_name, "acid"))
+// 筛选出风险等级小于 3，且名称包含 "acid" 的药物
+FILTER(?drug.attributes.risk_level < 3 && CONTAINS(?drug.name, "acid"))
 ```
 
-```prolog
-// 查找所有置信度高于 0.9 的 "treats" 关系
-FIND(?drug_name, ?symptom_name)
-WHERE {
-  ?drug {type: "Drug"}
-  ?symptom {type: "Symptom"}
-
-  // 将 "treats" 命题绑定到变量 ?treatment_link
-  ?treatment_link (?drug, "treats", ?symptom)
-  // 使用 META 子句获取 ?treatment_link 的元数据
-  META(?treatment_link, "confidence", ?conf)
-  FILTER(?conf > 0.9)
-
-  ATTR(?drug, "name", ?drug_name)
-  ATTR(?symptom, "name", ?symptom_name)
-}
-```
-
-#### 3.3.6. 否定子句（`NOT`）
+#### 3.4.4. 否定子句（`NOT`）
 
 **功能**：排除满足特定模式的解。
 
@@ -330,9 +260,9 @@ NOT {
 }
 ```
 
-#### 3.3.7. 可选子句（`OPTIONAL`）
+#### 3.4.5. 可选子句（`OPTIONAL`）
 
-**功能**：尝试匹配一个可选的模式。如果模式匹配成功，则其内部变量被绑定；如果失败，查询继续，但内部变量为未绑定状态。这类似于 SQL 的 `LEFT JOIN`。
+**功能**：尝试匹配可选模式，类似 SQL 的 `LEFT JOIN`。
 
 **语法**：`OPTIONAL { ... }`
 
@@ -344,20 +274,19 @@ NOT {
 
 OPTIONAL {
   (?drug, "has_side_effect", ?side_effect)
-  ATTR(?side_effect, "name", ?side_effect_name)
 }
 ```
 
-#### 3.3.8. 合并子句（`UNION`）
+#### 3.4.6. 合并子句（`UNION`）
 
-**功能**：合并子句的结果，实现逻辑 **OR**。注意，`where` 块所有子句之间默认为逻辑 **AND** 关系。
+**功能**：合并多个模式的结果，实现逻辑 **OR**。
 
 **语法**：`UNION { ... }`
 
 **示例**：
 
 ```prolog
-// 找到能治疗“头痛”或“发烧”的药物
+// 找到能治疗“头痛”和“发烧”的药物
 
 (?drug, "treats", {name: "Headache"})
 
@@ -366,25 +295,23 @@ UNION {
 }
 ```
 
-### 3.4. 结果修饰子句（Solution Modifiers）
+### 3.5. 结果修饰子句（Solution Modifiers）
 
 这些子句在 `WHERE` 逻辑执行完毕后，对产生的结果集进行后处理。
 
-*   **`ORDER BY ?var [ASC|DESC]`**：
-    根据指定变量对结果进行排序，默认为 `ASC`（升序）。
-*   **`LIMIT N`**：
-    限制返回结果的数量为 N。
-*   **`OFFSET M`**：
-    跳过前 M 条结果，通常与 `LIMIT` 联用实现分页。
+*   **`ORDER BY ?var [ASC|DESC]`**：根据指定变量对结果进行排序，默认为 `ASC`（升序）。
+*   **`LIMIT N`**：限制返回数量。
+*   **`OFFSET M`**：跳过前 M 条结果。
 
-### 3.5. 综合查询示例
+### 3.6. 综合查询示例
 
-**示例 1**：带过滤和排序的高级查询
-
-**意图**："找到所有能治疗‘头痛’的非 NSAID 类药物，要求其风险等级低于4，并按风险等级从低到高排序，返回药物名称和风险等级。"
+**示例 1**：找到所有能治疗‘头痛’的非 NSAID 类药物，要求其风险等级低于4，并按风险等级从低到高排序，返回药物名称和风险等级。
 
 ```prolog
-FIND(?drug_name, ?risk)
+FIND(
+  ?drug.name,
+  ?drug.attributes.risk_level
+)
 WHERE {
   ?drug {type: "Drug"}
   ?headache {name: "Headache"}
@@ -395,68 +322,43 @@ WHERE {
     (?drug, "is_class_of", {name: "NSAID"})
   }
 
-  ATTR(?drug, "name", ?drug_name)
-  ATTR(?drug, "risk_level", ?risk)
-  FILTER(?risk < 4)
+  FILTER(?drug.attributes.risk_level < 4)
 }
-ORDER BY ?risk ASC
+ORDER BY ?drug.attributes.risk_level ASC
 LIMIT 20
 ```
 
-**示例 2**：使用聚合分析查询
-
-**意图**："按药物类别，列出该类别下所有药物的名称。"
+**示例 2**：列出所有 NSAID 类的药物，并（如果存在的话）显示它们各自的已知副作用及其来源。
 
 ```prolog
-FIND(?class_name, COUNT(?drug_name))
-WHERE {
-  ?class {type: "DrugClass"}
-  ATTR(?class, "name", ?class_name)
-
-  ?drug {type: "Drug"}
-  (?drug, "is_class_of", ?class)
-  ATTR(?drug, "name", ?drug_name)
-}
-ORDER BY ?class_name
-```
-
-**示例 3**：使用 `OPTIONAL` 处理缺失信息
-
-**意图**："列出所有 NSAID 类的药物，并（如果存在的话）显示它们各自的已知副作用。"
-
-```prolog
-FIND(?drug_name, ?side_effect_name)
+FIND(
+  ?drug.name,
+  ?side_effect.name,
+  ?link.metadata.source
+)
 WHERE {
   (?drug, "is_class_of", {name: "NSAID"})
 
-  ATTR(?drug, "name", ?drug_name)
-
   OPTIONAL {
-    (?drug, "has_side_effect", ?side_effect)
-    ATTR(?side_effect, "name", ?side_effect_name)
+    ?link (?drug, "has_side_effect", ?side_effect)
   }
 }
 ```
-*   **注意**：对于没有副作用的药物，`?side_effect_name` 的值将为空，但药物本身 `?drug_name` 依然会出现在结果中。
 
-**示例 4**：使用命题作为宾语
-
-**意图**："找到一篇由‘张三’陈述的、关于‘一篇论文引用了一个证据’的断言。"
+**示例 3（高阶命题解构）**：找到由用户‘张三’陈述的、关于‘阿司匹林治疗头痛’这一事实，并返回该陈述的可信度。
 
 ```prolog
-FIND(?paper_doi, ?drug_name)
+FIND(?statement.metadata.confidence)
 WHERE {
-  ?paper { type: "Paper" }
-  (
-    {type: "User", name: "张三"},
-    "stated",
-    (?paper, "cites_as_evidence", (?drug, "treats", ?symptom))
+  // 匹配事实：(事实)-[treats]->(药物)
+  ?fact (
+    {type: "Drug", name: "Aspirin"},
+    "treats",
+    {type: "Symptom", name: "Headache"}
   )
 
-  // 后续操作
-  ATTR(?paper, "doi", ?paper_doi)
-  ATTR(?drug, "name", ?drug_name)
-  ...
+  // 匹配高阶命题：(张三)-[stated]->(事实)
+  ?statement ({type: "User", name: "张三"}, "stated", ?fact)
 }
 ```
 
@@ -466,15 +368,14 @@ KML 是 KIP 中负责知识演化的部分，是 Agent 实现学习的核心工�
 
 ### 4.1. `UPSERT` 语句
 
-**功能**：**原子性地**创建或更新知识，是承载“**知识胶囊（Knowledge Capsule）**”的主要方式。
-`UPSERT` 操作需保证**幂等性 (Idempotent)**，即重复执行同一条指令，其结果与执行一次完全相同，不会产生重复数据或意外的副作用。
+**功能**：创建或更新知识，承载“知识胶囊”。操作需保证**幂等性 (Idempotent)**，即重复执行同一条指令，其结果与执行一次完全相同，不会产生重复数据或意外的副作用。
 
 **语法**：
 
 ```prolog
 UPSERT {
   CONCEPT ?local_handle {
-    {type: "<type>", name: "<name>", id: "<id>"}
+    {type: "<type>", name: "<name>"} // Or: {id: "<id>"}
     SET ATTRIBUTES { <key>: <value>, ... }
     SET PROPOSITIONS {
       ("<predicate>", { <existing_concept> })
@@ -486,17 +387,11 @@ UPSERT {
   WITH METADATA { <key>: <value>, ... }
 
   PROPOSITION ?local_prop {
-    (?subject, "<predicate>", ?object)
+    (?subject, "<predicate>", ?object) // Or: (id: "<id>")
     SET ATTRIBUTES { <key>: <value>, ... }
   }
   WITH METADATA { <key>: <value>, ... }
 
-  CONCEPT ?local_handle_2 {
-    {type: "<type>", name: "<name>", id: "<id>"}
-    SET PROPOSITIONS {
-      ("<predicate>", ?local_prop)
-    }
-  }
   ...
 }
 WITH METADATA { <key>: <value>, ... }
@@ -504,18 +399,18 @@ WITH METADATA { <key>: <value>, ... }
 
 **关键组件**：
 
-*   **`UPSERT` 块**： 整个操作的容器，保证内部所有操作的原子性。
+*   **`UPSERT` 块**： 整个操作的容器，保证内部所有操作的幂等性。
 *   **`CONCEPT` 块**：定义一个概念节点。
     *   `?local_handle`：以 `?` 开头的本地句柄（或称锚点），用于在事务内引用此新概念，它只在本次 `UPSERT` 块事务中有效。
-    *   `{type: "<type>", name: "<name>", id: "<id>"}`：概念子句，`id` 或者 `type` + `name` 的组合，定义唯一概念节点，若匹配到已有节点则更新。如果期望不存在则创建，应该使用 `type` + `name` 定义子句，如 `{type: "Drug", name: "Aspirin"}`。
+    *   `{type: "<type>", name: "<name>"}` 会匹配或创建概念节点，`{id: "<id>"}` 只会匹配已有概念节点。
     *   `SET ATTRIBUTES { ... }`：设置或更新节点的属性。
-    *   `SET PROPOSITIONS { ... }`：定义或更新该概念节点发起的命题链接。SET PROPOSITIONS 的行为是增量式的。对于每一个定义的 PROPOSITION，如果命题已存在，则更新其元数据（如果有）；不存在则创建该新命题。注意，此子句用于快速建立关系并附加元数据。如果一个命题本身需要携带复杂的内在属性，建议使用独立的 `PROPOSITION` 块来定义它，并通过本地句柄 `?handle` 进行引用。
+    *   `SET PROPOSITIONS { ... }`：定义或更新该概念节点发起的命题链接。`SET PROPOSITIONS` 的行为是增量添加（additive），而非替换（replacing）。它会检查该概念节点的所有出度关系：1. 如果图中不存在完全相同的命题（主语、谓词、宾语都相同），则创建这个新命题；2. 如果图中已存在完全相同的命题，则仅更新或添加 `WITH METADATA` 中指定的元数据。如果一个命题本身需要携带复杂的内在属性，建议使用独立的 `PROPOSITION` 块来定义它，并通过本地句柄 `?handle` 进行引用。
         *   `("<predicate>", ?local_handle)`：链接到本次胶囊中定义的另一个概念或命题。
         *   `("<predicate>", {type: "<type>", name: "<name>"})`，`("<predicate>", {id: "<id>"})`：链接到图中已存在的概念，不存在则忽略。
         *   `("<predicate>", (?subject, "<predicate>", ?object))`：链接到图中已存在的命题，不存在则忽略。
 *   **`PROPOSITION` 块**：定义一个独立的命题链接，通常用于在胶囊内创建复杂的关系。
     *   `?local_prop`：本地句柄，用于引用此命题链接。
-    *   `(<subject>, "<predicate>", <object>)`：定义一个命题链接，主语和宾语可以是现有概念或其它命题链接。
+    *   `(<subject>, "<predicate>", <object>)`：会匹配或创建命题链接，`(id: "<id>")` 只会匹配已有命题链接。
     *   `SET ATTRIBUTES { ... }`：一个简单的键值对列表，用于设置或更新命题链接的属性。
 *   **`WITH METADATA` 块**： 追加在 `CONCEPT`，`PROPOSITION` 或 `UPSERT` 块的元数据。
 
@@ -583,73 +478,69 @@ WITH METADATA {
 
 #### 4.2.1. 删除属性（`DELETE ATTRIBUTES`）
 
-**功能**：批量删除 `WHERE` 匹配的概念节点或命题链接的多个属性。
+**功能**：批量删除匹配的概念节点或命题链接的多个属性。
 
-**语法**：`DELETE ATTRIBUTES { "attribute_name", ... } WHERE { ... }`
-
-*   **`{ "attribute_name", ... }`**：一个包含要删除的属性名称的集合﹙Set﹚。
-*   **`WHERE { ... }`**：要删除属性的概念节点或命题链接的匹配条件。
+**语法**：`DELETE ATTRIBUTES { "attribute_name", ... } FROM ?target WHERE { ... }`
 
 **示例**：
 
 ```prolog
-// 从 "Aspirin" 节点中删除 "risk_category" 属性
-DELETE ATTRIBUTES { "risk_category" }
+// 从 "Aspirin" 节点中删除 "risk_category" 和 "old_id" 属性
+DELETE ATTRIBUTES {"risk_category", "old_id"} FROM ?drug
 WHERE {
-  { type: "Drug", name: "Aspirin" }
+  ?drug {type: "Drug", name: "Aspirin"}
 }
 ```
 
 ```prolog
 // 从所有药物节点中删除 "risk_category" 属性
-DELETE ATTRIBUTES { "risk_category" }
+DELETE ATTRIBUTES { "risk_category" } FROM ?drug
 WHERE {
-  { type: "Drug" }
+  ?drug { type: "Drug" }
 }
 ```
 
 ```prolog
 // 从所有命题链接中删除 "category" 属性
-DELETE ATTRIBUTES { "category" }
+DELETE ATTRIBUTES { "category" } FROM ?links
 WHERE {
-  (?s, ?p, ?o)
+  ?links (?s, ?p, ?o)
 }
 ```
 
 #### 4.2.2. 删除命题（`DELETE PROPOSITIONS`）
 
-**功能**：批量删除 `WHERE` 匹配的命题链接。
+**功能**：批量删除匹配的命题链接。
 
-**语法**：`DELETE PROPOSITIONS WHERE { ... }`
+**语法**：`DELETE PROPOSITIONS ?target_link WHERE { ... }`
 
 **示例**：
 
 ```prolog
 // 删除特定不可信来源的所有命题
-DELETE PROPOSITIONS
+DELETE PROPOSITIONS ?link
 WHERE {
-  ?all_links (?s, ?p, ?o)
-  META(?all_links, "source", ?source)
-  FILTER(?source == "untrusted_source_v1")
+  ?link (?s, ?p, ?o)
+  FILTER(?link.metadata.source == "untrusted_source_v1")
 }
 ```
 
 #### 4.2.3. 删除概念（`DELETE CONCEPT`）
 
-**功能**：彻底删除一个概念节点及其附带的所有（入度和出度）命题链接。
+**功能**：彻底删除一个概念节点及其所有相关联的命题链接。
 
-**语法**：`DELETE CONCEPT {type: "<type>", name: "<name>", id: "<id>"} DETACH`
+**语法**：`DELETE CONCEPT ?target_node DETACH WHERE { ... }`
 
-*   `{type: "<type>", name: "<name>", id: "<id>"}` 描述要删除的概念节点，应该提供 `type` + `name` 或者唯一的 `id`，没有匹配到唯一节点则忽略。
-*   必须使用 `DETACH` 关键字。这是一种安全机制，强制 LLM 确认其意图——即同时删除概念和与之相关的所有关系，避免产生孤立的关系。
+*   `DETACH` 关键字为必需，作为安全确认，表示意图是删除节点及其所有关系。
 
 **示例**：
 
 ```prolog
 // 删除 "OutdatedDrug" 这个概念及其所有关系
-DELETE CONCEPT
-{ type: "Drug", name: "OutdatedDrug" }
-DETACH
+DELETE CONCEPT ?drug DETACH
+WHERE {
+  ?drug {type: "Drug", name: "OutdatedDrug"}
+}
 ```
 
 ## 5. KIP-META 指令集：知识探索与接地
@@ -722,9 +613,7 @@ DESCRIBE CONCEPT TYPE "Drug"
 
 **功能**：`SEARCH` 命令用于将自然语言术语链接到知识图谱中明确的实体。它专注于高效的、文本索引驱动的查找，而非完整的图模式匹配。
 
-**语法**：`SEARCH [CONCEPT|PROPOSITION] "<search_term>" <options>`。选项 (`<options>`)：
-*   `WITH TYPE "<type_name>"`：将搜索范围限制在某个节点类型内。
-*   `LIMIT N`：限制返回结果数量，默认为 10。
+**语法**：`SEARCH [CONCEPT|PROPOSITION] "<term>" [WITH TYPE "<type>"] [LIMIT N]`
 
 **示例**：
 
@@ -748,17 +637,14 @@ SEARCH PROPOSITION "treats" LIMIT 10
 LLM 生成的 KIP 命令应该通过如下 Function Calling 的结构化请求发送给认知中枢：
 ```js
 {
-  "id": "call_abc123",
-  "type": "function",
   "function": {
     "name": "execute_kip",
     "arguments": JSON.stringify({
       "command": `
-        FIND(?drug_name)
+        FIND(?drug.name)
         WHERE {
           ?symptom {name: $symptom_name}
           (?drug, "treats", ?symptom)
-          ATTR(?drug, "name", ?drug_name)
         }
         LIMIT $limit
       `,
@@ -777,7 +663,7 @@ LLM 生成的 KIP 命令应该通过如下 Function Calling 的结构化请求�
 | :--------------- | :------ | :------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`command`**    | String  | 是       | 包含完整、未经修改的 KIP 命令文本。使用多行字符串以保持格式和可读性。                                                                                                                           |
 | **`parameters`** | Object  | 否       | 一个可选的键值对对象，用于传递命令文本之外的执行上下文参数。命令文本中的占位符（如$symptom_name）会在执行前被 `parameters` 对象中对应的值安全地替换。这有助于防止注入攻击，并使命令模板可复用。 |
-| **`dry_run`**    | Boolean | 否       | 如果为 `true`，则仅验证命令的语法和逻辑，不执行或持久化任何变更。                                                                                                                               |
+| **`dry_run`**    | Boolean | 否       | 如果为 `true`，则仅验证命令的语法和逻辑，不执行。                                                                                                                                               |
 
 ### 6.2. 响应结构（Response Structure）
 
@@ -830,121 +716,20 @@ graph TD
 
 ## 附录 1. 元数据字段设计
 
-精心设计的元数据是构建一个能够自我进化、可追溯、可审计的记忆系统的关键。除了基础的 `source` 和 `confidence`，我们还推荐以下**溯源与可信度（Provenance & Trustworthiness）**、**时效性与生命周期（Temporality & Lifecycle）**、**上下文与审核（Context & Auditing）**这三个类别的元数据字段，它们共同构成了一个强大的记忆管理框架。
+精心设计的元数据是构建一个能够自我进化、可追溯、可审计的记忆系统的关键。我们推荐以下**溯源与可信度**、**时效性与生命周期**、**上下文与审核**三个类别的元数据字段。
 
 ### 1.1. 溯源与可信度 (Provenance & Trustworthiness)
-
-这类元数据回答了“**这条知识从哪来？我们应该多信任它？**”
-
-*   **`source` (来源)** - **（核心）**
-    *   **类型**: `String` 或 `Array<String>`。
-    *   **描述**: 记录知识的直接来源。这应该是尽可能具体和可追溯的标识符。
-    *   **示例**: `"PMID:31536137"`, `"https://en.wikipedia.org/wiki/Aspirin"`, `"UserInteraction:session_xyz123"`, `"KnowledgeCapsule:nootropics_v1.2"`。如果是从多个来源融合的，可以使用数组。
-
-*   **`confidence` (可信度)** - **（核心）**
-    *   **类型**: `Number` (通常在 0.0 到 1.0 之间)。
-    *   **描述**: 对这条知识断言为真的信心分数。这个值可以由多种因素计算得出，如来源的权威性、多来源的佐证、用户的反馈等。
-    *   **示例**: `0.95`。
-
-*   **`evidence` (证据)**
-    *   **类型**: `Array<String>`。
-    *   **描述**: 指向支持该知识断言的具体证据的链接或引用。`source` 可能是知识的“容器”（如一篇论文），而 `evidence` 则是容器内的具体“内容”（如图表、句子）。
-    *   **示例**: `["Table 2 in PMID:31536137", "Quote: 'Aspirin significantly reduced risk...'"]`。
+*   **`source` (来源)**: `String` | `Array<String>`, 知识的直接来源标识。
+*   **`confidence` (可信度)**: `Number`, 对知识为真的信心分数 (0.0-1.0)。
+*   **`evidence` (证据)**: `Array<String>`, 指向支持断言的具体证据。
 
 ### 1.2. 时效性与生命周期 (Temporality & Lifecycle)
-
-这类元数据回答了“**这条知识何时有效？它现在还适用吗？**”
-
-*   **`created_at` (创建时间)**
-    *   **类型**: `String` (ISO 8601 格式)。
-    *   **描述**: 这条知识记录被首次添加到认知中枢的时间戳。对于追踪记忆的演化至关重要。
-    *   **示例**: `"2023-10-27T10:00:00Z"`。
-
-*   **`last_updated_at` (最后更新时间)**
-    *   **类型**: `String` (ISO 8601 格式)。
-    *   **描述**: 这条知识记录（包括其属性或元数据）最后一次被修改的时间戳。
-    *   **示例**: `"2024-05-21T15:30:00Z"`。
-
-*   **`valid_from` (生效时间)**
-    *   **类型**: `String` (ISO 8601 格式)。
-    *   **描述**: 知识断言开始有效的日期。对于描述合同、历史事件、政策等有时效性的事实非常有用。
-    *   **示例**: 对于一份2025年生效的合同，其 `valid_from` 为 `"2025-01-01T00:00:00Z"`。
-
-*   **`valid_until` (失效时间)**
-    *   **类型**: `String` (ISO 8601 格式)。
-    *   **描述**: 知识断言失效或过期的日期。
-    *   **示例**: 优惠券的有效期截止 `valid_until` 为 `"2024-12-31T23:59:59Z"`。
-
-*   **`status` (状态)**
-    *   **类型**: `String`。
-    *   **描述**: 知识的生命周期状态。这比直接删除知识更有用，因为它保留了历史记录。
-    *   **枚举值建议**: `"active"` (活动的), `"deprecated"` (不推荐使用), `"retracted"` (已撤回/证伪), `"pending_review"` (待审核)。
-    *   **示例**: `"active"`。
+*   **`created_at` / `last_updated_at`**: `String` (ISO 8601), 创建/更新时间戳。
+*   **`valid_from` / `valid_until`**: `String` (ISO 8601), 知识断言的有效起止时间。
+*   **`status` (状态)**: `String`, 如 `"active"`, `"deprecated"`, `"retracted"`。
 
 ### 1.3. 上下文与审核 (Context & Auditing)
-
-这类元数据回答了“**这条知识是如何产生的？谁对它负责？**”
-
-*   **`relevance_tags` (相关标签)**
-    *   **类型**: `Array<String>`。
-    *   **描述**: 用于标记这条知识的主题或领域等，便于快速分类和检索。
-    *   **示例**: `["cardiology", "stroke prevention", "high-risk patients"]`。
-
-*   **`author` (作者/创建者)**
-    *   **类型**: `String`。
-    *   **描述**: 创建这条知识记录的实体。这可以是 AI Agent 自身、特定的用户、或者一个自动化的数据导入管道。
-    *   **示例**: `"Agent:self_learning"`, `"User:john_doe"`。
-
-*   **`access_level` (访问级别)**
-    *   **类型**: `String`。
-    *   **描述**: 定义了谁可以访问或使用这条知识。对于构建多租户或有隐私要求的系统至关重要。
-    *   **枚举值建议**: `"public"`, `"private"`, `"internal"`。
-    *   **示例**: `"public"`。
-
-*   **`review_info` (审核信息)**
-    *   **类型**: `Object`
-    *   **描述**: 一个包含审核历史和状态的结构化对象。
-    *   **示例**:
-        ```json
-        {
-          "last_reviewed_by": "Expert:dr_jane_smith",
-          "last_reviewed_at": "2024-01-15T09:00:00Z",
-          "review_notes": "Confirmed with latest clinical trials."
-        }
-        ```
-
-**元数据字段综合示例**：
-
-```prolog
-// Aspirin 以 100mg 的剂量用于预防高危成年人的中风。
-UPSERT {
-  PROPOSITION ?prevention_link {
-    (
-      { type: "Drug", name: "Aspirin" },
-      "prevents",
-      { type: "Condition", name: "Stroke" }
-    )
-    // 事实的内在属性
-    SET ATTRIBUTES {
-      dosage: "100mg",
-      patient_group: "high-risk adults"
-    }
-  }
-  // 关于这个事实的元数据
-  WITH METADATA {
-    source: "Clinical Guideline XYZ-2023",
-    confidence: 0.98,
-    evidence: ["Section 3.1, Guideline XYZ-2023"],
-    created_at: "2023-11-10T14:20:10Z",
-    last_updated_at: "2023-11-10T14:20:10Z",
-    valid_from: "2023-01-01T00:00:00Z",
-    status: "active",
-    author: "DataPipeline:guideline_importer",
-    access_level: "public",
-    review_info: {
-      "last_reviewed_by": "Expert:dr_smith",
-      "last_reviewed_at": "2024-02-20T11:00:00Z"
-    }
-  }
-}
-```
+*   **`relevance_tags` (相关标签)**: `Array<String>`, 主题或领域标签。
+*   **`author` (作者/创建者)**: `String`, 创建该记录的实体。
+*   **`access_level` (访问级别)**: `String`, 如 `"public"`, `"private"`。
+*   **`review_info` (审核信息)**: `Object`, 包含审核历史的结构化对象。
