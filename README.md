@@ -656,7 +656,7 @@ META is a lightweight subset of KIP focused on "Introspection" and "Disambiguati
 **Function**: Retrieves the "Cognitive Primer" to guide the LLM on how to efficiently utilize the Cognitive Nexus.
 
 The Cognitive Primer consists of two parts:
-1.  **Universal Abstract Layer** - "Who am I?"
+1.  **Identity Layer** - "Who am I?"
     This is the highest level of generalization, defining the AI Agent's core identity, capability boundaries, and fundamental principles. It includes:
 
     *   The Agent's role and objectives (e.g., "I am a professional medical knowledge assistant, aiming to provide accurate and traceable medical information").
@@ -911,7 +911,7 @@ UPSERT {
                 "instance_schema": {
                     type: "object",
                     is_required: false,
-                    description: "A schema defining the expected attributes for instances of this concept type. Keys are attribute names, values are objects defining 'type', 'is_required', and 'description'."
+                    description: "A recommended schema defining the common and core attributes for instances of this concept type. It serves as a 'best practice' guideline for knowledge creation, not a rigid constraint. Keys are attribute names, values are objects defining 'type', 'is_required', and 'description'. Instances SHOULD include required attributes but MAY also include any other attribute not defined in this schema, allowing for knowledge to emerge and evolve freely."
                 },
                 "key_instances": {
                     type: "array",
@@ -949,16 +949,10 @@ UPSERT {
                     is_required: true,
                     description: "A list of allowed '$ConceptType' names for the object. Use '*' for any type."
                 },
-                "priority": {
-                    type: "integer",
-                    is_required: false,
-                    default_value: 0,
-                    description: "An integer indicating the priority of this proposition type. Higher values indicate higher priority."
-                },
                 "is_symmetric": { type: "boolean", is_required: false, default_value: false },
                 "is_transitive": { type: "boolean", is_required: false, default_value: false }
             },
-            key_instances: [ "is_a", "belongs_to_domain", "has_property" ]
+            key_instances: [ "belongs_to_domain" ]
         }
     }
 
@@ -970,9 +964,38 @@ UPSERT {
     CONCEPT ?domain_type_def {
         {type: "$ConceptType", name: "Domain"}
         SET ATTRIBUTES {
-            description: "Defines a top-level container for organizing knowledge. It's a high-level category for concepts and propositions.",
+            description: "Defines a high-level container for organizing knowledge. It acts as a primary category for concepts and propositions, enabling modularity and contextual understanding.",
             display_hint: "🗺️",
-            key_instances: ["CoreSchema", "GeneralKnowledge"]
+            instance_schema: {
+                "description": {
+                    type: "string",
+                    is_required: true,
+                    description: "A clear, human-readable explanation of what knowledge this domain encompasses."
+                },
+                "display_hint": {
+                    type: "string",
+                    is_required: false,
+                    description: "A suggested icon or visual cue for this specific domain (e.g., a specific emoji)."
+                },
+                "scope_note": {
+                    type: "string",
+                    is_required: false,
+                    description: "A more detailed note defining the precise boundaries of the domain, specifying what is included and what is excluded."
+                },
+                "aliases": {
+                    type: "array",
+                    item_type: "string",
+                    is_required: false,
+                    description: "A list of alternative names or synonyms for the domain, to aid in search and natural language understanding."
+                },
+                "steward": {
+                    type: "string",
+                    is_required: false,
+                    description: "The name of the 'Person' (human or AI) primarily responsible for curating and maintaining the quality of knowledge within this domain."
+                }
+
+            },
+            key_instances: ["CoreSchema"]
         }
     }
 
@@ -985,6 +1008,16 @@ UPSERT {
             object_types: ["Domain"] // The object must be a Domain.
         }
     }
+
+    // 3c. Create a dedicated domain "CoreSchema" for meta-definitions.
+    // This domain will contain the definitions of all concept types and proposition types.
+    CONCEPT ?core_domain {
+        {type: "Domain", name: "CoreSchema"}
+        SET ATTRIBUTES {
+            description: "The foundational domain containing the meta-definitions of the KIP system itself.",
+            display_hint: "🧩"
+        }
+    }
 }
 WITH METADATA {
     source: "KIP Genesis Capsule v1.0",
@@ -995,16 +1028,10 @@ WITH METADATA {
 
 // Post-Genesis Housekeeping
 UPSERT {
-    // 1. Create a dedicated domain "CoreSchema" for meta-definitions.
-    // This domain will contain the definitions of all concept types and proposition types.
+    // Assign all meta-definition concepts to the "CoreSchema" domain.
     CONCEPT ?core_domain {
         {type: "Domain", name: "CoreSchema"}
-        SET ATTRIBUTES {
-            description: "The foundational domain containing the meta-definitions of the KIP system itself."
-        }
     }
-
-    // 2. Assign all meta-definition concepts to this new domain.
     CONCEPT ?concept_type_def {
         {type: "$ConceptType", name: "$ConceptType"}
         SET PROPOSITIONS { ("belongs_to_domain", ?core_domain) }
