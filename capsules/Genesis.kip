@@ -1,0 +1,144 @@
+// # KIP Genesis Capsule v1.0
+// The foundational knowledge that bootstraps the entire Cognitive Nexus.
+// It defines what a "Concept Type" and a "Proposition Type" are,
+// by creating instances of them that describe themselves.
+//
+UPSERT {
+    // --- STEP 1: THE PRIME MOVER - DEFINE "$ConceptType" ---
+    // The absolute root of all knowledge. This node defines what it means to be a "type"
+    // of concept. It defines itself, creating the first logical anchor.
+    CONCEPT ?concept_type_def {
+        {type: "$ConceptType", name: "$ConceptType"}
+        SET ATTRIBUTES {
+            description: "Defines a class or category of Concept Nodes. It acts as a template for creating new concept instances. Every concept node in the graph must have a 'type' that points to a concept of this type.",
+            display_hint: "📦",
+            instance_schema: {
+                "description": {
+                    type: "string",
+                    is_required: true,
+                    description: "A human-readable explanation of what this concept type represents."
+                },
+                "display_hint": {
+                    type: "string",
+                    is_required: false,
+                    description: "A suggested icon or visual cue for user interfaces (e.g., an emoji or icon name)."
+                },
+                "instance_schema": {
+                    type: "object",
+                    is_required: false,
+                    description: "A schema defining the expected attributes for instances of this concept type. Keys are attribute names, values are objects defining 'type', 'is_required', and 'description'."
+                },
+                "key_instances": {
+                    type: "array",
+                    item_type: "string",
+                    is_required: false,
+                    description: "A list of names of the most important or representative instances of this type, to help LLMs ground their queries."
+                }
+            },
+            key_instances: [ "$ConceptType", "$PropositionType", "Domain" ]
+        }
+    }
+
+    // --- STEP 2: DEFINE "$PropositionType" USING "$ConceptType" ---
+    // With the ability to define concepts, we now define the concept of a "relation" or "predicate".
+    CONCEPT ?proposition_type_def {
+        {type: "$ConceptType", name: "$PropositionType"}
+        SET ATTRIBUTES {
+            description: "Defines a class of Proposition Links (a predicate). It specifies the nature of the relationship between a subject and an object.",
+            display_hint: "🔗",
+            instance_schema: {
+                "description": {
+                    type: "string",
+                    is_required: true,
+                    description: "A human-readable explanation of what this relationship represents."
+                },
+                "subject_types": {
+                    type: "array",
+                    item_type: "string",
+                    is_required: true,
+                    description: "A list of allowed '$ConceptType' names for the subject. Use '*' for any type."
+                },
+                "object_types": {
+                    type: "array",
+                    item_type: "string",
+                    is_required: true,
+                    description: "A list of allowed '$ConceptType' names for the object. Use '*' for any type."
+                },
+                "priority": {
+                    type: "integer",
+                    is_required: false,
+                    default_value: 0,
+                    description: "An integer indicating the priority of this proposition type. Higher values indicate higher priority."
+                },
+                "is_symmetric": { type: "boolean", is_required: false, default_value: false },
+                "is_transitive": { type: "boolean", is_required: false, default_value: false }
+            },
+            key_instances: [ "is_a", "belongs_to_domain", "has_property" ]
+        }
+    }
+
+    // --- STEP 3: DEFINE THE TOOLS FOR ORGANIZATION ---
+    // Now that we can define concepts and propositions, we create the specific
+    // concepts needed for organizing the knowledge graph itself.
+
+    // 3a. Define the "Domain" concept type.
+    CONCEPT ?domain_type_def {
+        {type: "$ConceptType", name: "Domain"}
+        SET ATTRIBUTES {
+            description: "Defines a top-level container for organizing knowledge. It's a high-level category for concepts and propositions.",
+            display_hint: "🗺️",
+            key_instances: ["CoreSchema", "GeneralKnowledge"]
+        }
+    }
+
+    // 3b. Define the "belongs_to_domain" proposition type.
+    CONCEPT ?belongs_to_domain_prop {
+        {type: "$PropositionType", name: "belongs_to_domain"}
+        SET ATTRIBUTES {
+            description: "A fundamental proposition that asserts a concept's membership in a specific knowledge domain.",
+            subject_types: ["*"], // Any concept can belong to a domain.
+            object_types: ["Domain"] // The object must be a Domain.
+        }
+    }
+}
+WITH METADATA {
+    source: "KIP Genesis Capsule v1.0",
+    author: "System Architect",
+    confidence: 1.0,
+    status: "active"
+}
+
+// Post-Genesis Housekeeping
+UPSERT {
+    // 1. Create a dedicated domain "CoreSchema" for meta-definitions.
+    // This domain will contain the definitions of all concept types and proposition types.
+    CONCEPT ?core_domain {
+        {type: "Domain", name: "CoreSchema"}
+        SET ATTRIBUTES {
+            description: "The foundational domain containing the meta-definitions of the KIP system itself."
+        }
+    }
+
+    // 2. Assign all meta-definition concepts to this new domain.
+    CONCEPT ?concept_type_def {
+        {type: "$ConceptType", name: "$ConceptType"}
+        SET PROPOSITIONS { ("belongs_to_domain", ?core_domain) }
+    }
+    CONCEPT ?proposition_type_def {
+        {type: "$ConceptType", name: "$PropositionType"}
+        SET PROPOSITIONS { ("belongs_to_domain", ?core_domain) }
+    }
+    CONCEPT ?domain_type_def {
+        {type: "$ConceptType", name: "Domain"}
+        SET PROPOSITIONS { ("belongs_to_domain", ?core_domain) }
+    }
+    CONCEPT ?belongs_to_domain_prop {
+        {type: "$PropositionType", name: "belongs_to_domain"}
+        SET PROPOSITIONS { ("belongs_to_domain", ?core_domain) }
+    }
+}
+WITH METADATA {
+    source: "System Maintenance",
+    author: "System Architect",
+    confidence: 1.0,
+}

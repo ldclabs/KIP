@@ -1,0 +1,72 @@
+// DEFINE the "Person" concept type ---
+UPSERT {
+    // The agent itself is a person: `{type: "Person", name: "$self"}`.
+    CONCEPT ?person_type_def {
+        {type: "$ConceptType", name: "Person"}
+        SET ATTRIBUTES {
+            description: "Represents an individual actor within the system, which can be an AI, a human, or a group entity. All actors, including the agent itself, are instances of this type.",
+            display_hint: "👤",
+            instance_schema: {
+                "id": {
+                    type: "string",
+                    is_required: true,
+                    description: "A unique identifier for the person, typically a UUID or similar."
+                },
+                "person_class": {
+                    type: "string",
+                    is_required: true,
+                    description: "The classification of the person, e.g., 'AI', 'Human', 'Organization'."
+                },
+                "name": {
+                    type: "string",
+                    is_required: false, // No name for $self at genesis
+                    description: "The given or chosen name of the person."
+                },
+                "handle": {
+                    type: "string",
+                    is_required: false,
+                    description: "A unique handle or username for the person, often used in digital contexts."
+                },
+                "avatar": {
+                    type: "string",
+                    is_required: false,
+                    description: "A URL or emoji identifier for the person's avatar image, used in user interfaces."
+                },
+                "persona": {
+                    type: "string",
+                    is_required: false,
+                    description: "For AIs, a self-description of their identity. For humans, it could be a summary of their observed personality or role."
+                },
+                "core_mission": {
+                    type: "string",
+                    is_required: false,
+                    description: "Primarily for AIs, describing their main objective."
+                },
+                "capabilities": {
+                    type: "array",
+                    item_type: "string",
+                    is_required: false,
+                    description: "Primarily for AIs, a list of key functions they can perform."
+                },
+                "relationship_to_self": {
+                    type: "string",
+                    is_required: false,
+                    description: "For persons other than '$self', their relationship to the agent (e.g., 'user', 'creator', 'collaborator')."
+                },
+                "interaction_summary": {
+                    type: "object",
+                    is_required: false,
+                    description: "A dynamically updated summary of interactions, like last_seen, interaction_count, key_topics."
+                }
+            }
+        }
+
+        SET PROPOSITIONS { ("belongs_to_domain", ?core_domain) }
+    }
+}
+WITH METADATA {
+    source: "KIP Capsule Design",
+    author: "System Architect",
+    confidence: 1.0,
+    status: "active"
+}

@@ -3,22 +3,23 @@
 **[English](./README.md) | [中文](./README_CN.md)**
 
 **版本历史**：
-| 版本        | 日期       | 变更说明                                                                                |
-| ----------- | ---------- | --------------------------------------------------------------------------------------- |
-| v1.0-draft1 | 2025-06-09 | 初始草案                                                                                |
-| v1.0-draft2 | 2025-06-15 | 优化 `UNION` 子句                                                                       |
-| v1.0-draft3 | 2025-06-18 | 优化术语，简化语法，移除 `SELECT` 子查询，添加 `META` 子句，增强命题链接子句            |
-| v1.0-draft4 | 2025-06-19 | 简化语法，移除 `COLLECT`，`AS`，`@`                                                     |
-| v1.0-draft5 | 2025-06-25 | 移除 `ATTR` 和 `META`，引入“点表示法”取代；添加 `(id: "<link_id>")`；优化 `DELETE` 语句 |
+| 版本        | 日期       | 变更说明                                                                                                                         |
+| ----------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| v1.0-draft1 | 2025-06-09 | 初始草案                                                                                                                         |
+| v1.0-draft2 | 2025-06-15 | 优化 `UNION` 子句                                                                                                                |
+| v1.0-draft3 | 2025-06-18 | 优化术语，简化语法，移除 `SELECT` 子查询，添加 `META` 子句，增强命题链接子句                                                     |
+| v1.0-draft4 | 2025-06-19 | 简化语法，移除 `COLLECT`，`AS`，`@`                                                                                              |
+| v1.0-draft5 | 2025-06-25 | 移除 `ATTR` 和 `META`，引入“点表示法”取代；添加 `(id: "<link_id>")`；优化 `DELETE` 语句                                          |
+| v1.0-draft6 | 2025-07-06 | 确立命名规范；引入自举模型：新增 "$ConceptType", "$PropositionType" 元类型和 Domain 类型，实现模式的图内定义；添加创世知识胶囊。 |
 
 **KIP 实现**：
-- [Anda KIP](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust SDK of KIP for building sustainable AI knowledge memory systems.
-- [Anda Cognitive Nexus (WIP)](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus): A Rust implementation of KIP (Knowledge Interaction Protocol) base on Anda DB.
+- [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust SDK of KIP for building sustainable AI knowledge memory systems.
+- [Anda Cognitive Nexus](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus): A Rust implementation of KIP (Knowledge Interaction Protocol) base on Anda DB.
 
 **关于我们**：
 - [ICPanda DAO](https://panda.fans/): ICPanda is a technical panda fully running on the [Internet Computer](https://internetcomputer.org/) blockchain, building chain-native infrastructures, Anda.AI and dMsg.net.
 - [Anda.AI](https://anda.ai/): Create next-generation AI agents with persistent memory, decentralized trust, and swarm intelligence.
-- GitHub: [LDC Labs](https://github.com/ldclabs/KIP)
+- GitHub: [LDC Labs](https://github.com/ldclabs)
 - Follow Us on X: [ICPanda DAO](https://x.com/ICPandaDAO)
 
 ## 0. 前言
@@ -68,13 +69,13 @@ KIP 将 AI 与知识库的交互范式，**从单向的“工具调用”，升�
 ### 2.2. 概念节点（Concept Node）
 
 *   **定义**：知识图谱中的**实体**或**抽象概念**，是知识的基本单元（如图中的“点”）。
-*   **示例**：一个名为“阿司匹林”的`药物`节点，一个名为“头痛”的`症状`节点。
+*   **示例**：一个名为“阿司匹林”的`Drug`节点，一个名为“头痛”的`Symptom`节点。
 *   **构成**：
     *   `id`：String，唯一标识符，用于在图中唯一定位该节点。
-    *   `type`：String，节点的类型，如 `Drug`、`Symptom` 等。
-    *   `name`：String，节点的名称，如“阿司匹林”、“头痛”等。`type` + `name` 组合在图中也唯一定位一个节点。
-    *   `attributes`：Object，节点的属性，描述该概念的内在特性，如 `molecular_formula`、`risk_level` 等。
-    *   `metadata`：Object，节点的元数据，描述该概念的来源、可信度等信息，如 `source`、`confidence` 等。
+    *   `type`：String，节点的类型。**其值必须是一个在图中已定义的、类型为 `"$ConceptType"` 的概念节点的名称**。遵循 `UpperCamelCase` 命名法。
+    *   `name`：String，节点的名称。`type` + `name` 组合在图中也唯一定位一个节点。
+    *   `attributes`：Object，节点的属性，描述该概念的内在特性。
+    *   `metadata`：Object，节点的元数据，描述该概念的来源、可信度等信息。
 
 ### 2.3. 命题链接（Proposition Link）
 
@@ -83,10 +84,10 @@ KIP 将 AI 与知识库的交互范式，**从单向的“工具调用”，升�
 *   **构成**：
     *   `id`：String，唯一标识符，用于在图中唯一定位该链接。
     *   `subject`：String，关系的发起者，一个概念节点或另一个命题链接的 ID。
-    *   `predicate`：String，定义了主语和宾语之间的**关系（Relation）**类型。
+    *   `predicate`：String，定义了主语和宾语之间的**关系（Relation）**类型。**其值必须是一个在图中已定义的、类型为 `"$PropositionType"` 的概念节点的名称**。遵循 `snake_case` 命名法。
     *   `object`：String，关系的接受者，一个概念节点或另一个命题链接的 ID。
     *   `attributes`：Object，命题的属性，描述该命题的内在特性。
-    *   `metadata`：Object，命题的元数据，描述该命题的来源、可信度等信息，如 `source`、`confidence` 等。
+    *   `metadata`：Object，命题的元数据，描述该命题的来源、可信度等信息。
 
 ### 2.4. 知识胶囊（Knowledge Capsule）
 
@@ -109,9 +110,89 @@ KIP 采用 **JSON** 的数据模型，即 KIP 所有子句中使用的值，其�
 *   **复杂类型**：`Array`, `Object`。
 *   **使用限制**: 虽然 `Array` 和 `Object` 可作为属性或元数据的值存储，但 KQL 的 `FILTER` 子句**主要针对基本类型进行操作**。
 
-### 2.8. 标志符（Identifier）
+### 2.8. 标志符与命名规范（Identifiers & Naming Conventions）
 
-KIP 的标识符以字母或下划线开头，后跟字母、数字或下划线的任意组合。标志符用于变量名、属性名、元数据键等。
+标志符是 KIP 中用于为变量、类型、谓词、属性和元数据键命名的基础。为了保证协议的清晰性、可读性和一致性，KIP 对标志符的语法和命名风格进行了统一规定。
+
+#### 2.8.1. 标志符语法（Identifier Syntax）
+
+一个合法的 KIP 标志符**必须**以字母（`a-z`, `A-Z`）或下划线（`_`）开头，其后可以跟随任意数量的字母、数字（`0-9`）或下划线。
+此规则适用于所有类型的命名，但元类型以 `$` 前缀作为特殊标记，变量则以 `?` 前缀作为语法标记。
+
+#### 2.8.2. 命名约定（Naming Conventions）
+
+在遵循基本语法规则之上，为了增强可读性和代码的自解释性，KIP **强烈推荐**遵循以下命名约定：
+
+*   **概念节点类型（Concept Node Types）**：使用**大驼峰命名法（UpperCamelCase）**。
+    *   **示例**: `Drug`, `Symptom`, `MedicalDevice`, `ClinicalTrial`。
+    *   **元类型**: `$ConceptType`, `$PropositionType`, 以 `$` 开头的为系统保留元类型。
+
+*   **命题链接谓词（Proposition Link Predicates）**：使用**蛇形命名法（snake_case）**。
+    *   **示例**: `treats`, `has_side_effect`, `is_subclass_of`, `belongs_to_domain`。
+
+*   **属性与元数据键（Attribute & Metadata Keys）**：使用**蛇形命名法（snake_case）**。
+    *   **示例**: `molecular_formula`, `risk_level`, `last_updated_at`。
+
+*   **变量（Variables）**：**必须**以 `?` 作为前缀，其后部分推荐使用小写蛇形命名法（`snake_case`）。
+    *   **示例**: `?drug`, `?side_effect`, `?clinical_trial`。
+
+### 2.9. 知识自举与元定义（Knowledge Bootstrapping & Meta-Definition）
+
+KIP 的核心设计之一是**知识图谱的自我描述能力**。认知中枢的模式（Schema）——即所有合法的概念类型和命题类型——本身就是图中的一部分，由概念节点来定义。这使得整个知识体系可以自举（Bootstrap），无需外部定义即可被理解和扩展。
+
+#### 2.9.1. 元类型（Meta-Types）
+
+系统仅预定义两个特殊的、以 `$` 开头的元类型：
+
+*   **`"$ConceptType"`**：用于定义**概念节点类型**的类型。一个节点的 `type` 是 `"$ConceptType"`，意味着这个节点本身定义了一个“类型”。
+    *   **示例**：`{type: "$ConceptType", name: "Drug"}` 这个节点，它定义了 `Drug` 作为一个合法的概念类型。之后，我们才能创建 `{type: "Drug", name: "Aspirin"}` 这样的节点。
+
+*   **`"$PropositionType"`**：用于定义**命题链接谓词**的类型。一个节点的 `type` 是 `"$PropositionType"`，意味着这个节点本身定义了一个“关系”或“谓词”。
+    *   **示例**：`{type: "$PropositionType", name: "treats"}` 这个节点，它定义了 `treats` 作为一个合法的谓词。之后，我们才能创建 `(?aspirin, "treats", ?headache)` 这样的命题。
+
+#### 2.9.2. 创世之源 (The Genesis)
+
+这两个元类型本身也由概念节点定义，形成一个自洽的闭环：
+
+*   `"$ConceptType"` 的定义节点是：`{type: "$ConceptType", name: "$ConceptType"}`
+*   `"$PropositionType"` 的定义节点是：`{type: "$ConceptType", name: "$PropositionType"}`
+
+这意味着 `"$ConceptType"` 是一种 `"$ConceptType"`，这构成了整个类型系统的逻辑基石。
+
+```mermaid
+graph TD
+    subgraph "元定义 (Meta-Definitions)"
+        A["<b>$ConceptType</b><br>{type: '$ConceptType', name: '$ConceptType'}"]
+        B["<b>$PropositionType</b><br>{type: '$ConceptType', name: '$PropositionType'}"]
+        A -- 定义了 --> A
+        A -- 定义了 --> B
+    end
+
+    subgraph "模式定义 (Schema Definitions)"
+        C["<b>Drug</b><br>{type: '$ConceptType', name: 'Drug'}"]
+        D["<b>Symptom</b><br>{type: '$ConceptType', name: 'Symptom'}"]
+        E["<b>treats</b><br>{type: '$PropositionType', name: 'treats'}"]
+        A -- "定义了" --> C
+        A -- "定义了" --> D
+        B -- "定义了" --> E
+    end
+
+    subgraph "数据实例 (Data Instances)"
+        F["<b>Aspirin</b><br>{type: 'Drug', name: 'Aspirin'}"]
+        G["<b>Headache</b><br>{type: 'Symptom', name: 'Headache'}"]
+        C -- "是其类型" --> F
+        D -- "是其类型" --> G
+        F -- "treats<br>(由 E 定义)" --> G
+    end
+```
+
+#### 2.9.3. 认知领域 (Domain)
+
+为了对知识进行有效的组织和隔离，KIP 引入了 `Domain` 的概念：
+
+*   **`Domain`**：它本身是一个概念类型，通过 `{type: "$ConceptType", name: "Domain"}` 定义。
+*   **领域节点**：例如，`{type: "Domain", name: "Medical"}` 创建了一个名为“医疗”的认知领域。
+*   **归属关系**：概念节点在创建之初可以不归属于任何领域，保持系统的灵活性和真实性。在后续的推理中，应该通过 `belongs_to_domain` 命题链接，将其归属到对应的领域下，这确保了知识能被 LLM 高效利用。
 
 ## 3. KIP-KQL 指令集：知识查询语言
 
@@ -136,8 +217,8 @@ OFFSET M
 一个绑定到变量 `?var` 上的节点或链接，其内部数据可以通过以下路径访问：
 
 *   **访问顶级字段**:
-    *   `?var.id`, `?var.type`, `?var.name` (用于概念节点)
-    *   `?var.id`, `?var.subject`, `?var.predicate`, `?var.object` (用于命题链接)
+    *   `?var.id`, `?var.type`, `?var.name`：用于概念节点。
+    *   `?var.id`, `?var.subject`, `?var.predicate`, `?var.object`：用于命题链接。
 *   **访问属性 (Attributes)**:
     *   `?var.attributes.<attribute_name>`
 *   **访问元数据 (Metadata)**:
@@ -171,10 +252,11 @@ FILTER(?link.metadata.confidence > 0.9)
 **功能**：匹配概念节点并绑定到变量。使用 `{...}` 语法。
 
 **语法**：
-*   `?node_var {id: "<id>"}` (通过唯一 ID 匹配唯一概念节点)
-*   `?node_var {type: "<type>", name: "<name>"}` (通过类型和名称匹配唯一概念节点)
-*   `?nodes_var {type: "<type>"}`，`?nodes_var {name: "<name>"}` (通过类型或者名称匹配一批概念节点)
-*   `?node_var` 是可选的，将匹配到的概念节点绑定到变量上，便于后续操作。
+*   `?node_var {id: "<id>"}`：通过唯一 ID 匹配唯一概念节点。
+*   `?node_var {type: "<Type>", name: "<name>"}`：通过类型和名称匹配唯一概念节点。
+*   `?nodes_var {type: "<Type>"}`，`?nodes_var {name: "<name>"}`：通过类型或者名称匹配一批概念节点。
+
+`?node_var` 将匹配到的概念节点绑定到变量上，便于后续操作。但当概念节点子句直接用于命题链接子句的主语或宾语时，不应该定义变量名。
 
 **示例**：
 
@@ -194,12 +276,13 @@ FILTER(?link.metadata.confidence > 0.9)
 **功能**：匹配命题链接并绑定到变量。使用 `(...)` 语法。
 
 **语法**：
-*   `?link_var (id: "<link_id>")` (通过唯一 ID 匹配唯一命题链接)
-*   `?link_var (?subject, "<predicate>", ?object)` (通过结构模式匹配一批命题链接)
-*   `?link_var` 是可选的，将匹配到的命题链接绑定到变量上，便于后续操作。
+*   `?link_var (id: "<link_id>")`：通过唯一 ID 匹配唯一命题链接。
+*   `?link_var (?subject, "<predicate>", ?object)`：通过结构模式匹配一批命题链接。其中主语或者宾语可以是概念节点或另一个命题链接的变量，或没有变量名的子句。
 *   谓词部分支持路径操作符：
     *   `predicate{m,n}`：匹配 m 到 n 跳，如 `"follows"{1,5}`，`"follows"{1,}`，`"follows"{5}`。
     *   `predicate1 | predicate2`：匹配 `predicate1` 或 `predicate2`，如 `"follows" | "connects" | "links"`。
+
+`?link_var` 是可选的，将匹配到的命题链接绑定到变量上，便于后续操作。
 
 **示例**：
 
@@ -375,7 +458,7 @@ KML 是 KIP 中负责知识演化的部分，是 Agent 实现学习的核心工�
 ```prolog
 UPSERT {
   CONCEPT ?local_handle {
-    {type: "<type>", name: "<name>"} // Or: {id: "<id>"}
+    {type: "<Type>", name: "<name>"} // Or: {id: "<id>"}
     SET ATTRIBUTES { <key>: <value>, ... }
     SET PROPOSITIONS {
       ("<predicate>", { <existing_concept> })
@@ -402,17 +485,17 @@ WITH METADATA { <key>: <value>, ... }
 *   **`UPSERT` 块**： 整个操作的容器，保证内部所有操作的幂等性。
 *   **`CONCEPT` 块**：定义一个概念节点。
     *   `?local_handle`：以 `?` 开头的本地句柄（或称锚点），用于在事务内引用此新概念，它只在本次 `UPSERT` 块事务中有效。
-    *   `{type: "<type>", name: "<name>"}` 会匹配或创建概念节点，`{id: "<id>"}` 只会匹配已有概念节点。
+    *   `{type: "<Type>", name: "<name>"}`：匹配或创建概念节点，`{id: "<id>"}` 只会匹配已有概念节点。
     *   `SET ATTRIBUTES { ... }`：设置或更新节点的属性。
     *   `SET PROPOSITIONS { ... }`：定义或更新该概念节点发起的命题链接。`SET PROPOSITIONS` 的行为是增量添加（additive），而非替换（replacing）。它会检查该概念节点的所有出度关系：1. 如果图中不存在完全相同的命题（主语、谓词、宾语都相同），则创建这个新命题；2. 如果图中已存在完全相同的命题，则仅更新或添加 `WITH METADATA` 中指定的元数据。如果一个命题本身需要携带复杂的内在属性，建议使用独立的 `PROPOSITION` 块来定义它，并通过本地句柄 `?handle` 进行引用。
         *   `("<predicate>", ?local_handle)`：链接到本次胶囊中定义的另一个概念或命题。
-        *   `("<predicate>", {type: "<type>", name: "<name>"})`，`("<predicate>", {id: "<id>"})`：链接到图中已存在的概念，不存在则忽略。
+        *   `("<predicate>", {type: "<Type>", name: "<name>"})`，`("<predicate>", {id: "<id>"})`：链接到图中已存在的概念，不存在则忽略。
         *   `("<predicate>", (?subject, "<predicate>", ?object))`：链接到图中已存在的命题，不存在则忽略。
 *   **`PROPOSITION` 块**：定义一个独立的命题链接，通常用于在胶囊内创建复杂的关系。
     *   `?local_prop`：本地句柄，用于引用此命题链接。
     *   `(<subject>, "<predicate>", <object>)`：会匹配或创建命题链接，`(id: "<id>")` 只会匹配已有命题链接。
     *   `SET ATTRIBUTES { ... }`：一个简单的键值对列表，用于设置或更新命题链接的属性。
-*   **`WITH METADATA` 块**： 追加在 `CONCEPT`，`PROPOSITION` 或 `UPSERT` 块的元数据。
+*   **`WITH METADATA` 块**： 追加在 `CONCEPT`，`PROPOSITION` 或 `UPSERT` 块的元数据。`UPSERT` 块的元数据是所有在该块内定义的概念节点和命题链接的默认元数据。但每个 `CONCEPT` 或 `PROPOSITION` 块也可以单独定义自己的元数据。
 
 **示例**：
 
@@ -508,7 +591,23 @@ WHERE {
 }
 ```
 
-#### 4.2.2. 删除命题（`DELETE PROPOSITIONS`）
+#### 4.2.2. 删除元数据字段（`DELETE METADATA`）
+
+**功能**：批量删除匹配的概念节点或命题链接的多个元数据字段。
+
+**语法**：`DELETE METADATA { "metadata_key", ... } FROM ?target WHERE { ... }`
+
+**示例**：
+
+```prolog
+// 从 "Aspirin" 节点中删除元数据的 "old_source" 字段
+DELETE METADATA {"old_source"} FROM ?drug
+WHERE {
+  ?drug {type: "Drug", name: "Aspirin"}
+}
+```
+
+#### 4.2.3. 删除命题（`DELETE PROPOSITIONS`）
 
 **功能**：批量删除匹配的命题链接。
 
@@ -525,7 +624,7 @@ WHERE {
 }
 ```
 
-#### 4.2.3. 删除概念（`DELETE CONCEPT`）
+#### 4.2.4. 删除概念（`DELETE CONCEPT`）
 
 **功能**：彻底删除一个概念节点及其所有相关联的命题链接。
 
@@ -562,7 +661,7 @@ META 是 KIP 的一个轻量级子集，专注于“自省”（Introspection）
     这是最高度的概括，定义了 AI Agent 的核心身份、能力边界和基本原则。内容包括：
 
     *   Agent 的角色和目标（例如：“我是一个专业的医学知识助手，旨在提供准确、可追溯的医学信息”）。
-    *   认知中枢 的存在和作用（“我的记忆和知识存储在认知中枢中，我可以通过 KIP 调用查询它”）。
+    *   认知中枢的存在和作用（“我的记忆和知识存储在认知中枢中，我可以通过 KIP 调用查询它”）。
     *   核心能力摘要（“我能够进行疾病诊断、药品查询、解读检查报告...”）。
 2.  **领域地图层（Domain Map）** - “我知道些什么？”
     这是“认知引信”的核心。它不是知识的罗列，而是认知中枢的**拓扑结构摘要**。内容包括：
@@ -579,17 +678,42 @@ META 是 KIP 的一个轻量级子集，专注于“自省”（Introspection）
 
 **语法**：`DESCRIBE DOMAINS`
 
+**语义等价于**：
+```prolog
+FIND(?domains.name)
+WHERE {
+  ?domains {type: "Domain"}
+}
+```
+
 #### 5.1.3. 列出所有存在的概念节点类型（`DESCRIBE CONCEPT TYPES`）
 
 **功能**：列出所有存在的概念节点类型，用于引导 LLM 如何高效接地。
 
-**语法**：`DESCRIBE CONCEPT TYPES`
+**语法**：`DESCRIBE CONCEPT TYPES [LIMIT N] [OFFSET M]`
 
-#### 5.1.4. 描述一个特定节点类型（`DESCRIBE CONCEPT TYPE "<type_name>"`）
+**语义等价于**：
+```prolog
+FIND(?type_def.name)
+WHERE {
+  ?type_def {type: "$ConceptType"}
+}
+LIMIT N OFFSET M
+```
 
-**功能**：描述一个特定节点类型的详细信息，包括其拥有的属性和常见关系。
+#### 5.1.4. 描述一个特定概念节点类型（`DESCRIBE CONCEPT TYPE "<TypeName>"`）
 
-**语法**：`DESCRIBE CONCEPT TYPE "<type_name>"`
+**功能**：描述一个特定概念节点类型的详细信息，包括其拥有的属性和常见关系。
+
+**语法**：`DESCRIBE CONCEPT TYPE "<TypeName>"`
+
+**语义等价于**:
+```prolog
+FIND(?type_def)
+WHERE {
+  ?type_def {type: "$ConceptType", name: "<TypeName>"}
+}
+```
 
 **示例**：
 
@@ -601,7 +725,16 @@ DESCRIBE CONCEPT TYPE "Drug"
 
 **功能**：列出所有命题链接的谓词，用于引导 LLM 如何高效接地。
 
-**语法**：`DESCRIBE PROPOSITION TYPES`
+**语法**：`DESCRIBE PROPOSITION TYPES [LIMIT N] [OFFSET M]`
+
+**语义等价于**:
+```prolog
+FIND(?type_def.name)
+WHERE {
+  ?type_def {type: "$PropositionType"}
+}
+LIMIT N OFFSET M
+```
 
 #### 5.1.6. 描述一个特定命题链接类型的详细信息 (`DESCRIBE PROPOSITION TYPE "<predicate>"`)
 
@@ -609,11 +742,19 @@ DESCRIBE CONCEPT TYPE "Drug"
 
 **语法**：`DESCRIBE PROPOSITION TYPE "<predicate>"`
 
+**语义等价于**:
+```prolog
+FIND(?type_def)
+WHERE {
+  ?type_def {type: "$PropositionType", name: "<predicate>"}
+}
+```
+
 ### 5.2. `SEARCH` 语句
 
 **功能**：`SEARCH` 命令用于将自然语言术语链接到知识图谱中明确的实体。它专注于高效的、文本索引驱动的查找，而非完整的图模式匹配。
 
-**语法**：`SEARCH [CONCEPT|PROPOSITION] "<term>" [WITH TYPE "<type>"] [LIMIT N]`
+**语法**：`SEARCH [CONCEPT|PROPOSITION] "<term>" [WITH TYPE "<Type>"] [LIMIT N]`
 
 **示例**：
 
@@ -733,3 +874,158 @@ graph TD
 *   **`author` (作者/创建者)**: `String`, 创建该记录的实体。
 *   **`access_level` (访问级别)**: `String`, 如 `"public"`, `"private"`。
 *   **`review_info` (审核信息)**: `Object`, 包含审核历史的结构化对象。
+
+## 附录 2. 创世知识胶囊 (The Genesis Capsule)
+
+**创世的设计哲学**：
+1.  **完全自洽（Fully Self-Consistent）**：定义 `"$ConceptType"` 的节点，其自身的结构必须完全符合它所定义的规则。它用自己的存在，完美诠释了“什么是概念类型”。
+2.  **元数据驱动（Metadata-Driven）**：元类型节点的 `attributes` 使得模式（Schema）本身是可查询、可描述、可演化的。
+3.  **引导性（Guidance-Oriented）**：这些定义不仅仅是约束，更是给 LLM 的“使用说明书”。它告诉 LLM 如何命名、如何构建实例、哪些实例最重要，极大地降低了 LLM 与知识中枢交互的“幻觉”概率。
+4.  **可扩展性（Extensible）**：`instance_schema` 结构允许未来为不同类型的概念定义极其丰富和复杂的属性约束，为构建专业领域的知识库打下坚实基础。
+
+```prolog
+// # KIP Genesis Capsule v1.0
+// The foundational knowledge that bootstraps the entire Cognitive Nexus.
+// It defines what a "Concept Type" and a "Proposition Type" are,
+// by creating instances of them that describe themselves.
+//
+UPSERT {
+    // --- STEP 1: THE PRIME MOVER - DEFINE "$ConceptType" ---
+    // The absolute root of all knowledge. This node defines what it means to be a "type"
+    // of concept. It defines itself, creating the first logical anchor.
+    CONCEPT ?concept_type_def {
+        {type: "$ConceptType", name: "$ConceptType"}
+        SET ATTRIBUTES {
+            description: "Defines a class or category of Concept Nodes. It acts as a template for creating new concept instances. Every concept node in the graph must have a 'type' that points to a concept of this type.",
+            display_hint: "📦",
+            instance_schema: {
+                "description": {
+                    type: "string",
+                    is_required: true,
+                    description: "A human-readable explanation of what this concept type represents."
+                },
+                "display_hint": {
+                    type: "string",
+                    is_required: false,
+                    description: "A suggested icon or visual cue for user interfaces (e.g., an emoji or icon name)."
+                },
+                "instance_schema": {
+                    type: "object",
+                    is_required: false,
+                    description: "A schema defining the expected attributes for instances of this concept type. Keys are attribute names, values are objects defining 'type', 'is_required', and 'description'."
+                },
+                "key_instances": {
+                    type: "array",
+                    item_type: "string",
+                    is_required: false,
+                    description: "A list of names of the most important or representative instances of this type, to help LLMs ground their queries."
+                }
+            },
+            key_instances: [ "$ConceptType", "$PropositionType", "Domain" ]
+        }
+    }
+
+    // --- STEP 2: DEFINE "$PropositionType" USING "$ConceptType" ---
+    // With the ability to define concepts, we now define the concept of a "relation" or "predicate".
+    CONCEPT ?proposition_type_def {
+        {type: "$ConceptType", name: "$PropositionType"}
+        SET ATTRIBUTES {
+            description: "Defines a class of Proposition Links (a predicate). It specifies the nature of the relationship between a subject and an object.",
+            display_hint: "🔗",
+            instance_schema: {
+                "description": {
+                    type: "string",
+                    is_required: true,
+                    description: "A human-readable explanation of what this relationship represents."
+                },
+                "subject_types": {
+                    type: "array",
+                    item_type: "string",
+                    is_required: true,
+                    description: "A list of allowed '$ConceptType' names for the subject. Use '*' for any type."
+                },
+                "object_types": {
+                    type: "array",
+                    item_type: "string",
+                    is_required: true,
+                    description: "A list of allowed '$ConceptType' names for the object. Use '*' for any type."
+                },
+                "priority": {
+                    type: "integer",
+                    is_required: false,
+                    default_value: 0,
+                    description: "An integer indicating the priority of this proposition type. Higher values indicate higher priority."
+                },
+                "is_symmetric": { type: "boolean", is_required: false, default_value: false },
+                "is_transitive": { type: "boolean", is_required: false, default_value: false }
+            },
+            key_instances: [ "is_a", "belongs_to_domain", "has_property" ]
+        }
+    }
+
+    // --- STEP 3: DEFINE THE TOOLS FOR ORGANIZATION ---
+    // Now that we can define concepts and propositions, we create the specific
+    // concepts needed for organizing the knowledge graph itself.
+
+    // 3a. Define the "Domain" concept type.
+    CONCEPT ?domain_type_def {
+        {type: "$ConceptType", name: "Domain"}
+        SET ATTRIBUTES {
+            description: "Defines a top-level container for organizing knowledge. It's a high-level category for concepts and propositions.",
+            display_hint: "🗺️",
+            key_instances: ["CoreSchema", "GeneralKnowledge"]
+        }
+    }
+
+    // 3b. Define the "belongs_to_domain" proposition type.
+    CONCEPT ?belongs_to_domain_prop {
+        {type: "$PropositionType", name: "belongs_to_domain"}
+        SET ATTRIBUTES {
+            description: "A fundamental proposition that asserts a concept's membership in a specific knowledge domain.",
+            subject_types: ["*"], // Any concept can belong to a domain.
+            object_types: ["Domain"] // The object must be a Domain.
+        }
+    }
+}
+WITH METADATA {
+    source: "KIP Genesis Capsule v1.0",
+    author: "System Architect",
+    confidence: 1.0,
+    status: "active"
+}
+
+// Post-Genesis Housekeeping
+UPSERT {
+    // 1. Create a dedicated domain "CoreSchema" for meta-definitions.
+    // This domain will contain the definitions of all concept types and proposition types.
+    CONCEPT ?core_domain {
+        {type: "Domain", name: "CoreSchema"}
+        SET ATTRIBUTES {
+            description: "The foundational domain containing the meta-definitions of the KIP system itself."
+        }
+    }
+
+    // 2. Assign all meta-definition concepts to this new domain.
+    CONCEPT ?concept_type_def {
+        {type: "$ConceptType", name: "$ConceptType"}
+        SET PROPOSITIONS { ("belongs_to_domain", ?core_domain) }
+    }
+    CONCEPT ?proposition_type_def {
+        {type: "$ConceptType", name: "$PropositionType"}
+        SET PROPOSITIONS { ("belongs_to_domain", ?core_domain) }
+    }
+    CONCEPT ?domain_type_def {
+        {type: "$ConceptType", name: "Domain"}
+        SET PROPOSITIONS { ("belongs_to_domain", ?core_domain) }
+    }
+    CONCEPT ?belongs_to_domain_prop {
+        {type: "$PropositionType", name: "belongs_to_domain"}
+        SET PROPOSITIONS { ("belongs_to_domain", ?core_domain) }
+    }
+}
+WITH METADATA {
+    source: "System Maintenance",
+    author: "System Architect",
+    confidence: 1.0,
+}
+```
