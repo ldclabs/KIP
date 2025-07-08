@@ -80,7 +80,7 @@ UPSERT {
         {type: "$ConceptType", name: "Domain"}
         SET ATTRIBUTES {
             description: "Defines a high-level container for organizing knowledge. It acts as a primary category for concepts and propositions, enabling modularity and contextual understanding.",
-            display_hint: "🗺️",
+            display_hint: "🗺",
             instance_schema: {
                 "description": {
                     type: "string",

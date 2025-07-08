@@ -3,14 +3,15 @@
 **[English](./README.md) | [中文](./README_CN.md)**
 
 **版本历史**：
-| 版本        | 日期       | 变更说明                                                                                                                         |
-| ----------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| v1.0-draft1 | 2025-06-09 | 初始草案                                                                                                                         |
-| v1.0-draft2 | 2025-06-15 | 优化 `UNION` 子句                                                                                                                |
-| v1.0-draft3 | 2025-06-18 | 优化术语，简化语法，移除 `SELECT` 子查询，添加 `META` 子句，增强命题链接子句                                                     |
-| v1.0-draft4 | 2025-06-19 | 简化语法，移除 `COLLECT`，`AS`，`@`                                                                                              |
-| v1.0-draft5 | 2025-06-25 | 移除 `ATTR` 和 `META`，引入“点表示法”取代；添加 `(id: "<link_id>")`；优化 `DELETE` 语句                                          |
-| v1.0-draft6 | 2025-07-06 | 确立命名规范；引入自举模型：新增 "$ConceptType", "$PropositionType" 元类型和 Domain 类型，实现模式的图内定义；添加创世知识胶囊。 |
+| 版本        | 日期       | 变更说明                                                                                                                       |
+| ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| v1.0-draft1 | 2025-06-09 | 初始草案                                                                                                                       |
+| v1.0-draft2 | 2025-06-15 | 优化 `UNION` 子句                                                                                                              |
+| v1.0-draft3 | 2025-06-18 | 优化术语，简化语法，移除 `SELECT` 子查询，添加 `META` 子句，增强命题链接子句                                                   |
+| v1.0-draft4 | 2025-06-19 | 简化语法，移除 `COLLECT`，`AS`，`@`                                                                                            |
+| v1.0-draft5 | 2025-06-25 | 移除 `ATTR` 和 `META`，引入“点表示法”取代；添加 `(id: "<link_id>")`；优化 `DELETE` 语句                                        |
+| v1.0-draft6 | 2025-07-06 | 确立命名规范；引入自举模型：新增 "$ConceptType", "$PropositionType" 元类型和 Domain 类型，实现模式的图内定义；添加创世知识胶囊 |
+| v1.0-draft7 | 2025-07-08 | 使用 `CURSOR` 取代 `OFFSET` 用于分页查询；添加 Person 类型的知识胶囊                                                           |
 
 **KIP 实现**：
 - [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust SDK of KIP for building sustainable AI knowledge memory systems.
@@ -207,7 +208,7 @@ WHERE {
 }
 ORDER BY ...
 LIMIT N
-OFFSET M
+CURSOR "<token>"
 ```
 
 ### 3.2. 点表示法（Dot Notation）
@@ -384,7 +385,7 @@ UNION {
 
 *   **`ORDER BY ?var [ASC|DESC]`**：根据指定变量对结果进行排序，默认为 `ASC`（升序）。
 *   **`LIMIT N`**：限制返回数量。
-*   **`OFFSET M`**：跳过前 M 条结果。
+*   **`CURSOR "<token>"`**：指定一个 token 作为游标位置，用于分页查询。
 
 ### 3.6. 综合查询示例
 
@@ -690,7 +691,7 @@ WHERE {
 
 **功能**：列出所有存在的概念节点类型，用于引导 LLM 如何高效接地。
 
-**语法**：`DESCRIBE CONCEPT TYPES [LIMIT N] [OFFSET M]`
+**语法**：`DESCRIBE CONCEPT TYPES [LIMIT N] [CURSOR "<token>"]`
 
 **语义等价于**：
 ```prolog
@@ -698,7 +699,7 @@ FIND(?type_def.name)
 WHERE {
   ?type_def {type: "$ConceptType"}
 }
-LIMIT N OFFSET M
+LIMIT N CURSOR "<token>"
 ```
 
 #### 5.1.4. 描述一个特定概念节点类型（`DESCRIBE CONCEPT TYPE "<TypeName>"`）
@@ -725,7 +726,7 @@ DESCRIBE CONCEPT TYPE "Drug"
 
 **功能**：列出所有命题链接的谓词，用于引导 LLM 如何高效接地。
 
-**语法**：`DESCRIBE PROPOSITION TYPES [LIMIT N] [OFFSET M]`
+**语法**：`DESCRIBE PROPOSITION TYPES [LIMIT N] [opaque]`
 
 **语义等价于**:
 ```prolog
@@ -733,7 +734,7 @@ FIND(?type_def.name)
 WHERE {
   ?type_def {type: "$PropositionType"}
 }
-LIMIT N OFFSET M
+LIMIT N CURSOR "<token>"
 ```
 
 #### 5.1.6. 描述一个特定命题链接类型的详细信息 (`DESCRIBE PROPOSITION TYPE "<predicate>"`)
@@ -810,10 +811,11 @@ LLM 生成的 KIP 命令应该通过如下 Function Calling 的结构化请求�
 
 **认知中枢的所有响应都是一个 JSON 对象，结构如下：**
 
-| 键           | 类型   | 是否必须 | 描述                                                                          |
-| :----------- | :----- | :------- | :---------------------------------------------------------------------------- |
-| **`result`** | Object | 否       | 当请求成功时**必须**存在，包含请求的成功结果，其内部结构由 KIP 请求命令定义。 |
-| **`error`**  | Object | 否       | 当请求失败时**必须**存在，包含结构化的错误详情。                              |
+| 键                | 类型   | 是否必须 | 描述                                                                                                       |
+| :---------------- | :----- | :------- | :--------------------------------------------------------------------------------------------------------- |
+| **`result`**      | Object | 否       | 当请求成功时**必须**存在，包含请求的成功结果，其内部结构由 KIP 请求命令定义。                              |
+| **`error`**       | Object | 否       | 当请求失败时**必须**存在，包含结构化的错误详情。                                                           |
+| **`next_cursor`** | String | 否       | 一个不透明的标识符，用于表示在最后返回的结果之后的分页位置。如果存在该标识符，则可能还有更多结果可供获取。 |
 
 ## 7. 协议交互工作流（Protocol Interaction Workflow）
 
@@ -966,7 +968,7 @@ UPSERT {
         {type: "$ConceptType", name: "Domain"}
         SET ATTRIBUTES {
             description: "Defines a high-level container for organizing knowledge. It acts as a primary category for concepts and propositions, enabling modularity and contextual understanding.",
-            display_hint: "🗺️",
+            display_hint: "🗺",
             instance_schema: {
                 "description": {
                     type: "string",
@@ -1033,6 +1035,7 @@ UPSERT {
     CONCEPT ?core_domain {
         {type: "Domain", name: "CoreSchema"}
     }
+
     CONCEPT ?concept_type_def {
         {type: "$ConceptType", name: "$ConceptType"}
         SET PROPOSITIONS { ("belongs_to_domain", ?core_domain) }

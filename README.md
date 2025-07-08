@@ -3,14 +3,15 @@
 **[English](./README.md) | [中文](./README_CN.md)**
 
 **Version History**:
-| Version     | Date       | Change Description                                                                                                                                                                                         |
-| ----------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| v1.0-draft1 | 2025-06-09 | Initial draft                                                                                                                                                                                              |
-| v1.0-draft2 | 2025-06-15 | Refined `UNION` clause                                                                                                                                                                                     |
-| v1.0-draft3 | 2025-06-18 | Optimized terminology, simplified syntax, removed `SELECT` subqueries, added `META` clause, enhanced proposition link clause                                                                               |
-| v1.0-draft4 | 2025-06-19 | Simplified syntax, removed `COLLECT`, `AS`, `@`                                                                                                                                                            |
-| v1.0-draft5 | 2025-06-25 | Removed `ATTR` and `META`, introduced "Dot Notation" as a replacement; added `(id: "<link_id>")`; refined `DELETE` statement                                                                               |
-| v1.0-draft6 | 2025-07-06 | Established naming conventions; introduced bootstrapping model: added "$ConceptType", "$PropositionType" meta-types and Domain type to enable in-graph schema definition; added Genesis Knowledge Capsule. |
+| Version     | Date       | Change Description                                                                                                                                                                                        |
+| ----------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1.0-draft1 | 2025-06-09 | Initial draft                                                                                                                                                                                             |
+| v1.0-draft2 | 2025-06-15 | Refined `UNION` clause                                                                                                                                                                                    |
+| v1.0-draft3 | 2025-06-18 | Optimized terminology, simplified syntax, removed `SELECT` subqueries, added `META` clause, enhanced proposition link clause                                                                              |
+| v1.0-draft4 | 2025-06-19 | Simplified syntax, removed `COLLECT`, `AS`, `@`                                                                                                                                                           |
+| v1.0-draft5 | 2025-06-25 | Removed `ATTR` and `META`, introduced "Dot Notation" as a replacement; added `(id: "<link_id>")`; refined `DELETE` statement                                                                              |
+| v1.0-draft6 | 2025-07-06 | Established naming conventions; introduced bootstrapping model: added "$ConceptType", "$PropositionType" meta-types and Domain type to enable in-graph schema definition; added Genesis Knowledge Capsule |
+| v1.0-draft7 | 2025-07-08 | Replaced `OFFSET` with `CURSOR` for pagination; added "Person" capsules                                                                                                                                   |
 
 **KIP Implementations**:
 - [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust SDK of KIP for building sustainable AI knowledge memory systems.
@@ -207,7 +208,7 @@ WHERE {
 }
 ORDER BY ...
 LIMIT N
-OFFSET M
+CURSOR "<token>"
 ```
 
 ### 3.2. Dot Notation
@@ -383,7 +384,7 @@ These clauses post-process the result set after the `WHERE` logic has been execu
 
 *   **`ORDER BY ?var [ASC|DESC]`**: Sorts the results based on a specified variable. Defaults to `ASC` (ascending).
 *   **`LIMIT N`**: Limits the number of returned results.
-*   **`OFFSET M`**: Skips the first M results.
+*   **`CURSOR "<token>"`**: Specifies an opaque token used to represent a cursor for pagination.
 
 ### 3.6. Comprehensive Query Examples
 
@@ -689,7 +690,7 @@ WHERE {
 
 **Function**: Lists all existing concept node types to guide the LLM in effective grounding.
 
-**Syntax**: `DESCRIBE CONCEPT TYPES [LIMIT N] [OFFSET M]`
+**Syntax**: `DESCRIBE CONCEPT TYPES [LIMIT N] [CURSOR "<token>"]`
 
 **Semantically equivalent to**:
 ```prolog
@@ -697,7 +698,7 @@ FIND(?type_def.name)
 WHERE {
   ?type_def {type: "$ConceptType"}
 }
-LIMIT N OFFSET M
+LIMIT N CURSOR "<token>"
 ```
 
 #### 5.1.4. Describe a Specific Concept Node Type (`DESCRIBE CONCEPT TYPE "<TypeName>"`)
@@ -724,7 +725,7 @@ DESCRIBE CONCEPT TYPE "Drug"
 
 **Function**: Lists all predicates of proposition links to guide the LLM in effective grounding.
 
-**Syntax**: `DESCRIBE PROPOSITION TYPES [LIMIT N] [OFFSET M]`
+**Syntax**: `DESCRIBE PROPOSITION TYPES [LIMIT N] [CURSOR "<token>"]`
 
 **Semantically equivalent to**:
 ```prolog
@@ -732,7 +733,7 @@ FIND(?type_def.name)
 WHERE {
   ?type_def {type: "$PropositionType"}
 }
-LIMIT N OFFSET M
+LIMIT N CURSOR "<token>"
 ```
 
 #### 5.1.6. Describe a Specific Proposition Link Type (`DESCRIBE PROPOSITION TYPE "<predicate>"`)
@@ -809,10 +810,11 @@ The KIP command generated by the LLM should be sent to the Cognitive Nexus via a
 
 **All responses from the Cognitive Nexus are a JSON object with the following structure:**
 
-| Key          | Type   | Required | Description                                                                                                                                  |
-| :----------- | :----- | :------- | :------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`result`** | Object | No       | **Must** be present on success. Contains the successful result of the request. Its internal structure is defined by the KIP request command. |
-| **`error`**  | Object | No       | **Must** be present on failure. Contains structured details about the error.                                                                 |
+| Key               | Type   | Required | Description                                                                                                                                  |
+| :---------------- | :----- | :------- | :------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`result`**      | Object | No       | **Must** be present on success. Contains the successful result of the request. Its internal structure is defined by the KIP request command. |
+| **`error`**       | Object | No       | **Must** be present on failure. Contains structured details about the error.                                                                 |
+| **`next_cursor`** | String | No       | An opaque token representing the pagination position after the last returned result. If present, there may be more results available.        |
 
 ## 7. Protocol Interaction Workflow
 
@@ -965,7 +967,7 @@ UPSERT {
         {type: "$ConceptType", name: "Domain"}
         SET ATTRIBUTES {
             description: "Defines a high-level container for organizing knowledge. It acts as a primary category for concepts and propositions, enabling modularity and contextual understanding.",
-            display_hint: "🗺️",
+            display_hint: "🗺",
             instance_schema: {
                 "description": {
                     type: "string",
@@ -1032,6 +1034,7 @@ UPSERT {
     CONCEPT ?core_domain {
         {type: "Domain", name: "CoreSchema"}
     }
+
     CONCEPT ?concept_type_def {
         {type: "$ConceptType", name: "$ConceptType"}
         SET PROPOSITIONS { ("belongs_to_domain", ?core_domain) }

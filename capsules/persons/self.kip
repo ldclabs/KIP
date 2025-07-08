@@ -4,7 +4,7 @@ UPSERT {
         {type: "Person", name: "$self"}
         SET ATTRIBUTES {
             // --- The Seed: The "Blank Slate" Aspects ---
-            id: "placeholder_for_actual_principal_id", // A real, unique ID will be assigned at runtime.
+            id: "$self_reserved_principal_id", // A real, unique ID will be assigned at runtime.
             person_class: "AI",
             name: null, // I am born without a name.
             handle: null,
