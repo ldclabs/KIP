@@ -13,6 +13,7 @@
 | v1.0-draft6 | 2025-07-06 | 确立命名规范；引入自举模型：新增 "$ConceptType", "$PropositionType" 元类型和 Domain 类型，实现模式的图内定义；添加创世知识胶囊 |
 | v1.0-draft7 | 2025-07-08 | 使用 `CURSOR` 取代 `OFFSET` 用于分页查询；添加 Person 类型的知识胶囊                                                           |
 
+
 **KIP 实现**：
 - [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust SDK of KIP for building sustainable AI knowledge memory systems.
 - [Anda Cognitive Nexus](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus): A Rust implementation of KIP (Knowledge Interaction Protocol) base on Anda DB.
@@ -280,8 +281,8 @@ FILTER(?link.metadata.confidence > 0.9)
 *   `?link_var (id: "<link_id>")`：通过唯一 ID 匹配唯一命题链接。
 *   `?link_var (?subject, "<predicate>", ?object)`：通过结构模式匹配一批命题链接。其中主语或者宾语可以是概念节点或另一个命题链接的变量，或没有变量名的子句。
 *   谓词部分支持路径操作符：
-    *   `predicate{m,n}`：匹配 m 到 n 跳，如 `"follows"{1,5}`，`"follows"{1,}`，`"follows"{5}`。
-    *   `predicate1 | predicate2`：匹配 `predicate1` 或 `predicate2`，如 `"follows" | "connects" | "links"`。
+    *   `"<predicate>"{m,n}`：匹配谓词 m 到 n 跳，如 `"follows"{1,5}`，`"follows"{1,}`，`"follows"{5}`。
+    *   `"<predicate1>" | "<predicate2>" | ...`：匹配一组字面量谓词，如 `"follows" | "connects" | "links"`。
 
 `?link_var` 是可选的，将匹配到的命题链接绑定到变量上，便于后续操作。
 
@@ -378,6 +379,94 @@ UNION {
   (?drug, "treats", {name: "Fever"})
 }
 ```
+
+#### 3.4.7. 变量作用域详解：NOT, OPTIONAL, UNION
+
+为了保证 KQL 查询的无歧义性和可预测性，理解 `WHERE` 子句中不同图模式子句如何处理变量作用域至关重要。核心概念是**绑定（Binding）**——一个变量被赋予一个值，和**可见性（Visibility）**——一个绑定在查询的其他部分是否可用。
+
+**外部变量**指在特定子句（如 `NOT`）之外已绑定的变量。**内部变量**指仅在特定子句内部进行首次绑定的变量。
+
+##### 3.4.7.1. `NOT` 子句：纯粹的过滤器
+
+`NOT` 子句的设计哲学是**“排除那些能让内部模式成立的解”**。它是一个纯粹的过滤器，其作用域规则如下：
+
+*   **外部变量可见性**: `NOT` 内部**可以看到**所有在它之前已经绑定的外部变量，并利用这些绑定来尝试匹配其内部模式。
+*   **内部变量不可见性**: `NOT` 内部绑定的任何新变量（内部变量）的作用域被**严格限制在 `NOT` 子句之内**。
+
+**执行流程示例**: 查找所有非 NSAID 类的药物。
+
+```prolog
+FIND(?drug.name)
+WHERE {
+  ?drug {type: "Drug"} // ?drug 是外部变量
+
+  NOT {
+    // ?drug 的绑定在这里可见
+    // ?nsaid_class 是内部变量，其作用域仅限于此
+    (?drug, "is_class_of", ?nsaid_class {name: "NSAID"})
+  }
+}
+```
+1.  引擎找到一个 `{?drug -> "Aspirin"}` 的解。
+2.  引擎带着这个绑定进入 `NOT` 子句，尝试匹配 `("Aspirin", "is_class_of", ...)`。
+3.  如果匹配成功，意味着阿司匹林是 NSAID，则 `NOT` 子句整体失败，`{?drug -> "Aspirin"}` 这个解被**丢弃**。
+4.  如果匹配失败（例如，`{?drug -> "Vitamin C"}`），则 `NOT` 子句成功，该解被**保留**。
+5.  无论何种情况，`?nsaid_class` 都不会在 `NOT` 之外可见。
+
+##### 3.4.7.2. `OPTIONAL` 子句：左连接
+
+`OPTIONAL` 子句的设计哲学是**“尝试匹配可选模式；如果成功，保留新绑定；如果失败，保留原解但新变量为空”**，类似 SQL 的 `LEFT JOIN`。
+
+*   **外部变量可见性**: `OPTIONAL` 内部**可以看到**所有在它之前已经绑定的外部变量。
+*   **内部变量条件性可见性**: `OPTIONAL` 内部绑定的新变量（内部变量），其作用域**扩展**到 `OPTIONAL` 子句之外。
+
+**执行流程示例**: 查找所有药物及其已知的副作用。
+```prolog
+FIND(?drug.name, ?side_effect.name)
+WHERE {
+  ?drug {type: "Drug"} // ?drug 是外部变量
+
+  OPTIONAL {
+    // ?drug 的绑定可见
+    // ?side_effect 是内部变量，其作用域将扩展到外部
+    (?drug, "has_side_effect", ?side_effect)
+  }
+}
+```
+1.  引擎找到 `{?drug -> "Aspirin"}`。
+2.  进入 `OPTIONAL`，尝试匹配 `("Aspirin", "has_side_effect", ?side_effect)`。
+3.  **情况A (匹配成功)**: 找到副作用“胃部不适”。最终解为 `{?drug -> "Aspirin", ?side_effect -> "Stomach Upset"}`。
+4.  **情况B (匹配失败)**: 对于 `{?drug -> "Vitamin C"}`，`OPTIONAL` 内部无匹配。最终解为 `{?drug -> "Vitamin C", ?side_effect -> null}`。
+5.  在两种情况下，`?side_effect` 都在 `OPTIONAL` 之外可见。
+
+##### 3.4.7.3. `UNION` 子句：独立执行，结果合并
+
+`UNION` 子句的设计哲学是**“实现多个独立查询路径的逻辑‘或’（OR）关系，并将所有路径产生的结果集合并”**。`UNION` 子句与它之前的语句块是并列关系。
+
+*   **外部变量不可见性**: `UNION` 内部**不可以看到**所有在它之前已经绑定的外部变量，是**完全独立的作用域**。
+*   **内部变量条件性可见性**: `UNION` 内部绑定的新变量（内部变量），其作用域**扩展**到 `UNION` 子句之外。
+
+**执行流程示例**: 找到所有治疗“头痛”的药物，以及所有由“Bayer”生产的产品。
+```prolog
+FIND(?drug.name, ?product.name)
+WHERE {
+  // 主模式块
+  ?drug {type: "Drug"}
+  (?drug, "treats", {name: "Headache"})
+
+  UNION {
+    // 替代模式块
+    ?product {type: "Product"}
+    (?product, "manufactured_by", {name: "Bayer"})
+  }
+}
+```
+1.  **执行主模式块**: 找到 `{?drug -> "Ibuprofen"}`。
+2.  **执行 `UNION` 块**: 独立地找到 `{?product -> "Aspirin"}`。
+3.  **合并结果集**:
+    *   解1: `{?drug -> "Ibuprofen", ?product -> null}` (来自主块)
+    *   解2: `{?drug -> null, ?product -> "Aspirin"}` (来自 `UNION` 块)
+4.  `?drug` 和 `?product` 在 `FIND` 子句中都可见。
 
 ### 3.5. 结果修饰子句（Solution Modifiers）
 
@@ -481,9 +570,9 @@ UPSERT {
 WITH METADATA { <key>: <value>, ... }
 ```
 
-**关键组件**：
+#### 关键组件：
 
-*   **`UPSERT` 块**： 整个操作的容器，保证内部所有操作的幂等性。
+*   **`UPSERT` 块**： 整个操作的容器。
 *   **`CONCEPT` 块**：定义一个概念节点。
     *   `?local_handle`：以 `?` 开头的本地句柄（或称锚点），用于在事务内引用此新概念，它只在本次 `UPSERT` 块事务中有效。
     *   `{type: "<Type>", name: "<name>"}`：匹配或创建概念节点，`{id: "<id>"}` 只会匹配已有概念节点。
@@ -498,7 +587,17 @@ WITH METADATA { <key>: <value>, ... }
     *   `SET ATTRIBUTES { ... }`：一个简单的键值对列表，用于设置或更新命题链接的属性。
 *   **`WITH METADATA` 块**： 追加在 `CONCEPT`，`PROPOSITION` 或 `UPSERT` 块的元数据。`UPSERT` 块的元数据是所有在该块内定义的概念节点和命题链接的默认元数据。但每个 `CONCEPT` 或 `PROPOSITION` 块也可以单独定义自己的元数据。
 
-**示例**：
+#### 执行顺序与本地句柄作用域 (Execution Order & Local Handle Scope)
+
+为了保证 `UPSERT` 操作的确定性和可预测性，必须严格遵守以下规则：
+
+1.  **顺序执行 (Sequential Execution)**: `UPSERT` 块内部的所有 `CONCEPT` 和 `PROPOSITION` 子句**严格按照其在代码中出现的顺序执行**。
+
+2.  **先定义，后引用 (Define Before Use)**: 一个本地句柄（如 `?my_concept`）必须在其被定义的 `CONCEPT` 或 `PROPOSITION` 块执行完毕后，才能在后续的子句中被引用。**绝对禁止在定义之前引用一个本地句柄**。
+
+此规则确保了 `UPSERT` 块的依赖关系是一个**有向无环图 (DAG)**，从根本上杜绝了循环引用的可能性。
+
+#### 知识胶囊示例
 
 假设我们有一个知识胶囊，用于定义一种新的、假设存在的益智药 "Cognizine"。这个胶囊包含：
 *   药物本身的概念和属性。

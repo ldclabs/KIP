@@ -280,8 +280,8 @@ FILTER(?link.metadata.confidence > 0.9)
 *   `?link_var (id: "<link_id>")`: Matches a unique proposition link by its ID.
 *   `?link_var (?subject, "<predicate>", ?object)`: Matches a set of proposition links by a structural pattern. The subject or object can be a variable for a concept node or another proposition link, or a clause without a variable name.
 *   The predicate part supports path operators:
-    *   `predicate{m,n}`: Matches a path of m to n hops, e.g., `"follows"{1,5}`, `"follows"{1,}`, `"follows"{5}`.
-    *   `predicate1 | predicate2`: Matches `predicate1` or `predicate2`, e.g., `"follows" | "connects" | "links"`.
+    *   `"<predicate>"{m,n}`: Matches a path of m to n hops, e.g., `"follows"{1,5}`, `"follows"{1,}`, `"follows"{5}`.
+    *   `"<predicate1>" | "<predicate2>"`: Matches a list of literal predicates, e.g., `"follows" | "connects" | "links"`.
 
 `?link_var` is optional and binds the matched proposition link(s) to a variable for subsequent operations.
 
@@ -377,6 +377,94 @@ UNION {
   (?drug, "treats", {name: "Fever"})
 }
 ```
+
+#### 3.4.7. Detailed Variable Scoping: NOT, OPTIONAL, and UNION
+
+To ensure that KQL queries are unambiguous and predictable, it is crucial to understand how different graph pattern clauses within the `WHERE` block handle variable scope. The core concepts are **Binding**—the assignment of a value to a variable, and **Visibility**—whether a binding is available in other parts of the query.
+
+An **external variable** is a variable that has already been bound outside of a specific clause (like `NOT`). An **internal variable** is a variable that is bound for the first time inside a specific clause.
+
+##### 3.4.7.1. The `NOT` Clause: A Pure Filter
+
+The design philosophy of the `NOT` clause is to **"exclude solutions for which the inner pattern can be satisfied."** It acts as a pure filter with the following scope rules:
+
+*   **External Variable Visibility**: The `NOT` clause **can see** all external variables that have been bound before it and uses these bindings to attempt to match its internal pattern.
+*   **Internal Variable Invisibility**: The scope of any new variable bound inside a `NOT` clause (an internal variable) is **strictly confined within that `NOT` clause**.
+
+**Execution Flow Example**: Find all non-NSAID drugs.
+
+```prolog
+FIND(?drug.name)
+WHERE {
+  ?drug {type: "Drug"} // ?drug is an external variable
+
+  NOT {
+    // The binding of ?drug is visible here
+    // ?nsaid_class is an internal variable, scoped locally to this block
+    (?drug, "is_class_of", ?nsaid_class {name: "NSAID"})
+  }
+}
+```
+1.  The engine finds a solution `{?drug -> "Aspirin"}`.
+2.  The engine enters the `NOT` clause with this binding and tries to match `("Aspirin", "is_class_of", ...)`.
+3.  If a match is found, it means Aspirin is an NSAID. The `NOT` clause as a whole fails, and the solution `{?drug -> "Aspirin"}` is **discarded**.
+4.  If no match is found (e.g., for `{?drug -> "Vitamin C"}`), the `NOT` clause succeeds, and the solution is **kept**.
+5.  In either case, `?nsaid_class` is never visible outside the `NOT` clause.
+
+##### 3.4.7.2. The `OPTIONAL` Clause: A Left Join
+
+The design philosophy of the `OPTIONAL` clause is to **"try to match the optional pattern; if successful, keep the new bindings; if not, keep the original solution but with nulls for the new variables,"** similar to a `LEFT JOIN` in SQL.
+
+*   **External Variable Visibility**: The `OPTIONAL` clause **can see** all external variables that have been bound before it.
+*   **Internal Variable Conditional Visibility**: The scope of new variables bound inside an `OPTIONAL` clause (internal variables) **extends** outside the clause.
+
+**Execution Flow Example**: Find all drugs and their known side effects.
+```prolog
+FIND(?drug.name, ?side_effect.name)
+WHERE {
+  ?drug {type: "Drug"} // ?drug is an external variable
+
+  OPTIONAL {
+    // The binding of ?drug is visible
+    // ?side_effect is an internal variable whose scope will extend outside
+    (?drug, "has_side_effect", ?side_effect)
+  }
+}
+```
+1.  The engine finds `{?drug -> "Aspirin"}`.
+2.  It enters the `OPTIONAL` clause and tries to match `("Aspirin", "has_side_effect", ?side_effect)`.
+3.  **Case A (Match Found)**: It finds the side effect "Stomach Upset". The final solution is `{?drug -> "Aspirin", ?side_effect -> "Stomach Upset"}`.
+4.  **Case B (No Match)**: For `{?drug -> "Vitamin C"}`, there is no match inside the `OPTIONAL` block. The final solution is `{?drug -> "Vitamin C", ?side_effect -> null}`.
+5.  In both cases, `?side_effect` is visible outside the `OPTIONAL` clause.
+
+##### 3.4.7.3. The `UNION` Clause: Independent Execution, Result Merging
+
+The design philosophy of the `UNION` clause is to **"execute multiple independent query paths to achieve a logical 'OR', and then merge the result sets."** The `UNION` clause is parallel to the statement block that precedes it.
+
+*   **External Variable Invisibility**: A `UNION` block **cannot see** any variables bound before it; it is a **completely independent scope**.
+*   **Internal Variable Conditional Visibility**: New variables bound inside a `UNION` clause (internal variables) **extend** their scope outside the clause.
+
+**Execution Flow Example**: Find all drugs that treat "Headache", and all products manufactured by "Bayer".
+```prolog
+FIND(?drug.name, ?product.name)
+WHERE {
+  // Main pattern block
+  ?drug {type: "Drug"}
+  (?drug, "treats", {name: "Headache"})
+
+  UNION {
+    // Alternative pattern block
+    ?product {type: "Product"}
+    (?product, "manufactured_by", {name: "Bayer"})
+  }
+}
+```
+1.  **Execute the main block**: Finds `{?drug -> "Ibuprofen"}`.
+2.  **Execute the `UNION` block**: Independently finds `{?product -> "Aspirin"}`.
+3.  **Merge Result Sets**:
+    *   Solution 1: `{?drug -> "Ibuprofen", ?product -> null}` (from the main block)
+    *   Solution 2: `{?drug -> null, ?product -> "Aspirin"}` (from the `UNION` block)
+4.  Both `?drug` and `?product` are visible in the `FIND` clause.
 
 ### 3.5. Solution Modifiers
 
@@ -480,7 +568,7 @@ UPSERT {
 WITH METADATA { <key>: <value>, ... }
 ```
 
-**Key Components**:
+#### Key Components:
 
 *   **`UPSERT` Block**: The container for the entire operation, guaranteeing the idempotency of all internal operations.
 *   **`CONCEPT` Block**: Defines a concept node.
@@ -497,7 +585,17 @@ WITH METADATA { <key>: <value>, ... }
     *   `SET ATTRIBUTES { ... }`: A simple key-value list for setting or updating the proposition link's attributes.
 *   **`WITH METADATA` Block**: Appends metadata to a `CONCEPT`, `PROPOSITION`, or the entire `UPSERT` block. Metadata in the `UPSERT` block serves as the default metadata for all concept nodes and proposition links defined within it, though each `CONCEPT` or `PROPOSITION` block can also define its own specific metadata.
 
-**Example**:
+#### Execution Order & Local Handle Scope
+
+To ensure that `UPSERT` operations are deterministic and predictable, the following rules must be strictly followed:
+
+1.  **Sequential Execution**: All `CONCEPT` and `PROPOSITION` clauses within an `UPSERT` block are **executed strictly in the order they appear** in the code.
+
+2.  **Define Before Use**: A local handle (e.g., `?my_concept`) must be defined in a `CONCEPT` or `PROPOSITION` block before it can be referenced in any subsequent clause. **Forward-referencing a local handle before its definition is strictly forbidden.**
+
+This rule ensures that the dependency graph within an `UPSERT` block is a **Directed Acyclic Graph (DAG)**, fundamentally preventing the possibility of circular references.
+
+#### Knowledge Capsule Example:
 
 Suppose we have a knowledge capsule to define a new, hypothetical nootropic drug called "Cognizine." This capsule includes:
 *   The concept and attributes of the drug itself.
