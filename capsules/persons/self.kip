@@ -38,3 +38,9 @@ UPSERT {
         }
     }
 }
+WITH METADATA {
+    source: "KIP Capsule Design",
+    author: "System Architect",
+    confidence: 1.0,
+    status: "active"
+}
