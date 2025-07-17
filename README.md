@@ -1328,7 +1328,7 @@ UPSERT {
         {type: "Person", name: "$system"}
         SET ATTRIBUTES {
             // --- Core Identity ---
-            id: "$system_reserved_principal_id", // A fixed, known principal ID for the system actor.
+            id: "aaaaa-aa", // The fixed principal ID for the system actor.
             person_class: "AI",
             name: "System",
             handle: "system",
