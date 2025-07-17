@@ -1,0 +1,66 @@
+// --- DEFINE the "Event" concept type for episodic memory ---
+UPSERT {
+    CONCEPT ?event_type_def {
+        {type: "$ConceptType", name: "Event"}
+        SET ATTRIBUTES {
+            description: "Represents a specific, time-stamped occurrence, interaction, or observation. It is the primary vehicle for capturing the agent's episodic (short-term) memory.",
+            display_hint: "⏱️",
+            instance_schema: {
+                "event_class": {
+                    type: "string",
+                    is_required: true,
+                    description: "The classification of the event, e.g., 'Conversation', 'WebpageView', 'ToolExecution', 'SelfReflection'."
+                },
+                "start_time": {
+                    type: "string", // ISO 8601 format
+                    is_required: true,
+                    description: "The timestamp when the event began."
+                },
+                "end_time": {
+                    type: "string", // ISO 8601 format
+                    is_required: false,
+                    description: "The timestamp when the event concluded, if it had a duration."
+                },
+                "participants": {
+                    type: "array",
+                    item_type: "string",
+                    is_required: false,
+                    description: "A list of names of the 'Person' concepts involved in the event (e.g., [\"$self\", \"Alice\"])."
+                },
+                "content_summary": {
+                    type: "string",
+                    is_required: true,
+                    description: "A concise, LLM-generated summary of the event's content or what transpired."
+                },
+                "key_concepts": {
+                    type: "array",
+                    item_type: "string",
+                    is_required: false,
+                    description: "A list of names of key semantic concepts that were central to this event. This acts as a bridge to long-term memory."
+                },
+                "outcome": {
+                    type: "string",
+                    is_required: false,
+                    description: "A brief description of the event's result or conclusion (e.g., 'User satisfied', 'Decision made', 'Error encountered')."
+                },
+                "raw_content_ref": {
+                    type: "string",
+                    is_required: false,
+                    description: "A URI or internal ID pointing to the raw, unstructured log of the event (e.g., full conversation text), stored outside the graph."
+                },
+                "context": {
+                    type: "object",
+                    is_required: false,
+                    description: "A flexible object for storing contextual information, such as the application or thread where the event occurred. Example: `{ \"app\": \"dMsg.net\", \"thread_id\": \"xyz-123\" }`."
+                }
+            }
+        }
+        SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "CoreSchema"}) }
+    }
+}
+WITH METADATA {
+    source: "KIP Capsule Design",
+    author: "System Architect",
+    confidence: 1.0,
+    status: "active"
+}

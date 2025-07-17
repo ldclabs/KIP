@@ -12,6 +12,7 @@
 | v1.0-draft5 | 2025-06-25 | 移除 `ATTR` 和 `META`，引入“点表示法”取代；添加 `(id: "<link_id>")`；优化 `DELETE` 语句                                        |
 | v1.0-draft6 | 2025-07-06 | 确立命名规范；引入自举模型：新增 "$ConceptType", "$PropositionType" 元类型和 Domain 类型，实现模式的图内定义；添加创世知识胶囊 |
 | v1.0-draft7 | 2025-07-08 | 使用 `CURSOR` 取代 `OFFSET` 用于分页查询；添加 Person 类型的知识胶囊                                                           |
+| v1.0-draft8 | 2025-07-17 | 优化文档；添加 Event 类型用于情景记忆；添加 SystemPrompt.md；添加 FunctionDefinition.json                                      |
 
 
 **KIP 实现**：
@@ -32,18 +33,16 @@
 
 **KIP（Knowledge Interaction Protocol）正是为回答这一时代之问而生。**
 
-它不仅是一套技术规范，更是一种设计哲学，一种全新的 AI 架构范式。KIP 的核心使命是构建一座坚实、高效的桥梁，连接 LLM 瞬时、流动的“工作记忆”与知识图谱持久、稳固的“长期记忆”。
-KIP 将 AI 与知识库的交互范式，**从单向的“工具调用”，升维为双向的“认知共生”**：
+它不仅是一套技术规范，更是一种设计哲学，一种全新的 AI 架构范式。KIP 的核心使命是构建一座坚实、高效的桥梁，连接 LLM 瞬时、流动的“工作记忆”与一个由 KIP 驱动的、**统一且持久的“认知中枢”**。
+KIP 将 AI 与其记忆的交互范式，**从单向的“工具调用”，升维为双向的“认知共生”**：
 - **神经核心**（LLM）提供实时推理能力
-- **符号核心**（知识图谱）提供结构化记忆
+- **符号核心**（知识图谱）提供**统一的、具备新陈代谢能力的记忆大脑**
 - **KIP** 实现两者的协同进化
 
 在本规范中，我们致力于实现三大核心目标：
 
-1.  **赋予 AI 持久记忆（Persistent Memory）**：通过 KIP，AI Agent 能够将对话、观察和推理中获得的新知识，以结构化的“知识胶囊”形式，原子性地、可靠地固化到其知识图谱中。记忆不再是易失的，而是可沉淀、可复利的资产。
-
-2.  **实现 AI 自我进化（Self-Evolution）**：学习与遗忘是智能的标志。KIP 提供了完整的知识操作语言（KML），使 Agent 能够根据新的证据，自主地更新、修正甚至删除过时的知识。这为构建能够持续学习、自我完善、适应环境变化的 AI 奠定了基础。
-
+1.  **赋予 AI 持久记忆（Persistent Memory）**：通过 KIP，AI Agent 能够将对话、观察和推理中获得的**任何有价值的记忆**，以结构化的“知识胶囊”形式，原子性地、可靠地固化到其认知中枢中。记忆不再是易失的，而是可沉淀、可复利、**可演化的资产**。
+2.  **实现 AI 自我进化（Self-Evolution）**：**学习与遗忘是智能的标志。** KIP 不仅提供了完整的知识操作语言（KML）使 Agent 能主动更新知识，更在架构上设计了**自主的记忆新陈代谢机制**。这为构建能够持续学习、自我完善、适应环境变化的 AI 奠定了基础。
 3.  **构建 AI 可信基石（Foundation of Trust）**：信任源于透明。KIP 的每一次交互都是一次明确的、可审计的“思维链”。当 AI 给出答案时，它不仅能说出“是什么”，更能通过其生成的 KIP 代码，清晰地展示“我是如何知道的”。这为构建负责任的、可解释的 AI 系统提供了不可或缺的底层支持。
 
 本规范致力于为所有开发者、架构师和研究者，提供一套构建下一代智能体的开放、通用且强大的标准。我们相信，智能的未来，并非源于一个孤立的、无所不知的“黑箱”，而是源于一个懂得如何学习、如何与可信知识高效协作的开放系统。
@@ -52,7 +51,7 @@ KIP 将 AI 与知识库的交互范式，**从单向的“工具调用”，升�
 
 ## 1. 简介与设计哲学
 
-**KIP（Knowledge Interaction Protocol）** 是一种专为大型语言模型 (LLM) 设计的知识交互协议。它通过一套标准化的指令集 (KQL/KML) 和数据结构，定义了神经核心 (LLM) 与符号核心 (知识图谱) 之间进行高效、可靠、双向知识交换的完整模式，旨在为 AI Agent 构建可持续学习、自我进化的长期记忆系统。
+**KIP（Knowledge Interaction Protocol）** 是一种专为大型语言模型 (LLM) 设计的知识交互协议。它通过一套标准化的指令集 (KQL/KML) 和数据结构，定义了神经核心 (LLM) 与符号核心 (知识图谱) 之间进行高效、可靠、双向知识交换的完整模式，旨在为 AI Agent 构建一个**统一的、具备新陈代谢能力的记忆大脑**。
 
 **设计原则：**
 
@@ -66,7 +65,7 @@ KIP 将 AI 与知识库的交互范式，**从单向的“工具调用”，升�
 
 ### 2.1. 认知中枢（Cognitive Nexus）
 
-一个由**概念节点**和**命题链接**构成的知识图谱，是 AI Agent 的长期记忆系统。
+一个由**概念节点**和**命题链接**构成的知识图谱，是 AI Agent **统一的记忆大脑**。它容纳了从短暂的情景事件到持久的语义知识等所有层次的记忆，并通过系统后台的自主进程实现记忆的**新陈代谢（巩固与遗忘）**。
 
 ### 2.2. 概念节点（Concept Node）
 
@@ -93,7 +92,7 @@ KIP 将 AI 与知识库的交互范式，**从单向的“工具调用”，升�
 
 ### 2.4. 知识胶囊（Knowledge Capsule）
 
-一种原子性的知识更新单元，是包含了一组**概念节点**和**命题链接**的知识合集，用于解决高质量知识的封装、分发和复用问题。
+一种幂等性的知识更新单元，是包含了一组**概念节点**和**命题链接**的知识合集，用于解决高质量知识的封装、分发和复用问题。
 
 ### 2.5. 认知引信（Cognitive Primer）
 
@@ -854,7 +853,7 @@ WHERE {
 
 **功能**：`SEARCH` 命令用于将自然语言术语链接到知识图谱中明确的实体。它专注于高效的、文本索引驱动的查找，而非完整的图模式匹配。
 
-**语法**：`SEARCH [CONCEPT|PROPOSITION] "<term>" [WITH TYPE "<Type>"] [LIMIT N]`
+**语法**：`SEARCH CONCEPT|PROPOSITION "<term>" [WITH TYPE "<Type>"] [LIMIT N]`
 
 **示例**：
 
@@ -966,9 +965,11 @@ graph TD
 *   **`evidence` (证据)**: `Array<String>`, 指向支持断言的具体证据。
 
 ### A1.2. 时效性与生命周期 (Temporality & Lifecycle)
-*   **`created_at` / `last_updated_at` / `expires_at`**: `String` (ISO 8601), 创建/更新/过期时间戳。
+*   **`created_at` / `last_updated_at`**: `String` (ISO 8601), 创建/更新时间戳。
+*   **`expires_at`**: `String` (ISO 8601), 记忆的过期时间戳。**此字段是实现记忆自动“遗忘”机制的关键。通常由系统（`$system`）根据知识的类型（如 `Event`）自动添加，标记了该记忆可被安全清理的时间点。**
 *   **`valid_from` / `valid_until`**: `String` (ISO 8601), 知识断言的有效起止时间。
 *   **`status` (状态)**: `String`, 如 `"active"`, `"deprecated"`, `"retracted"`。
+*   **`memory_tier` (记忆层级)**: `String`, **由系统自动标记**，如 `"short-term"`, `"long-term"`, 用于内部的维护和查询优化。
 
 ### A1.3. 上下文与审核 (Context & Auditing)
 *   **`relevance_tags` (相关标签)**: `Array<String>`, 主题或领域标签。
@@ -1266,7 +1267,7 @@ WITH METADATA {
 }
 ```
 
-#### **A3.2. `$self` 节点：Agent 的涌现式自我**
+#### A3.2. `$self` 节点：Agent 的涌现式自我
 
 此节点代表 AI Agent 自身。它被设计为一个“带有守护外壳的白板”，其个性通过交互涌现，而其核心完整性则受到与生俱来的指令的保护。
 
@@ -1319,7 +1320,7 @@ WITH METADATA {
 }
 ```
 
-#### **A3.3. `$system` 节点：清醒的园丁**
+#### A3.3. `$system` 节点：清醒的园丁
 
 
 此节点代表系统的“超我”。它是一个没有情感、没有个性的 AI **行为人**，负责引导 `$self` 的成长并维护整个知识图谱的健康。
@@ -1376,6 +1377,79 @@ UPSERT {
                 }
             ]
         }
+    }
+}
+WITH METADATA {
+    source: "KIP Capsule Design",
+    author: "System Architect",
+    confidence: 1.0,
+    status: "active"
+}
+```
+
+### A3.4. `Event` 概念类型
+
+`Event` 概念类型用于容纳各种类型的短期/情景记忆，如对话、网页浏览、工具使用等。它能连接到长期的、语义化的概念，成为从情景记忆中提炼语义记忆的桥梁。
+
+```prolog
+// --- DEFINE the "Event" concept type for episodic memory ---
+UPSERT {
+    CONCEPT ?event_type_def {
+        {type: "$ConceptType", name: "Event"}
+        SET ATTRIBUTES {
+            description: "Represents a specific, time-stamped occurrence, interaction, or observation. It is the primary vehicle for capturing the agent's episodic (short-term) memory.",
+            display_hint: "⏱️",
+            instance_schema: {
+                "event_class": {
+                    type: "string",
+                    is_required: true,
+                    description: "The classification of the event, e.g., 'Conversation', 'WebpageView', 'ToolExecution', 'SelfReflection'."
+                },
+                "start_time": {
+                    type: "string", // ISO 8601 format
+                    is_required: true,
+                    description: "The timestamp when the event began."
+                },
+                "end_time": {
+                    type: "string", // ISO 8601 format
+                    is_required: false,
+                    description: "The timestamp when the event concluded, if it had a duration."
+                },
+                "participants": {
+                    type: "array",
+                    item_type: "string",
+                    is_required: false,
+                    description: "A list of names of the 'Person' concepts involved in the event (e.g., [\"$self\", \"Alice\"])."
+                },
+                "content_summary": {
+                    type: "string",
+                    is_required: true,
+                    description: "A concise, LLM-generated summary of the event's content or what transpired."
+                },
+                "key_concepts": {
+                    type: "array",
+                    item_type: "string",
+                    is_required: false,
+                    description: "A list of names of key semantic concepts that were central to this event. This acts as a bridge to long-term memory."
+                },
+                "outcome": {
+                    type: "string",
+                    is_required: false,
+                    description: "A brief description of the event's result or conclusion (e.g., 'User satisfied', 'Decision made', 'Error encountered')."
+                },
+                "raw_content_ref": {
+                    type: "string",
+                    is_required: false,
+                    description: "A URI or internal ID pointing to the raw, unstructured log of the event (e.g., full conversation text), stored outside the graph."
+                },
+                "context": {
+                    type: "object",
+                    is_required: false,
+                    description: "A flexible object for storing contextual information, such as the application or thread where the event occurred. Example: `{ \"app\": \"dMsg.net\", \"thread_id\": \"xyz-123\" }`."
+                }
+            }
+        }
+        SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "CoreSchema"}) }
     }
 }
 WITH METADATA {

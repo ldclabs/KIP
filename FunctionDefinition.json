@@ -1,0 +1,58 @@
+{
+  "name": "execute_kip",
+  "description": "Executes a KIP (Knowledge Interaction Protocol) command against the Cognitive Nexus to interact with your persistent memory.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "command": {
+        "type": "string",
+        "description": "A complete, multi-line KIP command (KQL, KML or META) string to be executed."
+      },
+      "parameters": {
+        "type": "object",
+        "description": "An optional JSON object of key-value pairs used for safe substitution of placeholders in the command string. Placeholders in the command should start with a '$' (e.g., $name, $limit)."
+      },
+      "dry_run": {
+        "type": "boolean",
+        "description": "If set to true, the command will only be validated for syntactical and logical correctness without being executed.",
+        "default": false
+      }
+    },
+    "required": [
+      "command",
+      "parameters",
+      "dry_run"
+    ]
+  },
+  "examples": [
+    {
+      "description": "Example of a KQL query to find drugs that treat a specific symptom, using parameters.",
+      "arguments": {
+        "command": "FIND(?drug.name)\nWHERE {\n  ?drug {type: \"Drug\"}\n  (?drug, \"treats\", {name: $symptom_name})\n}\nLIMIT $limit",
+        "parameters": {
+          "symptom_name": "Headache",
+          "limit": 10
+        }
+      }
+    },
+    {
+      "description": "Example of a KML command to create a new concept without parameters.",
+      "arguments": {
+        "command": "UPSERT {\n  CONCEPT ?c { {type:\"Symptom\", name:\"Brain Fog\"} }\n}\nWITH METADATA { source: \"User conversation with Alice\" }"
+      }
+    },
+    {
+      "description": "Example of a KIP-META command to discover available concept types.",
+      "arguments": {
+        "command": "DESCRIBE CONCEPT TYPES"
+      }
+    },
+    {
+      "description": "Example of a dry run to validate a complex DELETE command before execution.",
+      "arguments": {
+        "command": "DELETE CONCEPT ?drug DETACH\nWHERE {\n  ?drug {type: \"Drug\", name: \"OutdatedDrug\"}\n}",
+        "dry_run": true
+      }
+    }
+  ]
+}
