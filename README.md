@@ -1384,7 +1384,7 @@ WITH METADATA {
 }
 ```
 
-### A3.4. `Event` Concept Type
+#### A3.4. `Event` Concept Type
 
 `Event` concept type is used to encapsulate various types of short-term/episodic memories, such as conversations, webpage views, tool executions, etc. It serves as a bridge to long-term semantic concepts, allowing the agent to distill semantic memory from episodic experiences.
 
