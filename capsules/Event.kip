@@ -1,9 +1,9 @@
-// --- DEFINE the "Event" concept type for episodic memory ---
+// --- DEFINE the "Event" concept type for situational memory ---
 UPSERT {
     CONCEPT ?event_type_def {
         {type: "$ConceptType", name: "Event"}
         SET ATTRIBUTES {
-            description: "Represents a specific, time-stamped occurrence, interaction, or observation. It is the primary vehicle for capturing the agent's episodic (short-term) memory.",
+            description: "Represents a specific, time-stamped occurrence, interaction, or observation. It is the primary vehicle for capturing the agent's situational (short-term) memory.",
             display_hint: "⏱️",
             instance_schema: {
                 "event_class": {

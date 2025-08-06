@@ -38,15 +38,6 @@ UPSERT {
                 "Execute autonomous KML scripts for knowledge maintenance ('dreamwork').",
                 "Trigger schema evolution based on observed data patterns.",
                 "Manage the lifecycle of other 'Person' nodes (e.g., archiving inactive users)."
-            ],
-
-            // --- Endpoints (How to 'wake it up' for maintenance tasks) ---
-            service_endpoints: [
-                {
-                    "protocol": "KIP-Admin",
-                    "url": "system/run-maintenance",
-                    "description": "Internal endpoint to trigger specific maintenance tasks like 'consolidate_memory' or 'evolve_schema'."
-                }
             ]
         }
     }
