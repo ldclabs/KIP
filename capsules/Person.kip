@@ -10,7 +10,7 @@ UPSERT {
                 "id": {
                     type: "string",
                     is_required: true,
-                    description: "The immutable, unique, and verifiable identifier for the person, typically a cryptographic ID like an ICP principal. Example: \"gcxml-rtxjo-ib7ov-5si5r-5jluv-zek7y-hvody-nneuz-hcg5i-6notx-aae\"."
+                    description: "The immutable and unique identifier for the person. To prevent ambiguity with non-unique display names, this ID should be used as the 'name' of the Person concept. It is typically a cryptographic identifier like an ICP principal. Example: \"gcxml-rtxjo-ib7ov-5si5r-5jluv-zek7y-hvody-nneuz-hcg5i-6notx-aae\"."
                 },
                 "person_class": {
                     type: "string",
@@ -20,7 +20,7 @@ UPSERT {
                 "name": {
                     type: "string",
                     is_required: false,
-                    description: "The human-readable display name, which is not necessarily unique and can change over time."
+                    description: "The human-readable display name, which is not necessarily unique and can change over time. For a stable and unique identifier, refer to the 'id' attribute."
                 },
                 "handle": {
                     type: "string",
