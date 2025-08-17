@@ -300,7 +300,7 @@ FILTER(?link.metadata.confidence > 0.9)
 
 ```prolog
 // 查找一个概念的 5 层以内的父概念
-(?concept, "is_subclass_of{0,5}", ?parent_concept)
+(?concept, "is_subclass_of"{0,5}, ?parent_concept)
 ```
 
 #### 3.4.3. 过滤器子句（`FILTER`）
@@ -402,7 +402,8 @@ WHERE {
   NOT {
     // ?drug 的绑定在这里可见
     // ?nsaid_class 是内部变量，其作用域仅限于此
-    (?drug, "is_class_of", ?nsaid_class {name: "NSAID"})
+    ?nsaid_class {name: "NSAID"}
+    (?drug, "is_class_of", ?nsaid_class)
   }
 }
 ```
@@ -575,7 +576,7 @@ WITH METADATA { <key>: <value>, ... }
 *   **`CONCEPT` 块**：定义一个概念节点。
     *   `?local_handle`：以 `?` 开头的本地句柄（或称锚点），用于在事务内引用此新概念，它只在本次 `UPSERT` 块事务中有效。
     *   `{type: "<Type>", name: "<name>"}`：匹配或创建概念节点，`{id: "<id>"}` 只会匹配已有概念节点。
-    *   `SET ATTRIBUTES { ... }`：设置或更新节点的属性。
+    *   `SET ATTRIBUTES { ... }`：设置或更新（浅合并）节点的属性。
     *   `SET PROPOSITIONS { ... }`：定义或更新该概念节点发起的命题链接。`SET PROPOSITIONS` 的行为是增量添加（additive），而非替换（replacing）。它会检查该概念节点的所有出度关系：1. 如果图中不存在完全相同的命题（主语、谓词、宾语都相同），则创建这个新命题；2. 如果图中已存在完全相同的命题，则仅更新或添加 `WITH METADATA` 中指定的元数据。如果一个命题本身需要携带复杂的内在属性，建议使用独立的 `PROPOSITION` 块来定义它，并通过本地句柄 `?handle` 进行引用。
         *   `("<predicate>", ?local_handle)`：链接到本次胶囊中定义的另一个概念或命题。
         *   `("<predicate>", {type: "<Type>", name: "<name>"})`，`("<predicate>", {id: "<id>"})`：链接到图中已存在的概念，不存在则忽略。
@@ -583,7 +584,7 @@ WITH METADATA { <key>: <value>, ... }
 *   **`PROPOSITION` 块**：定义一个独立的命题链接，通常用于在胶囊内创建复杂的关系。
     *   `?local_prop`：本地句柄，用于引用此命题链接。
     *   `(<subject>, "<predicate>", <object>)`：会匹配或创建命题链接，`(id: "<id>")` 只会匹配已有命题链接。
-    *   `SET ATTRIBUTES { ... }`：一个简单的键值对列表，用于设置或更新命题链接的属性。
+    *   `SET ATTRIBUTES { ... }`：一个简单的键值对列表，用于设置或更新（浅合并）命题链接的属性。
 *   **`WITH METADATA` 块**： 追加在 `CONCEPT`，`PROPOSITION` 或 `UPSERT` 块的元数据。`UPSERT` 块的元数据是所有在该块内定义的概念节点和命题链接的默认元数据。但每个 `CONCEPT` 或 `PROPOSITION` 块也可以单独定义自己的元数据。
 
 #### 执行顺序与本地句柄作用域 (Execution Order & Local Handle Scope)

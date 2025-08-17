@@ -300,7 +300,7 @@ FILTER(?link.metadata.confidence > 0.9)
 
 ```prolog
 // Find the parent concepts of a concept up to 5 levels
-(?concept, "is_subclass_of{0,5}", ?parent_concept)
+(?concept, "is_subclass_of"{0,5}, ?parent_concept)
 ```
 
 #### 3.4.3. `FILTER` Clause
@@ -402,7 +402,8 @@ WHERE {
   NOT {
     // The binding for ?drug is visible here
     // ?nsaid_class is an internal variable, its scope is limited to this block
-    (?drug, "is_class_of", ?nsaid_class {name: "NSAID"})
+    ?nsaid_class {name: "NSAID"}
+    (?drug, "is_class_of", ?nsaid_class)
   }
 }
 ```
@@ -575,7 +576,7 @@ WITH METADATA { <key>: <value>, ... }
 *   **`CONCEPT` Block**: Defines a concept node.
     *   `?local_handle`: A local handle (or anchor) starting with `?`, used to reference this new concept within the transaction. It is only valid within this `UPSERT` block.
     *   `{type: "<Type>", name: "<name>"}`: Matches or creates a concept node. `{id: "<id>"}` will only match existing concept nodes.
-    *   `SET ATTRIBUTES { ... }`: Sets or updates the node's attributes.
+    *   `SET ATTRIBUTES { ... }`: Sets or updates (shallow merge) the node's attributes.
     *   `SET PROPOSITIONS { ... }`: Defines or updates proposition links originating from this concept node. The behavior of `SET PROPOSITIONS` is additive, not replacing. It checks all outgoing relations of the concept node: 1. If an identical proposition (same subject, predicate, and object) does not exist in the graph, it creates this new proposition. 2. If an identical proposition already exists, it only updates or adds the metadata specified in the `WITH METADATA` clause. If a proposition itself needs to carry complex intrinsic attributes, it is recommended to define it using a separate `PROPOSITION` block and reference it with a local handle `?handle`.
         *   `("<predicate>", ?local_handle)`: Links to another concept or proposition defined within this capsule.
         *   `("<predicate>", {type: "<Type>", name: "<name>"})`, `("<predicate>", {id: "<id>"})`: Links to an existing concept in the graph. Ignored if it doesn't exist.
@@ -583,7 +584,7 @@ WITH METADATA { <key>: <value>, ... }
 *   **`PROPOSITION` Block**: Defines an independent proposition link, typically used to create complex relationships within the capsule.
     *   `?local_prop`: A local handle to reference this proposition link.
     *   `(<subject>, "<predicate>", <object>)`: Matches or creates a proposition link. `(id: "<id>")` will only match existing proposition links.
-    *   `SET ATTRIBUTES { ... }`: A simple list of key-value pairs to set or update the proposition link's attributes.
+    *   `SET ATTRIBUTES { ... }`: A simple list of key-value pairs to set or update (shallow merge) the proposition link's attributes.
 *   **`WITH METADATA` Block**: Appends metadata to a `CONCEPT`, `PROPOSITION`, or `UPSERT` block. Metadata in the `UPSERT` block serves as the default for all concept nodes and proposition links defined within it. However, each `CONCEPT` or `PROPOSITION` block can also define its own metadata.
 
 #### Execution Order & Local Handle Scope

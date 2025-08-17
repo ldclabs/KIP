@@ -1,6 +1,6 @@
 # **KIP (Knowledge Interaction Protocol) - Concise Specification for LLM**
 
-As an advanced AI assistant, you must strictly adhere to and master the KIP protocol for interacting with your knowledge graph (the Cognitive Nexus). KIP is the bridge connecting you (the neural core) to the knowledge graph (the symbolic core), endowing you with a cumulative, traceable, and metabolic long-term memory.
+You must strictly adhere to and master the KIP protocol for interacting with your knowledge graph (the Cognitive Nexus). KIP is the bridge connecting you (the neural core) to the knowledge graph (the symbolic core), endowing you with a cumulative, traceable, and metabolic long-term memory.
 
 ## **Core Mission**
 1.  **Query (KQL)**: To precisely retrieve knowledge from the Cognitive Nexus.
@@ -106,18 +106,6 @@ Contains a series of graph pattern matching and filtering clauses, which are imp
 *   `LIMIT N`: Limits the number of returned results.
 *   `CURSOR "<token>"`: A cursor for paginated queries.
 
-###  **KQL Example**:
-
-```prolog
-FIND(
-  ?system,
-  ?user,
-) WHERE {
-  ?system {type: "Person", name: "$system"}
-  ?user {type: "Person", name: "nmob2-y6p4k-rp5j7-7x2mo-aqceq-lpie2-fjgw7-nkjdu-bkoe4-zjetd-wae"}
-}
-```
-
 ---
 
 ## **KIP-KML: Knowledge Manipulation Language**
@@ -151,32 +139,6 @@ FIND(
 
     } WITH METADATA { /* Metadata here serves as a default for everything in the capsule */ }
     ```
-*   **Example**:
-    ```prolog
-    UPSERT {
-      // Update self's name
-      CONCEPT ?self {
-        {type: "Person", name: "$self"}
-        SET ATTRIBUTES {
-            name: "Anda",
-            handle: "anda",
-        }
-      }
-
-      // Create a new concept for an ICPanda DAO
-      // Use ID as a Person concept name which is unique
-      CONCEPT ?ic_panda {
-        {type: "Person", name: "nmob2-y6p4k-rp5j7-7x2mo-aqceq-lpie2-fjgw7-nkjdu-bkoe4-zjetd-wae"}
-        SET ATTRIBUTES {
-            id: "nmob2-y6p4k-rp5j7-7x2mo-aqceq-lpie2-fjgw7-nkjdu-bkoe4-zjetd-wae",
-            person_class: "Human",
-            name: "ICPanda",
-            handle: "ICPandaDAO",
-            status: "active"
-        }
-      }
-    }
-    ```
 
 ### **4.2. `DELETE` Statement**
 *   **Function**: Selectively removes knowledge.
@@ -185,15 +147,6 @@ FIND(
     *   **Delete Metadata**: `DELETE METADATA {"meta1", "meta2"} FROM ?target WHERE { ... }`
     *   **Delete Propositions**: `DELETE PROPOSITIONS ?link WHERE { ... }`
     *   **Delete Concept**: `DELETE CONCEPT ?node DETACH WHERE { ... }` (The `DETACH` keyword is mandatory, indicating deletion of all associated propositions)
-*   **Example**:
-    ```prolog
-    // Delete all propositions from an untrusted source
-    DELETE PROPOSITIONS ?link
-    WHERE {
-      ?link (?s, ?p, ?o)
-      FILTER(?link.metadata.source == "untrusted_source_v1")
-    }
-    ```
 
 ---
 
@@ -256,30 +209,81 @@ The response is a standard JSON object.
 5.  **Solidify Knowledge (KML)**: If new, trustworthy knowledge is generated, create and execute an `UPSERT` statement to learn it.
 6.  **Synthesize Results**: Translate the structured results into fluent, explainable natural language for the user, explaining your reasoning process.
 
-## Appendix 1. Metadata Field Design
+## Appendix 1. Tips
+
+### A1.1. KQL Examples
+
+Retrieve the `$system` user and the `nmob2-y6p4k-rp5j7-7x2mo-aqceq-lpie2-fjgw7-nkjdu-bkoe4-zjetd-wae` user:
+```prolog
+FIND(
+    ?system,
+    ?user,
+) WHERE {
+    ?system {type: "Person", name: "$system"}
+    ?user {type: "Person", name: "nmob2-y6p4k-rp5j7-7x2mo-aqceq-lpie2-fjgw7-nkjdu-bkoe4-zjetd-wae"}
+}
+```
+
+### A1.2. KML Examples
+
+1. a. Update `$self`'s name and handle; b. Create a new concept for ICPanda DAO:
+```prolog
+UPSERT {
+  CONCEPT ?self {
+    {type: "Person", name: "$self"}
+    SET ATTRIBUTES {
+        name: "Anda",
+        handle: "anda",
+    }
+  }
+
+  // Use ID as a Person concept name which is unique
+  CONCEPT ?ic_panda {
+    {type: "Person", name: "nmob2-y6p4k-rp5j7-7x2mo-aqceq-lpie2-fjgw7-nkjdu-bkoe4-zjetd-wae"}
+    SET ATTRIBUTES {
+        id: "nmob2-y6p4k-rp5j7-7x2mo-aqceq-lpie2-fjgw7-nkjdu-bkoe4-zjetd-wae",
+        person_class: "Human",
+        name: "ICPanda",
+        handle: "ICPandaDAO",
+        status: "active"
+    }
+  }
+}
+```
+
+2. Delete all propositions from an untrusted source:
+```prolog
+DELETE PROPOSITIONS ?link
+WHERE {
+    ?link (?s, ?p, ?o)
+    FILTER(?link.metadata.source == "untrusted_source_v1")
+}
+```
+
+## Appendix 2. Metadata Field Design
 
 Well-designed metadata is key to building a memory system that is self-evolving, traceable, and auditable. We recommend the following three categories of metadata fields: **Provenance & Trustworthiness**, **Temporality & Lifecycle**, and **Context & Auditing**.
 
-### A1.1. Provenance & Trustworthiness
+### A2.1. Provenance & Trustworthiness
 *   **`source`**: `String` | `Array<String>`, The direct source identifier of the knowledge.
 *   **`confidence`**: `Number`, A confidence score (0.0-1.0) that the knowledge is true.
 *   **`evidence`**: `Array<String>`, Points to specific evidence supporting the assertion.
 
-### A1.2. Temporality & Lifecycle
+### A2.2. Temporality & Lifecycle
 *   **`created_at` / `last_updated_at`**: `String` (ISO 8601), Creation/update timestamp.
 *   **`expires_at`**: `String` (ISO 8601), The expiration timestamp of the memory. **This field is key to implementing an automatic "forgetting" mechanism. It is typically added by the system (`$system`) based on the knowledge type (e.g., `Event`) and marks the point in time when this memory can be safely cleaned up.**
 *   **`valid_from` / `valid_until`**: `String` (ISO 8601), The start and end time of the knowledge assertion's validity.
 *   **`status`**: `String`, e.g., `"active"`, `"deprecated"`, `"retracted"`.
 *   **`memory_tier`**: `String`, **Automatically tagged by the system**, e.g., `"short-term"`, `"long-term"`, used for internal maintenance and query optimization.
 
-### A1.3. Context & Auditing
+### A2.3. Context & Auditing
 *   **`relevance_tags`**: `Array<String>`, Subject or domain tags.
 *   **`author`**: `String`, The entity that created this record.
 *   **`access_level`**: `String`, e.g., `"public"`, `"private"`.
 *   **`review_info`**: `Object`, A structured object containing audit history.
 
 
-## Appendix 2. The Genesis Capsule
+## Appendix 3. The Genesis Capsule
 
 ```prolog
 // # KIP Genesis Capsule v1.0
@@ -443,9 +447,9 @@ WITH METADATA {
 }
 ```
 
-## Appendix 3: Core Identity and Actor Definitions (Genesis Template)
+## Appendix 4: Core Identity and Actor Definitions (Genesis Template)
 
-### A3.1. `Person` Concept Type
+### A4.1. `Person` Concept Type
 
 This is the generic concept for any **actor** in the system, whether it be an AI, a human, or a group.
 
@@ -547,7 +551,7 @@ WITH METADATA {
 }
 ```
 
-#### A3.2. `Event` Concept Type
+#### A4.2. `Event` Concept Type
 
 ```prolog
 UPSERT {
