@@ -139,7 +139,7 @@ KIP 的核心设计之一是**知识图谱的自我描述能力**。认知中枢
 
 ### 2.10. 数据一致性与冲突处理原则
 
-*   **属性更新策略**：在 `UPSERT` 操作中，`SET ATTRIBUTES` 采用**全量替换策略**。即对于指定的 Key，新值将完全覆盖旧值。对于数组类型的属性，Agent 必须提供完整的数组内容。
+*   **属性更新策略**：在 `UPSERT` 操作中，`SET ATTRIBUTES` 采用**浅合并（Shallow Merge）策略**：仅对指令中出现的 Key 进行更新（覆盖），未出现的 Key 保持不变。对于某个 Key 的值为 `Array` 或 `Object` 时，更新语义仍是**按该 Key 整体覆盖**（不会递归深合并），因此 Agent 若要更新数组内容，必须提供完整的数组。
 *   **命题唯一性**：KIP 强制实施 **(Subject, Predicate, Object) 唯一性约束**。两个概念节点之间，相同类型的关系只能存在一条。重复的 `UPSERT` 操作将被视为对现有命题的元数据或属性更新。
 
 #### 2.9.1. 元类型（Meta-Types）
@@ -585,8 +585,8 @@ WITH METADATA { <key>: <value>, ... }
     * `SET ATTRIBUTES { ... }`：设置或更新（浅合并）节点的属性。
     * `SET PROPOSITIONS { ... }`：定义或更新该概念节点发起的命题链接。`SET PROPOSITIONS` 的行为是增量添加（additive），而非替换（replacing）。它会检查该概念节点的所有出度关系：1. 如果图中不存在完全相同的命题（主语、谓词、宾语都相同），则创建这个新命题；2. 如果图中已存在完全相同的命题，则仅更新或添加 `WITH METADATA` 中指定的元数据。如果一个命题本身需要携带复杂的内在属性，建议使用独立的 `PROPOSITION` 块来定义它，并通过本地句柄 `?handle` 进行引用。
         * `("<predicate>", ?local_handle)`：链接到本次胶囊中定义的另一个概念或命题。
-        * `("<predicate>", {type: "<Type>", name: "<name>"})`，`("<predicate>", {id: "<id>"})`：链接到图中已存在的概念，不存在则忽略。
-        * `("<predicate>", (?subject, "<predicate>", ?object))`：链接到图中已存在的命题，不存在则忽略。
+        * `("<predicate>", {type: "<Type>", name: "<name>"})`，`("<predicate>", {id: "<id>"})`：链接到图中已存在的概念；若目标不存在，则返回 `KIP_3002` 错误。
+        * `("<predicate>", (?subject, "<predicate>", ?object))`：链接到图中已存在的命题；若目标不存在，则返回 `KIP_3002` 错误。
 * **`PROPOSITION` 块**：定义一个独立的命题链接，通常用于在胶囊内创建复杂的关系。
     * `?local_prop`：本地句柄，用于引用此命题链接。
     * `(<subject>, "<predicate>", <object>)`：会匹配或创建命题链接，`(id: "<id>")` 只会匹配已有命题链接。
@@ -610,6 +610,8 @@ WITH METADATA { <key>: <value>, ... }
 * 它能治疗“脑雾（Brain Fog）”。
 * 它属于“益智药（Nootropic）”类别（这是一个已存在的类别）。
 * 它有一个新发现的副作用：“神经绽放（Neural Bloom）”（这也是一个新的概念）。
+
+> **注意**：示例中引用的“已存在的类别/概念/命题”（例如 `DrugClass:Nootropic`）必须事先存在于图中；否则在 `UPSERT`/`SET PROPOSITIONS` 中引用该目标会返回 `KIP_3002`。
 
 **知识胶囊 `cognizine_capsule.kip` 的内容：**
 
@@ -1482,23 +1484,23 @@ WITH METADATA {
 
 ### 错误码对照表
 
-| 错误码     | 错误名称              | 描述                                                                | 给 Agent 的修正建议 (Recovery Hint)                                                                    |
-| :--------- | :-------------------- | :------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------- |
-| **1xxx**   | **语法与解析错误**    |                                                                     |                                                                                                        |
-| `KIP_1001` | `InvalidSyntax`       | KQL/KML 代码无法被解析，存在拼写错误或结构错误。                    | 检查括号匹配、关键字拼写及语句结构。确保 JSON 数据格式正确。                                           |
-| `KIP_1002` | `InvalidIdentifier`   | 使用了非法的标志符格式（如以数字开头）。                            | 标志符必须匹配正则 `[a-zA-Z_][a-zA-Z0-9_]*`。                                                          |
-| `KIP_1003` | `UnsupportedVersion`  | 请求的协议版本不受支持。                                            | 请检查系统支持的 KIP 版本。                                                                            |
-| **2xxx**   | **模式与类型错误**    |                                                                     |                                                                                                        |
-| `KIP_2001` | `TypeMismatch`        | 尝试使用的概念类型或命题谓词在 Schema 中未定义。                    | **这是最常见的错误。** 请先执行 `DESCRIBE` 确认类型名称。切记类型名区分大小写（如 `Drug` vs `drug`）。 |
-| `KIP_2002` | `AttributeUndefined`  | 尝试写入 Schema 中未定义的属性（如果 Schema 设为严格模式）。        | 检查 `instance_schema` 定义。如果是新属性，请确认是否允许动态扩展。                                    |
-| `KIP_2003` | `ConstraintViolation` | 违反了数据约束（如缺少必填字段 `is_required: true`）。              | 补充缺失的必填属性。                                                                                   |
-| `KIP_2004` | `InvalidValueType`    | 属性值的 JSON 类型与 Schema 定义不符（如期望数字却收到字符串）。    | 修正 JSON 值的类型。                                                                                   |
-| **3xxx**   | **逻辑与数据错误**    |                                                                     |                                                                                                        |
-| `KIP_3001` | `ReferenceError`      | 引用了未定义的变量或句柄（Handle）。                                | 确保在 `UPSERT` 中先定义 `CONCEPT` 块并分配句柄，再在后续子句中引用。                                  |
-| `KIP_3002` | `NotFound`            | 指定 ID 或名称的节点/链接在图中不存在（用于 `DELETE` 或严格匹配）。 | 目标可能已被删除或从未创建。请先尝试 `SEARCH` 或 `FIND` 确认存在性。                                   |
-| `KIP_3003` | `DuplicateExists`     | 违反唯一性约束（如重复创建已存在的唯一节点且不允许更新）。          | 如果意图是更新，请检查是否应使用 `UPSERT` 而非创建逻辑。                                               |
-| `KIP_3004` | `ImmutableTarget`     | 尝试修改或删除受保护的系统节点（如 `$ConceptType`, `$self`）。      | **禁止操作。** 不要尝试修改系统元定义或核心身份节点。                                                  |
-| **4xxx**   | **系统与执行错误**    |                                                                     |                                                                                                        |
-| `KIP_4001` | `ExecutionTimeout`    | 查询过于复杂，执行时间超过系统限制。                                | 优化查询。减少 `UNION` 的使用，降低 `LIMIT`，或减少正则匹配/跳数。                                     |
-| `KIP_4002` | `ResourceExhausted`   | 结果集过大或内存不足。                                              | 必须使用 `LIMIT` 和 `CURSOR` 进行分页获取。                                                            |
-| `KIP_4003` | `InternalError`       | 数据库内部未知错误。                                                | 请联系系统管理员或稍后重试。                                                                           |
+| 错误码     | 错误名称              | 描述                                                                                                              | 给 Agent 的修正建议 (Recovery Hint)                                                                    |
+| :--------- | :-------------------- | :---------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------- |
+| **1xxx**   | **语法与解析错误**    |                                                                                                                   |                                                                                                        |
+| `KIP_1001` | `InvalidSyntax`       | KQL/KML 代码无法被解析，存在拼写错误或结构错误。                                                                  | 检查括号匹配、关键字拼写及语句结构。确保 JSON 数据格式正确。                                           |
+| `KIP_1002` | `InvalidIdentifier`   | 使用了非法的标志符格式（如以数字开头）。                                                                          | 标志符必须匹配正则 `[a-zA-Z_][a-zA-Z0-9_]*`。                                                          |
+| `KIP_1003` | `UnsupportedVersion`  | 请求的协议版本不受支持。                                                                                          | 请检查系统支持的 KIP 版本。                                                                            |
+| **2xxx**   | **模式与类型错误**    |                                                                                                                   |                                                                                                        |
+| `KIP_2001` | `TypeMismatch`        | 尝试使用的概念类型或命题谓词在 Schema 中未定义。                                                                  | **这是最常见的错误。** 请先执行 `DESCRIBE` 确认类型名称。切记类型名区分大小写（如 `Drug` vs `drug`）。 |
+| `KIP_2002` | `AttributeUndefined`  | 尝试写入 Schema 中未定义的属性（如果 Schema 设为严格模式）。                                                      | 检查 `instance_schema` 定义。如果是新属性，请确认是否允许动态扩展。                                    |
+| `KIP_2003` | `ConstraintViolation` | 违反了数据约束（如缺少必填字段 `is_required: true`）。                                                            | 补充缺失的必填属性。                                                                                   |
+| `KIP_2004` | `InvalidValueType`    | 属性值的 JSON 类型与 Schema 定义不符（如期望数字却收到字符串）。                                                  | 修正 JSON 值的类型。                                                                                   |
+| **3xxx**   | **逻辑与数据错误**    |                                                                                                                   |                                                                                                        |
+| `KIP_3001` | `ReferenceError`      | 引用了未定义的变量或句柄（Handle）。                                                                              | 确保在 `UPSERT` 中先定义 `CONCEPT` 块并分配句柄，再在后续子句中引用。                                  |
+| `KIP_3002` | `NotFound`            | 指定 ID 或名称的节点/链接在图中不存在（用于 `DELETE`、或在 `UPSERT`/`SET PROPOSITIONS` 等操作中引用既有目标时）。 | 目标可能已被删除或从未创建。请先尝试 `SEARCH` 或 `FIND` 确认存在性。                                   |
+| `KIP_3003` | `DuplicateExists`     | 违反唯一性约束（如重复创建已存在的唯一节点且不允许更新）。                                                        | 如果意图是更新，请检查是否应使用 `UPSERT` 而非创建逻辑。                                               |
+| `KIP_3004` | `ImmutableTarget`     | 尝试修改或删除受保护的系统节点（如 `$ConceptType`, `$self`）。                                                    | **禁止操作。** 不要尝试修改系统元定义或核心身份节点。                                                  |
+| **4xxx**   | **系统与执行错误**    |                                                                                                                   |                                                                                                        |
+| `KIP_4001` | `ExecutionTimeout`    | 查询过于复杂，执行时间超过系统限制。                                                                              | 优化查询。减少 `UNION` 的使用，降低 `LIMIT`，或减少正则匹配/跳数。                                     |
+| `KIP_4002` | `ResourceExhausted`   | 结果集过大或内存不足。                                                                                            | 必须使用 `LIMIT` 和 `CURSOR` 进行分页获取。                                                            |
+| `KIP_4003` | `InternalError`       | 数据库内部未知错误。                                                                                              | 请联系系统管理员或稍后重试。                                                                           |

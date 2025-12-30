@@ -139,7 +139,7 @@ One of KIP's core designs is the **self-describing capability of the knowledge g
 
 ### 2.10. Data Consistency & Conflict Resolution Principles
 
-*   **Attribute Update Strategy**: In `UPSERT` operations, `SET ATTRIBUTES` adopts a **Full Replacement Strategy**. For a specified Key, the new value will completely overwrite the old value. For attributes of Array type, the Agent must provide the complete array content.
+*   **Attribute Update Strategy**: In `UPSERT` operations, `SET ATTRIBUTES` adopts a **Shallow Merge Strategy**: only Keys present in the command are updated (overwritten), and Keys not present remain unchanged. If a Key's value is an `Array` or `Object`, the update is still an **overwrite at that Key** (no recursive deep merge). Therefore, when updating an array attribute, the Agent must provide the full array content.
 *   **Proposition Uniqueness**: KIP enforces a **(Subject, Predicate, Object) Uniqueness Constraint**. Only one relationship of the same type can exist between two concept nodes. Duplicate `UPSERT` operations will be treated as updates to the metadata or attributes of the existing proposition.
 
 #### 2.9.1. Meta-Types
@@ -583,8 +583,8 @@ WITH METADATA { <key>: <value>, ... }
     *   `SET ATTRIBUTES { ... }`: Sets or updates (shallow merge) the node's attributes.
     *   `SET PROPOSITIONS { ... }`: Defines or updates proposition links initiated by this concept node. The behavior of `SET PROPOSITIONS` is **additive**, not replacing. It checks all outgoing relations of the concept: 1. If an identical proposition (same subject, predicate, object) does not exist, creates it; 2. If it exists, only updates or adds metadata specified in `WITH METADATA`. If a proposition requires complex intrinsic attributes, use an independent `PROPOSITION` block and reference via `?handle`.
         *   `("<predicate>", ?local_handle)`: Links to another concept or proposition defined in this capsule.
-        *   `("<predicate>", {type: "<Type>", name: "<name>"})`, `("<predicate>", {id: "<id>"})`: Links to an existing concept in the graph; ignores if not found.
-        *   `("<predicate>", (?subject, "<predicate>", ?object))`: Links to an existing proposition; ignores if not found.
+        *   `("<predicate>", {type: "<Type>", name: "<name>"})`, `("<predicate>", {id: "<id>"})`: Links to an existing concept in the graph; if the target does not exist, returns `KIP_3002`.
+        *   `("<predicate>", (?subject, "<predicate>", ?object))`: Links to an existing proposition; if the target does not exist, returns `KIP_3002`.
 *   **`PROPOSITION` Block**: Defines an independent proposition link, usually for creating complex relations within the capsule.
     *   `?local_prop`: Local handle for referencing this proposition link.
     *   `(<subject>, "<predicate>", <object>)`: Matches or creates a proposition link; `(id: "<id>")` only matches an existing link.
@@ -608,6 +608,8 @@ Suppose we have a knowledge capsule defining a novel (hypothetical) nootropic dr
 *   It treats "Brain Fog".
 *   It belongs to the "Nootropic" class (an existing category).
 *   It has a newly discovered side effect: "Neural Bloom" (also a new concept).
+
+> **Note**: Any pre-existing category/concept/proposition referenced in this example (e.g., `DrugClass:Nootropic`) must already exist in the graph; otherwise, referencing it in `UPSERT`/`SET PROPOSITIONS` returns `KIP_3002`.
 
 **Content of Knowledge Capsule `cognizine_capsule.kip`:**
 
@@ -1480,23 +1482,23 @@ To support the **Self-Correction** capability of AI Agents, the Cognitive Nexus 
 
 ### Error Code Reference
 
-| Error Code | Error Name             | Description                                                                        | Recovery Hint for Agent                                                                                                |
-| :--------- | :--------------------- | :--------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------- |
-| **1xxx**   | **Syntax & Parsing**   |                                                                                    |                                                                                                                        |
-| `KIP_1001` | `InvalidSyntax`        | KQL/KML code cannot be parsed due to spelling or structural errors.                | Check parenthesis matching, keyword spelling, and statement structure. Ensure JSON data format is valid.               |
-| `KIP_1002` | `InvalidIdentifier`    | Used illegal identifier format (e.g., starting with a number).                     | Identifiers must match regex `[a-zA-Z_][a-zA-Z0-9_]*`.                                                                 |
-| `KIP_1003` | `UnsupportedVersion`   | The requested protocol version is not supported.                                   | Please check the KIP version supported by the system.                                                                  |
-| **2xxx**   | **Schema & Type**      |                                                                                    |                                                                                                                        |
-| `KIP_2001` | `TypeMismatch`         | Attempted to use a Concept Type or Proposition Predicate undefined in Schema.      | **Most common error.** Execute `DESCRIBE` to confirm type names. Remember types are case-sensitive (`Drug` vs `drug`). |
-| `KIP_2002` | `AttributeUndefined`   | Attempted to write an undefined attribute (if Schema is in strict mode).           | Check `instance_schema`. If it's a new attribute, confirm if dynamic extension is allowed.                             |
-| `KIP_2003` | `ConstraintViolation`  | Violated data constraints (e.g., missing required field `is_required: true`).      | Supply the missing required attributes.                                                                                |
-| `KIP_2004` | `InvalidValueType`     | JSON type of attribute value mismatches Schema definition.                         | Correct the JSON value type.                                                                                           |
-| **3xxx**   | **Logic & Data**       |                                                                                    |                                                                                                                        |
-| `KIP_3001` | `ReferenceError`       | Referenced an undefined variable or Handle.                                        | Ensure the `CONCEPT` block defining the handle is placed before subsequent clauses referencing it in `UPSERT`.         |
-| `KIP_3002` | `NotFound`             | Node/Link with specified ID or name does not exist (for `DELETE` or strict match). | Target may have been deleted or never created. Try `SEARCH` or `FIND` to confirm existence first.                      |
-| `KIP_3003` | `DuplicateExists`      | Violated uniqueness constraint (e.g., re-creating existing unique node).           | If intent is update, check if `UPSERT` should be used instead of creation logic.                                       |
-| `KIP_3004` | `ImmutableTarget`      | Attempted to modify/delete protected system nodes (e.g., `$ConceptType`, `$self`). | **Operation Prohibited.** Do not attempt to modify system meta-definitions or core identity nodes.                     |
-| **4xxx**   | **System & Execution** |                                                                                    |                                                                                                                        |
-| `KIP_4001` | `ExecutionTimeout`     | Query too complex, execution time exceeded system limit.                           | Optimize query. Reduce `UNION` usage, lower `LIMIT`, or reduce regex/hops.                                             |
-| `KIP_4002` | `ResourceExhausted`    | Result set too large or insufficient memory.                                       | Must use `LIMIT` and `CURSOR` for pagination.                                                                          |
-| `KIP_4003` | `InternalError`        | Unknown internal database error.                                                   | Contact system administrator or retry later.                                                                           |
+| Error Code | Error Name             | Description                                                                                                                             | Recovery Hint for Agent                                                                                                |
+| :--------- | :--------------------- | :-------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------- |
+| **1xxx**   | **Syntax & Parsing**   |                                                                                                                                         |                                                                                                                        |
+| `KIP_1001` | `InvalidSyntax`        | KQL/KML code cannot be parsed due to spelling or structural errors.                                                                     | Check parenthesis matching, keyword spelling, and statement structure. Ensure JSON data format is valid.               |
+| `KIP_1002` | `InvalidIdentifier`    | Used illegal identifier format (e.g., starting with a number).                                                                          | Identifiers must match regex `[a-zA-Z_][a-zA-Z0-9_]*`.                                                                 |
+| `KIP_1003` | `UnsupportedVersion`   | The requested protocol version is not supported.                                                                                        | Please check the KIP version supported by the system.                                                                  |
+| **2xxx**   | **Schema & Type**      |                                                                                                                                         |                                                                                                                        |
+| `KIP_2001` | `TypeMismatch`         | Attempted to use a Concept Type or Proposition Predicate undefined in Schema.                                                           | **Most common error.** Execute `DESCRIBE` to confirm type names. Remember types are case-sensitive (`Drug` vs `drug`). |
+| `KIP_2002` | `AttributeUndefined`   | Attempted to write an undefined attribute (if Schema is in strict mode).                                                                | Check `instance_schema`. If it's a new attribute, confirm if dynamic extension is allowed.                             |
+| `KIP_2003` | `ConstraintViolation`  | Violated data constraints (e.g., missing required field `is_required: true`).                                                           | Supply the missing required attributes.                                                                                |
+| `KIP_2004` | `InvalidValueType`     | JSON type of attribute value mismatches Schema definition.                                                                              | Correct the JSON value type.                                                                                           |
+| **3xxx**   | **Logic & Data**       |                                                                                                                                         |                                                                                                                        |
+| `KIP_3001` | `ReferenceError`       | Referenced an undefined variable or Handle.                                                                                             | Ensure the `CONCEPT` block defining the handle is placed before subsequent clauses referencing it in `UPSERT`.         |
+| `KIP_3002` | `NotFound`             | Node/Link with specified ID or name does not exist (for `DELETE`, or when referencing existing targets in `UPSERT`/`SET PROPOSITIONS`). | Target may have been deleted or never created. Try `SEARCH` or `FIND` to confirm existence first.                      |
+| `KIP_3003` | `DuplicateExists`      | Violated uniqueness constraint (e.g., re-creating existing unique node).                                                                | If intent is update, check if `UPSERT` should be used instead of creation logic.                                       |
+| `KIP_3004` | `ImmutableTarget`      | Attempted to modify/delete protected system nodes (e.g., `$ConceptType`, `$self`).                                                      | **Operation Prohibited.** Do not attempt to modify system meta-definitions or core identity nodes.                     |
+| **4xxx**   | **System & Execution** |                                                                                                                                         |                                                                                                                        |
+| `KIP_4001` | `ExecutionTimeout`     | Query too complex, execution time exceeded system limit.                                                                                | Optimize query. Reduce `UNION` usage, lower `LIMIT`, or reduce regex/hops.                                             |
+| `KIP_4002` | `ResourceExhausted`    | Result set too large or insufficient memory.                                                                                            | Must use `LIMIT` and `CURSOR` for pagination.                                                                          |
+| `KIP_4003` | `InternalError`        | Unknown internal database error.                                                                                                        | Contact system administrator or retry later.                                                                           |
