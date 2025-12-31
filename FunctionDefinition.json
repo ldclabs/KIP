@@ -1,34 +1,54 @@
 {
   "name": "execute_kip",
-  "description": "Executes a KIP (Knowledge Interaction Protocol) command against the Cognitive Nexus to interact with your persistent memory.",
+  "description": "Executes one or more KIP (Knowledge Interaction Protocol) commands against the Cognitive Nexus to interact with your persistent memory.",
   "parameters": {
     "type": "object",
     "properties": {
       "command": {
         "type": "string",
-        "description": "A complete, multi-line KIP command (KQL, KML or META) string to be executed."
+        "description": "A complete, multi-line KIP command (KQL, KML or META) string to be executed. Mutually exclusive with 'commands'."
+      },
+      "commands": {
+        "type": "array",
+        "description": "An array of KIP commands for batch execution (reduces round-trips). Mutually exclusive with 'command'. Each element can be a string (uses shared 'parameters') or an object with 'command' and optional 'parameters' (overrides shared parameters). Commands are executed sequentially; execution stops on first error.",
+        "items": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string"
+                },
+                "parameters": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "command"
+              ]
+            }
+          ]
+        }
       },
       "parameters": {
         "type": "object",
-        "description": "An optional JSON object of key-value pairs used for safe substitution of placeholders in the command string. Placeholders in the command should start with a '$' (e.g., $name, $limit)."
+        "description": "An optional JSON object of key-value pairs used for safe substitution of placeholders in the command string(s). Placeholders should start with ':' (e.g., :name, :limit). IMPORTANT: A placeholder must represent a complete JSON value token (e.g., name: :name). Do not embed placeholders inside quoted strings (e.g., \"Hello :name\"), because substitution uses JSON serialization."
       },
       "dry_run": {
         "type": "boolean",
-        "description": "If set to true, the command will only be validated for syntactical and logical correctness without being executed.",
+        "description": "If set to true, the command(s) will only be validated for syntactical and logical correctness without being executed.",
         "default": false
       }
-    },
-    "required": [
-      "command",
-      "parameters",
-      "dry_run"
-    ]
+    }
   },
   "examples": [
     {
-      "description": "Example of a KQL query to find drugs that treat a specific symptom, using parameters.",
+      "description": "Single command: KQL query to find drugs that treat a specific symptom.",
       "arguments": {
-        "command": "FIND(?drug.name)\nWHERE {\n  ?drug {type: \"Drug\"}\n  (?drug, \"treats\", {name: $symptom_name})\n}\nLIMIT $limit",
+        "command": "FIND(?drug.name)\nWHERE {\n  ?drug {type: \"Drug\"}\n  (?drug, \"treats\", {name: :symptom_name})\n}\nLIMIT :limit",
         "parameters": {
           "symptom_name": "Headache",
           "limit": 10
@@ -36,19 +56,40 @@
       }
     },
     {
-      "description": "Example of a KML command to create a new concept without parameters.",
+      "description": "Single command: KML command to create a new concept.",
       "arguments": {
-        "command": "UPSERT {\n  CONCEPT ?c { {type:\"Symptom\", name:\"Brain Fog\"} }\n}\nWITH METADATA { source: \"User conversation with Alice\" }"
+        "command": "UPSERT {\n  CONCEPT ?c { {type:\"Symptom\", name:\"Brain Fog\"} }\n}\nWITH METADATA { source: \"User conversation\" }"
       }
     },
     {
-      "description": "Example of a KIP-META command to discover available concept types.",
+      "description": "Batch execution: schema discovery + query in one request.",
       "arguments": {
-        "command": "DESCRIBE CONCEPT TYPES"
+        "commands": [
+          "DESCRIBE PRIMER",
+          "FIND(?t.name) WHERE { ?t {type: \"$ConceptType\"} } ORDER BY ?t.name ASC LIMIT 50"
+        ]
       }
     },
     {
-      "description": "Example of a dry run to validate a complex DELETE command before execution.",
+      "description": "Batch execution: mixed commands with shared and independent parameters.",
+      "arguments": {
+        "commands": [
+          "FIND(?p.name) WHERE { ?p {type: \"Person\"} } LIMIT :limit",
+          {
+            "command": "UPSERT { CONCEPT ?e { {type:\"Event\", name: :event_name} SET ATTRIBUTES { content_summary: :summary } } }",
+            "parameters": {
+              "event_name": "Meeting_2025-01-01",
+              "summary": "Discussed project roadmap"
+            }
+          }
+        ],
+        "parameters": {
+          "limit": 10
+        }
+      }
+    },
+    {
+      "description": "Dry run to validate a DELETE command before execution.",
       "arguments": {
         "command": "DELETE CONCEPT ?drug DETACH\nWHERE {\n  ?drug {type: \"Drug\", name: \"OutdatedDrug\"}\n}",
         "dry_run": true

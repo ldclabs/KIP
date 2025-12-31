@@ -14,6 +14,7 @@
 | v1.0-draft7 | 2025-07-08 | Replaced `OFFSET` with `CURSOR` for pagination; added Knowledge Capsule for `Person` type                                                                  |
 | v1.0-draft8 | 2025-07-17 | Optimized documentation; added `Event` type for episodic memory; added SystemInstructions.md; added FunctionDefinition.json                                |
 | v1.0-RC     | 2025-11-19 | v1.0 Release Candidate: Optimized documentation; added KIP Standard Error Codes                                                                            |
+| v1.0-RC2    | 2025-12-31 | v1.0 Release Candidate 2: Optimized documentation; changed parameter placeholder prefix from `?` to `:`; added support for batch command execution         |
 
 **KIP Implementations**:
 - [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust SDK of KIP for building sustainable AI knowledge memory systems.
@@ -116,6 +117,7 @@ Identifiers are the basis for naming variables, types, predicates, attributes, a
 
 A valid KIP identifier **must** start with a letter (`a-z`, `A-Z`) or an underscore (`_`), followed by any number of letters, digits (`0-9`), or underscores.
 This rule applies to all types of naming, but meta-types use the `$` prefix as a special marker, and variables use the `?` prefix as a grammatical marker.
+When executing commands via `execute_kip`, the command text may also contain parameter placeholders prefixed with `:` (e.g., `:name`, `:limit`) for safe substitution from `execute_kip.parameters`.
 
 #### 2.8.2. Naming Conventions
 
@@ -876,12 +878,14 @@ All interactions with the Cognitive Nexus occur through a standardized request-r
 ### 6.1. Request Structure
 
 LLM-generated KIP commands should be sent to the Cognitive Nexus via the following structured Function Calling request:
+
+**Single Command:**
 ```js
 {
   "function": {
     "name": "execute_kip",
     "arguments": {
-      "command": "FIND(?drug.name) WHERE { ?symptom {name: $symptom_name} (?drug, \"treats\", ?symptom) } LIMIT $limit",
+      "command": "FIND(?drug.name) WHERE { ?symptom {name: :symptom_name} (?drug, \"treats\", ?symptom) } LIMIT :limit",
       "parameters": {
         "symptom_name": "Headache",
         "limit": 10
@@ -891,13 +895,34 @@ LLM-generated KIP commands should be sent to the Cognitive Nexus via the followi
 }
 ```
 
+**Batch Execution (reduces round-trips):**
+```js
+{
+  "function": {
+    "name": "execute_kip",
+    "arguments": {
+      "commands": [
+        "DESCRIBE PRIMER",
+        "FIND(?t.name) WHERE { ?t {type: \"$ConceptType\"} } LIMIT 50",
+        {
+          "command": "UPSERT { CONCEPT ?e { {type:\"Event\", name: :name} } }",
+          "parameters": { "name": "MyEvent" }
+        }
+      ],
+      "parameters": { "limit": 10 }
+    }
+  }
+}
+```
+
 **`execute_kip` Function Parameters**:
 
-| Parameter        | Type    | Required | Description                                                                                                                                                                                                                                                                                  |
-| :--------------- | :------ | :------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`command`**    | String  | Yes      | Contains the complete, unmodified KIP command text. Use multi-line strings to maintain formatting and readability.                                                                                                                                                                           |
-| **`parameters`** | Object  | No       | An optional key-value object used to pass execution context parameters outside the command text. Placeholders (like `$symptom_name`) in the command text are safely replaced by values in `parameters` before execution. This prevents injection attacks and enables command template reuse. |
-| **`dry_run`**    | Boolean | No       | If `true`, only validates the syntax and logic of the command without executing it.                                                                                                                                                                                                          |
+| Parameter        | Type    | Required | Description                                                                                                                                                                                                                                                                                                                                  |
+| :--------------- | :------ | :------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`command`**    | String  | No       | A complete KIP command text. **Mutually exclusive with `commands`**.                                                                                                                                                                                                                                                                         |
+| **`commands`**   | Array   | No       | An array of KIP commands for batch execution. **Mutually exclusive with `command`**. Each element can be a `String` (uses shared `parameters`) or an `Object` with `{command, parameters}` (independent parameters override shared). Commands execute sequentially; **execution stops on first error**.                                      |
+| **`parameters`** | Object  | No       | An optional key-value object for placeholder substitution. Placeholders (like `:symptom_name`) are safely replaced before execution. Placeholders must occupy a full JSON value position (e.g., `name: :symptom_name`), and must not be embedded inside quoted strings (e.g., `"Hello :name"`), because replacement uses JSON serialization. |
+| **`dry_run`**    | Boolean | No       | If `true`, only validates the syntax and logic of the command(s) without executing.                                                                                                                                                                                                                                                          |
 
 ### 6.2. Response Structure
 
