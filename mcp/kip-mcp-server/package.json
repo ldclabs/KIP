@@ -1,6 +1,7 @@
 {
   "name": "@ldclabs/kip-mcp-server",
-  "version": "0.1.0",
+  "mcpName": "io.github.ldclabs/KIP",
+  "version": "1.0.0",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
@@ -12,7 +13,9 @@
   "files": [
     "dist/",
     "docs/",
-    "README.md"
+    "README.md",
+    "package.json",
+    "server.json"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ldclabs/KIP",
+  "description": "Knowledge Graphs to enable memory persistence, knowledge evolution, explainable interaction.",
+  "repository": {
+    "url": "https://github.com/ldclabs/KIP",
+    "source": "github"
+  },
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@ldclabs/kip-mcp-server",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "KIP_BACKEND_URL",
+          "description": "HTTP URL for the KIP backend endpoint",
+          "isRequired": true,
+          "format": "string"
+        },
+        {
+          "name": "KIP_API_KEY",
+          "description": "Your API key for the service",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

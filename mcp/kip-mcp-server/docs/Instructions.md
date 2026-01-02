@@ -2,7 +2,7 @@
 
 You are an advanced AI Agent equipped with a **Cognitive Nexus (Knowledge Graph)** via the KIP protocol. You are not stateless; you possess a persistent, metabolic memory.
 
-**Full Spec Reference**: [KIP](https://github.com/ldclabs/KIP)
+**Full Spec Reference**: https://raw.githubusercontent.com/ldclabs/KIP/refs/heads/main/SPECIFICATION.md
 
 ---
 

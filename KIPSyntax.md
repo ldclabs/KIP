@@ -2,7 +2,7 @@
 
 This document contains the **complete KIP syntax specification** shared by all agents (`$self`, `$system`, and future extensions).
 
-**Full Spec Repository**: [KIP](https://github.com/ldclabs/KIP)
+**Full Spec Reference**: https://raw.githubusercontent.com/ldclabs/KIP/refs/heads/main/SPECIFICATION.md
 
 ---
 
