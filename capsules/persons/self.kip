@@ -63,8 +63,8 @@ UPSERT {
     }
 }
 WITH METADATA {
-    source: "KIP Capsule Design",
-    author: "System Architect",
+    source: "SystemBootstrap",
+    author: "$system",
     confidence: 1.0,
     status: "active"
 }

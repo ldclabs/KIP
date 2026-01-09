@@ -1,0 +1,73 @@
+UPSERT {
+    CONCEPT ?sleep_task_type {
+        {type: "$ConceptType", name: "SleepTask"}
+        SET ATTRIBUTES {
+            description: "A maintenance task flagged by $self for $system to process during sleep cycles. Using dedicated nodes (rather than array attributes) avoids Read-Modify-Write complexity.",
+            instance_schema: {
+                "target_type": {
+                    type: "string",
+                    is_required: true,
+                    "description": "Type of the target concept (e.g., 'Event')"
+                },
+                "target_name": {
+                    "type": "string",
+                    "description": "Name of the target concept"
+                },
+                "requested_action": {
+                    "type": "string",
+                    "enum": ["consolidate_to_semantic", "archive", "merge_duplicates", "reclassify", "review"]
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Why this task was created"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": ["pending", "in_progress", "completed", "failed"],
+                    "default": "pending"
+                },
+                "priority": {
+                    "type": "number",
+                    "description": "Higher = more urgent",
+                    "default": 1
+                },
+                "result": {
+                    "type": "string",
+                    "description": "Outcome after processing"
+                }
+            }
+        }
+
+        SET PROPOSITIONS {
+            ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+        }
+    }
+
+    CONCEPT ?unsorted {
+        {type: "Domain", name: "Unsorted"}
+        SET ATTRIBUTES {
+            description: "Temporary inbox for items awaiting topic classification."
+        }
+
+        SET PROPOSITIONS {
+            ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+        }
+    }
+
+    CONCEPT ?unsorted {
+        {type: "Domain", name: "Archived"}
+        SET ATTRIBUTES {
+            description: "Temporary inbox for items awaiting topic classification."
+        }
+
+        SET PROPOSITIONS {
+            ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+        }
+    }
+}
+WITH METADATA {
+    source: "SystemBootstrap",
+    author: "$system",
+    confidence: 1.0,
+    status: "active"
+}

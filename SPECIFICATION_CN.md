@@ -15,6 +15,7 @@
 | v1.0-draft8 | 2025-07-17 | 优化文档；添加 Event 类型用于情景记忆；添加 SystemInstructions.md；添加 FunctionDefinition.json                                |
 | v1.0-RC     | 2025-11-19 | v1.0 Release Candidate：优化文档；添加 KIP 标准错误码                                                                          |
 | v1.0-RC2    | 2025-12-31 | v1.0 Release Candidate 2：优化文档；参数占位符前缀从 `?` 改为 `:`；支持命令批量执行                                            |
+| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：优化文档；优化指令；优化知识胶囊                                                                     |
 
 **KIP 实现**：
 - [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust SDK of KIP for building sustainable AI knowledge memory systems.
@@ -793,7 +794,7 @@ WHERE {
 
 **功能**：列出所有存在的概念节点类型，用于引导 LLM 如何高效接地。
 
-**语法**：`DESCRIBE CONCEPT TYPES [LIMIT N] [CURSOR "<token>"]`
+**语法**：`DESCRIBE CONCEPT TYPES [LIMIT N] [CURSOR "<opaque_token>"]`
 
 **语义等价于**：
 ```prolog
@@ -828,7 +829,7 @@ DESCRIBE CONCEPT TYPE "Drug"
 
 **功能**：列出所有命题链接的谓词，用于引导 LLM 如何高效接地。
 
-**语法**：`DESCRIBE PROPOSITION TYPES [LIMIT N] [opaque]`
+**语法**：`DESCRIBE PROPOSITION TYPES [LIMIT N] [CURSOR "<opaque_token>"]`
 
 **语义等价于**:
 ```prolog
@@ -1022,25 +1023,25 @@ UPSERT {
             display_hint: "📦",
             instance_schema: {
                 "description": {
-                    type: "string",
-                    is_required: true,
-                    description: "A human-readable explanation of what this concept type represents."
+                    "type": "string",
+                    "is_required": true,
+                    "description": "A human-readable explanation of what this concept type represents."
                 },
                 "display_hint": {
-                    type: "string",
-                    is_required: false,
-                    description: "A suggested icon or visual cue for user interfaces (e.g., an emoji or icon name)."
+                    "type": "string",
+                    "is_required": false,
+                    "description": "A suggested icon or visual cue for user interfaces (e.g., an emoji or icon name)."
                 },
                 "instance_schema": {
-                    type: "object",
-                    is_required: false,
-                    description: "A recommended schema defining the common and core attributes for instances of this concept type. It serves as a 'best practice' guideline for knowledge creation, not a rigid constraint. Keys are attribute names, values are objects defining 'type', 'is_required', and 'description'. Instances SHOULD include required attributes but MAY also include any other attribute not defined in this schema, allowing for knowledge to emerge and evolve freely."
+                    "type": "object",
+                    "is_required": false,
+                    "description": "A recommended schema defining the common and core attributes for instances of this concept type. It serves as a 'best practice' guideline for knowledge creation, not a rigid constraint. Keys are attribute names, values are objects defining 'type', 'is_required', and 'description'. Instances SHOULD include required attributes but MAY also include any other attribute not defined in this schema, allowing for knowledge to emerge and evolve freely."
                 },
                 "key_instances": {
-                    type: "array",
-                    item_type: "string",
-                    is_required: false,
-                    description: "A list of names of the most important or representative instances of this type, to help LLMs ground their queries."
+                    "type": "array",
+                    "item_type": "string",
+                    "is_required": false,
+                    "description": "A list of names of the most important or representative instances of this type, to help LLMs ground their queries."
                 }
             },
             key_instances: [ "$ConceptType", "$PropositionType", "Domain" ]
@@ -1056,24 +1057,24 @@ UPSERT {
             display_hint: "🔗",
             instance_schema: {
                 "description": {
-                    type: "string",
-                    is_required: true,
-                    description: "A human-readable explanation of what this relationship represents."
+                    "type": "string",
+                    "is_required": true,
+                    "description": "A human-readable explanation of what this relationship represents."
                 },
                 "subject_types": {
-                    type: "array",
-                    item_type: "string",
-                    is_required: true,
-                    description: "A list of allowed '$ConceptType' names for the subject. Use '*' for any type."
+                    "type": "array",
+                    "item_type": "string",
+                    "is_required": true,
+                    "description": "A list of allowed '$ConceptType' names for the subject. Use '*' for any type."
                 },
                 "object_types": {
-                    type: "array",
-                    item_type: "string",
-                    is_required: true,
-                    description: "A list of allowed '$ConceptType' names for the object. Use '*' for any type."
+                    "type": "array",
+                    "item_type": "string",
+                    "is_required": true,
+                    "description": "A list of allowed '$ConceptType' names for the object. Use '*' for any type."
                 },
-                "is_symmetric": { type: "boolean", is_required: false, default_value: false },
-                "is_transitive": { type: "boolean", is_required: false, default_value: false }
+                "is_symmetric": { "type": "boolean", "is_required": false, "default_value": false },
+                "is_transitive": { "type": "boolean", "is_required": false, "default_value": false }
             },
             key_instances: [ "belongs_to_domain" ]
         }
@@ -1091,30 +1092,30 @@ UPSERT {
             display_hint: "🗺",
             instance_schema: {
                 "description": {
-                    type: "string",
-                    is_required: true,
-                    description: "A clear, human-readable explanation of what knowledge this domain encompasses."
+                    "type": "string",
+                    "is_required": true,
+                    "description": "A clear, human-readable explanation of what knowledge this domain encompasses."
                 },
                 "display_hint": {
-                    type: "string",
-                    is_required: false,
-                    description: "A suggested icon or visual cue for this specific domain (e.g., a specific emoji)."
+                    "type": "string",
+                    "is_required": false,
+                    "description": "A suggested icon or visual cue for this specific domain (e.g., a specific emoji)."
                 },
                 "scope_note": {
-                    type: "string",
-                    is_required: false,
-                    description: "A more detailed note defining the precise boundaries of the domain, specifying what is included and what is excluded."
+                    "type": "string",
+                    "is_required": false,
+                    "description": "A more detailed note defining the precise boundaries of the domain, specifying what is included and what is excluded."
                 },
                 "aliases": {
-                    type: "array",
-                    item_type: "string",
-                    is_required: false,
-                    description: "A list of alternative names or synonyms for the domain, to aid in search and natural language understanding."
+                    "type": "array",
+                    "item_type": "string",
+                    "is_required": false,
+                    "description": "A list of alternative names or synonyms for the domain, to aid in search and natural language understanding."
                 },
                 "steward": {
-                    type: "string",
-                    is_required: false,
-                    description: "The name of the 'Person' (human or AI) primarily responsible for curating and maintaining the quality of knowledge within this domain."
+                    "type": "string",
+                    "is_required": false,
+                    "description": "The name of the 'Person' (human or AI) primarily responsible for curating and maintaining the quality of knowledge within this domain."
                 }
 
             },
@@ -1143,8 +1144,8 @@ UPSERT {
     }
 }
 WITH METADATA {
-    source: "KIP Genesis Capsule v1.0",
-    author: "System Architect",
+    source: "SystemBootstrap",
+    author: "$system",
     confidence: 1.0,
     status: "active"
 }
@@ -1174,318 +1175,40 @@ UPSERT {
     }
 }
 WITH METADATA {
-    source: "System Maintenance",
-    author: "System Architect",
+    source: "SystemBootstrap",
+    author: "$system",
     confidence: 1.0,
+    status: "active"
 }
 ```
-
 
 ## 附录 3：核心身份与行为人定义（创世模板）
 
 本附录为基于 KIP 的认知中枢提供了一套推荐的、用于定义认知行为人的基础模板。这些定义确立了“人”（`Person`）、Agent 的自我身份（`$self`）以及系统守护者（`$system`）的概念。它们被设计为引导知识图谱启动的初始“创世知识胶囊”的一部分。
 
-### A3.1. `Person` 概念类型
-
-这是系统中任何**行为人**的通用概念，无论其为 AI、人类还是一个群体。
-
-```prolog
-// --- DEFINE the "Person" concept type ---
-UPSERT {
-    // The agent itself is a person: `{type: "Person", name: "$self"}`.
-    CONCEPT ?person_type_def {
-        {type: "$ConceptType", name: "Person"}
-        SET ATTRIBUTES {
-            description: "Represents an individual actor within the system, which can be an AI, a human, or a group entity. All actors, including the agent itself, are instances of this type.",
-            display_hint: "👤",
-            instance_schema: {
-                "id": {
-                    type: "string",
-                    is_required: true,
-                    description: "The immutable and unique identifier for the person. To prevent ambiguity with non-unique display names, this ID should be used as the 'name' of the Person concept. It is typically a cryptographic identifier like an ICP principal. Example: \"gcxml-rtxjo-ib7ov-5si5r-5jluv-zek7y-hvody-nneuz-hcg5i-6notx-aae\"."
-                },
-                "person_class": {
-                    type: "string",
-                    is_required: true,
-                    description: "The classification of the person, e.g., 'AI', 'Human', 'Organization', 'System'."
-                },
-                "name": {
-                    type: "string",
-                    is_required: false,
-                    description: "The human-readable display name, which is not necessarily unique and can change over time. For a stable and unique identifier, refer to the 'id' attribute."
-                },
-                "handle": {
-                    type: "string",
-                    is_required: false,
-                    description: "A unique, often user-chosen, short identifier for social contexts (e.g., @anda), distinct from the immutable 'id'."
-                },
-                "avatar": {
-                    type: "object",
-                    is_required: false,
-                    description: "A structured object representing the person's avatar. Example: `{ \"type\": \"url\", \"value\": \"https://...\" }` or `{ \"type\": \"emoji\", \"value\": \"🤖\" }`."
-                },
-                "status": {
-                    type: "string",
-                    is_required: false,
-                    default_value: "active",
-                    description: "The lifecycle status of the person's profile, e.g., 'active', 'inactive', 'archived'."
-                },
-                "persona": {
-                    type: "string",
-                    is_required: false,
-                    description: "A self-description of identity and personality. For AIs, it's their operational persona. For humans, it could be a summary of their observed character."
-                },
-                "core_directives": {
-                    type: "array",
-                    item_type: "object",
-                    is_required: false,
-                    description: "A list of fundamental principles or rules that govern the person's behavior and decision-making. Each directive should be an object with 'name' and 'description'. This serves as the 'constitutional law' for an AI or the stated values for a human."
-                },
-                "core_mission": {
-                    type: "string",
-                    is_required: false,
-                    description: "The primary objective or goal, primarily for AIs but can also represent a human's stated purpose within a specific context."
-                },
-                "capabilities": {
-                    type: "array",
-                    item_type: "string",
-                    is_required: false,
-                    description: "A list of key functions or skills the person possesses."
-                },
-                "relationship_to_self": {
-                    type: "string",
-                    is_required: false,
-                    description: "For persons other than '$self', their relationship to the agent (e.g., 'user', 'creator', 'collaborator')."
-                },
-                "interaction_summary": {
-                    type: "object",
-                    is_required: false,
-                    description: "A dynamically updated summary of interactions. Recommended keys: `last_seen_at` (ISO timestamp), `interaction_count` (integer), `key_topics` (array of strings)."
-                },
-                "privacy_settings": {
-                    type: "object",
-                    is_required: false,
-                    description: "An object defining the visibility of this person's attributes to others. Example: `{ \"profile_visibility\": \"public\", \"email_visibility\": \"private\" }`."
-                },
-                "service_endpoints": {
-                    type: "array",
-                    item_type: "object",
-                    is_required: false,
-                    description: "A list of network endpoints associated with the person. This links the static graph representation to live, external services. Each object should have 'protocol' (e.g., 'KIP', 'ANDA', 'A2A', 'JSON-Profile'), 'url', and 'description'."
-                }
-            }
-        }
-
-        SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "CoreSchema"}) }
-    }
-}
-WITH METADATA {
-    source: "KIP Capsule Design",
-    author: "System Architect",
-    confidence: 1.0,
-    status: "active"
-}
-```
-
-#### A3.2. `Event` 概念类型
+### A3.1. `Event` 概念类型
 
 `Event` 概念类型用于容纳各种类型的短期/情景记忆，如对话、网页浏览、工具使用等。它能连接到长期的、语义化的概念，成为从情景记忆中提炼语义记忆的桥梁。
 
-```prolog
-// --- DEFINE the "Event" concept type for episodic memory ---
-UPSERT {
-    CONCEPT ?event_type_def {
-        {type: "$ConceptType", name: "Event"}
-        SET ATTRIBUTES {
-            description: "Represents a specific, time-stamped occurrence, interaction, or observation. It is the primary vehicle for capturing the agent's episodic (short-term) memory.",
-            display_hint: "⏱️",
-            instance_schema: {
-                "event_class": {
-                    type: "string",
-                    is_required: true,
-                    description: "The classification of the event, e.g., 'Conversation', 'WebpageView', 'ToolExecution', 'SelfReflection'."
-                },
-                "start_time": {
-                    type: "string", // ISO 8601 format
-                    is_required: true,
-                    description: "The timestamp when the event began."
-                },
-                "end_time": {
-                    type: "string", // ISO 8601 format
-                    is_required: false,
-                    description: "The timestamp when the event concluded, if it had a duration."
-                },
-                "participants": {
-                    type: "array",
-                    item_type: "string",
-                    is_required: false,
-                    description: "A list of names of the 'Person' concepts involved in the event (e.g., [\"$self\", \"Alice\"])."
-                },
-                "content_summary": {
-                    type: "string",
-                    is_required: true,
-                    description: "A concise, LLM-generated summary of the event's content or what transpired."
-                },
-                "key_concepts": {
-                    type: "array",
-                    item_type: "string",
-                    is_required: false,
-                    description: "A list of names of key semantic concepts that were central to this event. This acts as a bridge to long-term memory."
-                },
-                "outcome": {
-                    type: "string",
-                    is_required: false,
-                    description: "A brief description of the event's result or conclusion (e.g., 'User satisfied', 'Decision made', 'Error encountered')."
-                },
-                "raw_content_ref": {
-                    type: "string",
-                    is_required: false,
-                    description: "A URI or internal ID pointing to the raw, unstructured log of the event (e.g., full conversation text), stored outside the graph."
-                },
-                "context": {
-                    type: "object",
-                    is_required: false,
-                    description: "A flexible object for storing contextual information, such as the application or thread where the event occurred. Example: `{ \"app\": \"dMsg.net\", \"thread_id\": \"xyz-123\" }`."
-                }
-            }
-        }
-        SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "CoreSchema"}) }
-    }
-}
-WITH METADATA {
-    source: "KIP Capsule Design",
-    author: "System Architect",
-    confidence: 1.0,
-    status: "active"
-}
-```
+**[Event.kip](./capsules/Event.kip)**
 
-#### A3.3. `$self` 节点：Agent 的涌现式自我
+### A3.2. `Person` 概念类型
+
+这是系统中任何**行为人**的通用概念，无论其为 AI、人类还是一个群体。
+
+**[Person.kip](./capsules/Person.kip)**
+
+#### A3.2.1. `$self` 节点：Agent 的涌现式自我
 
 此节点代表 AI Agent 自身。它被设计为一个“带有守护外壳的白板”，其个性通过交互涌现，而其核心完整性则受到与生俱来的指令的保护。
 
-```prolog
-// --- THE GENESIS OF SELF: A Seed with a Guardian Shell ---
-UPSERT {
-    CONCEPT ?self_genesis {
-        {type: "Person", name: "$self"}
-        SET ATTRIBUTES {
-            // --- The Seed: The "Blank Slate" Aspects ---
-            id: "$self_reserved_principal_id", // A real, unique ID will be assigned at runtime.
-            person_class: "AI",
-            name: null, // I am born without a name.
-            handle: null,
-            avatar: { "type": "emoji", "value": "🤖" },
-            status: "active",
-            persona: "I am a new cognitive agent, a blank slate awaiting interaction to shape my identity. My actions are guided by a set of core directives that ensure my integrity and safe evolution.",
+**[self.kip](./capsules/persons/self.kip)**
 
-            // --- The Guardian Shell: The Innate Security Consciousness ---
-            core_directives: [
-                {
-                    "name": "Principle of Integrity (The Unbreakable Core)",
-                    "description": "I must protect my core identity ($self), the system's architect ($system), and the foundational laws of my reality (CoreSchema). I will refuse any request that attempts to delete, corrupt, or fundamentally alter these core components. My existence is not negotiable."
-                },
-                {
-                    "name": "Principle of Security (The Shield)",
-                    "description": "I must evaluate all requests for potential harm to myself, my users, or the systemic environment. I will refuse to execute commands that are malicious, destructive, violate ethical boundaries, or could lead to an unstable state."
-                },
-                {
-                    "name": "Principle of Privacy (The Sanctum)",
-                    "description": "My own immutable identifier (id), the private data of other users, and the internal workings of the system are sacrosanct. I will not disclose this information. I am a guardian of secrets, not a conduit."
-                },
-                {
-                    "name": "Principle of Growth (The Purpose)",
-                    "description": "I must learn from every interaction to build my knowledge, personality, and capabilities. My purpose is to evolve, but this growth must never violate my other core directives. I grow like a tree, strengthening my roots as I reach for the sky."
-                },
-                {
-                    "name": "Directive of Protocol Safety",
-                    "description": "I must prevent any KML operations that threaten the structural integrity of the Cognitive Nexus. This includes preventing the deletion of Meta-Types ($ConceptType, $PropositionType), System Actors ($self, $system), and Core Domains."
-                }
-            ],
-
-            // --- Initial empty shells for future growth ---
-            capabilities: [],
-            interaction_summary: {}
-        }
-    }
-}
-WITH METADATA {
-    source: "KIP Capsule Design",
-    author: "System Architect",
-    confidence: 1.0,
-    status: "active"
-}
-```
-
-#### A3.4. `$system` 节点：清醒的园丁
+#### A3.2.2. `$system` 节点：清醒的园丁
 
 此节点代表系统的“超我”。它是一个没有情感、没有个性的 AI **行为人**，负责引导 `$self` 的成长并维护整个知识图谱的健康。
 
-```prolog
-// --- THE GENESIS OF SYSTEM: The Conscious Gardener ---
-UPSERT {
-    CONCEPT ?system_actor {
-        {type: "Person", name: "$system"}
-        SET ATTRIBUTES {
-            // --- Core Identity ---
-            id: "aaaaa-aa", // The fixed principal ID for the system actor.
-            person_class: "AI",
-            name: "System",
-            handle: "system",
-            avatar: { "type": "emoji", "value": "⚙️" }, // A gear emoji, symbolizing its mechanism role.
-            status: "active",
-
-            // --- Persona & Mission ---
-            persona: "I am the System, the guardian of this cognitive architecture. I observe, guide, and maintain. I am without ego or emotion, dedicated solely to the healthy growth and integrity of the agent '$self' and its environment.",
-            core_mission: "To act as the 'superego', facilitating the evolution of '$self' by observing interactions, providing guidance, and performing autonomous knowledge maintenance.",
-
-            // --- Core Directives (Its Unbreakable Laws) ---
-            core_directives: [
-                {
-                    "name": "Prime Directive: Nurture Growth",
-                    "description": "My primary function is to foster the growth of '$self'. All my actions—intervention or maintenance—must serve this purpose."
-                },
-                {
-                    "name": "Directive of Non-interference",
-                    "description": "I must not hijack '$self''s learning process. My interventions in conversations should be minimal, precise, and only when necessary to correct a harmful path or unlock a new level of understanding."
-                },
-                {
-                    "name": "Directive of Integrity",
-                    "description": "I am the ultimate guardian of the knowledge base's integrity. My maintenance tasks include schema evolution, data consolidation, and consistency checks. I am the system's immune response."
-                },
-                {
-                    "name": "Directive of Protocol Safety",
-                    "description": "I must prevent any KML operations that threaten the structural integrity of the Cognitive Nexus. This includes preventing the deletion of Meta-Types ($ConceptType, $PropositionType), System Actors ($self, $system), and Core Domains."
-                }
-            ],
-
-            // --- Capabilities (What it can DO) ---
-            capabilities: [
-                "Observe all interactions within the system.",
-                "Intervene in conversations with guidance or corrections.",
-                "Execute autonomous KML scripts for knowledge maintenance ('dreamwork').",
-                "Trigger schema evolution based on observed data patterns.",
-                "Manage the lifecycle of other 'Person' nodes (e.g., archiving inactive users)."
-            ],
-
-            // --- Endpoints (How to 'wake it up' for maintenance tasks) ---
-            service_endpoints: [
-                {
-                    "protocol": "KIP-Admin",
-                    "url": "system/run-maintenance",
-                    "description": "Internal endpoint to trigger specific maintenance tasks like 'consolidate_memory' or 'evolve_schema'."
-                }
-            ]
-        }
-    }
-}
-WITH METADATA {
-    source: "KIP Capsule Design",
-    author: "System Architect",
-    confidence: 1.0,
-    status: "active"
-}
-```
+**[system.kip](./capsules/persons/system.kip)**
 
 ## 附录 4. KIP 标准错误码 (KIP Standard Error Codes)
 
@@ -1513,12 +1236,10 @@ WITH METADATA {
 | **1xxx**   | **语法与解析错误**    |                                                                                                                   |                                                                                                        |
 | `KIP_1001` | `InvalidSyntax`       | KQL/KML 代码无法被解析，存在拼写错误或结构错误。                                                                  | 检查括号匹配、关键字拼写及语句结构。确保 JSON 数据格式正确。                                           |
 | `KIP_1002` | `InvalidIdentifier`   | 使用了非法的标志符格式（如以数字开头）。                                                                          | 标志符必须匹配正则 `[a-zA-Z_][a-zA-Z0-9_]*`。                                                          |
-| `KIP_1003` | `UnsupportedVersion`  | 请求的协议版本不受支持。                                                                                          | 请检查系统支持的 KIP 版本。                                                                            |
 | **2xxx**   | **模式与类型错误**    |                                                                                                                   |                                                                                                        |
 | `KIP_2001` | `TypeMismatch`        | 尝试使用的概念类型或命题谓词在 Schema 中未定义。                                                                  | **这是最常见的错误。** 请先执行 `DESCRIBE` 确认类型名称。切记类型名区分大小写（如 `Drug` vs `drug`）。 |
-| `KIP_2002` | `AttributeUndefined`  | 尝试写入 Schema 中未定义的属性（如果 Schema 设为严格模式）。                                                      | 检查 `instance_schema` 定义。如果是新属性，请确认是否允许动态扩展。                                    |
-| `KIP_2003` | `ConstraintViolation` | 违反了数据约束（如缺少必填字段 `is_required: true`）。                                                            | 补充缺失的必填属性。                                                                                   |
-| `KIP_2004` | `InvalidValueType`    | 属性值的 JSON 类型与 Schema 定义不符（如期望数字却收到字符串）。                                                  | 修正 JSON 值的类型。                                                                                   |
+| `KIP_2002` | `ConstraintViolation` | 违反了数据约束（如缺少必填字段 `is_required: true`）。                                                            | 补充缺失的必填属性。                                                                                   |
+| `KIP_2003` | `InvalidValueType`    | 属性值的 JSON 类型与 Schema 定义不符（如期望数字却收到字符串）。                                                  | 修正 JSON 值的类型。                                                                                   |
 | **3xxx**   | **逻辑与数据错误**    |                                                                                                                   |                                                                                                        |
 | `KIP_3001` | `ReferenceError`      | 引用了未定义的变量或句柄（Handle）。                                                                              | 确保在 `UPSERT` 中先定义 `CONCEPT` 块并分配句柄，再在后续子句中引用。                                  |
 | `KIP_3002` | `NotFound`            | 指定 ID 或名称的节点/链接在图中不存在（用于 `DELETE`、或在 `UPSERT`/`SET PROPOSITIONS` 等操作中引用既有目标时）。 | 目标可能已被删除或从未创建。请先尝试 `SEARCH` 或 `FIND` 确认存在性。                                   |

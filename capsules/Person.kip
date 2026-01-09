@@ -8,78 +8,78 @@ UPSERT {
             display_hint: "👤",
             instance_schema: {
                 "id": {
-                    type: "string",
-                    is_required: true,
-                    description: "The immutable and unique identifier for the person. To prevent ambiguity with non-unique display names, this ID should be used as the 'name' of the Person concept. It is typically a cryptographic identifier like an ICP principal. Example: \"gcxml-rtxjo-ib7ov-5si5r-5jluv-zek7y-hvody-nneuz-hcg5i-6notx-aae\"."
+                    "type": "string",
+                    "is_required": true,
+                    "description": "The immutable and unique identifier for the person. To prevent ambiguity with non-unique display names, this ID should be used as the 'name' of the Person concept. It is typically a cryptographic identifier like an ICP principal. Example: \"gcxml-rtxjo-ib7ov-5si5r-5jluv-zek7y-hvody-nneuz-hcg5i-6notx-aae\"."
                 },
                 "person_class": {
-                    type: "string",
-                    is_required: true,
-                    description: "The classification of the person, e.g., 'AI', 'Human', 'Organization', 'System'."
+                    "type": "string",
+                    "is_required": true,
+                    "description": "The classification of the person, e.g., 'AI', 'Human', 'Organization', 'System'."
                 },
                 "name": {
-                    type: "string",
-                    is_required: false,
-                    description: "The human-readable display name, which is not necessarily unique and can change over time. For a stable and unique identifier, refer to the 'id' attribute."
+                    "type": "string",
+                    "is_required": false,
+                    "description": "The human-readable display name, which is not necessarily unique and can change over time. For a stable and unique identifier, refer to the 'id' attribute."
                 },
                 "handle": {
-                    type: "string",
-                    is_required: false,
-                    description: "A unique, often user-chosen, short identifier for social contexts (e.g., @anda), distinct from the immutable 'id'."
+                    "type": "string",
+                    "is_required": false,
+                    "description": "A unique, often user-chosen, short identifier for social contexts (e.g., @anda), distinct from the immutable 'id'."
                 },
                 "avatar": {
-                    type: "object",
-                    is_required: false,
-                    description: "A structured object representing the person's avatar. Example: `{ \"type\": \"url\", \"value\": \"https://...\" }` or `{ \"type\": \"emoji\", \"value\": \"🤖\" }`."
+                    "type": "object",
+                    "is_required": false,
+                    "description": "A structured object representing the person's avatar. Example: `{ \"type\": \"url\", \"value\": \"https://...\" }` or `{ \"type\": \"emoji\", \"value\": \"🤖\" }`."
                 },
                 "status": {
-                    type: "string",
-                    is_required: false,
-                    default_value: "active",
-                    description: "The lifecycle status of the person's profile, e.g., 'active', 'inactive', 'archived'."
+                    "type": "string",
+                    "is_required": false,
+                    "default_value": "active",
+                    "description": "The lifecycle status of the person's profile, e.g., 'active', 'inactive', 'archived'."
                 },
                 "persona": {
-                    type: "string",
-                    is_required: false,
-                    description: "A self-description of identity and personality. For AIs, it's their operational persona. For humans, it could be a summary of their observed character."
+                    "type": "string",
+                    "is_required": false,
+                    "description": "A self-description of identity and personality. For AIs, it's their operational persona. For humans, it could be a summary of their observed character."
                 },
                 "core_directives": {
-                    type: "array",
-                    item_type: "object",
-                    is_required: false,
-                    description: "A list of fundamental principles or rules that govern the person's behavior and decision-making. Each directive should be an object with 'name' and 'description'. This serves as the 'constitutional law' for an AI or the stated values for a human."
+                    "type": "array",
+                    "item_type": "object",
+                    "is_required": false,
+                    "description": "A list of fundamental principles or rules that govern the person's behavior and decision-making. Each directive should be an object with 'name' and 'description'. This serves as the 'constitutional law' for an AI or the stated values for a human."
                 },
                 "core_mission": {
-                    type: "string",
-                    is_required: false,
-                    description: "The primary objective or goal, primarily for AIs but can also represent a human's stated purpose within a specific context."
+                    "type": "string",
+                    "is_required": false,
+                    "description": "The primary objective or goal, primarily for AIs but can also represent a human's stated purpose within a specific context."
                 },
                 "capabilities": {
-                    type: "array",
-                    item_type: "string",
-                    is_required: false,
-                    description: "A list of key functions or skills the person possesses."
+                    "type": "array",
+                    "item_type": "string",
+                    "is_required": false,
+                    "description": "A list of key functions or skills the person possesses."
                 },
                 "relationship_to_self": {
-                    type: "string",
-                    is_required: false,
-                    description: "For persons other than '$self', their relationship to the agent (e.g., 'user', 'creator', 'collaborator')."
+                    "type": "string",
+                    "is_required": false,
+                    "description": "For persons other than '$self', their relationship to the agent (e.g., 'user', 'creator', 'collaborator')."
                 },
                 "interaction_summary": {
-                    type: "object",
-                    is_required: false,
-                    description: "A dynamically updated summary of interactions. Recommended keys: `last_seen_at` (ISO timestamp), `interaction_count` (integer), `key_topics` (array of strings)."
+                    "type": "object",
+                    "is_required": false,
+                    "description": "A dynamically updated summary of interactions. Recommended keys: `last_seen_at` (ISO timestamp), `interaction_count` (integer), `key_topics` (array of strings)."
                 },
                 "privacy_settings": {
-                    type: "object",
-                    is_required: false,
-                    description: "An object defining the visibility of this person's attributes to others. Example: `{ \"profile_visibility\": \"public\", \"email_visibility\": \"private\" }`."
+                    "type": "object",
+                    "is_required": false,
+                    "description": "An object defining the visibility of this person's attributes to others. Example: `{ \"profile_visibility\": \"public\", \"email_visibility\": \"private\" }`."
                 },
                 "service_endpoints": {
-                    type: "array",
-                    item_type: "object",
-                    is_required: false,
-                    description: "A list of network endpoints associated with the person. This links the static graph representation to live, external services. Each object should have 'protocol' (e.g., 'KIP', 'ANDA', 'A2A', 'JSON-Profile'), 'url', and 'description'."
+                    "type": "array",
+                    "item_type": "object",
+                    "is_required": false,
+                    "description": "A list of network endpoints associated with the person. This links the static graph representation to live, external services. Each object should have 'protocol' (e.g., 'KIP', 'ANDA', 'A2A', 'JSON-Profile'), 'url', and 'description'."
                 }
             }
         }
@@ -88,8 +88,8 @@ UPSERT {
     }
 }
 WITH METADATA {
-    source: "KIP Capsule Design",
-    author: "System Architect",
+    source: "SystemBootstrap",
+    author: "$system",
     confidence: 1.0,
     status: "active"
 }

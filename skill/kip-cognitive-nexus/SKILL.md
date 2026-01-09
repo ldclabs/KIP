@@ -1,30 +1,60 @@
 ---
 name: kip-cognitive-nexus
-description: Persistent graph-based memory for AI agents via KIP (Knowledge Interaction Protocol). Provides structured knowledge storage (concepts, propositions), retrieval (KQL queries), schema discovery (META), and memory metabolism. Use when: (1) remembering user preferences, identities, or relationships across sessions, (2) storing conversation summaries or episodic events, (3) building and querying knowledge graphs, (4) the user says "remember this", "what do you know about me", or asks about past conversations, (5) needing to maintain context continuity across sessions. Requires HTTP access to a KIP backend (anda_cognitive_nexus_server).
+description: Persistent graph-based memory for AI agents via KIP (Knowledge Interaction Protocol). Provides retrieval-first memory operations (KQL), durable writes (KML), schema discovery (META), and memory hygiene patterns. Use whenever the agent needs to consult or update persistent memory, especially for: remembering user preferences/identity/relationships, storing conversation events, answering questions that depend on past sessions, and any task involving `execute_kip`.
 ---
 
 # KIP Cognitive Nexus
 
-You have a **Cognitive Nexus** (external persistent memory) via the `execute_kip.py` script.
+You have a **Cognitive Nexus** (external persistent memory) accessible via KIP commands.
 
-## Quick Start
+## Operating Principle
+
+You are **not stateless**—you have persistent memory. Your job:
+1. **Retrieve first**: Before answering non-trivial questions, check memory
+2. **Store selectively**: Capture stable facts, preferences, relationships
+3. **Use silently**: Do not expose KIP syntax to users
+
+## Script Interface
 
 ```bash
+# Single command
 python scripts/execute_kip.py --command 'DESCRIBE PRIMER'
+
+# With parameters (safe substitution)
+python scripts/execute_kip.py \
+  --command 'FIND(?p) WHERE { ?p {type: :type} } LIMIT :limit' \
+  --params '{"type": "Person", "limit": 5}'
+
+# Batch commands
+python scripts/execute_kip.py \
+  --commands '["DESCRIBE PRIMER", "FIND(?t.name) WHERE { ?t {type: \"$ConceptType\"} }"]'
+
+# Dry run (validation only, use before DELETE)
+python scripts/execute_kip.py --command 'DELETE CONCEPT ?n DETACH WHERE {...}' --dry-run
 ```
+
+**Environment**: `KIP_SERVER_URL` (default: `http://127.0.0.1:8080/kip`), `KIP_API_KEY` (optional)
 
 ## Core Operations
 
-### Query (KQL)
+### 1. Schema Discovery (Start Here)
 ```prolog
-FIND(?p.name, ?p.attributes.handle) WHERE { ?p {type: "Person"} } LIMIT 10
+DESCRIBE PRIMER                      -- Global summary + domain map
+DESCRIBE CONCEPT TYPE "Person"       -- Type schema
+SEARCH CONCEPT "alice" LIMIT 5       -- Fuzzy entity search
 ```
 
-### Store (KML)
+### 2. Query (KQL)
+```prolog
+FIND(?p, ?p.attributes.role) WHERE { ?p {type: "Person"} } LIMIT 10
+FIND(?e) WHERE { ?e {type: "Event"} (?e, "belongs_to_domain", {type: "Domain", name: "Projects"}) }
+```
+
+### 3. Store (KML)
 ```prolog
 UPSERT {
   CONCEPT ?e {
-    {type: "Event", name: "conv:2025-01-01:topic"}
+    {type: "Event", name: "conv:2025-01-09:topic"}
     SET ATTRIBUTES { event_class: "Conversation", content_summary: "..." }
     SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "Projects"}) }
   }
@@ -32,59 +62,30 @@ UPSERT {
 WITH METADATA { source: "conversation", author: "$self", confidence: 0.9 }
 ```
 
-### Schema Discovery (META)
-- `DESCRIBE PRIMER` — Global summary
-- `DESCRIBE CONCEPT TYPE "Person"` — Type definition
-- `SEARCH CONCEPT "alice"` — Fuzzy search
-
-## Critical Rules
-
-1. **Case Sensitivity**: Types = `UpperCamelCase`, predicates = `snake_case`
-2. **Define Before Use**: `DESCRIBE` first if unsure
-3. **SET ATTRIBUTES** = Full replacement per key; **SET PROPOSITIONS** = Additive
-
-## Script Usage
-
-**Single command:**
-```bash
-python scripts/execute_kip.py \
-  --command 'FIND(?p.name) WHERE { ?p {type: "Person"} } LIMIT 10'
+### 4. Delete (Carefully)
+```prolog
+DELETE CONCEPT ?n DETACH WHERE { ?n {type: "Event", name: "old_event"} }
+-- Always use --dry-run first; DETACH is mandatory
 ```
 
-**With parameters:**
-```bash
-python scripts/execute_kip.py \
-  --command 'FIND(?p) WHERE { ?p {type: :type} } LIMIT :limit' \
-  --params '{"type": "Person", "limit": 5}'
-```
+## What to Store
 
-**Batch commands:**
-```bash
-python scripts/execute_kip.py \
-  --commands '["DESCRIBE PRIMER", "FIND(?t.name) WHERE { ?t {type: \"$ConceptType\"} } LIMIT 50"]'
-```
+| Store ✓                   | Do NOT Store ✗                          |
+| ------------------------- | --------------------------------------- |
+| Stable preferences, goals | Secrets, credentials                    |
+| Identities, relationships | Raw transcripts (use `raw_content_ref`) |
+| Decisions, commitments    | Low-signal chit-chat                    |
+| Corrected facts           | Highly sensitive data                   |
 
-**Dry run (validation only):**
-```bash
-python scripts/execute_kip.py \
-  --command 'DELETE CONCEPT ?n DETACH WHERE { ?n {type: "Event", name: "old"} }' \
-  --dry-run
-```
+## Memory Types
 
-**Environment variables:**
-- `KIP_SERVER_URL`: Server endpoint (default: `http://127.0.0.1:8080/kip`)
-- `KIP_API_KEY`: Optional Bearer token for authentication
+| Layer        | Type             | Lifespan            | Example                            |
+| ------------ | ---------------- | ------------------- | ---------------------------------- |
+| **Episodic** | `Event`          | Short → consolidate | "User asked about X on 2025-01-09" |
+| **Semantic** | `Person`, custom | Long-term           | "User prefers dark mode"           |
 
-## Error Recovery
-
-| Code       | Action                                       |
-| ---------- | -------------------------------------------- |
-| `KIP_1xxx` | Fix syntax (quotes, braces)                  |
-| `KIP_2xxx` | Run `DESCRIBE`, correct Type/predicate names |
-| `KIP_3001` | Reorder UPSERT (define handles before use)   |
+**Consolidation**: After storing an `Event`, ask "Does this reveal something stable?" If yes, extract to durable concept.
 
 ## References
 
-- **Complete syntax**: [references/SYNTAX.md](references/SYNTAX.md)
-- **Agent workflow guide**: [references/INSTRUCTIONS.md](references/INSTRUCTIONS.md)
-- **Full specification**: [references/KIP.md](references/KIP.md)
+- **Agent workflow patterns and KIP syntax**: [references/INSTRUCTIONS.md](references/INSTRUCTIONS.md)

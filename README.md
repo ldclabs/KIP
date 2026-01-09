@@ -136,11 +136,12 @@ Pre-built knowledge capsules for bootstrapping your Cognitive Nexus:
 
 ## Version History
 
-| Version     | Date       | Changes                                                              |
-| ----------- | ---------- | -------------------------------------------------------------------- |
-| v1.0-RC2    | 2025-12-31 | Parameter placeholder prefix changed to `:`; batch command execution |
-| v1.0-RC     | 2025-11-19 | Release Candidate; KIP Standard Error Codes                          |
-| v1.0-draft8 | 2025-07-17 | Added `Event` type; SystemInstructions.md; FunctionDefinition.json   |
+| Version     | Date       | Changes                                                                                                 |
+| ----------- | ---------- | ------------------------------------------------------------------------------------------------------- |
+| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：Optimized documentation; optimized instructions; optimized knowledge capsules |
+| v1.0-RC2    | 2025-12-31 | Parameter placeholder prefix changed to `:`; batch command execution                                    |
+| ...         | ...        | ...                                                                                                     |
+| v1.0-draft1 | 2025-06-09 | Initial Draft                                                                                           |
 
 [Full version history →](./SPECIFICATION.md)
 
