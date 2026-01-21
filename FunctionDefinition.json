@@ -21,9 +21,9 @@
       },
       "dry_run": {
         "type": "boolean",
-        "description": "If set to true, the command(s) will only be validated for syntactical and logical correctness without being executed.",
-        "default": false
+        "description": "If set to true, the command(s) will only be validated for syntactical and logical correctness without being executed."
       }
-    }
+    },
+    "required": []
   }
 }
