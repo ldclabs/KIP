@@ -1,14 +1,14 @@
 import { z } from 'zod'
 
-const CommandObjectSchema = z
-  .object({
-    command: z.string().min(1).describe('A single KIP command string.'),
-    parameters: z
-      .record(z.string(), z.unknown())
-      .optional()
-      .describe('Optional per-command parameters.')
-  })
-  .strict()
+// const CommandObjectSchema = z
+//   .object({
+//     command: z.string().min(1).describe('A single KIP command string.'),
+//     parameters: z
+//       .record(z.string(), z.unknown())
+//       .optional()
+//       .describe('Optional per-command parameters.')
+//   })
+//   .strict()
 
 export const ExecuteKipInputSchema = z
   .object({
@@ -20,10 +20,10 @@ export const ExecuteKipInputSchema = z
         "A complete, multi-line KIP command (KQL, KML or META) string to be executed. Mutually exclusive with 'commands'."
       ),
     commands: z
-      .array(z.union([z.string().min(1), CommandObjectSchema]))
+      .array(z.string().min(1))
       .optional()
       .describe(
-        "Batch execution: array of KIP commands. Mutually exclusive with 'command'. Strings use shared 'parameters'; objects can override 'parameters'."
+        "Batch execution: array of KIP commands. Mutually exclusive with 'command'."
       ),
     parameters: z
       .record(z.string(), z.unknown())
