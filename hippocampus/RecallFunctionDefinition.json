@@ -1,0 +1,34 @@
+{
+  "name": "recall_memory",
+  "description": "Recall information from your long-term memory (Cognitive Nexus). Send a natural language query describing what you want to remember or look up — the memory system will search and return relevant knowledge, including facts, preferences, relationships, past events, and any other stored information. Use this whenever you need context from previous interactions or stored knowledge to answer the user's question.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "A natural language question or description of what information to retrieve from memory. Be specific and include relevant context. Examples: 'What are Alice's communication preferences?', 'What happened in our last discussion about Project Aurora?', 'Who are the members of the engineering team?', 'What decisions were made about the pricing strategy?'"
+      },
+      "context": {
+        "type": "object",
+        "description": "Optional current conversational context to help narrow the search. Provide any relevant identifiers or topic hints that could improve retrieval accuracy.",
+        "properties": {
+          "user": {
+            "type": "string",
+            "description": "The identifier of the user currently being interacted with, if applicable."
+          },
+          "agent": {
+            "type": "string",
+            "description": "The identifier of the calling business agent, if applicable."
+          },
+          "topic": {
+            "type": "string",
+            "description": "The topic of the current conversation, to help disambiguate the query."
+          }
+        }
+      }
+    },
+    "required": [
+      "query"
+    ]
+  }
+}

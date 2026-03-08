@@ -124,6 +124,33 @@ Pre-built knowledge capsules for bootstrapping your Cognitive Nexus:
 - Python client script for `anda_cognitive_nexus_server`
 - Complete syntax reference and agent workflow guide
 
+### 🧠 Hippocampus (`hippocampus/`)
+
+A dedicated LLM layer that manages the Cognitive Nexus on behalf of business agents — no KIP knowledge required:
+
+| File                                                                         | Description                                                          |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| [HippocampusFormation.md](./hippocampus/HippocampusFormation.md)             | System prompt for memory encoding (messages → structured knowledge)  |
+| [HippocampusRecall.md](./hippocampus/HippocampusRecall.md)                   | System prompt for memory retrieval (natural language → KIP → answer) |
+| [HippocampusMaintenance.md](./hippocampus/HippocampusMaintenance.md)         | System prompt for memory maintenance (sleep mode)                    |
+| [RecallFunctionDefinition.json](./hippocampus/RecallFunctionDefinition.json) | `recall_memory` function schema for business agent integration       |
+
+```
+┌─────────────────────┐
+│   Business Agent    │  ← No KIP knowledge needed
+└────────┬────────────┘
+         │ Natural Language
+         ▼
+┌─────────────────────┐
+│    Hippocampus      │  ← Formation / Recall / Maintenance
+└────────┬────────────┘
+         │ KIP (KQL/KML/META)
+         ▼
+┌─────────────────────┐
+│  Cognitive Nexus    │  ← Persistent Knowledge Graph
+└─────────────────────┘
+```
+
 ## Implementations
 
 | Project                                                                                                         | Description                                                                                |
