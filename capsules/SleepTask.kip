@@ -54,10 +54,10 @@ UPSERT {
         }
     }
 
-    CONCEPT ?unsorted {
+    CONCEPT ?archived {
         {type: "Domain", name: "Archived"}
         SET ATTRIBUTES {
-            description: "Temporary inbox for items awaiting topic classification."
+            description: "Storage for deprecated, obsolete, or consolidated items preserved for audit trail."
         }
 
         SET PROPOSITIONS {
