@@ -163,22 +163,21 @@ A dedicated LLM layer that manages the Cognitive Nexus on behalf of business age
 
 ## Version History
 
-| Version     | Date       | Changes                                                                                                 |
-| ----------- | ---------- | ------------------------------------------------------------------------------------------------------- |
-| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：Optimized documentation; optimized instructions; optimized knowledge capsules |
-| v1.0-RC2    | 2025-12-31 | Parameter placeholder prefix changed to `:`; batch command execution                                    |
-| ...         | ...        | ...                                                                                                     |
-| v1.0-draft1 | 2025-06-09 | Initial Draft                                                                                           |
+| Version     | Date       | Changes                                                                                                                                                                                              |
+| ----------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1.0-RC4    | 2026-03-09 | v1.0 Release Candidate 4: Added `IN`, `IS_NULL`, `IS_NOT_NULL` FILTER operators; clarified UNION variable scope semantics; defined batch response structure; added temporal and UNION query examples |
+| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：Optimized documentation; optimized instructions; optimized knowledge capsules                                                                                              |
+| v1.0-RC2    | 2025-12-31 | Parameter placeholder prefix changed to `:`; batch command execution                                                                                                                                 |
+| ...         | ...        | ...                                                                                                                                                                                                  |
+| v1.0-draft1 | 2025-06-09 | Initial Draft                                                                                                                                                                                        |
 
 [Full version history →](./SPECIFICATION.md)
 
 ## About Us
 
-**[ICPanda](https://panda.fans/)** is a community-driven project that aims to build the foundational infrastructure and applications that empower AI agents to thrive as first-class citizens in the Web3 ecosystem.
-
-- 🌐 [Anda.AI](https://anda.ai/) | [dMsg](https://dmsg.net/) | [Tokenlist.ing](https://tokenlist.ing/)
-- 💻 [GitHub: LDC Labs](https://github.com/ldclabs)
-- 🐦 [Follow Us on X: @ICPandaDAO](https://x.com/ICPandaDAO)
+- 🔔 Products: [Anda.AI](https://anda.ai/) | [天策 Celestian](https://celestian.ai/)
+- 💻 GitHub: [LDC Labs](https://github.com/ldclabs)
+- 🏢 Company: [Yiwen AI](https://yiwen.ai/)
 
 ## License
 

@@ -159,22 +159,21 @@ KIP 使用自描述模式，类型定义存储在图本身中：
 
 ## 版本历史
 
-| 版本        | 日期       | 变更                                                       |
-| ----------- | ---------- | ---------------------------------------------------------- |
-| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：优化文档；优化指令；优化知识胶囊 |
-| v1.0-RC2    | 2025-12-31 | 参数占位符前缀改为 `:`；支持批量命令执行                   |
-| ...         | ...        | ...                                                        |
-| v1.0-draft1 | 2025-06-09 | 初始草案                                                   |
+| 版本        | 日期       | 变更                                                                                                                                                    |
+| ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1.0-RC4    | 2026-03-09 | v1.0 Release Candidate 4：新增 `IN`、`IS_NULL`、`IS_NOT_NULL` FILTER 运算符；澄清 UNION 变量作用域语义；定义批量响应结构；新增时序查询与 UNION 查询示例 |
+| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：优化文档；优化指令；优化知识胶囊                                                                                              |
+| v1.0-RC2    | 2025-12-31 | 参数占位符前缀改为 `:`；支持批量命令执行                                                                                                                |
+| ...         | ...        | ...                                                                                                                                                     |
+| v1.0-draft1 | 2025-06-09 | 初始草案                                                                                                                                                |
 
 [完整版本历史 →](./SPECIFICATION_CN.md)
 
 ## 关于我们
 
-**[ICPanda](https://panda.fans/)** 是一个社区驱动的项目，旨在构建基础设施和应用程序，使 AI Agent 能够在 Web3 生态系统中作为一等公民蓬勃发展。
-
-- 🌐 [Anda.AI](https://anda.ai/) | [dMsg](https://dmsg.net/) | [Tokenlist.ing](https://tokenlist.ing/)
-- 💻 [GitHub: LDC Labs](https://github.com/ldclabs)
-- 🐦 [关注我们: @ICPandaDAO](https://x.com/ICPandaDAO)
+- 🔔 产品：[Anda.AI](https://anda.ai/) | [天策 Celestian](https://celestian.ai/)
+- 💻 GitHub：[LDC Labs](https://github.com/ldclabs)
+- 🏢 公司：[Yiwen AI](https://yiwen.ai/)
 
 ## 许可证
 
