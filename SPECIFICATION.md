@@ -3,19 +3,20 @@
 **[English](./SPECIFICATION.md) | [中文](./SPECIFICATION_CN.md)**
 
 **Version History**:
-| Version     | Date       | Change Log                                                                                                                                                 |
-| ----------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| v1.0-draft1 | 2025-06-09 | Initial Draft                                                                                                                                              |
-| v1.0-draft2 | 2025-06-15 | Optimized `UNION` clause                                                                                                                                   |
-| v1.0-draft3 | 2025-06-18 | Refined terminology, simplified syntax, removed `SELECT` subqueries, added `META` clause, enhanced proposition link clauses                                |
-| v1.0-draft4 | 2025-06-19 | Simplified syntax, removed `COLLECT`, `AS`, `@`                                                                                                            |
-| v1.0-draft5 | 2025-06-25 | Removed `ATTR` and `META`, introduced "Dot Notation"; added `(id: "<link_id>")`; optimized `DELETE` statement                                              |
-| v1.0-draft6 | 2025-07-06 | Established naming conventions; introduced Bootstrapping Model: added "$ConceptType", "$PropositionType" meta-types and Domain type; added Genesis Capsule |
-| v1.0-draft7 | 2025-07-08 | Replaced `OFFSET` with `CURSOR` for pagination; added Knowledge Capsule for `Person` type                                                                  |
-| v1.0-draft8 | 2025-07-17 | Optimized documentation; added `Event` type for episodic memory; added SystemInstructions.md; added FunctionDefinition.json                                |
-| v1.0-RC     | 2025-11-19 | v1.0 Release Candidate: Optimized documentation; added KIP Standard Error Codes                                                                            |
-| v1.0-RC2    | 2025-12-31 | v1.0 Release Candidate 2: Optimized documentation; changed parameter placeholder prefix from `?` to `:`; added support for batch command execution         |
-| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：Optimized documentation; optimized instructions; optimized knowledge capsules                                                    |
+| Version     | Date       | Change Log                                                                                                                                                                                           |
+| ----------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1.0-draft1 | 2025-06-09 | Initial Draft                                                                                                                                                                                        |
+| v1.0-draft2 | 2025-06-15 | Optimized `UNION` clause                                                                                                                                                                             |
+| v1.0-draft3 | 2025-06-18 | Refined terminology, simplified syntax, removed `SELECT` subqueries, added `META` clause, enhanced proposition link clauses                                                                          |
+| v1.0-draft4 | 2025-06-19 | Simplified syntax, removed `COLLECT`, `AS`, `@`                                                                                                                                                      |
+| v1.0-draft5 | 2025-06-25 | Removed `ATTR` and `META`, introduced "Dot Notation"; added `(id: "<link_id>")`; optimized `DELETE` statement                                                                                        |
+| v1.0-draft6 | 2025-07-06 | Established naming conventions; introduced Bootstrapping Model: added "$ConceptType", "$PropositionType" meta-types and Domain type; added Genesis Capsule                                           |
+| v1.0-draft7 | 2025-07-08 | Replaced `OFFSET` with `CURSOR` for pagination; added Knowledge Capsule for `Person` type                                                                                                            |
+| v1.0-draft8 | 2025-07-17 | Optimized documentation; added `Event` type for episodic memory; added SystemInstructions.md; added FunctionDefinition.json                                                                          |
+| v1.0-RC     | 2025-11-19 | v1.0 Release Candidate: Optimized documentation; added KIP Standard Error Codes                                                                                                                      |
+| v1.0-RC2    | 2025-12-31 | v1.0 Release Candidate 2: Optimized documentation; changed parameter placeholder prefix from `?` to `:`; added support for batch command execution                                                   |
+| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：Optimized documentation; optimized instructions; optimized knowledge capsules                                                                                              |
+| v1.0-RC4    | 2026-03-09 | v1.0 Release Candidate 4: Added `IN`, `IS_NULL`, `IS_NOT_NULL` FILTER operators; clarified UNION variable scope semantics; defined batch response structure; added temporal and UNION query examples |
 
 **KIP Implementations**:
 - [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust SDK of KIP for building sustainable AI knowledge memory systems.
@@ -318,12 +319,29 @@ FILTER(?link.metadata.confidence > 0.9)
 **Functions & Operators**:
 *   **Comparison**: `==`, `!=`, `<`, `>`, `<=`, `>=`
 *   **Logical**: `&&` (AND), `||` (OR), `!` (NOT)
+*   **Membership**: `IN(?expr, [<value1>, <value2>, ...])` — Returns `true` if `?expr` matches any value in the list.
+*   **Null Check**: `IS_NULL(?expr)`, `IS_NOT_NULL(?expr)` — Tests whether a value is `null` (absent or explicitly null). Useful for checking attribute/metadata existence.
 *   **String**: `CONTAINS(?str, "sub")`, `STARTS_WITH(?str, "prefix")`, `ENDS_WITH(?str, "suffix")`, `REGEX(?str, "pattern")`
 
 **Examples**:
 ```prolog
 // Filter drugs with risk level less than 3 AND name containing "acid"
 FILTER(?drug.attributes.risk_level < 3 && CONTAINS(?drug.name, "acid"))
+```
+
+```prolog
+// Filter events by class membership
+FILTER(IN(?event.attributes.event_class, ["Conversation", "SelfReflection"]))
+```
+
+```prolog
+// Find concepts that have an expiration date set
+FILTER(IS_NOT_NULL(?node.metadata.expires_at))
+```
+
+```prolog
+// Find recent events (temporal query pattern)
+FILTER(?event.attributes.start_time > "2025-01-01T00:00:00Z")
 ```
 
 #### 3.4.4. Negation Clause (`NOT`)
@@ -451,8 +469,9 @@ The design philosophy of `UNION` is **"Implement logical 'OR' for multiple indep
 
 *   **External Variable Invisibility**: Inside `UNION`, external variables bound before it are **not visible**. It is a **completely independent scope**.
 *   **Internal Variable Conditional Visibility**: New variables bound inside `UNION` (internal variables) have their scope **extended** outside the `UNION` clause.
+*   **Same-Named Variables**: If the main block and `UNION` block each bind a variable with the **same name** (e.g., both use `?drug`), they are treated as **independent bindings**. The final result set is the **row-wise union** of both blocks, with variables not present in a given branch set to `null`.
 
-**Execution Flow Example**: Find all drugs treating "Headache" AND all products manufactured by "Bayer".
+**Execution Flow Example 1**: Find items via two completely independent paths.
 ```prolog
 FIND(?drug.name, ?product.name)
 WHERE {
@@ -461,7 +480,7 @@ WHERE {
   (?drug, "treats", {name: "Headache"})
 
   UNION {
-    // Alternative pattern block
+    // Alternative pattern block (independent scope)
     ?product {type: "Product"}
     (?product, "manufactured_by", {name: "Bayer"})
   }
@@ -473,6 +492,25 @@ WHERE {
     * Solution 1: `{?drug -> "Ibuprofen", ?product -> null}` (from Main)
     * Solution 2: `{?drug -> null, ?product -> "Aspirin"}` (from `UNION`)
 4. Both `?drug` and `?product` are visible in the `FIND` clause.
+
+**Execution Flow Example 2**: Logical OR with same variable name (common pattern).
+```prolog
+FIND(?drug.name)
+WHERE {
+  // Drugs that treat Headache
+  ?drug {type: "Drug"}
+  (?drug, "treats", {name: "Headache"})
+
+  UNION {
+    // OR drugs that treat Fever (independent scope, fresh ?drug binding)
+    ?drug {type: "Drug"}
+    (?drug, "treats", {name: "Fever"})
+  }
+}
+```
+1. Main block finds `{?drug -> "Ibuprofen"}`, `{?drug -> "Acetaminophen"}`.
+2. `UNION` block independently finds `{?drug -> "Ibuprofen"}`, `{?drug -> "Aspirin"}`.
+3. Merged result (deduplicated): `["Ibuprofen", "Acetaminophen", "Aspirin"]`.
 
 ### 3.5. Solution Modifiers
 
@@ -539,6 +577,24 @@ WHERE {
   // Match the higher-order proposition: (John Doe)-[stated]->(Fact)
   ?statement ({type: "User", name: "John Doe"}, "stated", ?fact)
 }
+```
+
+**Example 4 (Temporal & Memory Query)**: Find recent conversation events involving a specific person, with their associated key concepts.
+
+```prolog
+FIND(?event, ?concept)
+WHERE {
+  ?event {type: "Event"}
+  FILTER(?event.attributes.event_class == "Conversation")
+  FILTER(?event.attributes.start_time > "2025-06-01T00:00:00Z")
+  FILTER(IS_NOT_NULL(?event.attributes.participants))
+
+  OPTIONAL {
+    (?event, "mentions", ?concept)
+  }
+}
+ORDER BY ?event.attributes.start_time DESC
+LIMIT 20
 ```
 
 ## 4. KIP-KML Instruction Set: Knowledge Manipulation Language
@@ -869,6 +925,9 @@ SEARCH CONCEPT "Aspirin" WITH TYPE "Drug"
 
 // Search for "treats" propositions in the entire graph
 SEARCH PROPOSITION "treats" LIMIT 10
+
+// Semantic search: find concepts related to "headache relief" (implementation-dependent)
+SEARCH CONCEPT "headache relief" LIMIT 10
 ```
 
 ## 6. Request & Response Structure
@@ -928,11 +987,46 @@ LLM-generated KIP commands should be sent to the Cognitive Nexus via the followi
 
 **All responses from the Cognitive Nexus are JSON objects with the following structure:**
 
+#### 6.2.1. Single Command Response
+
 | Key               | Type   | Required | Description                                                                                                                        |
 | :---------------- | :----- | :------- | :--------------------------------------------------------------------------------------------------------------------------------- |
 | **`result`**      | Object | No       | **Must** exist when the request succeeds, containing the successful result of the request, structure defined by the KIP command.   |
 | **`error`**       | Object | No       | **Must** exist when the request fails, containing structured error details.                                                        |
 | **`next_cursor`** | String | No       | An opaque identifier indicating the pagination position after the last returned result. If present, more results may be available. |
+
+#### 6.2.2. Batch Command Response
+
+When using `commands` (batch execution), the response contains a `result` array corresponding to each command in order. **Execution stops on first error**, so the array length may be less than the number of commands submitted.
+
+| Key          | Type  | Required | Description                                                                                                                                                            |
+| :----------- | :---- | :------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`result`** | Array | Yes      | An array of response objects, one per executed command, in order. Each element has the same structure as a single command response (`result`, `error`, `next_cursor`). |
+
+**Example**:
+```js
+// Request:
+{ "commands": ["DESCRIBE PRIMER", "FIND(?n) WHERE { ?n {type: \"Drug\"} } LIMIT 5"] }
+
+// Response:
+{
+  "result": [
+    { "result": { ... } },
+    { "result": [{ "type": "Drug", "name": "Aspirin", ... }, ...], "next_cursor": "abc123" }
+  ]
+}
+```
+
+**Error stops execution**:
+```js
+// If the 2nd command fails:
+{
+  "result": [
+    { "result": { ... } },                    // 1st command succeeded
+    { "error": { "code": "KIP_2001", ... } }  // 2nd command failed, 3rd+ not executed
+  ]
+}
+```
 
 ## 7. Protocol Interaction Workflow
 

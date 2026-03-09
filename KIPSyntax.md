@@ -113,10 +113,21 @@ Boolean filtering conditions using dot notation.
 **Operators & Functions**:
 *   **Comparison**: `==`, `!=`, `<`, `>`, `<=`, `>=`
 *   **Logical**: `&&` (AND), `||` (OR), `!` (NOT)
+*   **Membership**: `IN(?expr, [<value1>, <value2>, ...])` — Returns `true` if `?expr` matches any value in the list.
+*   **Null Check**: `IS_NULL(?expr)`, `IS_NOT_NULL(?expr)` — Tests whether a value is `null` (absent or explicitly null).
 *   **String**: `CONTAINS(?str, "sub")`, `STARTS_WITH(?str, "prefix")`, `ENDS_WITH(?str, "suffix")`, `REGEX(?str, "pattern")`
 
 ```prolog
 FILTER(?drug.attributes.risk_level < 3 && CONTAINS(?drug.name, "acid"))
+
+// Membership test
+FILTER(IN(?event.attributes.event_class, ["Conversation", "SelfReflection"]))
+
+// Null check for attribute existence
+FILTER(IS_NOT_NULL(?node.metadata.expires_at))
+
+// Temporal query (ISO 8601 string comparison)
+FILTER(?event.attributes.start_time > "2025-01-01T00:00:00Z")
 ```
 
 ##### 2.2.4. `OPTIONAL` Clause
@@ -153,13 +164,16 @@ Logical OR. Merges results from independent pattern branches.
 
 **Syntax**: `UNION { ... }`
 
-**Scope**: External variables are **not visible** inside `UNION`. Internal variables are visible outside. `UNION` block runs independently from the main block; results are merged.
+**Scope**: External variables are **not visible** inside `UNION`. Internal variables are visible outside. `UNION` block runs independently from the main block; results are row-wise merged and **deduplicated**. If both branches bind a variable with the **same name**, they are independent bindings — results are union-ed, with absent variables set to `null`.
 
 ```prolog
 // Find drugs treating Headache OR Fever
+// Each branch independently binds ?drug; results are merged.
+?drug {type: "Drug"}
 (?drug, "treats", {name: "Headache"})
 
 UNION {
+  ?drug {type: "Drug"}
   (?drug, "treats", {name: "Fever"})
 }
 ```
@@ -433,15 +447,28 @@ Full-text search for entity resolution (Grounding).
 
 #### 5.2. Response
 
-**Success**:
+**Single Command Success**:
 ```json
 {
   "result": [
-    { "n": { "id": "...", "type": "Drug", "name": "Aspirin", ... } }
+    { "id": "...", "type": "Drug", "name": "Aspirin", ... },
+    ...
   ],
-  "next_cursor": "token_xyz" // Optional
+  "next_cursor": "token_xyz"
 }
 ```
+
+**Batch Response** (for `commands` array):
+```json
+{
+  "result": [
+    { "result": { ... } },
+    { "result": [...], "next_cursor": "abc" },
+    { "error": { "code": "KIP_2001", ... } }
+  ]
+}
+```
+Each element in `result` corresponds to one command. Execution stops on first error; subsequent commands are not executed.
 
 **Error**:
 ```json
