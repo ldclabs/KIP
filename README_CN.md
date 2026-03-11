@@ -153,6 +153,7 @@ KIP 使用自描述模式，类型定义存储在图本身中：
 | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip)                                        | 用于构建 AI 知识记忆系统的 Rust SDK                                         |
 | [Anda Cognitive Nexus](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus)                    | 基于 Anda DB 的 KIP Rust 实现                                               |
+| [Anda Hippocampus](https://github.com/ldclabs/anda-hippocampus)                                                 | 为 AI 智能体打造的自主图谱记忆                                              |
 | [Anda Cognitive Nexus Python](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py)          | Anda Cognitive Nexus 的 Python 绑定                                         |
 | [Anda Cognitive Nexus HTTP Server](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus_server) | 基于 Rust 的 HTTP 服务器，通过 JSON-RPC API (`GET /`, `POST /kip`) 暴露 KIP |
 | [Anda App](https://github.com/ldclabs/anda-app)                                                                 | 基于 KIP 的 AI Agent 客户端应用                                             |

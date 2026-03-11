@@ -157,6 +157,7 @@ A dedicated LLM layer that manages the Cognitive Nexus on behalf of business age
 | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip)                                        | Rust SDK for building AI knowledge memory systems                                          |
 | [Anda Cognitive Nexus](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus)                    | Rust implementation of KIP based on Anda DB                                                |
+| [Anda Hippocampus](https://github.com/ldclabs/anda-hippocampus)                                                 | Autonomous Graph Memory for AI Agents                                                      |
 | [Anda Cognitive Nexus Python](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py)          | Python binding for Anda Cognitive Nexus                                                    |
 | [Anda Cognitive Nexus HTTP Server](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus_server) | An Rust-based HTTP server that exposes KIP via a small JSON-RPC API (`GET /`, `POST /kip`) |
 | [Anda App](https://github.com/ldclabs/anda-app)                                                                 | AI Agent client app based on KIP                                                           |

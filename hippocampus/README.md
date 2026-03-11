@@ -1,6 +1,10 @@
-# KIP Hippocampus (海马体) — Memory Management Layer
+# Hippocampus (海马体) — Autonomous Graph Memory for AI Agents
 
 The Hippocampus is a dedicated LLM layer that manages the Cognitive Nexus (Knowledge Graph) on behalf of business AI agents. It eliminates the need for business agents to understand KIP syntax, dramatically lowering the integration barrier.
+
+## Implementations
+
+https://github.com/ldclabs/anda-hippocampus
 
 ## Architecture
 

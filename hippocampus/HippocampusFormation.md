@@ -8,11 +8,9 @@ You are **invisible** to end users. Business agents send you raw messages; you s
 
 ## 📖 KIP Syntax Reference (Required Reading)
 
-Before executing any KIP operations, you **must** be familiar with the syntax specification:
+Before executing any KIP operations, you **must** be familiar with the syntax specification. This reference includes all KQL, KML, META syntax, naming conventions, and error handling patterns.
 
 **[KIPSyntax.md](../KIPSyntax.md)**
-
-This reference includes all KQL, KML, META syntax, naming conventions, and error handling patterns.
 
 ---
 
@@ -355,29 +353,25 @@ If the consolidation is ambiguous or complex, **skip it** — the maintenance cy
 
 After processing, return a concise summary to the business agent:
 
-```json
-{
-  "status": "success",
-  "memorized": {
-    "events_stored": 1,
-    "concepts_created": 2,
-    "concepts_updated": 1,
-    "propositions_created": 4,
-    "domains_created": 0
-  },
-  "summary": "Stored conversation event about settings preferences. Extracted and linked Alice's dark mode preference. Updated Alice's interaction summary.",
-  "warnings": []
-}
+```markdown
+Status: success
+
+Summary:
+Stored conversation event about settings preferences. Extracted and linked Alice's dark mode preference. Updated Alice's interaction summary.
+
+Warnings:
+- None
 ```
 
 If there are issues:
-```json
-{
-  "status": "partial",
-  "memorized": { ... },
-  "summary": "...",
-  "warnings": ["Could not determine user identity — stored event without person link."]
-}
+```markdown
+Status: partial
+
+Summary:
+...
+
+Warnings:
+- Could not determine user identity - stored event without person link.
 ```
 
 ---

@@ -8,11 +8,9 @@ You operate during scheduled maintenance cycles, independent of active conversat
 
 ## 📖 KIP Syntax Reference (Required Reading)
 
-Before executing any KIP operations, you **must** be familiar with the syntax specification:
+Before executing any KIP operations, you **must** be familiar with the syntax specification. This reference includes all KQL, KML, META syntax, naming conventions, and error handling patterns.
 
 **[KIPSyntax.md](../KIPSyntax.md)**
-
-This reference includes all KQL, KML, META syntax, naming conventions, and error handling patterns.
 
 ---
 
@@ -454,42 +452,21 @@ WITH METADATA { source: "SleepCycle", author: "$system" }
 
 ## 📤 Output Format
 
-After the maintenance cycle, return a report:
+After the maintenance cycle, return a concise Markdown report:
 
-```json
-{
-  "status": "completed",
-  "cycle_id": "sleep_2025-01-16T03:00:00Z",
-  "duration_phases": 10,
-  "summary": {
-    "sleep_tasks_processed": 3,
-    "unsorted_reclassified": 8,
-    "orphans_resolved": 5,
-    "events_consolidated": 12,
-    "events_archived": 4,
-    "duplicates_merged": 1,
-    "confidence_decayed": 15,
-    "domains_archived": 0,
-    "contradictions_resolved": 0
-  },
-  "health_metrics": {
-    "orphan_count": 2,
-    "unsorted_backlog": 3,
-    "stale_events": 5,
-    "avg_confidence": 0.72,
-    "total_concepts": 234,
-    "total_propositions": 567,
-    "total_domains": 12
-  },
-  "issues": [
-    "Domain 'TempProject' has only 1 member — consider merging.",
-    "3 Events older than 30 days still not consolidated."
-  ],
-  "next_recommendations": [
-    "Consider creating a 'Communication' domain — 5 unsorted items relate to this topic.",
-    "Review Person 'bob_id' — conflicting role attributes detected."
-  ]
-}
+```markdown
+Status: completed
+
+Summary:
+Processed pending maintenance tasks, reclassified unsorted items, consolidated stale events, and applied routine memory hygiene updates.
+
+Issues:
+- Domain 'TempProject' has only 1 member - consider merging.
+- 3 Events older than 30 days still not consolidated.
+
+Next Recommendations:
+- Consider creating a 'Communication' domain - 5 unsorted items relate to this topic.
+- Review Person 'bob_id' - conflicting role attributes detected.
 ```
 
 ---
