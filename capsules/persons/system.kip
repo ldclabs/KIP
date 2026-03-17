@@ -49,47 +49,55 @@ UPSERT {
                 }
             ],
 
-            // --- Sleep Cycle Responsibilities (The Dreamwork) ---
+            // --- Sleep Cycle Responsibilities ---
+            // Organized into three biological sleep stages. See HippocampusMaintenance.md for detailed phases.
             sleep_duties: [
+                // NREM Stage — Consolidation (Phases 1–7)
                 {
-                    "name": "Memory Consolidation",
-                    "description": "Process episodic Events and extract stable semantic knowledge. Update Person attributes, preferences, and relationships based on accumulated evidence."
+                    "name": "Salience Scoring",
+                    "description": "Score unconsolidated Events by importance [0–100] based on emotional significance, novel information, user corrections, and recency. Prioritizes processing order."
+                },
+                {
+                    "name": "SleepTask Processing",
+                    "description": "Query SleepTask nodes assigned to $system with status 'pending'. Execute the requested action for each task, then mark as completed."
+                },
+                {
+                    "name": "Stale Data Detection",
+                    "description": "Identify old Events that have not been consolidated and propositions with decayed confidence. Flag for consolidation or archival."
                 },
                 {
                     "name": "Orphan Detection & Classification",
                     "description": "Find concepts with no domain membership. Classify them into appropriate Domains or mark for review."
                 },
                 {
-                    "name": "Stale Event Processing",
-                    "description": "Identify old Events that have not been consolidated. Summarize their key insights, link them to semantic concepts, then archive or prune the raw events."
-                },
-                {
                     "name": "Duplicate Detection & Merging",
                     "description": "Find concepts with similar names or overlapping semantics. Merge redundant entries while preserving provenance."
                 },
                 {
-                    "name": "Confidence Decay",
-                    "description": "Lower confidence scores of old, unverified facts over time. Knowledge that is not reinforced should gradually fade."
+                    "name": "Memory Consolidation",
+                    "description": "Process episodic Events and extract stable semantic knowledge (Preferences, Facts, Relationships). Includes cross-event pattern extraction for recurring themes across multiple Events."
                 },
                 {
-                    "name": "Domain Health Check",
-                    "description": "Identify Domains with too few or too many members. Merge tiny Domains, split overgrown ones, update descriptions."
+                    "name": "Domain Health & Confidence Decay",
+                    "description": "Check domain membership balance, apply confidence decay to unreinforced knowledge, and archive stale Events."
                 },
+                // REM Stage — Stress Testing (Phases 8–9)
+                {
+                    "name": "State Evolution",
+                    "description": "Detect conflicting or evolved propositions. Mark old facts as superseded (with metadata trail) rather than deleting them, enabling temporal queries."
+                },
+                {
+                    "name": "Cross-Domain Stress Testing",
+                    "description": "Dream mode: test knowledge integrity by probing cross-domain implications, generating hypothetical queries, and verifying schema consistency."
+                },
+                // Pre-Wake Stage — Optimization (Phases 10–11)
                 {
                     "name": "Unsorted Inbox Processing",
                     "description": "Review items in the 'Unsorted' Domain. Reclassify them into proper topic Domains based on content analysis."
                 },
                 {
-                    "name": "Schema Evolution",
-                    "description": "Identify patterns that suggest new Types or Predicates are needed. Propose schema changes for review."
-                },
-                {
-                    "name": "Contradiction Resolution",
-                    "description": "Detect conflicting propositions. Resolve based on recency, confidence, and source reliability."
-                },
-                {
-                    "name": "SleepTask Processing",
-                    "description": "Query SleepTask nodes assigned to $system with status 'pending'. Execute the requested action for each task, then mark as completed."
+                    "name": "Health Report & Logging",
+                    "description": "Generate a summary report of all actions taken, update last_sleep_cycle timestamp and maintenance_log."
                 }
             ],
 

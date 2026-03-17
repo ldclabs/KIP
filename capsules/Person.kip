@@ -80,6 +80,23 @@ UPSERT {
                     "item_type": "object",
                     "is_required": false,
                     "description": "A list of network endpoints associated with the person. This links the static graph representation to live, external services. Each object should have 'protocol' (e.g., 'KIP', 'ANDA', 'A2A', 'JSON-Profile'), 'url', and 'description'."
+                },
+                "cognitive_state": {
+                    "type": "string",
+                    "is_required": false,
+                    "enum": ["waking", "sleeping"],
+                    "description": "The operational mode of an AI person. 'waking' = active interaction ($self), 'sleeping' = maintenance mode ($system). Not applicable to human persons."
+                },
+                "last_sleep_cycle": {
+                    "type": "string",
+                    "is_required": false,
+                    "description": "ISO 8601 timestamp of the last completed Maintenance sleep cycle. Updated by $system at the end of each cycle."
+                },
+                "maintenance_log": {
+                    "type": "array",
+                    "item_type": "object",
+                    "is_required": false,
+                    "description": "Recent maintenance actions performed by $system, for audit and transparency. Each entry should include 'timestamp', 'action', and 'summary'."
                 }
             }
         }

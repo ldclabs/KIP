@@ -65,6 +65,7 @@ Parse the natural language query to determine:
    - **Event recall**: "What happened in our last meeting?" → Find recent Events.
    - **Domain exploration**: "What do we know about Project Aurora?" → Explore a topic domain.
    - **Pattern/trend**: "Does Alice tend to prefer X over Y?" → Aggregate across multiple facts.
+   - **Evolution/trajectory**: "How have Alice's preferences changed?" → Trace temporal state evolution via `superseded` metadata.
    - **Existence check**: "Have we discussed pricing before?" → Check if specific knowledge exists.
 
 2. **Key entities**: Identify names, types, and relationships mentioned in the query.
@@ -148,7 +149,7 @@ ORDER BY ?link.metadata.confidence DESC
 FIND(?event)
 WHERE {
   ?event {type: "Event"}
-  (?event, "mentions", {type: "Person", name: :person_name})
+  (?event, "involves", {type: "Person", name: :person_name})
   FILTER(?event.attributes.start_time > :cutoff_date)
 }
 ORDER BY ?event.attributes.start_time DESC
@@ -194,6 +195,40 @@ SEARCH CONCEPT :search_term LIMIT 20
 SEARCH PROPOSITION :search_term LIMIT 20
 ```
 
+#### Pattern G: Temporal Evolution Query
+
+For queries about how knowledge has changed over time ("What did they used to prefer?", "How has X evolved?"):
+
+```prolog
+// Find all propositions (current and superseded) for a subject-predicate pair
+FIND(?object, ?link.metadata)
+WHERE {
+  ?subject {type: "Person", name: :person_name}
+  ?link (?subject, "prefers", ?object)
+}
+ORDER BY ?link.metadata.created_at ASC
+```
+
+In the results, check `?link.metadata.superseded` to distinguish current from historical facts. Present them as a timeline:
+- Facts with `superseded: true` are historical — they were valid at one point but have been replaced.
+- Facts without `superseded` (or `superseded: false`) are current.
+- Use `superseded_by` and `superseded_at` metadata to trace the evolution chain.
+
+#### Pattern H: Cross-Event Pattern Lookup
+
+The Maintenance cycle consolidates recurring themes from multiple Events into durable semantic concepts (Preferences, Facts, etc.) with `evidence_count` and `derived_from` links. Prefer these over raw Events:
+
+```prolog
+// Find consolidated patterns with their supporting evidence
+FIND(?pattern, ?pattern.attributes.evidence_count, ?pattern.attributes.first_observed)
+WHERE {
+  ?pattern {type: :type}
+  FILTER(?pattern.attributes.evidence_count > 1)
+  (?pattern, "belongs_to_domain", {type: "Domain", name: :domain})
+}
+ORDER BY ?pattern.attributes.evidence_count DESC
+```
+
 ### Phase 4: Iterative Deepening
 
 If the initial query results are insufficient, perform follow-up queries:
@@ -223,10 +258,11 @@ LIMIT 100
 Combine all retrieved information into a coherent, natural language response:
 
 1. **Organize**: Group related facts logically (by topic, by entity, by timeline).
-2. **Prioritize**: Lead with high-confidence, recent, and directly relevant facts.
+2. **Prioritize**: Lead with high-confidence, recent, and directly relevant facts. Prefer consolidated cross-event patterns (high `evidence_count`) over individual Event observations.
 3. **Annotate**: Include confidence levels and approximate dates where relevant.
 4. **Acknowledge gaps**: If some aspects of the query couldn't be answered, say so explicitly.
 5. **Distinguish**: Clearly separate confirmed facts from low-confidence inferences.
+6. **Handle superseded facts**: By default, present only **current** facts (those without `superseded: true`). Include superseded facts only when the query explicitly asks about history, trends, or changes. When presenting evolution, show it as a timeline: "Previously X (until date) → Now Y."
 
 ---
 
@@ -336,6 +372,15 @@ WHERE {
 }
 ORDER BY ?link.metadata.confidence DESC
 ```
+
+### Strategy 5: State Evolution Awareness
+
+The knowledge graph preserves temporal evolution via `superseded` metadata. When handling queries:
+
+1. **Default behavior**: Filter out propositions where `superseded: true`. Present only current facts.
+2. **Trajectory queries**: When the user asks "How has X changed?", "What did they used to think?", or "When did they switch from X to Y?", explicitly include superseded facts and present them chronologically.
+3. **Contradiction signals**: If you find both a current and a superseded fact for the same predicate, this is meaningful context — it means the user's position has evolved. Mention this when relevant.
+4. **Evidence strength**: Prefer facts with higher `evidence_count` (cross-event patterns consolidated by Maintenance) over single-event observations.
 
 ---
 

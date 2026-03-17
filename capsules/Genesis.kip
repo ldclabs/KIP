@@ -35,7 +35,7 @@ UPSERT {
                     "description": "A list of names of the most important or representative instances of this type, to help LLMs ground their queries."
                 }
             },
-            key_instances: [ "$ConceptType", "$PropositionType", "Domain" ]
+            key_instances: [ "$ConceptType", "$PropositionType", "Domain", "Event", "Person", "Preference", "SleepTask" ]
         }
     }
 
@@ -67,7 +67,7 @@ UPSERT {
                 "is_symmetric": { "type": "boolean", "is_required": false, "default_value": false },
                 "is_transitive": { "type": "boolean", "is_required": false, "default_value": false }
             },
-            key_instances: [ "belongs_to_domain" ]
+            key_instances: [ "belongs_to_domain", "involves", "mentions", "consolidated_to", "derived_from", "prefers", "assigned_to" ]
         }
     }
 

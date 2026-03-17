@@ -1,0 +1,71 @@
+// --- DEFINE the "Preference" concept type and "prefers" predicate ---
+UPSERT {
+    CONCEPT ?preference_type_def {
+        {type: "$ConceptType", name: "Preference"}
+        SET ATTRIBUTES {
+            description: "Represents a stable user preference, behavioral inclination, or habitual choice. Preferences are derived from observed patterns across Events and may evolve over time via state evolution (superseded metadata).",
+            display_hint: "⭐",
+            instance_schema: {
+                "description": {
+                    "type": "string",
+                    "is_required": true,
+                    "description": "A concise statement of the preference (e.g., 'Prefers dark mode in all apps')."
+                },
+                "category": {
+                    "type": "string",
+                    "is_required": false,
+                    "description": "The domain or class of the preference (e.g., 'UI', 'food', 'communication_style', 'programming_language'). Used to detect mutually exclusive preferences within the same category."
+                },
+                "confidence": {
+                    "type": "number",
+                    "is_required": false,
+                    "description": "How confident the agent is in this preference, on a scale of [0, 1]. Higher evidence_count should generally correlate with higher confidence."
+                },
+                "evidence_count": {
+                    "type": "number",
+                    "is_required": false,
+                    "description": "The number of independent Events supporting this preference. Updated during sleep-cycle consolidation."
+                },
+                "first_observed": {
+                    "type": "string",
+                    "is_required": false,
+                    "description": "ISO 8601 timestamp of the earliest Event from which this preference was derived."
+                },
+                "last_observed": {
+                    "type": "string",
+                    "is_required": false,
+                    "description": "ISO 8601 timestamp of the most recent Event confirming this preference."
+                },
+                "source_event": {
+                    "type": "string",
+                    "is_required": false,
+                    "description": "Name of the original Event from which this preference was first derived. For multi-event derivations, use the 'derived_from' proposition instead."
+                }
+            }
+        }
+
+        SET PROPOSITIONS {
+            ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+        }
+    }
+
+    // Define the "prefers" predicate: Person → Preference
+    CONCEPT ?prefers_prop_def {
+        {type: "$PropositionType", name: "prefers"}
+        SET ATTRIBUTES {
+            description: "Asserts that a Person has a stable preference for a given object. The subject is typically a Person, and the object is typically a Preference concept. When a preference changes, the old proposition should be marked with superseded metadata rather than deleted.",
+            subject_types: ["Person"],
+            object_types: ["Preference"]
+        }
+
+        SET PROPOSITIONS {
+            ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+        }
+    }
+}
+WITH METADATA {
+    source: "SystemBootstrap",
+    author: "$system",
+    confidence: 1.0,
+    status: "active"
+}

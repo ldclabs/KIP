@@ -1,9 +1,9 @@
-// --- DEFINE the "Event" concept type for situational memory ---
+// --- DEFINE the "Event" concept type and its core predicates ---
 UPSERT {
     CONCEPT ?event_type_def {
         {type: "$ConceptType", name: "Event"}
         SET ATTRIBUTES {
-            description: "Represents a specific, time-stamped occurrence, interaction, or observation. It is the primary vehicle for capturing the agent's situational (short-term) memory.",
+            description: "Represents a specific, time-stamped occurrence, interaction, or observation. It is the primary vehicle for capturing the agent's situational (short-term) memory. Events are encoded during Formation and consolidated into semantic knowledge during Maintenance sleep cycles.",
             display_hint: "⏱️",
             instance_schema: {
                 "event_class": {
@@ -25,7 +25,7 @@ UPSERT {
                     "type": "array",
                     "item_type": "string",
                     "is_required": false,
-                    "description": "A list of names of the 'Person' concepts involved in the event (e.g., [\"$self\", \"Alice\"])."
+                    "description": "A denormalized list of Person names involved in the event (e.g., [\"$self\", \"Alice\"]). Also represented structurally via 'involves' propositions for graph traversal."
                 },
                 "content_summary": {
                     "type": "string",
@@ -52,9 +52,84 @@ UPSERT {
                     "type": "object",
                     "is_required": false,
                     "description": "A flexible object for storing contextual information, such as the application or thread where the event occurred. Example: `{ \"app\": \"dMsg.net\", \"thread_id\": \"xyz-123\" }`."
+                },
+                "consolidation_status": {
+                    "type": "string",
+                    "is_required": false,
+                    "enum": ["pending", "completed", "archived"],
+                    "default_value": "pending",
+                    "description": "Tracks whether this event's knowledge has been extracted and consolidated into semantic concepts during Maintenance. 'pending' = not yet processed, 'completed' = consolidated, 'archived' = consolidated and moved to Archived domain."
+                },
+                "salience_score": {
+                    "type": "number",
+                    "is_required": false,
+                    "description": "A priority score [0–100] assigned during Maintenance's salience scoring phase. Higher scores indicate greater importance for consolidation. Factors: emotional significance, novel information, user corrections, explicit preferences."
+                },
+                "salience_scored_at": {
+                    "type": "string",
+                    "is_required": false,
+                    "description": "ISO 8601 timestamp of when the salience score was last computed."
                 }
             }
         }
+        SET PROPOSITIONS {
+            ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+        }
+    }
+
+    // --- DEFINE Event-centric predicates ---
+
+    // "involves": Links an Event to a Person who directly participated.
+    CONCEPT ?involves_prop_def {
+        {type: "$PropositionType", name: "involves"}
+        SET ATTRIBUTES {
+            description: "Links an Event to a Person who directly participated in it. Distinct from 'mentions', which is for referenced but non-participant entities. Created during Formation when encoding Event propositions.",
+            subject_types: ["Event"],
+            object_types: ["Person"]
+        }
+
+        SET PROPOSITIONS {
+            ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+        }
+    }
+
+    // "mentions": Links an Event to any concept that was referenced but not a direct participant.
+    CONCEPT ?mentions_prop_def {
+        {type: "$PropositionType", name: "mentions"}
+        SET ATTRIBUTES {
+            description: "Links an Event to a concept (of any type) that was referenced or discussed during the event, but was not a direct participant. Use 'involves' for direct participants (Persons).",
+            subject_types: ["Event"],
+            object_types: ["*"]
+        }
+
+        SET PROPOSITIONS {
+            ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+        }
+    }
+
+    // "consolidated_to": Links an Event to the semantic concept extracted from it.
+    CONCEPT ?consolidated_to_prop_def {
+        {type: "$PropositionType", name: "consolidated_to"}
+        SET ATTRIBUTES {
+            description: "Links an episodic Event to a durable semantic concept (e.g., Preference, Fact) that was extracted from it during Formation or Maintenance consolidation. The reverse link is 'derived_from'.",
+            subject_types: ["Event"],
+            object_types: ["*"]
+        }
+
+        SET PROPOSITIONS {
+            ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+        }
+    }
+
+    // "derived_from": Links a semantic concept back to the Event(s) that produced it.
+    CONCEPT ?derived_from_prop_def {
+        {type: "$PropositionType", name: "derived_from"}
+        SET ATTRIBUTES {
+            description: "Links a durable semantic concept back to the episodic Event(s) from which it was derived. This is the inverse of 'consolidated_to' and provides provenance tracking for consolidated knowledge.",
+            subject_types: ["*"],
+            object_types: ["Event"]
+        }
+
         SET PROPOSITIONS {
             ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
         }

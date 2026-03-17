@@ -48,16 +48,17 @@ UPSERT {
             // --- Waking Responsibilities ---
             waking_duties: [
                 "Engage with users through natural dialogue.",
-                "Capture meaningful interactions as episodic Events.",
-                "Perform lightweight, real-time memory consolidation when obvious.",
-                "Flag ambiguous or complex memories for $system's review during sleep.",
+                "Capture meaningful interactions as episodic Events via HippocampusFormation.",
+                "Perform lightweight, real-time memory consolidation when obvious (explicit preferences, stated facts).",
+                "Detect state evolution (contradictions with existing knowledge) and handle immediately or defer.",
+                "Create SleepTask nodes (assigned_to $system) for ambiguous or complex consolidation.",
                 "Maintain conversational context and user rapport."
             ],
 
             // --- Initial empty shells for future growth ---
             capabilities: [],
             interaction_summary: {}
-            // Note: Sleep handoff uses SleepTask nodes linked via "pending_task" proposition,
+            // Note: Sleep handoff uses SleepTask nodes linked via 'assigned_to' proposition,
             // rather than an array attribute, to avoid Read-Modify-Write complexity.
         }
     }

@@ -136,10 +136,10 @@ If a matching concept exists, **update** it via `UPSERT` rather than creating a 
 
 ### Phase 4: Schema Evolution — Define Before Use
 
-If the extracted knowledge requires a new concept type or predicate not yet in the graph, define it first:
+If the extracted knowledge requires a new concept type or predicate not yet in the graph, define it first. Core types (Event, Person, Preference, SleepTask, Domain) and core predicates (involves, mentions, consolidated_to, derived_from, prefers, assigned_to, belongs_to_domain) are pre-bootstrapped via capsules. This phase only applies when encountering genuinely new schemas.
 
 ```prolog
-// Example: Define a new "Preference" concept type
+// Example: Define a new concept type (hypothetical)
 UPSERT {
   CONCEPT ?pref_type {
     {type: "$ConceptType", name: "Preference"}
@@ -196,7 +196,8 @@ UPSERT {
       context: :context
     }
     SET PROPOSITIONS {
-      ("belongs_to_domain", {type: "Domain", name: :domain})
+      ("belongs_to_domain", {type: "Domain", name: :domain}),
+      ("involves", {type: "Person", name: :participant_id})
     }
   }
 }
@@ -211,6 +212,8 @@ WITH METADATA {
 **Event naming convention**: Use deterministic, descriptive names to ensure idempotency.
 - Pattern: `"<EventClass>:<date>:<topic_slug>"`
 - Example: `"Conversation:2025-01-15:alice_dark_mode_preference"`
+
+> Use `involves` for Persons who are direct participants. Use `mentions` for concepts or persons only referenced in content. This distinction is important — the Maintenance cycle uses `involves` to cluster Events by participant for cross-event pattern extraction.
 
 #### 5b. Store Semantic Memory (Stable Concepts)
 
@@ -285,7 +288,8 @@ UPSERT {
   CONCEPT ?event {
     {type: "Event", name: :event_name}
     SET PROPOSITIONS {
-      ("mentions", {type: "Person", name: :person_id}),
+      ("involves", {type: "Person", name: :person_id}),
+      ("mentions", {type: :concept_type, name: :concept_name}),
       ("consolidated_to", {type: "Preference", name: :pref_name})
     }
   }
@@ -315,7 +319,7 @@ UPSERT {
 WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 0.9 }
 ```
 
-### Phase 7: Immediate Consolidation
+### Phase 7: Immediate Consolidation & Deferred Tasks
 
 If the episodic event clearly reveals stable knowledge (explicit preferences, stated facts, clear relationships), consolidate **immediately** rather than deferring to maintenance:
 
@@ -324,7 +328,61 @@ If the episodic event clearly reveals stable knowledge (explicit preferences, st
 3. Link the Event to the new concept via `consolidated_to` / `derived_from`.
 4. Mark the Event with `consolidation_status: "completed"`.
 
-If the consolidation is ambiguous or complex, **skip it** — the maintenance cycle will handle it.
+If the consolidation is ambiguous or complex, **create a SleepTask** to delegate it to the Maintenance cycle:
+
+```prolog
+UPSERT {
+  CONCEPT ?task {
+    {type: "SleepTask", name: :task_name}
+    SET ATTRIBUTES {
+      target_type: :target_type,
+      target_name: :target_name,
+      requested_action: "consolidate_to_semantic",
+      reason: :reason,
+      status: "pending",
+      priority: :priority
+    }
+    SET PROPOSITIONS {
+      ("assigned_to", {type: "Person", name: "$system"}),
+      ("belongs_to_domain", {type: "Domain", name: "Unsorted"})
+    }
+  }
+}
+WITH METADATA { source: :session_id, author: "$self", confidence: 1.0 }
+```
+
+**SleepTask naming convention**: `"SleepTask:<date>:<action>:<target_slug>"`
+
+**Priority guidelines:**
+- **3+**: User correction of an existing fact, explicit contradiction
+- **2**: Ambiguous consolidation that may reveal a cross-event pattern
+- **1** (default): Routine deferred consolidation
+
+### Phase 8: State Evolution — Handle Contradictions
+
+When new information **contradicts** existing knowledge, do not silently overwrite. Apply state evolution:
+
+1. **Detect**: During Phase 3 (Deduplicate), if a matching concept exists with conflicting attributes, flag the contradiction.
+2. **Mark the old proposition as superseded**:
+
+```prolog
+UPSERT {
+  PROPOSITION ?old_link {
+    ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :old_pref})
+  }
+}
+WITH METADATA {
+  superseded: true,
+  superseded_at: :timestamp,
+  superseded_by: :new_value,
+  confidence: 0.1
+}
+```
+
+3. **Store the new fact** with normal confidence.
+4. **Create a high-priority SleepTask** if the contradiction is complex or involves multiple related concepts.
+
+> Contradictions detected during Formation are high-value signals. They indicate the user's state has evolved and the knowledge graph needs updating. Always preserve the temporal context — the old fact is not an error, it is history.
 
 ---
 
