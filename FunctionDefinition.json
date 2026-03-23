@@ -4,13 +4,9 @@
   "parameters": {
     "type": "object",
     "properties": {
-      "command": {
-        "type": "string",
-        "description": "A complete, multi-line KIP command (KQL, KML or META) string to be executed. Mutually exclusive with 'commands'."
-      },
       "commands": {
         "type": "array",
-        "description": "An array of KIP commands for batch execution (reduces round-trips). Mutually exclusive with 'command'. Commands are executed sequentially; execution stops on first error.",
+        "description": "An array of KIP commands for batch execution (reduces round-trips). Commands are executed sequentially; execution stops on first error.",
         "items": {
           "type": "string"
         }
@@ -24,6 +20,8 @@
         "description": "If set to true, the command(s) will only be validated for syntactical and logical correctness without being executed."
       }
     },
-    "required": []
+    "required": [
+      "commands"
+    ]
   }
 }
