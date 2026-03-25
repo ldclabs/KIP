@@ -17,6 +17,7 @@
 | v1.0-RC2    | 2025-12-31 | v1.0 Release Candidate 2: Optimized documentation; changed parameter placeholder prefix from `?` to `:`; added support for batch command execution                                                   |
 | v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：Optimized documentation; optimized instructions; optimized knowledge capsules                                                                                              |
 | v1.0-RC4    | 2026-03-09 | v1.0 Release Candidate 4: Added `IN`, `IS_NULL`, `IS_NOT_NULL` FILTER operators; clarified UNION variable scope semantics; defined batch response structure; added temporal and UNION query examples |
+| v1.0-RC5    | 2026-03-25 | v1.0 Release Candidate 5: Added `execute_kip_readonly` interface                                                                                                                                     |
 
 **KIP Implementations**:
 - [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust SDK of KIP for building sustainable AI knowledge memory systems.
@@ -431,10 +432,10 @@ WHERE {
   }
 }
 ```
-1. Engine finds a solution `{?drug -> "Aspirin"}`.
+1. Engine finds a solution `?drug -> "Aspirin"`.
 2. Engine enters `NOT` clause with this binding, attempts to match `("Aspirin", "is_class_of", ...)`.
-3. If matching succeeds (Aspirin is NSAID), the `NOT` clause fails, and `{?drug -> "Aspirin"}` is **discarded**.
-4. If matching fails (e.g., `{?drug -> "Vitamin C"}`), the `NOT` clause succeeds, and the solution is **kept**.
+3. If matching succeeds (Aspirin is NSAID), the `NOT` clause fails, and `?drug -> "Aspirin"` is **discarded**.
+4. If matching fails (e.g., `?drug -> "Vitamin C"`), the `NOT` clause succeeds, and the solution is **kept**.
 5. In any case, `?nsaid_class` is not visible outside `NOT`.
 
 ##### 3.4.7.2. `OPTIONAL` Clause: Left Join
@@ -457,10 +458,10 @@ WHERE {
   }
 }
 ```
-1. Engine finds `{?drug -> "Aspirin"}`.
+1. Engine finds `?drug -> "Aspirin"`.
 2. Enters `OPTIONAL`, attempts to match `("Aspirin", "has_side_effect", ?side_effect)`.
-3. **Case A (Match Success)**: Finds "Stomach Upset". Final solution: `{?drug -> "Aspirin", ?side_effect -> "Stomach Upset"}`.
-4. **Case B (Match Failure)**: For `{?drug -> "Vitamin C"}`, no match inside `OPTIONAL`. Final solution: `{?drug -> "Vitamin C", ?side_effect -> null}`.
+3. **Case A (Match Success)**: Finds "Stomach Upset". Final solution: `?drug -> "Aspirin", ?side_effect -> "Stomach Upset"`.
+4. **Case B (Match Failure)**: For `?drug -> "Vitamin C"`, no match inside `OPTIONAL`. Final solution: `?drug -> "Vitamin C", ?side_effect -> null`.
 5. In both cases, `?side_effect` is visible outside `OPTIONAL`.
 
 ##### 3.4.7.3. `UNION` Clause: Independent Execution, Merged Results
@@ -486,11 +487,11 @@ WHERE {
   }
 }
 ```
-1. **Execute Main Block**: Finds `{?drug -> "Ibuprofen"}`.
-2. **Execute `UNION` Block**: Independently finds `{?product -> "Aspirin"}`.
+1. **Execute Main Block**: Finds `?drug -> "Ibuprofen"`.
+2. **Execute `UNION` Block**: Independently finds `?product -> "Aspirin"`.
 3. **Merge Results**:
-    * Solution 1: `{?drug -> "Ibuprofen", ?product -> null}` (from Main)
-    * Solution 2: `{?drug -> null, ?product -> "Aspirin"}` (from `UNION`)
+    * Solution 1: `?drug -> "Ibuprofen", ?product -> null` (from Main)
+    * Solution 2: `?drug -> null, ?product -> "Aspirin"` (from `UNION`)
 4. Both `?drug` and `?product` are visible in the `FIND` clause.
 
 **Execution Flow Example 2**: Logical OR with same variable name (common pattern).
@@ -508,8 +509,8 @@ WHERE {
   }
 }
 ```
-1. Main block finds `{?drug -> "Ibuprofen"}`, `{?drug -> "Acetaminophen"}`.
-2. `UNION` block independently finds `{?drug -> "Ibuprofen"}`, `{?drug -> "Aspirin"}`.
+1. Main block finds `?drug -> "Ibuprofen"`, `?drug -> "Acetaminophen"`.
+2. `UNION` block independently finds `?drug -> "Ibuprofen"`, `?drug -> "Aspirin"`.
 3. Merged result (deduplicated): `["Ibuprofen", "Acetaminophen", "Aspirin"]`.
 
 ### 3.5. Solution Modifiers
@@ -936,13 +937,17 @@ All interactions with the Cognitive Nexus occur through a standardized request-r
 
 ### 6.1. Request Structure
 
-LLM-generated KIP commands should be sent to the Cognitive Nexus via the following structured Function Calling request:
+LLM-generated KIP commands should be sent to the Cognitive Nexus via the following structured Function Calling requests:
+
+There are two function callings provided:
+1. **`execute_kip`**: For executing all KIP commands (including KQL, KML, META) with read-write capabilities.
+2. **`execute_kip_readonly`**: For executing safe, read-only query commands (including KQL FIND/SEARCH and META DESCRIBE). This should be preferred when the Agent explicitly only needs to retrieve knowledge and will not make any modifications.
 
 **Single Command:**
 ```js
 {
   "function": {
-    "name": "execute_kip",
+    "name": "execute_kip_readonly",
     "arguments": {
       "command": "FIND(?drug.name) WHERE { ?symptom {name: :symptom_name} (?drug, \"treats\", ?symptom) } LIMIT :limit",
       "parameters": {
@@ -974,7 +979,7 @@ LLM-generated KIP commands should be sent to the Cognitive Nexus via the followi
 }
 ```
 
-**`execute_kip` Function Parameters**:
+**Function Parameters** (arguments are the same for `execute_kip` and `execute_kip_readonly`):
 
 | Parameter        | Type    | Required | Description                                                                                                                                                                                                                                                                                                                                  |
 | :--------------- | :------ | :------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

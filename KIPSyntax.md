@@ -404,23 +404,22 @@ Full-text search for entity resolution (Grounding).
 
 ### 5. API Structure (JSON-RPC)
 
-#### 5.1. Request (`execute_kip`)
+#### 5.1. Request (`execute_kip` / `execute_kip_readonly`)
 
-**Single Command**:
+**Single Command (Read-Only)**:
 ```json
 {
   "function": {
-    "name": "execute_kip",
+    "name": "execute_kip_readonly",
     "arguments": {
       "command": "FIND(?n) WHERE { ?n {name: :name} }",
-      "parameters": { "name": "Aspirin" },
-      "dry_run": false
+      "parameters": { "name": "Aspirin" }
     }
   }
 }
 ```
 
-**Batch Execution**:
+**Batch Execution (Read/Write)**:
 ```json
 {
   "function": {
@@ -439,7 +438,7 @@ Full-text search for entity resolution (Grounding).
 }
 ```
 
-**Parameters:**
+**Parameters (same for both functions):**
 *   `command` (String): Single KIP command. **Mutually exclusive with `commands`**.
 *   `commands` (Array): Batch of commands. Each element: `String` (uses shared `parameters`) or `{command, parameters}` (independent). **Stops on first error**.
 *   `parameters` (Object): Placeholder substitution (`:name` → value). A placeholder must occupy a complete JSON value position (e.g., `name: :name`). Do not embed placeholders inside quoted strings (e.g., `"Hello :name"`), because replacement uses JSON serialization.

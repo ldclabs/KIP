@@ -166,9 +166,9 @@ A dedicated LLM layer that manages the Cognitive Nexus on behalf of business age
 
 | Version     | Date       | Changes                                                                                                                                                                                              |
 | ----------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1.0-RC5    | 2026-03-25 | v1.0 Release Candidate 5: Added `execute_kip_readonly` interface                                                                                                                                     |
 | v1.0-RC4    | 2026-03-09 | v1.0 Release Candidate 4: Added `IN`, `IS_NULL`, `IS_NOT_NULL` FILTER operators; clarified UNION variable scope semantics; defined batch response structure; added temporal and UNION query examples |
 | v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：Optimized documentation; optimized instructions; optimized knowledge capsules                                                                                              |
-| v1.0-RC2    | 2025-12-31 | Parameter placeholder prefix changed to `:`; batch command execution                                                                                                                                 |
 | ...         | ...        | ...                                                                                                                                                                                                  |
 | v1.0-draft1 | 2025-06-09 | Initial Draft                                                                                                                                                                                        |
 

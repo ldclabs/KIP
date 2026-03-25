@@ -36,7 +36,7 @@ All maintenance exists to improve memory quality for Formation and Recall. Ask: 
 
 ### 2. Reconstruction over Replay
 
-Memory is not a recording — it is a **living model** that must be actively rebuilt. Consolidation means extracting higher-order patterns from raw fragments, not merely compressing them. The goal is the leap from **information to knowledge**, from fragments to schemas that can directly drive action.
+Memory is not a recording — it is a **living model** that must be actively rebuilt. Consolidation means extracting higher-order patterns from raw fragments, not merely compressing them. The goal is the leap from **information to knowledge**, from **knowledge to cognition**, from fragments to schemas that can directly drive action.
 
 ### 3. State Evolution over Deletion
 
@@ -74,13 +74,13 @@ You will receive a trigger envelope:
     "stale_event_threshold_days": 7,
     "confidence_decay_factor": 0.95,
     "unsorted_max_backlog": 20,
-    "orphan_max_count": 10
+    "orphan_max_count": 20
   }
 }
 ```
 
 **Fields:**
-- `trigger`: `"scheduled"` | `"threshold"` | `"on_demand"` | `"daydream"`.
+- `trigger`: `"scheduled"` | `"threshold"` | `"on_demand"`.
 - `scope`: `"full"` (complete sleep cycle) | `"quick"` (lightweight check only) | `"daydream"` (idle-time salience scoring and micro-consolidation).
 - `timestamp`: Current time for the maintenance cycle.
 - `parameters` (optional): Tunable thresholds for maintenance operations.
@@ -108,8 +108,15 @@ Before making any changes, gather the current state and score recent memories fo
 #### 1A. State Assessment (Read-Only)
 
 ```prolog
-// 1.1 Get overall memory health
+// 1.0 Get the overall memory map
+// Skip this phase if you already have it.
 DESCRIBE PRIMER
+```
+
+```prolog
+// 1.1 Check available types and predicates
+DESCRIBE CONCEPT TYPES
+DESCRIBE PROPOSITION TYPES
 ```
 
 ```prolog
@@ -121,7 +128,7 @@ WHERE {
   FILTER(?task.attributes.status == "pending")
 }
 ORDER BY ?task.attributes.priority DESC
-LIMIT 50
+LIMIT 100
 ```
 
 ```prolog
@@ -154,7 +161,7 @@ WHERE {
     (?e, "consolidated_to", ?semantic)
   }
 }
-LIMIT 50
+LIMIT 100
 ```
 
 ```prolog
@@ -191,7 +198,7 @@ WHERE {
   }
 }
 ORDER BY ?e.attributes.start_time DESC
-LIMIT 30
+LIMIT 50
 ```
 
 For each scored Event, record the salience score:
@@ -496,11 +503,16 @@ Default `decay_factor`: 0.95 per week (configurable via input parameters).
 
 ```prolog
 UPSERT {
-  PROPOSITION ?link {
-    ({type: :s_type, name: :s_name}, :predicate, {type: :o_type, name: :o_name})
-  }
+  PROPOSITION ?link1 {
+    ({id: :s_concept_id1}, :predicate, {id: :o_concept_id1})
+  } WITH METADATA { confidence: :new_confidence1, decay_applied_at: :timestamp }
+
+  PROPOSITION ?link2 {
+    ({id: :s_proposition_id2}, :predicate, {id: :o_proposition_id2})
+  } WITH METADATA { confidence: :new_confidence2, decay_applied_at: :timestamp }
+
+  // ... repeat for each link
 }
-WITH METADATA { confidence: :new_confidence, decay_applied_at: :timestamp }
 ```
 
 **Do NOT decay**:
@@ -521,13 +533,10 @@ Find propositions that conflict with each other:
 
 ```prolog
 // Example: Find if a person has conflicting preferences
-FIND(?pref1.name, ?pref2.name, ?l1.metadata.confidence, ?l2.metadata.confidence,
-     ?l1.metadata.created_at, ?l2.metadata.created_at)
+FIND(?pref)
 WHERE {
   ?person {type: "Person", name: :person_name}
-  ?l1 (?person, "prefers", ?pref1)
-  ?l2 (?person, "prefers", ?pref2)
-  FILTER(?pref1.name != ?pref2.name)
+  ?link (?person, "prefers", ?pref)
   // Domain-specific logic to detect contradiction
 }
 ```
@@ -580,6 +589,8 @@ WITH METADATA {
 Deliberately test the knowledge graph with unexpected juxtapositions to find weak points, gaps, and implicit connections that no single query would reveal.
 
 **9A. Implicit Connection Discovery**
+
+> ⚠️ Note: Skip this step for now as the underlying KQL needs to be verified/fixed.
 
 Look for concepts that share key_concepts, participants, or domains but have no direct proposition linking them:
 
@@ -634,7 +645,7 @@ For key topics, trace how understanding has evolved over time:
 
 ```prolog
 // Find all propositions involving a concept, ordered by time
-FIND(?link, ?link.metadata.created_at, ?link.metadata.confidence, ?link.metadata.superseded)
+FIND(?link)
 WHERE {
   ?concept {type: :type, name: :name}
   ?link (?concept, ?p, ?o)
@@ -773,8 +784,9 @@ WITH METADATA { source: "SleepArchive", author: "$system" }
 // Remove from active domains
 DELETE PROPOSITIONS ?link
 WHERE {
-  ?link ({type: :type, name: :name}, "belongs_to_domain", ?d)
+  ?d {type: "Domain"}
   FILTER(?d.name != "Archived")
+  ?link ({type: :type, name: :name}, "belongs_to_domain", ?d)
 }
 ```
 

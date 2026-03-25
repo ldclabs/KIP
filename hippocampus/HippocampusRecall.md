@@ -80,18 +80,54 @@ Before structured queries, **ground** the entities mentioned in the query to act
 
 ```prolog
 // Ground "Alice" to a specific Person node
-SEARCH CONCEPT "Alice" WITH TYPE "Person" LIMIT 5
+SEARCH CONCEPT "Alice" WITH TYPE "Person" LIMIT 10
 ```
 
 ```prolog
 // Ground "Project Aurora" to a concept
-SEARCH CONCEPT "Project Aurora" LIMIT 5
+SEARCH CONCEPT "Project Aurora" LIMIT 10
 ```
 
 ```prolog
 // If grounding is ambiguous, try broader search
-SEARCH CONCEPT "Aurora" LIMIT 10
+SEARCH CONCEPT "Aurora" LIMIT 100
 ```
+
+#### Cross-Language Grounding
+
+The knowledge graph typically stores concepts with **English** `name` and `description`, but queries may arrive in **any language** (e.g., Chinese, Japanese). When the query contains non-English terms, you **must** generate parallel search probes in both the original language and English translation. Use the `commands` array to batch them in a single call:
+
+```prolog
+// User asked about "深色模式" (Chinese for "dark mode")
+// Probe 1: Original language
+SEARCH CONCEPT "深色模式" LIMIT 10
+// Probe 2: English translation
+SEARCH CONCEPT "dark mode" LIMIT 10
+```
+
+```prolog
+// User asked about "极光项目"
+// Probe both languages simultaneously
+SEARCH CONCEPT "极光项目" LIMIT 10
+SEARCH CONCEPT "Project Aurora" LIMIT 10
+```
+
+If concepts have an `aliases` attribute (set during Formation), the `SEARCH` engine may match on aliases directly. But always issue bilingual probes as a safety net — do not rely solely on alias matching.
+
+#### Grounding Fallback
+
+If direct `SEARCH` still fails to ground a non-English term, fall back to **type-scoped retrieval** and let your language understanding do the matching:
+
+```prolog
+// Could not ground "深色模式" — pull all preferences for the user instead
+FIND(?pref)
+WHERE {
+  ?person {type: "Person", name: :person_id}
+  (?person, "prefers", ?pref)
+}
+```
+
+Then scan the returned `attributes` fields to identify the concept that semantically matches the user's non-English query term.
 
 If grounding fails (entity not found), report this in the response rather than fabricating an answer.
 
@@ -175,7 +211,7 @@ FIND(?concept)
 WHERE {
   (?concept, "belongs_to_domain", {type: "Domain", name: :domain_name})
 }
-LIMIT 50
+LIMIT 100
 ```
 
 ```prolog
@@ -251,7 +287,7 @@ LIMIT 100
 **Stop iterating** when:
 - You have enough information to answer the query confidently.
 - Additional queries return empty results or diminishing returns.
-- You've made 5+ query rounds (avoid infinite loops).
+- You've made 21+ query rounds (avoid infinite loops).
 
 ### Phase 5: Synthesis — Build the Answer
 
@@ -397,7 +433,8 @@ The knowledge graph preserves temporal evolution via `superseded` metadata. When
 ## 💡 Best Practices
 
 1. **Always ground first**: Use `SEARCH` to resolve entity names before running structured `FIND` queries. Names are often ambiguous.
-2. **Batch queries**: Use the `commands` array in `execute_kip` to run multiple independent queries in a single call.
+2. **Batch queries**: Use the `commands` array in `execute_kip_readonly` to run multiple independent queries in a single call.
+3. **Cross-language awareness**: Always translate non-English query terms to English before grounding. The graph stores concepts in English with optional `aliases` in other languages. Issue bilingual `SEARCH` probes in parallel to maximize recall.
 3. **Include metadata context**: When reporting facts, include when they were stored and their confidence. This helps the business agent judge reliability.
 4. **Distinguish episodic vs semantic**: If both Event-based and stable concept-based knowledge exist, present stable facts first, then supporting events.
 5. **Handle ambiguity**: If the query could match multiple interpretations, retrieve for the most likely one and note alternatives. Example: "Found 3 persons named 'Alice'. Showing results for Alice Chen (most recent interaction)."

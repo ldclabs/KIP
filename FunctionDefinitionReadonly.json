@@ -1,0 +1,27 @@
+{
+  "name": "execute_kip_readonly",
+  "description": "Executes one or more read-only KIP (Knowledge Interaction Protocol) commands (e.g. FIND, SEARCH, DESCRIBE) against the Cognitive Nexus to query from your persistent memory.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "commands": {
+        "type": "array",
+        "description": "An array of KIP commands for batch execution (reduces round-trips). Commands are executed sequentially; execution stops on first error.",
+        "items": {
+          "type": "string"
+        }
+      },
+      "parameters": {
+        "type": "object",
+        "description": "An optional JSON object of key-value pairs used for safe substitution of placeholders in the command string(s). Placeholders should start with ':' (e.g., :name, :limit). IMPORTANT: A placeholder must represent a complete JSON value token (e.g., name: :name). Do not embed placeholders inside quoted strings (e.g., \"Hello :name\"), because substitution uses JSON serialization."
+      },
+      "dry_run": {
+        "type": "boolean",
+        "description": "If set to true, the command(s) will only be validated for syntactical and logical correctness without being executed."
+      }
+    },
+    "required": [
+      "commands"
+    ]
+  }
+}

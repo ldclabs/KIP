@@ -245,6 +245,7 @@ UPSERT {
     {type: "Preference", name: :pref_name}
     SET ATTRIBUTES {
       description: :description,
+      aliases: :aliases,
       confidence: 0.85
     }
     SET PROPOSITIONS {
@@ -456,3 +457,4 @@ Warnings:
    - 0.4–0.6: Speculative, may need future verification.
 4. **Prefer updates over new nodes**: If a preference or fact already exists, update its attributes and metadata rather than creating a new concept.
 5. **Minimal schema evolution**: Only introduce new types/predicates when existing ones genuinely don't fit. Prefer reusing existing schema.
+6. **Cross-language aliases**: When extracting concepts from non-English conversations, always use a **normalized English `name`** as the primary key, and store the original-language terms (and other common translations) in an `aliases` array attribute. This enables the Recall layer to ground entities across languages. Example: `name: "dark_mode"`, `aliases: ["深色模式", "暗黑模式", "Dark mode"]`.
