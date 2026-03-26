@@ -1,0 +1,64 @@
+{
+  "name": "vscode-kip",
+  "displayName": "KIP Language",
+  "description": "Language support for KIP (Knowledge Interaction Protocol): syntax highlighting, formatting, diagnostics, and code folding for .kip files",
+  "version": "0.1.0",
+  "publisher": "ldclabs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ldclabs/KIP",
+    "directory": "packages/vscode-kip"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters"
+  ],
+  "activationEvents": [
+    "onLanguage:kip"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "kip",
+        "aliases": [
+          "KIP",
+          "kip"
+        ],
+        "extensions": [
+          ".kip"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icon.png",
+          "dark": "./icon.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "kip",
+        "scopeName": "source.kip",
+        "path": "./syntaxes/kip.tmLanguage.json"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "watch": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch",
+    "package": "vsce package --no-dependencies",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.27.0",
+    "typescript": "^5.8.0"
+  },
+  "dependencies": {
+    "@ldclabs/kip-lang": "workspace:*"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "@ldclabs/kip-lang",
+  "version": "0.1.0",
+  "description": "KIP (Knowledge Interaction Protocol) language toolkit: lexer, parser, formatter, and diagnostics",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "node --test dist/**/*.test.js"
+  },
+  "keywords": [
+    "kip",
+    "knowledge-graph",
+    "parser",
+    "formatter",
+    "lexer"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ldclabs/KIP",
+    "directory": "packages/kip-lang"
+  }
+}

@@ -5,3 +5,6 @@ debug/
 .claude
 .mcpregistry*
 .vscode
+node_modules
+dist
+*.vsix

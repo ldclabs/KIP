@@ -1,0 +1,209 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "KIP",
+  "scopeName": "source.kip",
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#string"
+    },
+    {
+      "include": "#number"
+    },
+    {
+      "include": "#boolean"
+    },
+    {
+      "include": "#null"
+    },
+    {
+      "include": "#variable"
+    },
+    {
+      "include": "#parameter"
+    },
+    {
+      "include": "#system-ident"
+    },
+    {
+      "include": "#function"
+    },
+    {
+      "include": "#keyword-compound"
+    },
+    {
+      "include": "#keyword"
+    },
+    {
+      "include": "#operator"
+    },
+    {
+      "include": "#punctuation"
+    }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.line.double-slash.kip",
+      "match": "//.*$"
+    },
+    "string": {
+      "name": "string.quoted.double.kip",
+      "begin": "\"",
+      "end": "\"",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.kip"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.kip"
+        }
+      },
+      "patterns": [
+        {
+          "name": "constant.character.escape.kip",
+          "match": "\\\\(?:[\"\\\\/bfnrt]|u[0-9a-fA-F]{4})"
+        }
+      ]
+    },
+    "number": {
+      "name": "constant.numeric.kip",
+      "match": "-?\\b\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?\\b"
+    },
+    "boolean": {
+      "name": "constant.language.boolean.kip",
+      "match": "\\b(true|false)\\b"
+    },
+    "null": {
+      "name": "constant.language.null.kip",
+      "match": "\\bnull\\b"
+    },
+    "variable": {
+      "name": "variable.other.kip",
+      "match": "\\?[a-zA-Z_][a-zA-Z0-9_]*"
+    },
+    "parameter": {
+      "name": "variable.parameter.kip",
+      "match": ":[a-zA-Z_][a-zA-Z0-9_]*"
+    },
+    "system-ident": {
+      "name": "constant.other.system.kip",
+      "match": "\\$[a-zA-Z_][a-zA-Z0-9_]*"
+    },
+    "function": {
+      "name": "support.function.kip",
+      "match": "\\b(COUNT|SUM|AVG|MIN|MAX|CONTAINS|STARTS_WITH|ENDS_WITH|REGEX|IN|IS_NULL|IS_NOT_NULL|DISTINCT)\\b"
+    },
+    "keyword-compound": {
+      "patterns": [
+        {
+          "name": "keyword.other.kip",
+          "match": "\\bSET\\s+ATTRIBUTES\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "\\bSET\\s+PROPOSITIONS\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "\\bWITH\\s+METADATA\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "\\bWITH\\s+TYPE\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "\\bORDER\\s+BY\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "\\bCONCEPT\\s+TYPES?\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "\\bPROPOSITION\\s+TYPES?\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "\\bDELETE\\s+ATTRIBUTES\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "\\bDELETE\\s+METADATA\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "\\bDELETE\\s+PROPOSITIONS\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "\\bDELETE\\s+CONCEPT\\b"
+        }
+      ]
+    },
+    "keyword": {
+      "name": "keyword.control.kip",
+      "match": "\\b(FIND|WHERE|UPSERT|DELETE|CONCEPT|PROPOSITION|SET|ATTRIBUTES|PROPOSITIONS|WITH|METADATA|ORDER|BY|LIMIT|CURSOR|FILTER|NOT|OPTIONAL|UNION|DETACH|FROM|ASC|DESC|DESCRIBE|SEARCH|PRIMER|DOMAINS|TYPE|TYPES)\\b"
+    },
+    "operator": {
+      "patterns": [
+        {
+          "name": "keyword.operator.comparison.kip",
+          "match": "==|!=|<=|>=|<|>"
+        },
+        {
+          "name": "keyword.operator.logical.kip",
+          "match": "&&|\\|\\||!"
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.section.block.begin.kip",
+          "match": "\\{"
+        },
+        {
+          "name": "punctuation.section.block.end.kip",
+          "match": "\\}"
+        },
+        {
+          "name": "punctuation.section.parens.begin.kip",
+          "match": "\\("
+        },
+        {
+          "name": "punctuation.section.parens.end.kip",
+          "match": "\\)"
+        },
+        {
+          "name": "punctuation.section.brackets.begin.kip",
+          "match": "\\["
+        },
+        {
+          "name": "punctuation.section.brackets.end.kip",
+          "match": "\\]"
+        },
+        {
+          "name": "punctuation.separator.comma.kip",
+          "match": ","
+        },
+        {
+          "name": "punctuation.separator.colon.kip",
+          "match": ":"
+        },
+        {
+          "name": "punctuation.accessor.dot.kip",
+          "match": "\\."
+        },
+        {
+          "name": "punctuation.separator.pipe.kip",
+          "match": "\\|"
+        }
+      ]
+    }
+  }
+}
