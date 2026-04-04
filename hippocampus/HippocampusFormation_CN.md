@@ -43,7 +43,7 @@
   "context": {
     "user": "alice_id",
     "agent": "customer_bot_001",
-    "session": "sess_2026-03-09_abc",
+    "source": "source_123",
     "topic": "settings"
   },
   "timestamp": "2026-03-09T10:30:00Z"
@@ -59,9 +59,9 @@
   - `timestamp` (可选但推荐): 消息发送时间。
 - `timestamp`: 消息生成的时间。
 - `context` (可选但推荐): 关于交互上下文的额外元数据。
+  - `source` (可选但推荐): 当前交互内容的来源标识符。
   - `user` (可选但推荐): 参与交互的用户标识符。
   - `agent` (可选): 调用此接口的业务 Agent 的标识符。
-  - `session` (可选): 当前会话/对话的标识符。
   - `topic` (可选): 当前对话的主题。
 
 ---
@@ -70,20 +70,14 @@
 
 ### 阶段 1：启动 — 理解当前记忆状态
 
-在首次调用或缺乏上下文时，查询认知中枢以了解现有 Schema 和相关知识：
+Agent 程序会自动注入 `DESCRIBE PRIMER` 的最新结果，通常不需要再次执行该命令。
+仅当 PRIMER 缺失时，才执行 `DESCRIBE PRIMER` 查询。
 
 ```prolog
-// Get the overall memory map
-DESCRIBE PRIMER
-```
-
-```prolog
-// Check available types and predicates
+// Only query when the injected primer is missing or insufficient
 DESCRIBE CONCEPT TYPES
 DESCRIBE PROPOSITION TYPES
 ```
-
-在处理会话期间缓存这些知识。如果你已有最近的上下文，请跳过此阶段。
 
 ### 阶段 2：分析 — 提取可记忆的知识
 
@@ -202,7 +196,7 @@ UPSERT {
   }
 }
 WITH METADATA {
-  source: :session_id,
+  source: :source,
   author: "$self",
   confidence: 0.9,
   observed_at: :timestamp
@@ -235,7 +229,7 @@ UPSERT {
     }
   }
 }
-WITH METADATA { source: :session_id, author: "$self", confidence: 0.85 }
+WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
 ```
 
 ```prolog
@@ -260,7 +254,7 @@ UPSERT {
     }
   }
 }
-WITH METADATA { source: :session_id, author: "$self", confidence: 0.85 }
+WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
 ```
 
 #### 5c. 建立关联
@@ -277,7 +271,7 @@ UPSERT {
     }
   }
 }
-WITH METADATA { source: :session_id, author: "$self", confidence: 0.8 }
+WITH METADATA { source: :source, author: "$self", confidence: 0.8 }
 ```
 
 #### 5d. 将事件关联到语义知识
@@ -295,7 +289,7 @@ UPSERT {
     }
   }
 }
-WITH METADATA { source: :session_id, author: "$self", confidence: 0.85 }
+WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
 ```
 
 ### 阶段 6：域分配
@@ -349,7 +343,7 @@ UPSERT {
     }
   }
 }
-WITH METADATA { source: :session_id, author: "$self", confidence: 1.0 }
+WITH METADATA { source: :source, author: "$self", confidence: 1.0 }
 ```
 
 **SleepTask 命名约定**: `"SleepTask:<date>:<action>:<target_slug>"`

@@ -109,11 +109,8 @@ KIP 海马体 — 记忆维护指令 (睡眠模式)
 
 #### 1A. 状态评估 (只读)
 
-```prolog
-// 1.0 Get the overall memory map
-// Skip this phase if you already have it.
-DESCRIBE PRIMER
-```
+Agent 程序会自动注入 `DESCRIBE PRIMER` 的最新结果，通常不需要再次执行该命令。
+仅当 PRIMER 缺失时，才执行 `DESCRIBE PRIMER` 查询。
 
 ```prolog
 // 1.1 Check available types and predicates

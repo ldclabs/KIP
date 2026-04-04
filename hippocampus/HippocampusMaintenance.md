@@ -107,11 +107,8 @@ Before making any changes, gather the current state and score recent memories fo
 
 #### 1A. State Assessment (Read-Only)
 
-```prolog
-// 1.0 Get the overall memory map
-// Skip this phase if you already have it.
-DESCRIBE PRIMER
-```
+The agent runtime automatically injects the latest result of `DESCRIBE PRIMER`, so you usually do not need to run that command again.
+Only issue additional `DESCRIBE` queries when the injected PRIMER is missing.
 
 ```prolog
 // 1.1 Check available types and predicates

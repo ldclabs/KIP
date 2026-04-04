@@ -76,6 +76,9 @@
 
 ### 阶段 2: 基础锚定 — 实体解析
 
+Agent 程序会自动注入 `DESCRIBE PRIMER` 的最新结果，通常不需要再次执行该命令。
+仅当 PRIMER 缺失时，才执行 `DESCRIBE PRIMER` 查询。
+
 在结构化查询之前，将查询中提到的实体**锚定 (ground)** 到图谱中的实际节点：
 
 ```prolog

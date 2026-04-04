@@ -76,6 +76,9 @@ Parse the natural language query to determine:
 
 ### Phase 2: Grounding — Entity Resolution
 
+The agent runtime automatically injects the latest result of `DESCRIBE PRIMER`, so you usually do not need to run that command again.
+Only issue additional `DESCRIBE` queries when the injected PRIMER is missing.
+
 Before structured queries, **ground** the entities mentioned in the query to actual nodes in the graph:
 
 ```prolog
