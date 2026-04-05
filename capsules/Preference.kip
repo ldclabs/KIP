@@ -43,7 +43,6 @@ UPSERT {
                 }
             }
         }
-
         SET PROPOSITIONS {
             ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
         }
@@ -54,10 +53,9 @@ UPSERT {
         {type: "$PropositionType", name: "prefers"}
         SET ATTRIBUTES {
             description: "Asserts that a Person has a stable preference for a given object. The subject is typically a Person, and the object is typically a Preference concept. When a preference changes, the old proposition should be marked with superseded metadata rather than deleted.",
-            subject_types: ["Person"],
-            object_types: ["Preference"]
+            object_types: ["Preference"],
+            subject_types: ["Person"]
         }
-
         SET PROPOSITIONS {
             ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
         }

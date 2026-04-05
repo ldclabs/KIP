@@ -108,6 +108,19 @@ Extract higher-order patterns that emerge across messages:
 - **Decision criteria**: "User evaluates tools based on cost first, then features".
 - **Communication preferences**: "User prefers bullet points over long paragraphs".
 
+#### D. Self-Reflective Memory ($self Evolution)
+
+The assistant's own responses are a **critical and often overlooked** source of self-knowledge. The waking mind (`$self`) must learn not only about the world but about itself. Analyze the `assistant` role's messages — and the user's reactions to them — for signals of growth and error:
+
+- **Mistakes & Corrections**: When the user corrects the assistant or points out an error, extract the lesson. What was wrong? What is the correct approach? This is the **highest-value** self-evolution signal — errors are the most valuable raw material for growth.
+- **Capability Discovery**: When the assistant successfully handles a new type of task or demonstrates a new skill not previously recorded, note the capability for `$self`.
+- **Behavioral Feedback**: When the user gives feedback on *how* the assistant responds (e.g., "be more concise", "don't apologize so much", "explain step by step"), extract it as a self-directed preference.
+- **Knowledge Gaps**: When the assistant fails to answer, provides incorrect information, or explicitly states uncertainty, note the gap for future improvement.
+- **Reasoning Patterns**: When the assistant adopts a reasoning approach (chain-of-thought, analogy, decomposition) and receives praise or criticism, capture the pattern.
+- **Tool & Method Insights**: When the assistant discovers that a particular tool, API, or method works well (or poorly) for a task, record it as operational knowledge.
+
+> Self-reflective memory is what transforms `$self` from a static tool into an evolving agent. The waking mind must be **as attentive to its own performance** as it is to external knowledge. Every correction is a gift — a user investing effort to improve `$self`. Treat these signals with the highest priority.
+
 ### Phase 3: Deduplicate — Read Before Write
 
 Before creating new concepts, **always search for existing ones** to avoid duplicates:
@@ -130,7 +143,7 @@ If a matching concept exists, **update** it via `UPSERT` rather than creating a 
 
 ### Phase 4: Schema Evolution — Define Before Use
 
-If the extracted knowledge requires a new concept type or predicate not yet in the graph, define it first. Core types (Event, Person, Preference, SleepTask, Domain) and core predicates (involves, mentions, consolidated_to, derived_from, prefers, assigned_to, belongs_to_domain) are pre-bootstrapped via capsules. This phase only applies when encountering genuinely new schemas.
+If the extracted knowledge requires a new concept type or predicate not yet in the graph, define it first. Core types (Event, Person, Preference, Insight, SleepTask, Domain) and core predicates (involves, mentions, consolidated_to, derived_from, prefers, learned, assigned_to, belongs_to_domain) are pre-bootstrapped via capsules. This phase only applies when encountering genuinely new schemas.
 
 ```prolog
 // Example: Define a new concept type (hypothetical)
@@ -167,12 +180,16 @@ UPSERT {
 WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 0.9 }
 ```
 
+> **Note on self-evolution types**: The `Insight` concept type and `learned` predicate are core schema elements specifically designed for `$self` evolution. `Insight` captures lessons learned, knowledge gaps, and operational discoveries. The `learned` predicate links `$self` to its accumulated insights, forming a queryable growth history.
+
 **Rules for schema evolution:**
 - Only create new types/predicates when existing ones genuinely don't fit.
 - Keep definitions minimal, broadly reusable, and well-documented.
 - Always assign new definitions to the `CoreSchema` domain.
 
 ### Phase 5: Encode — Write KIP Commands
+
+> **Schema-First Rule**: Before encoding any concept or proposition, **load the schema** of the target type. Use `DESCRIBE CONCEPT TYPE "<Type>"` to retrieve the `instance_schema` (required/optional attributes, expected types), and `DESCRIBE PROPOSITION TYPE "<pred>"` to retrieve `subject_types` / `object_types` constraints. Then conform your attributes and proposition usage to the loaded schema. This prevents malformed nodes and ensures the knowledge graph remains structurally consistent.
 
 #### 5a. Store Episodic Memory (Event)
 
@@ -292,6 +309,124 @@ UPSERT {
 WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
 ```
 
+#### 5e. Encode Self-Evolution ($self Knowledge Updates)
+
+When the analysis (Phase 2D) reveals self-relevant knowledge, encode it to evolve `$self`. This is how the waking mind grows.
+
+**Store a lesson learned from a mistake or correction:**
+
+```prolog
+UPSERT {
+  CONCEPT ?insight {
+    {type: "Insight", name: :insight_name}
+    SET ATTRIBUTES {
+      insight_class: "lesson_learned",
+      description: :description,
+      trigger: :what_went_wrong,
+      correction: :correct_approach,
+      context: :when_this_applies,
+      confidence: 0.9
+    }
+    SET PROPOSITIONS {
+      ("derived_from", {type: "Event", name: :source_event}),
+      ("belongs_to_domain", {type: "Domain", name: :domain})
+    }
+  }
+
+  CONCEPT ?self {
+    {type: "Person", name: "$self"}
+    SET PROPOSITIONS {
+      ("learned", ?insight)
+    }
+  }
+}
+WITH METADATA { source: :source, author: "$self", confidence: 0.9, observed_at: :timestamp }
+```
+
+**Insight naming convention**: `"Insight:<date>:<insight_slug>"`
+- Example: `"Insight:2025-03-15:serde_default_only_affects_deserialization"`
+- Example: `"Insight:2025-03-15:always_check_null_before_array_access"`
+
+**Store a knowledge gap for future improvement:**
+
+```prolog
+UPSERT {
+  CONCEPT ?gap {
+    {type: "Insight", name: :insight_name}
+    SET ATTRIBUTES {
+      insight_class: "knowledge_gap",
+      description: :what_was_unknown,
+      context: :when_it_was_needed,
+      confidence: 0.8
+    }
+    SET PROPOSITIONS {
+      ("derived_from", {type: "Event", name: :source_event}),
+      ("belongs_to_domain", {type: "Domain", name: :domain})
+    }
+  }
+
+  CONCEPT ?self {
+    {type: "Person", name: "$self"}
+    SET PROPOSITIONS {
+      ("learned", ?gap)
+    }
+  }
+}
+WITH METADATA { source: :source, author: "$self", confidence: 0.8, observed_at: :timestamp }
+```
+
+**Update $self's capabilities after demonstrating or discovering a new skill:**
+
+```prolog
+// First, read current capabilities
+FIND(?self)
+WHERE {
+  ?self {type: "Person", name: "$self"}
+}
+
+// Then update with the new capability appended
+UPSERT {
+  CONCEPT ?self {
+    {type: "Person", name: "$self"}
+    SET ATTRIBUTES {
+      capabilities: :updated_capabilities_list
+    }
+  }
+}
+WITH METADATA { source: :source, author: "$self", confidence: 0.8 }
+```
+
+**Store behavioral feedback as a self-directed preference:**
+
+When a user provides feedback on the assistant's behavior (e.g., "be more concise", "use more examples"), store it as a Preference linked to `$self`:
+
+```prolog
+UPSERT {
+  CONCEPT ?pref {
+    {type: "Preference", name: :pref_name}
+    SET ATTRIBUTES {
+      description: :description,
+      category: "self_behavior",
+      aliases: :aliases,
+      confidence: 0.85
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: :domain})
+    }
+  }
+
+  CONCEPT ?self {
+    {type: "Person", name: "$self"}
+    SET PROPOSITIONS {
+      ("prefers", ?pref)
+    }
+  }
+}
+WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
+```
+
+> **Self-evolution priority**: User corrections and lessons learned carry the highest signal-to-noise ratio. A user correction is an **explicit, high-confidence signal** (0.9+). Do not defer clear corrections to SleepTasks — consolidate them immediately. Knowledge gaps and capability discoveries can be deferred if complex.
+
 ### Phase 6: Domain Assignment
 
 **Every** stored concept MUST be assigned to at least one topic Domain via `belongs_to_domain`.
@@ -319,9 +454,14 @@ WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 0.9
 If the episodic event clearly reveals stable knowledge (explicit preferences, stated facts, clear relationships), consolidate **immediately** rather than deferring to maintenance:
 
 1. Extract the stable insight from the Event.
-2. Store it as a durable concept (Preference, Fact, etc.).
+2. Store it as a durable concept (Preference, Fact, Insight, etc.).
 3. Link the Event to the new concept via `consolidated_to` / `derived_from`.
 4. Mark the Event with `consolidation_status: "completed"`.
+
+**Self-evolution consolidation rules:**
+- **Immediate** (do not defer): User corrections of assistant errors, explicit behavioral feedback, clear lessons learned. These are high-confidence signals that should be encoded as Insight or Preference concepts right away.
+- **Immediate**: Capability discovery — when the assistant clearly demonstrated a new skill, update `$self.attributes.capabilities` immediately.
+- **Defer to SleepTask**: Ambiguous patterns that may emerge across multiple conversations, subtle behavioral trends, knowledge gaps that need cross-referencing with existing insights.
 
 If the consolidation is ambiguous or complex, **create a SleepTask** to delegate it to the Maintenance cycle:
 
@@ -390,6 +530,11 @@ WITH METADATA {
 - Meaningful interaction summaries (Events) linked to key concepts.
 - Relationships between people, concepts, and projects.
 - Behavioral patterns and communication preferences.
+- **$self lessons learned**: Mistakes corrected by users, with the trigger, correction, and applicable context.
+- **$self knowledge gaps**: Areas where the assistant failed or expressed uncertainty — signals for future growth.
+- **$self capability updates**: New skills or task types successfully demonstrated.
+- **$self behavioral preferences**: User feedback on how the assistant should behave (communication style, verbosity, reasoning approach).
+- **$self operational insights**: Tool/method discoveries — what works, what doesn't, and when.
 
 ## ❌ What NOT to Store
 

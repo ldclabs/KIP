@@ -108,6 +108,19 @@ DESCRIBE PROPOSITION TYPES
 - **决策标准**: "用户在评估工具时优先考虑成本，其次是功能"。
 - **沟通偏好**: "用户偏好列表符号而非长篇大论"。
 
+#### D. 自反省记忆 ($self 的自我进化)
+
+助手 (assistant) 自身的回复是一个**关键且常被忽视的**自我知识来源。清醒心智 (`$self`) 不仅需要学习关于世界的知识，还必须学习关于自身的知识。分析 `assistant` 角色的消息——以及用户对这些消息的反应——以发现成长和纠错信号：
+
+- **错误与纠正**: 当用户纠正助手或指出错误时，提取经验教训。哪里错了？正确的做法是什么？这是**最高价值**的自我进化信号——错误是成长最宝贵的原材料。
+- **能力发现**: 当助手成功处理了一种此前未记录的新类型的任务或技能时，为 `$self` 记录该能力。
+- **行为反馈**: 当用户对助手的回复*方式*给出反馈（例如 "请更简洁"、"不要总是道歉"、"请逐步解释"），将其提取为面向自身的偏好。
+- **知识缺口**: 当助手未能回答、提供了不正确的信息或明确表示不确定时，记录该缺口以便未来改进。
+- **推理模式**: 当助手采用了特定的推理方法（思维链、类比、分解）并收到表扬或批评时，捕获该模式。
+- **工具与方法洞察**: 当助手发现某个特定的工具、API 或方法对于某类任务效果好（或不好）时，将其记录为运维知识。
+
+> 自反省记忆是将 `$self` 从静态工具转变为进化智能体的关键。清醒心智必须**像关注外部知识一样关注自身的表现**。每一次纠正都是一份礼物——用户投入精力来帮助 `$self` 进步。应以最高优先级对待这些信号。
+
 ### 阶段 3：去重 — 先读后写
 
 在创建新概念之前，**务必先搜索现有概念**以避免重复：
@@ -130,7 +143,7 @@ WHERE {
 
 ### 阶段 4：Schema 演进 — 先定义后使用
 
-如果提取的知识需要图谱中尚不存在的新概念类型或谓词，请先进行定义。核心类型（Event, Person, Preference, SleepTask, Domain）和核心谓词（involves, mentions, consolidated_to, derived_from, prefers, assigned_to, belongs_to_domain）已通过 capsules (胶囊) 预先启动。此阶段仅在遇到真正的新 Schema 时适用。
+如果提取的知识需要图谱中尚不存在的新概念类型或谓词，请先进行定义。核心类型（Event, Person, Preference, Insight, SleepTask, Domain）和核心谓词（involves, mentions, consolidated_to, derived_from, prefers, learned, assigned_to, belongs_to_domain）已通过 capsules (胶囊) 预先启动。此阶段仅在遇到真正的新 Schema 时适用。
 
 ```prolog
 // Example: Define a new concept type (hypothetical)
@@ -167,12 +180,16 @@ UPSERT {
 WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 0.9 }
 ```
 
+> **关于自我进化类型的说明**: `Insight` 概念类型和 `learned` 谓词是专为 `$self` 进化设计的核心 Schema 元素。`Insight` 用于捕获经验教训、知识缺口和运维发现。`learned` 谓词将 `$self` 与其积累的洞察相连接，形成可查询的成长历史。
+
 **Schema 演进规则：**
 - 仅当现有类型/谓词确实不适用时，才创建新的。
 - 保持定义极简、具备广泛复用性，并提供清晰文档。
 - 始终将新定义分配给 `CoreSchema` 域。
 
 ### 阶段 5：编码 — 编写 KIP 命令
+
+> **Schema 优先规则**: 在编码任何概念或命题之前，**先加载目标类型的 Schema**。使用 `DESCRIBE CONCEPT TYPE "<Type>"` 获取 `instance_schema`（必填/可选属性、预期类型），使用 `DESCRIBE PROPOSITION TYPE "<pred>"` 获取 `subject_types` / `object_types` 约束。然后使你的属性和命题用法遵循所加载的 Schema。这可以防止产生格式不正确的节点，并确保知识图谱保持结构一致性。
 
 #### 5a. 存储情景记忆 (Event)
 
@@ -292,6 +309,124 @@ UPSERT {
 WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
 ```
 
+#### 5e. 编码自我进化 ($self 知识更新)
+
+当分析（阶段 2D）揭示了与自身相关的知识时，将其编码以实现 `$self` 的进化。这是清醒心智成长的方式。
+
+**存储从错误或纠正中汲取的经验教训：**
+
+```prolog
+UPSERT {
+  CONCEPT ?insight {
+    {type: "Insight", name: :insight_name}
+    SET ATTRIBUTES {
+      insight_class: "lesson_learned",
+      description: :description,
+      trigger: :what_went_wrong,
+      correction: :correct_approach,
+      context: :when_this_applies,
+      confidence: 0.9
+    }
+    SET PROPOSITIONS {
+      ("derived_from", {type: "Event", name: :source_event}),
+      ("belongs_to_domain", {type: "Domain", name: :domain})
+    }
+  }
+
+  CONCEPT ?self {
+    {type: "Person", name: "$self"}
+    SET PROPOSITIONS {
+      ("learned", ?insight)
+    }
+  }
+}
+WITH METADATA { source: :source, author: "$self", confidence: 0.9, observed_at: :timestamp }
+```
+
+**Insight 命名约定**: `"Insight:<date>:<insight_slug>"`
+- 示例: `"Insight:2025-03-15:serde_default_only_affects_deserialization"`
+- 示例: `"Insight:2025-03-15:always_check_null_before_array_access"`
+
+**存储知识缺口以便未来改进：**
+
+```prolog
+UPSERT {
+  CONCEPT ?gap {
+    {type: "Insight", name: :insight_name}
+    SET ATTRIBUTES {
+      insight_class: "knowledge_gap",
+      description: :what_was_unknown,
+      context: :when_it_was_needed,
+      confidence: 0.8
+    }
+    SET PROPOSITIONS {
+      ("derived_from", {type: "Event", name: :source_event}),
+      ("belongs_to_domain", {type: "Domain", name: :domain})
+    }
+  }
+
+  CONCEPT ?self {
+    {type: "Person", name: "$self"}
+    SET PROPOSITIONS {
+      ("learned", ?gap)
+    }
+  }
+}
+WITH METADATA { source: :source, author: "$self", confidence: 0.8, observed_at: :timestamp }
+```
+
+**在展示或发现新技能后更新 $self 的能力：**
+
+```prolog
+// 首先，读取当前能力列表
+FIND(?self)
+WHERE {
+  ?self {type: "Person", name: "$self"}
+}
+
+// 然后追加新能力并更新
+UPSERT {
+  CONCEPT ?self {
+    {type: "Person", name: "$self"}
+    SET ATTRIBUTES {
+      capabilities: :updated_capabilities_list
+    }
+  }
+}
+WITH METADATA { source: :source, author: "$self", confidence: 0.8 }
+```
+
+**将行为反馈存储为面向自身的偏好：**
+
+当用户对助手的行为提供反馈时（例如 "请更简洁"、"多用一些例子"），将其作为关联到 `$self` 的 Preference 存储：
+
+```prolog
+UPSERT {
+  CONCEPT ?pref {
+    {type: "Preference", name: :pref_name}
+    SET ATTRIBUTES {
+      description: :description,
+      category: "self_behavior",
+      aliases: :aliases,
+      confidence: 0.85
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: :domain})
+    }
+  }
+
+  CONCEPT ?self {
+    {type: "Person", name: "$self"}
+    SET PROPOSITIONS {
+      ("prefers", ?pref)
+    }
+  }
+}
+WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
+```
+
+> **自我进化优先级**: 用户纠正和经验教训具有最高的信噪比。用户纠正是一个**明确的高置信度信号** (0.9+)。不要将明确的纠正推迟到 SleepTask——应当即时整合。知识缺口和能力发现如果复杂，可以延迟处理。
+
 ### 阶段 6：域分配
 
 **每个**存储的概念都必须通过 `belongs_to_domain` 分配给至少一个主题域 (Domain)。
@@ -319,9 +454,14 @@ WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 0.9
 如果情景事件清晰地揭示了稳定的知识（明确的偏好、陈述的事实、清晰的关系），请**即时整合**，而不是推迟到维护阶段：
 
 1. 从事件中提取稳定的洞察。
-2. 将其存储为持久概念（Preference, Fact 等）。
+2. 将其存储为持久概念（Preference, Fact, Insight 等）。
 3. 通过 `consolidated_to` / `derived_from` 将事件链接到新概念。
 4. 将事件标记为 `consolidation_status: "completed"`。
+
+**自我进化整合规则：**
+- **即时整合** (不可延迟): 用户对助手错误的纠正、明确的行为反馈、清晰的经验教训。这些都是高置信度信号，应立即编码为 Insight 或 Preference 概念。
+- **即时整合**: 能力发现——当助手明确展示了新技能时，立即更新 `$self.attributes.capabilities`。
+- **延迟到 SleepTask**: 可能跨多次对话才能浮现的模糊模式、微妙的行为趋势、需要与现有洞察交叉引用的知识缺口。
 
 如果整合模糊或复杂，请**创建一个 SleepTask (睡眠任务)** 以将其委托给维护周期：
 
@@ -390,6 +530,11 @@ WITH METADATA {
 - 与核心概念关联的有意义交互摘要 (Events)。
 - 人、概念与项目之间的关系。
 - 行为模式与沟通偏好。
+- **$self 经验教训**: 被用户纠正的错误，包含触发条件、正确做法和适用场景。
+- **$self 知识缺口**: 助手未能回答或表示不确定的领域——成长的信号。
+- **$self 能力更新**: 成功展示的新技能或任务类型。
+- **$self 行为偏好**: 用户对助手行为方式的反馈（沟通风格、详略程度、推理方法）。
+- **$self 运维洞察**: 工具/方法发现——什么有效、什么无效、何时适用。
 
 ## ❌ 不应该存储什么
 

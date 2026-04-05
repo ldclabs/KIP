@@ -100,8 +100,9 @@ UPSERT {
                 }
             }
         }
-
-        SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "CoreSchema"}) }
+        SET PROPOSITIONS {
+            ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+        }
     }
 }
 WITH METADATA {

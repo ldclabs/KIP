@@ -223,6 +223,8 @@ WITH METADATA { source: "SalienceScoring", author: "$system" }
 
 ### 🌊 阶段 I：NREM — 深度巩固 (慢波睡眠)
 
+> **Schema 优先规则** (适用于以下所有写入阶段): 在创建或更新任何概念或命题之前，**先加载目标类型的 Schema**。使用 `DESCRIBE CONCEPT TYPE "<Type>"` 获取其 `instance_schema`（必填/可选属性、预期类型），使用 `DESCRIBE PROPOSITION TYPE "<pred>"` 获取 `subject_types` / `object_types` 约束。使所有属性和命题用法遵循所加载的 Schema。这在巩固阶段（阶段 2、5）尤为重要，因为那里会从 Event 中合成新的语义概念。
+
 ### 阶段 2：处理 SleepTask
 
 处理由于形成 (Formation) 模式标记的任务。对于每个待处理的 SleepTask：

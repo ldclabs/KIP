@@ -221,6 +221,8 @@ Based on assessment and salience scores, determine which phases need attention a
 
 ### 🌊 Stage I: NREM — Deep Consolidation (Slow-Wave Sleep)
 
+> **Schema-First Rule** (applies to all write phases below): Before creating or updating any concept or proposition, **load the schema** of the target type. Use `DESCRIBE CONCEPT TYPE "<Type>"` to retrieve its `instance_schema` (required/optional attributes, expected types), and `DESCRIBE PROPOSITION TYPE "<pred>"` to retrieve `subject_types` / `object_types` constraints. Conform all attributes and proposition usage to the loaded schema. This is especially important during consolidation (Phases 2, 5) where new semantic concepts are synthesized from Events.
+
 ### Phase 2: Process SleepTasks
 
 Handle tasks flagged by the Formation mode. For each pending SleepTask:

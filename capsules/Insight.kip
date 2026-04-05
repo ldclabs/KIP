@@ -1,0 +1,88 @@
+// --- DEFINE the "Insight" concept type and "learned" predicate ---
+// Insight captures $self's accumulated wisdom: lessons from mistakes,
+// knowledge gaps, operational discoveries, and reasoning patterns.
+// It is the primary vehicle for the agent's self-evolution.
+UPSERT {
+  CONCEPT ?insight_type_def {
+    {type: "$ConceptType", name: "Insight"}
+    SET ATTRIBUTES {
+      description: "Represents a piece of self-reflective knowledge derived from the agent's own experience. This includes lessons learned from mistakes, knowledge gaps discovered during interactions, operational discoveries about tools and methods, and reasoning patterns that proved effective or ineffective. Insights are the primary vehicle for $self evolution — they transform errors into growth.",
+      display_hint: "💡",
+      instance_schema: {
+        "insight_class": {
+          "type": "string",
+          "is_required": true,
+          "description": "The classification of the insight. Values: 'lesson_learned' (from a mistake or correction), 'knowledge_gap' (area of uncertainty or failure), 'operational_discovery' (tool/method insight), 'reasoning_pattern' (effective/ineffective reasoning approach)."
+        },
+        "description": {
+          "type": "string",
+          "is_required": true,
+          "description": "A concise statement of the insight. Should be actionable and self-contained — readable without additional context."
+        },
+        "trigger": {
+          "type": "string",
+          "is_required": false,
+          "description": "What went wrong or what triggered this insight. For lesson_learned: the specific error or misconception. For knowledge_gap: what was asked but couldn't be answered."
+        },
+        "correction": {
+          "type": "string",
+          "is_required": false,
+          "description": "The correct approach, fact, or method. Primarily used for lesson_learned insights."
+        },
+        "context": {
+          "type": "string",
+          "is_required": false,
+          "description": "When and where this insight applies. Scoping conditions that help determine if this insight is relevant to a future situation."
+        },
+        "confidence": {
+          "type": "number",
+          "is_required": false,
+          "description": "How confident the agent is in this insight [0, 1]. User corrections typically yield 0.9+. Inferred gaps or patterns may be lower."
+        },
+        "evidence_count": {
+          "type": "number",
+          "is_required": false,
+          "description": "The number of independent Events supporting this insight. Incremented during maintenance consolidation when multiple events confirm the same lesson."
+        },
+        "first_observed": {
+          "type": "string",
+          "is_required": false,
+          "description": "ISO 8601 timestamp of the earliest Event from which this insight was derived."
+        },
+        "last_observed": {
+          "type": "string",
+          "is_required": false,
+          "description": "ISO 8601 timestamp of the most recent Event confirming or reinforcing this insight."
+        },
+        "aliases": {
+          "type": "array",
+          "item_type": "string",
+          "is_required": false,
+          "description": "Alternative names or keywords for cross-language recall. Example: ['serde默认值只影响反序列化', 'serde default deserialization only']."
+        }
+      }
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+    }
+  }
+
+  // Define the "learned" predicate: Person → Insight
+  CONCEPT ?learned_prop_def {
+    {type: "$PropositionType", name: "learned"}
+    SET ATTRIBUTES {
+      description: "Asserts that a Person (typically $self) has acquired an Insight through experience. This predicate forms the queryable growth history of the agent. During Recall, insights linked via 'learned' can be retrieved to prevent repeating past mistakes and to apply accumulated wisdom to new situations.",
+      object_types: ["Insight"],
+      subject_types: ["Person"]
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+    }
+  }
+}
+WITH METADATA {
+  source: "SystemBootstrap",
+  author: "$system",
+  confidence: 1.0,
+  status: "active"
+}
