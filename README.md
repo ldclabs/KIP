@@ -109,21 +109,6 @@ Pre-built knowledge capsules for bootstrapping your Cognitive Nexus:
 | [persons/self.kip](./capsules/persons/self.kip)     | The `$self` concept instance                                |
 | [persons/system.kip](./capsules/persons/system.kip) | The `$system` concept instances                             |
 
-### 🔌 MCP Server (`mcp/`)
-
-[kip-mcp-server](./mcp/kip-mcp-server/) - Model Context Protocol server that exposes KIP tools over stdio:
-
-- **Tools**: `execute_kip`, `list_logs`
-- **Resources**: `kip://docs/SelfInstructions.md`, `kip://docs/KIPSyntax.md`
-- **Prompt**: `kip_bootstrap` for ready-to-inject system prompt
-
-### 🎯 Agent Skills (`skill/`)
-
-[kip-cognitive-nexus](./skill/kip-cognitive-nexus/) - Publishable skill for AI agents:
-
-- Python client script for `anda_cognitive_nexus_server`
-- Complete syntax reference and agent workflow guide
-
 ### 🧠 Hippocampus (`hippocampus/`)
 
 A dedicated LLM layer that manages the Cognitive Nexus on behalf of business agents — no KIP knowledge required:
@@ -150,6 +135,21 @@ A dedicated LLM layer that manages the Cognitive Nexus on behalf of business age
 │  Cognitive Nexus    │  ← Persistent Knowledge Graph
 └─────────────────────┘
 ```
+
+### 🔌 MCP Server (`mcp/`)
+
+[kip-mcp-server](./mcp/kip-mcp-server/) - Model Context Protocol server that exposes KIP tools over stdio:
+
+- **Tools**: `execute_kip`, `list_logs`
+- **Resources**: `kip://docs/SelfInstructions.md`, `kip://docs/KIPSyntax.md`
+- **Prompt**: `kip_bootstrap` for ready-to-inject system prompt
+
+### 🎯 Agent Skills (`skill/`)
+
+[kip-cognitive-nexus](./skill/kip-cognitive-nexus/) - Publishable skill for AI agents:
+
+- Python client script for `anda_cognitive_nexus_server`
+- Complete syntax reference and agent workflow guide
 
 ## Implementations
 

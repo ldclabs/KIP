@@ -440,7 +440,7 @@ Full-text search for entity resolution (Grounding).
 
 **Parameters (same for both functions):**
 *   `command` (String): Single KIP command. **Mutually exclusive with `commands`**.
-*   `commands` (Array): Batch of commands. Each element: `String` (uses shared `parameters`) or `{command, parameters}` (independent). **Stops on first error**.
+*   `commands` (Array): Batch of commands. Each element: `String` (uses shared `parameters`) or `{command, parameters}` (independent). **Stops on first KML error**.
 *   `parameters` (Object): Placeholder substitution (`:name` → value). A placeholder must occupy a complete JSON value position (e.g., `name: :name`). Do not embed placeholders inside quoted strings (e.g., `"Hello :name"`), because replacement uses JSON serialization.
 *   `dry_run` (Boolean): Validate only, no execution.
 

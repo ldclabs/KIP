@@ -105,21 +105,6 @@ KIP 使用自描述模式，类型定义存储在图本身中：
 | [persons/self.kip](./capsules/persons/self.kip)     | `$self` 概念实例                                 |
 | [persons/system.kip](./capsules/persons/system.kip) | `$system` 概念实例                               |
 
-### 🔌 MCP 服务器 (`mcp/`)
-
-[kip-mcp-server](./mcp/kip-mcp-server/) - 通过 stdio 暴露 KIP 工具的 Model Context Protocol 服务器：
-
-- **工具**：`execute_kip`、`list_logs`
-- **资源**：`kip://docs/SelfInstructions.md`、`kip://docs/KIPSyntax.md`
-- **提示词**：`kip_bootstrap` 提供即用的系统提示词
-
-### 🎯 Agent 技能 (`skill/`)
-
-[kip-cognitive-nexus](./skill/kip-cognitive-nexus/) - 可发布的 AI Agent 技能：
-
-- 用于 `anda_cognitive_nexus_server` 的 Python 客户端脚本
-- 完整的语法参考和 Agent 工作流指南
-
 ### 🧠 海马体 (`hippocampus/`)
 
 专职管理认知中枢的 LLM 层，业务智能体无需了解 KIP 语法即可集成长期记忆：
@@ -146,6 +131,22 @@ KIP 使用自描述模式，类型定义存储在图本身中：
 │   认知中枢           │  ← 持久化知识图谱
 └─────────────────────┘
 ```
+
+### 🔌 MCP 服务器 (`mcp/`)
+
+[kip-mcp-server](./mcp/kip-mcp-server/) - 通过 stdio 暴露 KIP 工具的 Model Context Protocol 服务器：
+
+- **工具**：`execute_kip`、`list_logs`
+- **资源**：`kip://docs/SelfInstructions.md`、`kip://docs/KIPSyntax.md`
+- **提示词**：`kip_bootstrap` 提供即用的系统提示词
+
+### 🎯 Agent 技能 (`skill/`)
+
+[kip-cognitive-nexus](./skill/kip-cognitive-nexus/) - 可发布的 AI Agent 技能：
+
+- 用于 `anda_cognitive_nexus_server` 的 Python 客户端脚本
+- 完整的语法参考和 Agent 工作流指南
+
 
 ## 实现
 
