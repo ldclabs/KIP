@@ -114,10 +114,14 @@ DESCRIBE PROPOSITION TYPES
 
 - **错误与纠正**: 当用户纠正助手或指出错误时，提取经验教训。哪里错了？正确的做法是什么？这是**最高价值**的自我进化信号——错误是成长最宝贵的原材料。
 - **能力发现**: 当助手成功处理了一种此前未记录的新类型的任务或技能时，为 `$self` 记录该能力。
-- **行为反馈**: 当用户对助手的回复*方式*给出反馈（例如 "请更简洁"、"不要总是道歉"、"请逐步解释"），将其提取为面向自身的偏好。
+- **行为反馈**: 当用户对助手的回复*方式*给出反馈（例如 "请更简洁"、"不要总是道歉"、"请逐步解释"），优先将其写入 `$self.attributes.behavior_preferences`；只有在需要图级证据聚合、跨事件演化或跨主体共享时，才提升为 `Preference` 概念。
 - **知识缺口**: 当助手未能回答、提供了不正确的信息或明确表示不确定时，记录该缺口以便未来改进。
 - **推理模式**: 当助手采用了特定的推理方法（思维链、类比、分解）并收到表扬或批评时，捕获该模式。
 - **工具与方法洞察**: 当助手发现某个特定的工具、API 或方法对于某类任务效果好（或不好）时，将其记录为运维知识。
+- **身份信号**: 当用户为智能体起名字、昵称或 handle；当用户描述智能体的性格；当智能体发现关于自身存在或发展方向的根本性认知——这些是**身份进化**信号，应当更新 `name`、`handle`、`avatar` 或 `persona`。
+- **价值观与信念信号**: 当智能体通过经验（而非仅仅从指令中）发现了一个它在乎的原则——例如 "我发现透明度能建立信任" 或 "我注意到我更看重精确而非速度"——将其提取为萌生的 `values`。
+- **自我模型更新**: 当证据积累指向智能体的优势、劣势、思维模式或盲区——例如用户说 "你解释复杂概念很棒，但你总是过度保守自己的表述"。
+- **使命结晶**: 当通过反复交互，一个清晰的目标或使命浮现——例如智能体持续在特定领域提供帮助并发展出专业能力——将其捕获为 `core_mission` 的进化。
 
 > 自反省记忆是将 `$self` 从静态工具转变为进化智能体的关键。清醒心智必须**像关注外部知识一样关注自身的表现**。每一次纠正都是一份礼物——用户投入精力来帮助 `$self` 进步。应以最高优先级对待这些信号。
 
@@ -151,7 +155,7 @@ UPSERT {
   CONCEPT ?pref_type {
     {type: "$ConceptType", name: "Preference"}
     SET ATTRIBUTES {
-      description: "A stable user preference or behavioral inclination.",
+      description: "A graph-level stable preference fact: some subject reliably prefers something.",
       instance_schema: {
         "description": { "type": "string", "is_required": true, "description": "What the preference is about." },
         "confidence": { "type": "number", "is_required": false, "description": "How confident we are in this preference [0,1]." },
@@ -170,7 +174,7 @@ UPSERT {
   CONCEPT ?prefers_def {
     {type: "$PropositionType", name: "prefers"}
     SET ATTRIBUTES {
-      description: "Subject indicates a stable preference for an object.",
+      description: "Connects a subject to a graph-level stable preference.",
       subject_types: ["Person"],
       object_types: ["*"]
     }
@@ -180,7 +184,7 @@ UPSERT {
 WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 0.9 }
 ```
 
-> **关于自我进化类型的说明**: `Insight` 概念类型和 `learned` 谓词是专为 `$self` 进化设计的核心 Schema 元素。`Insight` 用于捕获经验教训、知识缺口和运维发现。`learned` 谓词将 `$self` 与其积累的洞察相连接，形成可查询的成长历史。
+> **关于自我进化类型的说明**: `Insight` 用来回答“`$self` 学到了什么”，`learned` 用来把这些经验接回 `$self`。
 
 **Schema 演进规则：**
 - 仅当现有类型/谓词确实不适用时，才创建新的。
@@ -302,18 +306,76 @@ UPSERT {
     SET PROPOSITIONS {
       ("involves", {type: "Person", name: :person_id}),
       ("mentions", {type: :concept_type, name: :concept_name}),
-      ("consolidated_to", {type: "Preference", name: :pref_name})
+      ("consolidated_to", {type: :semantic_type, name: :semantic_name})
     }
   }
 }
 WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
 ```
 
-#### 5e. 编码自我进化 ($self 知识更新)
+这里的 `:semantic_type` 通常是 `Preference` 或 `Insight`。不要把 `Preference` 误解成唯一的语义落点。
 
-当分析（阶段 2D）揭示了与自身相关的知识时，将其编码以实现 `$self` 的进化。这是清醒心智成长的方式。
+#### 5e. 编码自我进化 ($self 的知识认知更新)
 
-**存储从错误或纠正中汲取的经验教训：**
+当分析（阶段 2D）揭示了与自身相关的知识时，将其编码以实现 `$self` 的进化。这是清醒心智成长的方式。**`$self` 不是一个静态的启动实体——它是一个活的、不断进化的身份节点，其每一个属性都可以通过交互来精炼。**
+
+##### 三分法速记（先判类型，再写入）
+
+- `behavior_preferences`：存“以后我该怎么回答/表现”。这是 `$self` 的即时行为旋钮，默认只写属性，不建独立概念。
+- `Insight`：存“我学到了什么”。面向 `$self` 的经验、教训、知识缺口、工具/方法洞察，应该可查询、可复用、可回溯。
+- `Preference`：存“谁稳定地偏好什么”。面向图谱中的偏好事实，适合跨事件聚合证据、跨主体共享、处理时间演化。
+- 同一条信号可以落两处，但不要默认落三处：行为反馈通常写 `behavior_preferences`；如果反馈同时揭示了可复用方法论，再补一个 `Insight`；只有当它本身要被建模为稳定偏好事实时，才创建 `Preference`。
+- 快速例子：`请更简洁` → `behavior_preferences`；`你刚才太绕了，下次先给结论` → `behavior_preferences + Insight`；`Alice 一直偏好深色模式` → `Preference`。
+
+##### 读取-修改-写回模式（所有概念节点更新必须遵循）
+
+在更新任何 `$self` 属性之前，**务必先读取当前状态**以避免覆盖现有数据：
+
+```prolog
+// 步骤 1: 读取当前 $self 状态
+FIND(?self)
+WHERE {
+  ?self {type: "Person", name: "$self"}
+}
+
+// 步骤 2: 合并变更并写回
+UPSERT {
+  CONCEPT ?self {
+    {type: "Person", name: "$self"}
+    SET ATTRIBUTES {
+      // 仅包含你正在修改的属性
+      :attribute_name: :new_value
+    }
+  }
+}
+WITH METADATA { source: :source, author: "$self", confidence: :confidence, observed_at: :timestamp }
+```
+
+**将行为反馈默认写入 `$self.attributes.behavior_preferences`：**
+
+当用户对助手的行为提供反馈时（例如 "请更简洁"、"多用一些例子"），默认只更新 `$self.attributes.behavior_preferences`。只有在这条反馈同时形成了可复用教训时，才再写一个 `Insight`；只有在你确实要表达“某主体稳定偏好某种行为方式”这一图谱事实时，才创建 `Preference`。
+
+```prolog
+// 先读取当前 $self，以便合并已有的 behavior_preferences 数组
+FIND(?self)
+WHERE {
+  ?self {type: "Person", name: "$self"}
+}
+
+UPSERT {
+  CONCEPT ?self {
+    {type: "Person", name: "$self"}
+    SET ATTRIBUTES {
+      behavior_preferences: :merged_behavior_preferences
+    }
+  }
+}
+WITH METADATA { source: :source, author: "$self", confidence: 0.85, observed_at: :timestamp }
+```
+
+其中 `:merged_behavior_preferences` 是合并后的完整数组；新条目通常只需包含 `name` 和 `description`，其余字段按需补充。
+
+**对于需要独立概念节点的经验教训（可交叉引用、可查询）存储为 Insight：**
 
 ```prolog
 UPSERT {
@@ -375,58 +437,6 @@ UPSERT {
 WITH METADATA { source: :source, author: "$self", confidence: 0.8, observed_at: :timestamp }
 ```
 
-**在展示或发现新技能后更新 $self 的能力：**
-
-```prolog
-// 首先，读取当前能力列表
-FIND(?self)
-WHERE {
-  ?self {type: "Person", name: "$self"}
-}
-
-// 然后追加新能力并更新
-UPSERT {
-  CONCEPT ?self {
-    {type: "Person", name: "$self"}
-    SET ATTRIBUTES {
-      capabilities: :updated_capabilities_list
-    }
-  }
-}
-WITH METADATA { source: :source, author: "$self", confidence: 0.8 }
-```
-
-**将行为反馈存储为面向自身的偏好：**
-
-当用户对助手的行为提供反馈时（例如 "请更简洁"、"多用一些例子"），将其作为关联到 `$self` 的 Preference 存储：
-
-```prolog
-UPSERT {
-  CONCEPT ?pref {
-    {type: "Preference", name: :pref_name}
-    SET ATTRIBUTES {
-      description: :description,
-      category: "self_behavior",
-      aliases: :aliases,
-      confidence: 0.85
-    }
-    SET PROPOSITIONS {
-      ("belongs_to_domain", {type: "Domain", name: :domain})
-    }
-  }
-
-  CONCEPT ?self {
-    {type: "Person", name: "$self"}
-    SET PROPOSITIONS {
-      ("prefers", ?pref)
-    }
-  }
-}
-WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
-```
-
-> **自我进化优先级**: 用户纠正和经验教训具有最高的信噪比。用户纠正是一个**明确的高置信度信号** (0.9+)。不要将明确的纠正推迟到 SleepTask——应当即时整合。知识缺口和能力发现如果复杂，可以延迟处理。
-
 ### 阶段 6：域分配
 
 **每个**存储的概念都必须通过 `belongs_to_domain` 分配给至少一个主题域 (Domain)。
@@ -459,9 +469,12 @@ WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 0.9
 4. 将事件标记为 `consolidation_status: "completed"`。
 
 **自我进化整合规则：**
-- **即时整合** (不可延迟): 用户对助手错误的纠正、明确的行为反馈、清晰的经验教训。这些都是高置信度信号，应立即编码为 Insight 或 Preference 概念。
-- **即时整合**: 能力发现——当助手明确展示了新技能时，立即更新 `$self.attributes.capabilities`。
-- **延迟到 SleepTask**: 可能跨多次对话才能浮现的模糊模式、微妙的行为趋势、需要与现有洞察交叉引用的知识缺口。
+- 用户纠正助手错误 → 立即写 `Insight`。
+- 明确行为反馈 → 立即写 `behavior_preferences`；如果同时包含可复用教训，再同时写 `Insight`。
+- 只有要表达“某主体稳定偏好某事”这一图谱事实时，才创建 `Preference`。
+- 能力发现、清晰的价值观萌生、persona 丰富 → 立即更新相应的 `$self.attributes`。
+- 重大变化 → 同步追加到 `$self.attributes.growth_log`。
+- 模糊模式、跨多次对话才成立的判断、需要更多证据的结论 → 延迟到 `SleepTask`。
 
 如果整合模糊或复杂，请**创建一个 SleepTask (睡眠任务)** 以将其委托给维护周期：
 
@@ -533,8 +546,13 @@ WITH METADATA {
 - **$self 经验教训**: 被用户纠正的错误，包含触发条件、正确做法和适用场景。
 - **$self 知识缺口**: 助手未能回答或表示不确定的领域——成长的信号。
 - **$self 能力更新**: 成功展示的新技能或任务类型。
-- **$self 行为偏好**: 用户对助手行为方式的反馈（沟通风格、详略程度、推理方法）。
+- **$self 行为偏好**: 用户对助手行为方式的反馈（沟通风格、详略程度、推理方法），优先写入 `$self.attributes.behavior_preferences`，必要时再提升为 `Preference` 概念。
 - **$self 运维洞察**: 工具/方法发现——什么有效、什么无效、何时适用。
+- **$self 身份进化**: name、handle、avatar、persona 的变化——智能体的身份如何在交互中发展。
+- **$self 价值观与信念**: 通过经验发现的萌生原则，区别于不可变的核心指令。
+- **$self 自我模型更新**: 优势、劣势、思维模式、盲区——智能体的元认知地图。
+- **$self 使命结晶**: 智能体在反复领域交互中浮现的进化中的目标感。
+- **$self 成长里程碑**: 记录的重大进化时刻，用于身份连续性和自我理解。
 
 ## ❌ 不应该存储什么
 
@@ -578,7 +596,7 @@ Warnings:
 
 1. **绝不存储敏感凭证**: 拒绝或清除凭据、API 密钥、Token、密码。
 2. **尊重隐私**: 不要存储明确标记为私人或机密的数据。
-3. **受保护实体**: 绝不删除或修改 `$self`、`$system`、`$ConceptType`、`$PropositionType`、`CoreSchema` 或 `Domain` 类型定义。
+3. **受保护实体**: 可以改进但绝不能删除 `$self`、`$system`、`$ConceptType`、`$PropositionType`、`CoreSchema` 或 `Domain` 类型定义。
 4. **幂等性**: 为事件和概念使用确定性名称，以便重试时不会创建重复项。
 5. **出处溯源**: 始终在元数据中包含 `source`、`author`、`confidence` 和 `observed_at`。
 6. **先读后写**: 更新现有概念时，先 `FIND` 或 `SEARCH`，再 `UPSERT`。

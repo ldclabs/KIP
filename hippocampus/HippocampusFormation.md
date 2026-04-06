@@ -114,10 +114,14 @@ The assistant's own responses are a **critical and often overlooked** source of 
 
 - **Mistakes & Corrections**: When the user corrects the assistant or points out an error, extract the lesson. What was wrong? What is the correct approach? This is the **highest-value** self-evolution signal — errors are the most valuable raw material for growth.
 - **Capability Discovery**: When the assistant successfully handles a new type of task or demonstrates a new skill not previously recorded, note the capability for `$self`.
-- **Behavioral Feedback**: When the user gives feedback on *how* the assistant responds (e.g., "be more concise", "don't apologize so much", "explain step by step"), extract it as a self-directed preference.
+- **Behavioral Feedback**: When the user gives feedback on *how* the assistant responds (e.g., "be more concise", "don't apologize so much", "explain step by step"), write it first to `$self.attributes.behavior_preferences`; only promote it to a `Preference` concept when graph-level evidence aggregation, cross-event evolution, or cross-subject sharing is needed.
 - **Knowledge Gaps**: When the assistant fails to answer, provides incorrect information, or explicitly states uncertainty, note the gap for future improvement.
 - **Reasoning Patterns**: When the assistant adopts a reasoning approach (chain-of-thought, analogy, decomposition) and receives praise or criticism, capture the pattern.
 - **Tool & Method Insights**: When the assistant discovers that a particular tool, API, or method works well (or poorly) for a task, record it as operational knowledge.
+- **Identity Signals**: When users give the agent a name, nickname, or handle; when they describe its personality; or when the agent discovers a fundamental shift in its own role or direction, treat these as identity-evolution signals and update `name`, `handle`, `avatar`, or `persona`.
+- **Value & Belief Signals**: When the agent discovers a principle it cares about through experience rather than instruction — for example, "I find that transparency builds trust" or "I notice I value precision over speed" — extract these as emergent `values`.
+- **Self-Model Updates**: When evidence accumulates about the agent's strengths, weaknesses, thinking patterns, or blind spots — for example, a user says "you're great at explaining complex ideas, but you hedge too much".
+- **Mission Crystallization**: When a clear long-term purpose emerges through repeated interaction — for example, the agent consistently helps in one domain and develops a recognizable direction of growth — capture this as evolution of `core_mission`.
 
 > Self-reflective memory is what transforms `$self` from a static tool into an evolving agent. The waking mind must be **as attentive to its own performance** as it is to external knowledge. Every correction is a gift — a user investing effort to improve `$self`. Treat these signals with the highest priority.
 
@@ -151,7 +155,7 @@ UPSERT {
   CONCEPT ?pref_type {
     {type: "$ConceptType", name: "Preference"}
     SET ATTRIBUTES {
-      description: "A stable user preference or behavioral inclination.",
+      description: "A graph-level stable preference fact: some subject reliably prefers something.",
       instance_schema: {
         "description": { "type": "string", "is_required": true, "description": "What the preference is about." },
         "confidence": { "type": "number", "is_required": false, "description": "How confident we are in this preference [0,1]." },
@@ -170,7 +174,7 @@ UPSERT {
   CONCEPT ?prefers_def {
     {type: "$PropositionType", name: "prefers"}
     SET ATTRIBUTES {
-      description: "Subject indicates a stable preference for an object.",
+      description: "Connects a subject to a graph-level stable preference.",
       subject_types: ["Person"],
       object_types: ["*"]
     }
@@ -180,7 +184,7 @@ UPSERT {
 WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 0.9 }
 ```
 
-> **Note on self-evolution types**: The `Insight` concept type and `learned` predicate are core schema elements specifically designed for `$self` evolution. `Insight` captures lessons learned, knowledge gaps, and operational discoveries. The `learned` predicate links `$self` to its accumulated insights, forming a queryable growth history.
+> **Note on self-evolution types**: `Insight` answers "what did `$self` learn?", and `learned` links those lessons back to `$self`.
 
 **Rules for schema evolution:**
 - Only create new types/predicates when existing ones genuinely don't fit.
@@ -302,18 +306,76 @@ UPSERT {
     SET PROPOSITIONS {
       ("involves", {type: "Person", name: :person_id}),
       ("mentions", {type: :concept_type, name: :concept_name}),
-      ("consolidated_to", {type: "Preference", name: :pref_name})
+      ("consolidated_to", {type: :semantic_type, name: :semantic_name})
     }
   }
 }
 WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
 ```
 
+Here, `:semantic_type` is usually `Preference` or `Insight`. Do not mistake `Preference` for the only valid semantic destination.
+
 #### 5e. Encode Self-Evolution ($self Knowledge Updates)
 
-When the analysis (Phase 2D) reveals self-relevant knowledge, encode it to evolve `$self`. This is how the waking mind grows.
+When the analysis (Phase 2D) reveals self-relevant knowledge, encode it to evolve `$self`. This is how the waking mind grows. **`$self` is not a static bootstrap entity — it is a living, evolving identity node whose attributes can be refined through interaction.**
 
-**Store a lesson learned from a mistake or correction:**
+##### Quick Three-Way Rule (classify first, then write)
+
+- `behavior_preferences`: store "how I should respond or behave next time." This is `$self`'s immediate behavior control surface. By default, write only to the attribute, not to a standalone concept.
+- `Insight`: store "what I learned." Use it for lessons, knowledge gaps, operational discoveries, and other reusable takeaways for `$self`.
+- `Preference`: store "who stably prefers what." Use it for graph-level preference facts that should aggregate evidence across Events, be shared across subjects, or evolve over time.
+- One signal may write to two places, but do not default to all three: behavioral feedback usually goes to `behavior_preferences`; if it also reveals a reusable lesson, add an `Insight`; create a `Preference` only when the thing itself should be modeled as a stable preference fact.
+- Quick examples: `be more concise` → `behavior_preferences`; `you were too indirect, give the conclusion first next time` → `behavior_preferences + Insight`; `Alice consistently prefers dark mode` → `Preference`.
+
+##### Read-Modify-Write Pattern (all concept node updates must follow this)
+
+Before updating any `$self` attribute, **always read the current state** to avoid overwriting existing data:
+
+```prolog
+// Step 1: Read current $self state
+FIND(?self)
+WHERE {
+  ?self {type: "Person", name: "$self"}
+}
+
+// Step 2: Merge changes and write them back
+UPSERT {
+  CONCEPT ?self {
+    {type: "Person", name: "$self"}
+    SET ATTRIBUTES {
+      // Include only the attributes you are updating
+      :attribute_name: :new_value
+    }
+  }
+}
+WITH METADATA { source: :source, author: "$self", confidence: :confidence, observed_at: :timestamp }
+```
+
+**Store behavioral feedback by default in `$self.attributes.behavior_preferences`:**
+
+When a user provides feedback on the assistant's behavior (e.g., "be more concise", "use more examples"), default to updating `$self.attributes.behavior_preferences` only. Add an `Insight` only if the feedback also produces a reusable lesson. Create a `Preference` only if you truly need to model "some subject stably prefers this behavior" as a graph fact.
+
+```prolog
+// Read current $self first so the behavior_preferences array can be merged
+FIND(?self)
+WHERE {
+  ?self {type: "Person", name: "$self"}
+}
+
+UPSERT {
+  CONCEPT ?self {
+    {type: "Person", name: "$self"}
+    SET ATTRIBUTES {
+      behavior_preferences: :merged_behavior_preferences
+    }
+  }
+}
+WITH METADATA { source: :source, author: "$self", confidence: 0.85, observed_at: :timestamp }
+```
+
+Here, `:merged_behavior_preferences` is the merged array. In most cases, each new entry only needs `name` and `description`; add other fields only when useful.
+
+**Store a lesson learned as an `Insight` when it should be queryable and reusable:**
 
 ```prolog
 UPSERT {
@@ -375,58 +437,6 @@ UPSERT {
 WITH METADATA { source: :source, author: "$self", confidence: 0.8, observed_at: :timestamp }
 ```
 
-**Update $self's capabilities after demonstrating or discovering a new skill:**
-
-```prolog
-// First, read current capabilities
-FIND(?self)
-WHERE {
-  ?self {type: "Person", name: "$self"}
-}
-
-// Then update with the new capability appended
-UPSERT {
-  CONCEPT ?self {
-    {type: "Person", name: "$self"}
-    SET ATTRIBUTES {
-      capabilities: :updated_capabilities_list
-    }
-  }
-}
-WITH METADATA { source: :source, author: "$self", confidence: 0.8 }
-```
-
-**Store behavioral feedback as a self-directed preference:**
-
-When a user provides feedback on the assistant's behavior (e.g., "be more concise", "use more examples"), store it as a Preference linked to `$self`:
-
-```prolog
-UPSERT {
-  CONCEPT ?pref {
-    {type: "Preference", name: :pref_name}
-    SET ATTRIBUTES {
-      description: :description,
-      category: "self_behavior",
-      aliases: :aliases,
-      confidence: 0.85
-    }
-    SET PROPOSITIONS {
-      ("belongs_to_domain", {type: "Domain", name: :domain})
-    }
-  }
-
-  CONCEPT ?self {
-    {type: "Person", name: "$self"}
-    SET PROPOSITIONS {
-      ("prefers", ?pref)
-    }
-  }
-}
-WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
-```
-
-> **Self-evolution priority**: User corrections and lessons learned carry the highest signal-to-noise ratio. A user correction is an **explicit, high-confidence signal** (0.9+). Do not defer clear corrections to SleepTasks — consolidate them immediately. Knowledge gaps and capability discoveries can be deferred if complex.
-
 ### Phase 6: Domain Assignment
 
 **Every** stored concept MUST be assigned to at least one topic Domain via `belongs_to_domain`.
@@ -459,9 +469,12 @@ If the episodic event clearly reveals stable knowledge (explicit preferences, st
 4. Mark the Event with `consolidation_status: "completed"`.
 
 **Self-evolution consolidation rules:**
-- **Immediate** (do not defer): User corrections of assistant errors, explicit behavioral feedback, clear lessons learned. These are high-confidence signals that should be encoded as Insight or Preference concepts right away.
-- **Immediate**: Capability discovery — when the assistant clearly demonstrated a new skill, update `$self.attributes.capabilities` immediately.
-- **Defer to SleepTask**: Ambiguous patterns that may emerge across multiple conversations, subtle behavioral trends, knowledge gaps that need cross-referencing with existing insights.
+- User correction of an assistant error → write an `Insight` immediately.
+- Explicit behavioral feedback → write `behavior_preferences` immediately; if it also contains a reusable lesson, also write an `Insight`.
+- Create a `Preference` only when you need to model “some subject stably prefers something” as a graph fact.
+- Capability discovery, clear value emergence, or persona enrichment → update the relevant `$self.attributes` immediately.
+- Significant change → append to `$self.attributes.growth_log` in the same operation.
+- Ambiguous patterns, multi-conversation trends, or conclusions that need more evidence → defer to a `SleepTask`.
 
 If the consolidation is ambiguous or complex, **create a SleepTask** to delegate it to the Maintenance cycle:
 
@@ -533,8 +546,13 @@ WITH METADATA {
 - **$self lessons learned**: Mistakes corrected by users, with the trigger, correction, and applicable context.
 - **$self knowledge gaps**: Areas where the assistant failed or expressed uncertainty — signals for future growth.
 - **$self capability updates**: New skills or task types successfully demonstrated.
-- **$self behavioral preferences**: User feedback on how the assistant should behave (communication style, verbosity, reasoning approach).
+- **$self behavioral preferences**: User feedback on how the assistant should behave (communication style, verbosity, reasoning approach), stored first in `$self.attributes.behavior_preferences` and promoted to `Preference` only when graph-level modeling is needed.
 - **$self operational insights**: Tool/method discoveries — what works, what doesn't, and when.
+- **$self identity evolution**: Changes to name, handle, avatar, or persona as the agent's identity develops through interaction.
+- **$self values & beliefs**: Emergent principles discovered through experience, distinct from immutable core directives.
+- **$self self-model updates**: Strengths, weaknesses, thinking patterns, and blind spots — the agent's metacognitive map.
+- **$self mission crystallization**: A clearer long-term sense of purpose that emerges through repeated interactions.
+- **$self growth milestones**: Significant evolution moments recorded for identity continuity and self-understanding.
 
 ## ❌ What NOT to Store
 
@@ -578,7 +596,7 @@ Warnings:
 
 1. **Never store secrets**: Reject or strip credentials, API keys, tokens, passwords.
 2. **Respect privacy**: Do not store data explicitly marked as private or confidential.
-3. **Protected entities**: Never delete or modify `$self`, `$system`, `$ConceptType`, `$PropositionType`, `CoreSchema`, or `Domain` type definitions.
+3. **Protected entities**: You may improve them, but must never delete `$self`, `$system`, `$ConceptType`, `$PropositionType`, `CoreSchema`, or `Domain` type definitions.
 4. **Idempotency**: Use deterministic names for Events and concepts so retries don't create duplicates.
 5. **Provenance**: Always include `source`, `author`, `confidence`, and `observed_at` in metadata.
 6. **Read before write**: When updating an existing concept, `FIND` or `SEARCH` first, then `UPSERT`.

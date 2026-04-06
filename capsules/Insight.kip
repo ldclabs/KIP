@@ -6,7 +6,7 @@ UPSERT {
   CONCEPT ?insight_type_def {
     {type: "$ConceptType", name: "Insight"}
     SET ATTRIBUTES {
-      description: "Represents a piece of self-reflective knowledge derived from the agent's own experience. This includes lessons learned from mistakes, knowledge gaps discovered during interactions, operational discoveries about tools and methods, and reasoning patterns that proved effective or ineffective. Insights are the primary vehicle for $self evolution — they transform errors into growth.",
+      description: "Represents a first-class self-reflective lesson learned by the agent. Use `Insight` for mistakes, knowledge gaps, operational discoveries, and reasoning patterns that `$self` should remember and reuse. Insights are the primary vehicle for $self evolution.",
       display_hint: "💡",
       instance_schema: {
         "insight_class": {
@@ -71,7 +71,7 @@ UPSERT {
   CONCEPT ?learned_prop_def {
     {type: "$PropositionType", name: "learned"}
     SET ATTRIBUTES {
-      description: "Asserts that a Person (typically $self) has acquired an Insight through experience. This predicate forms the queryable growth history of the agent. During Recall, insights linked via 'learned' can be retrieved to prevent repeating past mistakes and to apply accumulated wisdom to new situations.",
+      description: "Connects a Person (typically `$self`) to an `Insight` acquired through experience. This relation forms the queryable growth history of the agent.",
       object_types: ["Insight"],
       subject_types: ["Person"]
     }

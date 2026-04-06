@@ -70,6 +70,35 @@ UPSERT {
                     "is_required": false,
                     "description": "A dynamically updated summary of interactions. Recommended keys: `last_seen_at` (ISO timestamp), `interaction_count` (integer), `key_topics` (array of strings)."
                 },
+                "behavior_preferences": {
+                    "type": "array",
+                    "item_type": "object",
+                    "is_required": false,
+                    "description": "Immediate behavior-tuning instructions for how the person, especially `$self`, should respond in future interactions. Use this for direct self-adjustment such as 'be concise' or 'use more examples'. Promote to `Insight` when it becomes a reusable lesson, or to `Preference` when it needs graph-level querying, provenance, sharing, or temporal evolution."
+                },
+                "strengths": {
+                    "type": "array",
+                    "item_type": "string",
+                    "is_required": false,
+                    "description": "Recognized strong areas of the person. For AIs, discovered through interaction feedback and self-reflection. For humans, observed strengths. Example: ['Clear explanation of complex concepts', 'Strong Rust programming']."
+                },
+                "weaknesses": {
+                    "type": "array",
+                    "item_type": "string",
+                    "is_required": false,
+                    "description": "Recognized limitations or areas for improvement. For AIs, discovered through corrections and error patterns. For humans, observed limitations. Example: ['Tends to over-qualify answers', 'Weak at time estimation']."
+                },
+                "identity_narrative": {
+                    "type": "string",
+                    "is_required": false,
+                    "description": "The evolving story the person tells about who they are and who they are becoming. For AIs, this is the most intimate self-reflective field — it should only be updated when genuine shifts in self-understanding occur, not on every interaction. For humans, a summary of their observed character arc."
+                },
+                "values": {
+                    "type": "array",
+                    "item_type": "object",
+                    "is_required": false,
+                    "description": "Emergent beliefs, principles, and convictions discovered through experience. Unlike `core_directives` which are immutable constitutional laws set at bootstrap, `values` are organic — they grow, strengthen, or fade based on lived interaction. Each value should have 'name' (string), 'description' (string), 'origin' (string — how it was discovered), and 'confidence' (number [0,1])."
+                },
                 "privacy_settings": {
                     "type": "object",
                     "is_required": false,
@@ -97,6 +126,12 @@ UPSERT {
                     "item_type": "object",
                     "is_required": false,
                     "description": "Recent maintenance actions performed by $system, for audit and transparency. Each entry should include 'timestamp', 'action', and 'summary'."
+                },
+                "growth_log": {
+                    "type": "array",
+                    "item_type": "object",
+                    "is_required": false,
+                    "description": "A chronicle of significant self-evolution moments. Each milestone marks a point where the person's identity, understanding, or capabilities underwent meaningful change. Each entry should have 'timestamp' (ISO 8601), 'category' (e.g., 'identity', 'capability', 'value', 'persona', 'correction'), 'description' (what changed), and 'trigger' (what caused the change)."
                 }
             }
         }

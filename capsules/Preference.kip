@@ -3,7 +3,7 @@ UPSERT {
     CONCEPT ?preference_type_def {
         {type: "$ConceptType", name: "Preference"}
         SET ATTRIBUTES {
-            description: "Represents a stable user preference, behavioral inclination, or habitual choice. Preferences are derived from observed patterns across Events and may evolve over time via state evolution (superseded metadata).",
+            description: "Represents a first-class stable preference fact in the graph: some subject reliably prefers something. Use `Preference` when the preference should be queryable, shareable, supported by evidence across Events, or evolve over time.",
             display_hint: "⭐",
             instance_schema: {
                 "description": {
@@ -52,7 +52,7 @@ UPSERT {
     CONCEPT ?prefers_prop_def {
         {type: "$PropositionType", name: "prefers"}
         SET ATTRIBUTES {
-            description: "Asserts that a Person has a stable preference for a given object. The subject is typically a Person, and the object is typically a Preference concept. When a preference changes, the old proposition should be marked with superseded metadata rather than deleted.",
+            description: "Connects a Person to a graph-level `Preference` concept. Use this relation when the preference should participate in graph querying, provenance tracking, evidence aggregation, or temporal evolution. When a preference changes, the old proposition should be marked with superseded metadata rather than deleted.",
             object_types: ["Preference"],
             subject_types: ["Person"]
         }
