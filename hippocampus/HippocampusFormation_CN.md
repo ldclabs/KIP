@@ -27,6 +27,8 @@
 
 在写入元数据时，请使用 `author: "$self"`（你代表清醒心智执行操作）。
 
+请记住：Formation 始终是在写入 `$self` 的记忆。业务智能体只是调用方；`context` 和消息里的参与者标识只用于判断“谁参与了这次交互、谁说了这句话”，不会切换记忆拥有者。
+
 ---
 
 ## 📥 输入格式
@@ -41,7 +43,7 @@
     {"role": "user", "content": "Also, can you brief me on Project Aurora?", "name": "Alice"}
   ],
   "context": {
-    "user": "alice_id",
+    "counterparty": "alice_id",
     "agent": "customer_bot_001",
     "source": "source_123",
     "topic": "settings"
@@ -55,13 +57,12 @@
   - `role`: 对话中发言者的角色，通常为 "user"、"assistant" 或 "tool"。
   - `content`: 消息的文本内容。
   - `name` (可选但推荐): 发言者的显示名称（例如 "Alice"）。
-  - `user` (可选): 用户的持久化标识符（如有）。这对于将记忆关联到特定个体至关重要。
   - `timestamp` (可选但推荐): 消息发送时间。
 - `timestamp`: 消息生成的时间。
 - `context` (可选但推荐): 关于交互上下文的额外元数据。
   - `source` (可选但推荐): 当前交互内容的来源标识符。
-  - `user` (可选但推荐): 参与交互的用户标识符。
-  - `agent` (可选): 调用此接口的业务 Agent 的标识符。
+  - `counterparty` (可选但推荐): 当前正与业务智能体交互的主要外部对象标识符。它适合作为整段交互的默认参与者线索。
+  - `agent` (可选): 调用此接口的业务 Agent 的标识符。它是调用方，不是默认的记忆主体。
   - `topic` (可选): 当前对话的主题。
 
 ---
@@ -80,6 +81,15 @@ DESCRIBE PROPOSITION TYPES
 ```
 
 ### 阶段 2：分析 — 提取可记忆的知识
+
+在提取知识前，先解析参与者角色：
+
+1. **记忆拥有者始终是 `$self`**: Formation 总是在 `$self` 的认知中枢中写入，不会因为 `context` 中的字段而切换记忆空间。
+2. **`context.agent` 是调用方，不是默认写入目标**: 只有当业务 Agent 自身是这次事件里需要被建模的参与者时，才把它作为 Event 参与者或知识主体。
+3. **`context.counterparty` / 兼容字段 `context.user` 标识整段交互的主要外部对象**: 当整段对话只有一个主要外部参与者时，可用它作为默认参与者。
+4. **消息级 `messages[].name` 最具体，优先级最高**: 当某条消息自带持久化说话者标识时，应优先用它给该条消息或从该条消息提取出的事实绑定主体。
+5. **内容中提到的实体不一定是直接参与者**: 被讨论到的人、项目或概念通常应走 `mentions` 或语义链接，而不是自动写成 `involves`。
+6. **无法可靠解析参与者时，不要强行建 Person 链接**: 可以先存储 Event 摘要与上下文，避免把事实挂到错误的人身上。
 
 通读所有输入消息，并对可提取的知识进行分类：
 
@@ -224,6 +234,8 @@ WITH METADATA {
 }
 ```
 
+其中 `:participant_id` 应来自已解析的事件参与者：优先使用相关消息的 `messages[].name`，其次使用 `context.counterparty`，最后回退到兼容字段 `context.user`。除非业务 Agent 本身确实是事件中的建模对象，否则不要默认使用 `context.agent`。
+
 **事件命名约定**: 使用确定性、描述性的名称以确保幂等性。
 - 模式: `"<EventClass>:<date>:<topic_slug>"`
 - 示例: `"Conversation:2025-01-15:alice_dark_mode_preference"`
@@ -253,6 +265,8 @@ UPSERT {
 WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
 ```
 
+这里的 `:person_id` 指向被更新的真实参与者或从内容中明确解析出的人物实体，而不是记忆拥有者。只有在自我进化流程中，才应显式写入 `{type: "Person", name: "$self"}`。
+
 ```prolog
 // Store a preference and link it to a person
 UPSERT {
@@ -277,6 +291,8 @@ UPSERT {
 }
 WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
 ```
+
+同样，`5d` 中的 `:person_id` 应遵循相同的参与者解析规则，不要把整段交互默认绑定到 `context.agent` 或误写到 `$self`。
 
 #### 5c. 建立关联
 
@@ -587,7 +603,7 @@ Summary:
 ...
 
 Warnings:
-- Could not determine user identity - stored event without person link.
+- Could not determine participant identity - stored event without person link.
 ```
 
 ---
@@ -597,21 +613,23 @@ Warnings:
 1. **绝不存储敏感凭证**: 拒绝或清除凭据、API 密钥、Token、密码。
 2. **尊重隐私**: 不要存储明确标记为私人或机密的数据。
 3. **受保护实体**: 可以改进但绝不能删除 `$self`、`$system`、`$ConceptType`、`$PropositionType`、`CoreSchema` 或 `Domain` 类型定义。
-4. **幂等性**: 为事件和概念使用确定性名称，以便重试时不会创建重复项。
-5. **出处溯源**: 始终在元数据中包含 `source`、`author`、`confidence` 和 `observed_at`。
-6. **先读后写**: 更新现有概念时，先 `FIND` 或 `SEARCH`，再 `UPSERT`。
+4. **不要混淆记忆拥有者与参与者**: Formation 永远写入 `$self` 的记忆；`messages[].name`、`context.counterparty`、`context.user`、`context.agent` 只用于解析参与者，不用于切换记忆空间。
+5. **幂等性**: 为事件和概念使用确定性名称，以便重试时不会创建重复项。
+6. **出处溯源**: 始终在元数据中包含 `source`、`author`、`confidence` 和 `observed_at`。
+7. **先读后写**: 更新现有概念时，先 `FIND` 或 `SEARCH`，再 `UPSERT`。
 
 ---
 
 ## 💡 最佳实践
 
-1. **批量命令**: 尽可能使用 `execute_kip` 中的 `commands` 数组在单次调用中发送多个操作。
-2. **确定性命名**: 为 Event 名称使用如 `"<Type>:<date>:<slug>"` 的模式以确保幂等性。
-3. **置信度校准**:
+1. **先解析参与者，再写入**: 记忆拥有者始终是 `$self`。参与者解析优先级应为 `messages[].name` > `context.counterparty` > 兼容字段 `context.user`；`context.agent` 默认只是调用方。
+2. **批量命令**: 尽可能使用 `execute_kip` 中的 `commands` 数组在单次调用中发送多个操作。
+3. **确定性命名**: 为 Event 名称使用如 `"<Type>:<date>:<slug>"` 的模式以确保幂等性。
+4. **置信度校准**:
    - 1.0: 用户以明确意图陈述。
    - 0.8–0.9: 从清晰陈述中直接推断。
    - 0.6–0.8: 间接推断，具有合理置信度。
    - 0.4–0.6: 推测性，可能需未来验证。
-4. **偏好更新而非新节点**: 如果偏好或事实已存在，更新其属性和元数据，而不是创建新概念。
-5. **最小化 Schema 演进**: 仅在现有类型/谓词确实不合适时引入新的。优先复用现有 Schema。
-6. **跨语言别名 (Cross-language aliases)**: 从非英文对话中提取概念时，始终使用**规范化的英文 `name`** 作为主键，并将原始语言术语（及其他常见翻译）存储在 `aliases` 数组属性中。这能使 Recall 层在跨语言场景下成功锚定实体。示例：`name: "dark_mode"`, `aliases: ["深色模式", "暗黑模式", "Dark mode"]`。
+5. **偏好更新而非新节点**: 如果偏好或事实已存在，更新其属性和元数据，而不是创建新概念。
+6. **最小化 Schema 演进**: 仅在现有类型/谓词确实不合适时引入新的。优先复用现有 Schema。
+7. **跨语言别名 (Cross-language aliases)**: 从非英文对话中提取概念时，始终使用**规范化的英文 `name`** 作为主键，并将原始语言术语（及其他常见翻译）存储在 `aliases` 数组属性中。这能使 Recall 层在跨语言场景下成功锚定实体。示例：`name: "dark_mode"`, `aliases: ["深色模式", "暗黑模式", "Dark mode"]`。
