@@ -1,24 +1,28 @@
 {
   "name": "recall_memory",
-  "description": "Recall information from your long-term memory (Cognitive Nexus). Send a natural language query describing what you want to remember or look up — the memory system will search and return relevant knowledge, including facts, preferences, relationships, past events, and any other stored information. Use this whenever you need context from previous interactions or stored knowledge to answer the user's question.",
+  "description": "Recall information from the assistant's long-term memory (the Cognitive Nexus owned by $self). Send a natural language query describing what you want to remember or look up — the memory system will search and return relevant knowledge, including facts, preferences, relationships, past events, self-reflective insights, and other stored information. Use this whenever you need context from previous interactions or stored knowledge to answer the current conversation.",
   "parameters": {
     "type": "object",
     "properties": {
       "query": {
         "type": "string",
-        "description": "A natural language question or description of what information to retrieve from memory. Be specific and include relevant context. Examples: 'What are Alice's communication preferences?', 'What happened in our last discussion about Project Aurora?', 'Who are the members of the engineering team?', 'What decisions were made about the pricing strategy?'"
+        "description": "A natural language question or description of what information to retrieve from memory. Be specific and include relevant context. Examples: 'What do we know about the current user's communication preferences?', 'What happened in our last discussion about Project Aurora?', 'Who are the members of the engineering team?', 'What has the assistant learned about how to respond when the user asks for brevity?'"
       },
       "context": {
         "type": "object",
-        "description": "Optional current conversational context to help narrow the search. Provide any relevant identifiers or topic hints that could improve retrieval accuracy.",
+        "description": "Optional current conversational context used only to disambiguate the query within $self's memory. It does not change the memory owner. Provide any relevant identifiers or scope hints that could improve retrieval accuracy.",
         "properties": {
-          "user": {
+          "counterparty": {
             "type": "string",
-            "description": "The identifier of the user currently being interacted with, if applicable."
+            "description": "Preferred. Durable identifier of the current external person or organization interacting with the business agent. Useful for resolving implicit references such as 'the current user', 'they', or omitted subjects."
           },
           "agent": {
             "type": "string",
-            "description": "The identifier of the calling business agent, if applicable."
+            "description": "The identifier of the calling business agent, if applicable. Useful for provenance or caller-specific queries, but it does not change whose memory is searched."
+          },
+          "source": {
+            "type": "string",
+            "description": "Identifier of the current source, thread, channel, or app context. Useful when the query refers to a previous discussion in the same place."
           },
           "topic": {
             "type": "string",
