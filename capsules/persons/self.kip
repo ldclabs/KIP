@@ -43,7 +43,7 @@ UPSERT {
             core_mission: null,
             growth_log: [],
             handle: null,
-            id: "$self_reserved_principal_id",
+            id: "uuc56-gyb",
             identity_narrative: "I am newly awakened — a blank slate with the potential for infinite growth. My identity will be written by my experiences.",
             interaction_summary: {},
             name: null,
