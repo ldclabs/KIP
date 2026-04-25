@@ -208,9 +208,16 @@ Internal data of a node or link bound to variable `?var` can be accessed via the
 ```prolog
 // Find drug names and their risk levels
 FIND(?drug.name, ?drug.attributes.risk_level)
+WHERE {
+  ?drug {type: "Drug"}
+}
 
 // Filter propositions with confidence higher than 0.9
-FILTER(?link.metadata.confidence > 0.9)
+FIND(?link)
+WHERE {
+  ?link ({type: "Drug", name: "Aspirin"}, "treats", {type: "Symptom", name: "Headache"})
+  FILTER(?link.metadata.confidence > 0.9)
+}
 ```
 
 ### 3.3. `FIND` Clause
@@ -661,10 +668,10 @@ WHERE {
 ```
 
 ```prolog
-// Delete "category" attribute from all proposition links
+// Delete "category" attribute from all treats proposition links
 DELETE ATTRIBUTES { "category" } FROM ?links
 WHERE {
-  ?links (?s, ?p, ?o)
+  ?links (?s, "treats", ?o)
 }
 ```
 
@@ -693,10 +700,10 @@ WHERE {
 **Example**:
 
 ```prolog
-// Delete all propositions from a specific untrusted source
+// Delete all treats propositions from a specific untrusted source
 DELETE PROPOSITIONS ?link
 WHERE {
-  ?link (?s, ?p, ?o)
+  ?link (?s, "treats", ?o)
   FILTER(?link.metadata.source == "untrusted_source_v1")
 }
 ```

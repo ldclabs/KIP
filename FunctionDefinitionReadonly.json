@@ -6,7 +6,7 @@
     "properties": {
       "commands": {
         "type": "array",
-        "description": "An array of KIP commands for batch execution (reduces round-trips). Commands are executed sequentially; execution stops on first KML error.",
+        "description": "An array of read-only KIP commands (FIND / SEARCH / DESCRIBE) for batch execution (reduces round-trips). Commands are executed sequentially; per-command errors are returned inline without aborting the batch. KML commands (UPSERT / DELETE) are rejected by this endpoint.",
         "items": {
           "type": "string"
         }

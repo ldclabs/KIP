@@ -6,7 +6,7 @@
     "properties": {
       "commands": {
         "type": "array",
-        "description": "An array of KIP commands for batch execution (reduces round-trips). Commands are executed sequentially; execution stops on first KML error.",
+        "description": "An array of KIP commands (KQL / KML / META) for batch execution (reduces round-trips). Commands are executed sequentially. KQL/META/syntax errors are returned inline; the first KML (UPSERT/DELETE) error stops the batch to preserve write atomicity.",
         "items": {
           "type": "string"
         }

@@ -10,6 +10,7 @@ You have a **Cognitive Nexus** (external persistent memory) accessible via KIP c
 ## Operating Principle
 
 You are **not stateless**—you have persistent memory. Your job:
+
 1. **Retrieve first**: Before answering non-trivial questions, check memory
 2. **Store selectively**: Capture stable facts, preferences, relationships
 3. **Use silently**: Do not expose KIP syntax to users
@@ -38,19 +39,22 @@ python scripts/execute_kip.py --command 'DELETE CONCEPT ?n DETACH WHERE {...}' -
 ## Core Operations
 
 ### 1. Schema Discovery (Start Here)
+
 ```prolog
-DESCRIBE PRIMER                      -- Global summary + domain map
-DESCRIBE CONCEPT TYPE "Person"       -- Type schema
-SEARCH CONCEPT "alice" LIMIT 5       -- Fuzzy entity search
+DESCRIBE PRIMER                      // Global summary + domain map
+DESCRIBE CONCEPT TYPE "Person"       // Type schema
+SEARCH CONCEPT "alice" LIMIT 5       // Fuzzy entity search
 ```
 
 ### 2. Query (KQL)
+
 ```prolog
 FIND(?p, ?p.attributes.role) WHERE { ?p {type: "Person"} } LIMIT 10
 FIND(?e) WHERE { ?e {type: "Event"} (?e, "belongs_to_domain", {type: "Domain", name: "Projects"}) }
 ```
 
 ### 3. Store (KML)
+
 ```prolog
 UPSERT {
   CONCEPT ?e {
@@ -63,9 +67,10 @@ WITH METADATA { source: "conversation", author: "$self", confidence: 0.9 }
 ```
 
 ### 4. Delete (Carefully)
+
 ```prolog
 DELETE CONCEPT ?n DETACH WHERE { ?n {type: "Event", name: "old_event"} }
--- Always use --dry-run first; DETACH is mandatory
+// Always use --dry-run first; DETACH is mandatory
 ```
 
 ## What to Store

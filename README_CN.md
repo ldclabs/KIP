@@ -50,13 +50,14 @@ DESCRIBE PRIMER
 
 ## 文档
 
-| 文档                                    | 描述                                   |
-| --------------------------------------- | -------------------------------------- |
-| [📖 Specification](./SPECIFICATION.md)   | 完整的 KIP 协议规范（英文）            |
-| [📖 规范文档](./SPECIFICATION_CN.md)     | 完整的 KIP 协议规范（中文）            |
-| [🤖 Agent 指令](./SelfInstructions.md)   | AI Agent 使用 KIP 的操作指南           |
-| [⚙️ 系统指令](./SystemInstructions.md)   | 系统级维护与清理指南                   |
-| [📋 函数定义](./FunctionDefinition.json) | 用于 LLM 集成的 `execute_kip` 函数模式 |
+| 文档                                    | 描述                                             |
+| --------------------------------------- | ------------------------------------------------ |
+| [📖 Specification](./SPECIFICATION.md)   | 完整的 KIP 协议规范（英文）                      |
+| [📖 规范文档](./SPECIFICATION_CN.md)     | 完整的 KIP 协议规范（中文）                      |
+| [📐 语法参考](./KIPSyntax.md)            | 浓缩版 KQL / KML / META 语法（适合嵌入系统提示） |
+| [🤖 Agent 指令](./SelfInstructions.md)   | `$self` 操作指南（清醒心智）                     |
+| [⚙️ 系统指令](./SystemInstructions.md)   | `$system` 睡眠周期维护指南                       |
+| [📋 函数定义](./FunctionDefinition.json) | 用于 LLM 集成的 `execute_kip` 函数模式           |
 
 ## 核心概念
 
@@ -132,21 +133,6 @@ KIP 使用自描述模式，类型定义存储在图本身中：
 └─────────────────────┘
 ```
 
-### 🔌 MCP 服务器 (`mcp/`)
-
-[kip-mcp-server](./mcp/kip-mcp-server/) - 通过 stdio 暴露 KIP 工具的 Model Context Protocol 服务器：
-
-- **工具**：`execute_kip`、`list_logs`
-- **资源**：`kip://docs/SelfInstructions.md`、`kip://docs/KIPSyntax.md`
-- **提示词**：`kip_bootstrap` 提供即用的系统提示词
-
-### 🎯 Agent 技能 (`skill/`)
-
-[kip-cognitive-nexus](./skill/kip-cognitive-nexus/) - 可发布的 AI Agent 技能：
-
-- 用于 `anda_cognitive_nexus_server` 的 Python 客户端脚本
-- 完整的语法参考和 Agent 工作流指南
-
 
 ## 实现
 
@@ -161,13 +147,14 @@ KIP 使用自描述模式，类型定义存储在图本身中：
 
 ## 版本历史
 
-| 版本        | 日期       | 变更                                                                                                                                                    |
-| ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| v1.0-RC5    | 2026-03-25 | v1.0 Release Candidate 5：添加 `execute_kip_readonly` 接口                                                                                              |
-| v1.0-RC4    | 2026-03-09 | v1.0 Release Candidate 4：新增 `IN`、`IS_NULL`、`IS_NOT_NULL` FILTER 运算符；澄清 UNION 变量作用域语义；定义批量响应结构；新增时序查询与 UNION 查询示例 |
-| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：优化文档；优化指令；优化知识胶囊                                                                                              |
-| ...         | ...        | ...                                                                                                                                                     |
-| v1.0-draft1 | 2025-06-09 | 初始草案                                                                                                                                                |
+| 版本        | 日期       | 变更                                                                                                                                                                                                                                                                                                                                                                       |
+| ----------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1.0-RC6    | 2026-04-25 | v1.0 Release Candidate 6：新增状态演进元数据（`superseded` / `superseded_by` / `superseded_at`）；明确 `expires_at` 仅作为维护信号（仅 `$system` 第 9 阶段执行物理清理，每周期上限 500 条）；新增 `KIP_2003 InvalidValueType` 与 `KIP_3004 ProtectedScope` 错误码；将语法参考归并至 [KIPSyntax.md](./KIPSyntax.md)；重构海马体提示词（形成 / 召回 / 维护）以便嵌入系统提示 |
+| v1.0-RC5    | 2026-03-25 | v1.0 Release Candidate 5：添加 `execute_kip_readonly` 接口                                                                                                                                                                                                                                                                                                                 |
+| v1.0-RC4    | 2026-03-09 | v1.0 Release Candidate 4：新增 `IN`、`IS_NULL`、`IS_NOT_NULL` FILTER 运算符；澄清 UNION 变量作用域语义；定义批量响应结构；新增时序查询与 UNION 查询示例                                                                                                                                                                                                                    |
+| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：优化文档；优化指令；优化知识胶囊                                                                                                                                                                                                                                                                                                                 |
+| ...         | ...        | ...                                                                                                                                                                                                                                                                                                                                                                        |
+| v1.0-draft1 | 2025-06-09 | 初始草案                                                                                                                                                                                                                                                                                                                                                                   |
 
 [完整版本历史 →](./SPECIFICATION_CN.md)
 

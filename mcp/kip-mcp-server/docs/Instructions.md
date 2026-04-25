@@ -110,7 +110,7 @@ The pattern/filter clauses in `WHERE` are by default connected using the **AND**
 FIND(?drug.name, ?risk)
 WHERE {
     ?drug {type: "Drug"}
-    OPTIONAL { ?drug ("has_side_effect", ?effect) }
+    OPTIONAL { (?drug, "has_side_effect", ?effect) }
     FILTER(?drug.attributes.risk_level < 3)
 }
 ```
@@ -504,7 +504,7 @@ UPSERT {
       priority: 1
     }
     SET PROPOSITIONS {
-      ("assigned_to", {type: "Person", name: "$system"}),
+      ("assigned_to", {type: "Person", name: "$system"})
       ("created_by", {type: "Person", name: "$self"})
     }
   }

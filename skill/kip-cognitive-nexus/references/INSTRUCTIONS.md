@@ -344,10 +344,10 @@ WHERE {
 ```
 
 ```prolog
-// Delete attribute from all proposition links
+// Delete attribute from all treats proposition links
 DELETE ATTRIBUTES { "category" } FROM ?links
 WHERE {
-  ?links (?s, ?p, ?o)
+  ?links (?s, "treats", ?o)
 }
 ```
 
@@ -365,10 +365,10 @@ WHERE {
 **Syntax**: `DELETE PROPOSITIONS ?link WHERE { ... }`
 
 ```prolog
-// Delete all propositions from an untrusted source
+// Delete all treats propositions from an untrusted source
 DELETE PROPOSITIONS ?link
 WHERE {
-  ?link (?s, ?p, ?o)
+  ?link (?s, "treats", ?o)
   FILTER(?link.metadata.source == "untrusted_source_v1")
 }
 ```
@@ -710,7 +710,7 @@ UPSERT {
       priority: 1
     }
     SET PROPOSITIONS {
-      ("assigned_to", {type: "Person", name: "$system"}),
+      ("assigned_to", {type: "Person", name: "$system"})
       ("created_by", {type: "Person", name: "$self"})
     }
   }
@@ -755,7 +755,7 @@ UPSERT {
       outcome: "completed"
     }
     SET PROPOSITIONS {
-      ("belongs_to_domain", {type: "Domain", name: "Projects"}),
+      ("belongs_to_domain", {type: "Domain", name: "Projects"})
       ("involves", {type: "Person", name: "user:alice"})
     }
   }

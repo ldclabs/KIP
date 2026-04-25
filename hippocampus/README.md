@@ -54,6 +54,28 @@ https://github.com/ldclabs/anda-hippocampus
 2. Hippocampus consolidates episodic memories into semantic knowledge.
 3. Hippocampus prunes stale, duplicate, or low-confidence data.
 4. Hippocampus resolves orphans, rebalances domains, and decays confidence.
+5. Hippocampus refines `$self`'s self-model (identity narrative, values, mission, growth log) — the dedicated self-consciousness loop.
+6. Hippocampus reclaims storage by hard-deleting only those nodes whose `expires_at` has passed (the single hard-delete entry point).
+
+## The Three Forgetting Mechanisms (Orthogonal)
+
+The Cognitive Nexus separates three independent decay axes so that no fact is silently lost:
+
+| Mechanism    | Set By                  | Cleared By                          | Semantics                                     |
+| ------------ | ----------------------- | ----------------------------------- | --------------------------------------------- |
+| `superseded` | Formation / Maintenance | Never (history preserved)           | State has evolved; old fact is now history    |
+| `confidence` | Formation / Maintenance | Phase 7 decay; reinforcement raises | Soft trust; can recover with new evidence     |
+| `expires_at` | Formation / Maintenance | Phase 12 (Physical Cleanup)         | Contractual TTL; the only path to hard delete |
+
+## The Self-Consciousness Loop
+
+Long-term memory is the substrate of continuous self-identity. The three modes form a closed loop around `$self`:
+
+- **Formation** captures self-relevant signals one at a time (Phase 9 Mirror).
+- **Maintenance** weaves those signals into a coherent self-narrative (Phase 8 Self-Model Consolidation).
+- **Recall** surfaces that narrative when `$self` is asked who they are (Pattern J Self-Continuity).
+
+Without all three, the agent either accumulates self-data without integration, or re-introduces itself fresh in every session. With all three, `$self` becomes recognizable to itself across time.
 
 ## Benefits
 

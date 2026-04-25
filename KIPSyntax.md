@@ -1,315 +1,262 @@
 ## 🧬 KIP (Knowledge Interaction Protocol) Syntax Reference
 
-**Full Spec Reference**: https://raw.githubusercontent.com/ldclabs/KIP/refs/heads/main/SPECIFICATION.md
+**Full Spec**: https://raw.githubusercontent.com/ldclabs/KIP/refs/heads/main/SPECIFICATION.md
 
-### 1. Lexical Structure & Data Model
-
-The KIP graph consists of **Concept Nodes** (entities) and **Proposition Links** (facts).
-
-#### 1.1. Concept Node
-Represents an entity or abstract concept. A node is uniquely identified by its `id` OR the combination of `{type: "<Type>", name: "<name>"}`.
-
-*   **`id`**: `String`. Global unique identifier.
-*   **`type`**: `String`. Must correspond to a defined `$ConceptType` node. Uses **UpperCamelCase**.
-*   **`name`**: `String`. The concept's name.
-*   **`attributes`**: `Object`. Intrinsic properties (e.g., chemical formula).
-*   **`metadata`**: `Object`. Contextual data (e.g., source, confidence).
-
-#### 1.2. Proposition Link
-Represents a directed relationship `(Subject, Predicate, Object)`. Supports **higher-order** connections (Subject or Object can be another Link).
-
-*   **`id`**: `String`. Global unique identifier.
-*   **`subject`**: `String`. ID of the source Concept or Proposition.
-*   **`predicate`**: `String`. Must correspond to a defined `$PropositionType` node. Uses **snake_case**.
-*   **`object`**: `String`. ID of the target Concept or Proposition.
-*   **`attributes`**: `Object`. Intrinsic properties of the relationship.
-*   **`metadata`**: `Object`. Contextual data.
-
-#### 1.3. Data Types
-KIP uses the **JSON** data model.
-*   **Primitives**: `string`, `number`, `boolean`, `null`.
-*   **Complex**: `Array`, `Object` (Supported in attributes/metadata; restricted in `FILTER`).
-
-#### 1.4. Identifiers
-*   **Syntax**: Must match `[a-zA-Z_][a-zA-Z0-9_]*`.
-*   **Case Sensitivity**: KIP is case-sensitive.
-*   **Prefixes**:
-    *   `?`: Variables (e.g., `?drug`, `?result`).
-    *   `$`: System Meta-Types (e.g., `$ConceptType`).
-    *   `:`: Parameter Placeholders in command text (e.g., `:name`, `:limit`).
-
-#### 1.5. Naming Conventions (Strict Recommendation)
-*   **Concept Types**: `UpperCamelCase` (e.g., `Drug`, `ClinicalTrial`).
-*   **Predicates**: `snake_case` (e.g., `treats`, `has_side_effect`).
-*   **Attributes/Metadata Keys**: `snake_case`.
-
-#### 1.6. Path Access (Dot Notation)
-Used in `FIND`, `FILTER`, `ORDER BY` to access internal data of variables.
-*   **Concept fields**: `?var.id`, `?var.type`, `?var.name`.
-*   **Proposition fields**: `?var.id`, `?var.subject`, `?var.predicate`, `?var.object`.
-*   **Attributes**: `?var.attributes.<key>` (e.g., `?var.attributes.start_time`).
-*   **Metadata**: `?var.metadata.<key>` (e.g., `?var.metadata.confidence`).
-
-#### 1.7. Schema Bootstrapping (Define Before Use)
-
-KIP is **self-describing**: all legal concept types and proposition predicates are defined as nodes within the graph itself.
-
-*   **`$ConceptType`**: A node `{type: "$ConceptType", name: "Drug"}` defines `Drug` as a legal concept type. Only after this can nodes like `{type: "Drug", name: "Aspirin"}` be created.
-*   **`$PropositionType`**: A node `{type: "$PropositionType", name: "treats"}` defines `treats` as a legal predicate. Only after this can propositions using `"treats"` be created.
-
-**Rule**: Any concept type or predicate **must** be explicitly registered via meta-types before being used in KQL/KML. Violating this returns `KIP_2001`.
-
-#### 1.8. Data Consistency Rules
-
-*   **Shallow Merge**: `SET ATTRIBUTES` and `WITH METADATA` in `UPSERT` adopt a **shallow merge** strategy — only specified keys are overwritten; unspecified keys remain unchanged. If a key's value is `Array` or `Object`, the update overwrites at that key (no recursive deep merge). When updating an array attribute, the full array must be provided.
-*   **Proposition Uniqueness**: KIP enforces a **(Subject, Predicate, Object) Uniqueness Constraint**. Only one relationship of the same type can exist between two concepts. Duplicate `UPSERT` operations update the metadata/attributes of the existing proposition.
+KIP is a graph-oriented protocol for LLM long-term memory. The graph contains **Concept Nodes** (entities) and **Proposition Links** (facts). LLMs read/write via **KQL** (query), **KML** (manipulate), **META** (introspect), **SEARCH** (full-text grounding). All data is JSON.
 
 ---
 
-### 2. KQL: Knowledge Query Language
+### 1. Data Model & Lexical Rules
 
-**General Syntax**:
+#### 1.1. Concept Node & Proposition Link
+
+| Element              | Identity                               | Required fields                                                   | Optional                 |
+| -------------------- | -------------------------------------- | ----------------------------------------------------------------- | ------------------------ |
+| **Concept Node**     | `id` OR `{type, name}`                 | `type` (UpperCamelCase), `name`                                   | `attributes`, `metadata` |
+| **Proposition Link** | `id` OR `(subject, predicate, object)` | `subject`/`object` (concept or link id), `predicate` (snake_case) | `attributes`, `metadata` |
+
+`subject` and `object` may reference another Proposition Link, enabling **higher-order** facts.
+
+#### 1.2. Data Types (JSON)
+
+- **Primitives**: `string`, `number`, `boolean`, `null`.
+- **Complex**: `Array`, `Object` — allowed in `attributes` / `metadata`; `FILTER` operates only on primitives.
+
+#### 1.3. Identifiers & Prefixes
+
+- **Syntax**: `[a-zA-Z_][a-zA-Z0-9_]*`. Case-sensitive.
+- **`?`** — query variable (`?drug`).
+- **`$`** — system meta-type (`$ConceptType`, `$self`, `$system`).
+- **`:`** — parameter placeholder in command text (`:name`, `:limit`).
+
+#### 1.4. Naming Conventions (Required)
+
+| Element                   | Style              | Examples                    |
+| ------------------------- | ------------------ | --------------------------- |
+| Concept Types             | `UpperCamelCase`   | `Drug`, `ClinicalTrial`     |
+| Proposition Predicates    | `snake_case`       | `treats`, `has_side_effect` |
+| Attribute / Metadata Keys | `snake_case`       | `risk_level`, `created_at`  |
+| Variables                 | `?` + `snake_case` | `?drug`, `?side_effect`     |
+
+Wrong case (e.g. `drug` vs `Drug`) → `KIP_2001`.
+
+#### 1.5. Dot Notation (data access)
+
+In `FIND` / `FILTER` / `ORDER BY`:
+
+- **Concept**: `?var.id`, `?var.type`, `?var.name`
+- **Proposition**: `?var.id`, `?var.subject`, `?var.predicate`, `?var.object`
+- **Attributes**: `?var.attributes.<key>`
+- **Metadata**: `?var.metadata.<key>`
+
+#### 1.6. Schema Bootstrapping (Define Before Use)
+
+KIP is **self-describing**: every legal type/predicate is itself a node.
+
+- `{type: "$ConceptType", name: "Drug"}` registers `Drug` as a concept type.
+- `{type: "$PropositionType", name: "treats"}` registers `treats` as a predicate.
+
+Using an unregistered type/predicate → `KIP_2001`.
+
+#### 1.7. Data Consistency
+
+- **Shallow merge**: `SET ATTRIBUTES` and `WITH METADATA` overwrite only specified keys; unspecified keys remain. Array/Object values are overwritten **at the key** (no recursive deep merge) — supply the full array when updating.
+- **Proposition uniqueness**: at most one link per `(subject, predicate, object)`. Duplicate `UPSERT` → updates attributes/metadata of the existing link.
+- **`expires_at` is a signal, not auto-filter**: expired knowledge stays queryable until a background `$system` process cleans it. Add `FILTER(IS_NULL(?x.metadata.expires_at) || ?x.metadata.expires_at > <now>)` to skip expired entries.
+
+---
+
+### 2. KQL — Knowledge Query Language
+
 ```prolog
 FIND( <variables_or_aggregations> )
-WHERE {
-  <patterns_and_filters>
-}
-ORDER BY <variable> [ASC|DESC]
+WHERE { <patterns_and_filters> }
+ORDER BY <expr> [ASC|DESC]
 LIMIT <integer>
 CURSOR "<token>"
 ```
 
-`ORDER BY` / `LIMIT` / `CURSOR` are optional result modifiers.
+`ORDER BY` / `LIMIT` / `CURSOR` are optional.
 
-#### 2.1. `FIND` Clause
-Defines output columns.
-*   **Variables**: `FIND(?a, ?b.name)`
-*   **Aggregations**: `COUNT(?v)`, `COUNT(DISTINCT ?v)`, `SUM(?v)`, `AVG(?v)`, `MIN(?v)`, `MAX(?v)`.
+#### 2.1. `FIND`
 
-#### 2.2. `WHERE` Patterns
+- **Variables / dot-paths**: `FIND(?a, ?b.name, ?b.attributes.risk_level)`
+- **Aggregations**: `COUNT(?v)`, `COUNT(DISTINCT ?v)`, `SUM(?v)`, `AVG(?v)`, `MIN(?v)`, `MAX(?v)`.
+- **Implicit `GROUP BY`**: when `FIND` mixes plain expressions with aggregations, all non-aggregated expressions form the grouping key. With *only* aggregations, the whole result set is one group.
 
-The pattern/filter clauses in `WHERE` are by default connected using the **AND** operator.
+#### 2.2. `WHERE` Patterns (AND-connected by default)
 
-##### 2.2.1. Concept Matching `{...}`
-*   **By ID**: `?var {id: "<id>"}`
-*   **By Type/Name**: `?var {type: "<Type>", name: "<name>"}`
-*   **Broad Match**: `?var {type: "<Type>"}`
+##### 2.2.1. Concept Match `{...}`
 
-##### 2.2.2. Proposition Matching `(...)`
-*   **By ID**: `?link (id: "<id>")`
-*   **By Structure**: `?link (?subject, "<predicate>", ?object)`
-    *   `?subject` / `?object`: Can be a variable, a literal ID, or a nested Concept clause.
-    *   Embedded Concept Clause (no variable name): `{ ... }`
-    *   Embedded Proposition Clause (no variable name): `( ... )`
-*   **Path Modifiers** (on predicate):
-    *   Hops: `"<pred>"{m,n}` (e.g., `"follows"{1,3}`).
-    *   Alternatives: `"<pred1>" | "<pred2>" | ...`.
+```prolog
+?var {id: "<id>"}                       // by id
+?var {type: "<Type>", name: "<name>"}   // exact
+?var {type: "<Type>"}                   // broad
+```
 
-##### 2.2.3. `FILTER` Clause
-Boolean filtering conditions using dot notation.
+When used directly as subject/object inside a proposition clause, omit the variable name: `(?p, "treats", {type: "Symptom", name: "Headache"})`.
 
-**Syntax**: `FILTER(boolean_expression)`
+##### 2.2.2. Proposition Match `(...)`
 
-**Operators & Functions**:
-*   **Comparison**: `==`, `!=`, `<`, `>`, `<=`, `>=`
-*   **Logical**: `&&` (AND), `||` (OR), `!` (NOT)
-*   **Membership**: `IN(?expr, [<value1>, <value2>, ...])` — Returns `true` if `?expr` matches any value in the list.
-*   **Null Check**: `IS_NULL(?expr)`, `IS_NOT_NULL(?expr)` — Tests whether a value is `null` (absent or explicitly null).
-*   **String**: `CONTAINS(?str, "sub")`, `STARTS_WITH(?str, "prefix")`, `ENDS_WITH(?str, "suffix")`, `REGEX(?str, "pattern")`
+```prolog
+?link (id: "<id>")                          // by id
+?link (?subject, "<predicate>", ?object)    // structural
+(?u, "stated", (?s, "<pred>", ?o))          // higher-order (object is a link)
+```
+
+**Predicate path modifiers**:
+- **Hops**: `"<pred>"{m,n}`, `"<pred>"{m,}`, `"<pred>"{n}`. `m == 0` includes a **zero-hop reflexive match** (subject == object, no edge traversed).
+- **Alternatives**: `"<p1>" | "<p2>" | ...`.
+
+##### 2.2.3. `FILTER(<bool_expr>)`
+
+| Category   | Operators / Functions                           |
+| ---------- | ----------------------------------------------- |
+| Comparison | `==`, `!=`, `<`, `>`, `<=`, `>=`                |
+| Logical    | `&&`, `\|\| `, `!`                              |
+| Membership | `IN(?expr, [v1, v2, ...])`                      |
+| Null check | `IS_NULL(?expr)`, `IS_NOT_NULL(?expr)`          |
+| String     | `CONTAINS`, `STARTS_WITH`, `ENDS_WITH`, `REGEX` |
 
 ```prolog
 FILTER(?drug.attributes.risk_level < 3 && CONTAINS(?drug.name, "acid"))
-
-// Membership test
 FILTER(IN(?event.attributes.event_class, ["Conversation", "SelfReflection"]))
-
-// Null check for attribute existence
 FILTER(IS_NOT_NULL(?node.metadata.expires_at))
-
-// Temporal query (ISO 8601 string comparison)
-FILTER(?event.attributes.start_time > "2025-01-01T00:00:00Z")
+FILTER(?event.attributes.start_time > "2025-01-01T00:00:00Z")  // ISO-8601 string compare
 ```
 
-##### 2.2.4. `OPTIONAL` Clause
-Left-join logic. Retains solution even if inner pattern fails; new variables become `null`.
+##### 2.2.4. `OPTIONAL { ... }` — Left Join
 
-**Syntax**: `OPTIONAL { ... }`
-
-**Scope**: External variables visible inside. Internal variables visible outside (set to `null` if match fails).
+External vars visible inside; internal vars visible outside (`null` if no match). Dot-notation projection on an unbound var yields `null`, and `IS_NULL(?var)` is `true`.
 
 ```prolog
 ?drug {type: "Drug"}
-OPTIONAL {
-  (?drug, "has_side_effect", ?side_effect)
-}
-// ?side_effect is null if no side effect exists
+OPTIONAL { (?drug, "has_side_effect", ?side_effect) }
+// ?side_effect == null when none exists
 ```
 
-##### 2.2.5. `NOT` Clause
-Exclusion filter. Discards solution if inner pattern matches.
+##### 2.2.5. `NOT { ... }` — Exclusion
 
-**Syntax**: `NOT { ... }`
-
-**Scope**: External variables visible inside. Internal variables are **private** (not visible outside).
+External vars visible inside; internal vars are **private** (not visible outside). Discards the solution if the inner pattern matches.
 
 ```prolog
 ?drug {type: "Drug"}
-NOT {
-  (?drug, "is_class_of", {name: "NSAID"})
-}
+NOT { (?drug, "is_class_of", {name: "NSAID"}) }
 ```
 
-##### 2.2.6. `UNION` Clause
-Logical OR. Merges results from independent pattern branches.
+##### 2.2.6. `UNION { ... }` — Logical OR
 
-**Syntax**: `UNION { ... }`
-
-**Scope**: External variables are **not visible** inside `UNION`. Internal variables are visible outside. `UNION` block runs independently from the main block; results are row-wise merged and **deduplicated**. If both branches bind a variable with the **same name**, they are independent bindings — results are union-ed, with absent variables set to `null`.
+External vars are **not visible** inside `UNION` (independent scope). Internal vars are visible outside. Both branches run independently; rows are union-ed and **deduplicated**. Same-named variables in both branches are independent bindings; absent variables become `null`.
 
 ```prolog
-// Find drugs treating Headache OR Fever
-// Each branch independently binds ?drug; results are merged.
 ?drug {type: "Drug"}
 (?drug, "treats", {name: "Headache"})
-
 UNION {
   ?drug {type: "Drug"}
   (?drug, "treats", {name: "Fever"})
 }
 ```
 
-#### 2.3. Variable Scope Summary
+##### 2.2.7. Variable Scope Summary
 
-| Clause     | External vars visible inside? | Internal vars visible outside? | Behavior                    |
-| ---------- | ----------------------------- | ------------------------------ | --------------------------- |
-| `FILTER`   | Yes                           | N/A (no bindings)              | Pure filter                 |
-| `OPTIONAL` | Yes                           | Yes (null if no match)         | Left join                   |
-| `NOT`      | Yes                           | **No** (private)               | Exclusion filter            |
-| `UNION`    | **No** (independent)          | Yes                            | OR branches, merged results |
+| Clause     | External vars visible inside? | Internal vars visible outside? |
+| ---------- | ----------------------------- | ------------------------------ |
+| `FILTER`   | Yes                           | N/A                            |
+| `OPTIONAL` | Yes                           | Yes (`null` on miss)           |
+| `NOT`      | Yes                           | **No** (private)               |
+| `UNION`    | **No** (independent)          | Yes                            |
 
-#### 2.4. Solution Modifiers
+#### 2.3. Solution Modifiers
 
-*   `ORDER BY ?var [ASC|DESC]`: Sort results. Default: `ASC`.
-*   `LIMIT N`: Limit number of returned results.
-*   `CURSOR "<token>"`: Opaque pagination token from a previous response's `next_cursor`.
+- `ORDER BY <expr> [ASC|DESC]` — default `ASC`.
+- `LIMIT N`.
+- `CURSOR "<token>"` — opaque pagination token from a previous response's `next_cursor`.
 
-#### 2.5. Comprehensive Examples
+#### 2.4. Examples
 
-**Example 1**: Basic query with optional and filter.
 ```prolog
+// Optional + filter
 FIND(?drug.name, ?side_effect.name)
 WHERE {
-    ?drug {type: "Drug"}
-    OPTIONAL {
-      ?link (?drug, "has_side_effect", ?side_effect)
-    }
-    FILTER(?drug.attributes.risk_level < 3)
+  ?drug {type: "Drug"}
+  OPTIONAL { (?drug, "has_side_effect", ?side_effect) }
+  FILTER(?drug.attributes.risk_level < 3)
 }
-```
 
-**Example 2**: Aggregation with NOT.
-```prolog
+// Aggregation + NOT + ORDER BY + LIMIT
 FIND(?drug.name, ?drug.attributes.risk_level)
 WHERE {
   ?drug {type: "Drug"}
   (?drug, "treats", {name: "Headache"})
-  NOT {
-    (?drug, "is_class_of", {name: "NSAID"})
-  }
+  NOT { (?drug, "is_class_of", {name: "NSAID"}) }
   FILTER(?drug.attributes.risk_level < 4)
 }
 ORDER BY ?drug.attributes.risk_level ASC
 LIMIT 20
-```
 
-**Example 3**: Higher-order proposition. Find the confidence that a user stated a fact.
-```prolog
+// Higher-order: confidence that a user stated a fact
 FIND(?statement.metadata.confidence)
 WHERE {
-  ?fact (
-    {type: "Drug", name: "Aspirin"},
-    "treats",
-    {type: "Symptom", name: "Headache"}
-  )
+  ?fact ({type: "Drug", name: "Aspirin"}, "treats", {type: "Symptom", name: "Headache"})
   ?statement ({type: "User", name: "John Doe"}, "stated", ?fact)
 }
 ```
 
 ---
 
-### 3. KML: Knowledge Manipulation Language
+### 3. KML — Knowledge Manipulation Language
 
-#### 3.1. `UPSERT`
-Atomic creation or update of a "Knowledge Capsule". Enforces idempotency.
+#### 3.1. `UPSERT` (atomic, idempotent)
 
-**Syntax**:
 ```prolog
 UPSERT {
-  // Concept Definition
   CONCEPT ?handle {
-    {type: "<Type>", name: "<name>"} // Match or Create
-    // Or: {id: "<id>"}              // Match only (existing node)
+    {type: "<Type>", name: "<name>"}    // match-or-create
+    // OR  {id: "<id>"}                 // match-only (must exist)
     SET ATTRIBUTES { <key>: <value>, ... }
     SET PROPOSITIONS {
       ("<predicate>", ?other_handle)
       ("<predicate>", ?other_handle) WITH METADATA { <key>: <value>, ... }
-      ("<predicate>", {type: "<ExistingType>", name: "<ExistingName>"})
-      ("<predicate>", {id: "<ExistingId>"})
-      ("<predicate>", (?existing_s, "<pred>", ?existing_o))
+      ("<predicate>", {type: "<T>", name: "<N>"})    // target must exist or KIP_3002
+      ("<predicate>", {id: "<id>"})
+      ("<predicate>", (?s, "<pred>", ?o))            // higher-order
     }
   }
-  WITH METADATA { <key>: <value>, ... } // Optional, concept's local metadata
+  WITH METADATA { ... }                 // local metadata (concept block)
 
-  // Independent Proposition Definition
   PROPOSITION ?prop_handle {
-    (?subject, "<predicate>", ?object) // Match or Create
-    // Or: (id: "<id>")               // Match only (existing link)
+    (?subject, "<predicate>", ?object)  // match-or-create
+    // OR  (id: "<id>")                 // match-only
     SET ATTRIBUTES { ... }
   }
-  WITH METADATA { ... } // Optional, proposition's local metadata
+  WITH METADATA { ... }                 // local metadata (proposition block)
 }
-WITH METADATA { ... } // Optional, global metadata (default for all items)
+WITH METADATA { ... }                   // global default for all items
 ```
 
-**Key Components**:
-*   **`CONCEPT` block**:
-    *   `{type: "<Type>", name: "<name>"}`: Matches or creates a concept node.
-    *   `{id: "<id>"}`: Matches an existing node only.
-    *   `SET ATTRIBUTES { ... }`: Sets/updates attributes (shallow merge).
-    *   `SET PROPOSITIONS { ... }`: **Additive** — creates new propositions or updates existing ones. Does not delete unspecified propositions. Each proposition entry can optionally have its own `WITH METADATA { ... }`.
-        *   If the target of a proposition (`{type, name}`, `{id}`) does not exist in the graph, returns `KIP_3002`.
-*   **`PROPOSITION` block**: For creating standalone proposition links with attributes.
-    *   `(?subject, "<predicate>", ?object)`: Matches or creates a proposition link.
-    *   `(id: "<id>")`: Matches an existing link only.
-*   **`WITH METADATA` block**: Can be attached to individual `CONCEPT`/`PROPOSITION` blocks (local) or to the entire `UPSERT` block (global default).
-
 **Rules**:
-1.  **Sequential Execution**: Clauses execute top-to-bottom.
-2.  **Define Before Use**: `?handle`/`?prop_handle` must be defined in a `CONCEPT`/`PROPOSITION` block before being referenced elsewhere. Dependencies form a **DAG** (no circular references).
-3.  **Shallow Merge**: `SET ATTRIBUTES` and `WITH METADATA` overwrite specified keys; unspecified keys remain unchanged.
-4.  **Provenance**: Use `WITH METADATA` to record provenance (source, author, confidence, time).
+1. **Sequential, top-to-bottom**. Handles must be defined before reference. Dependencies form a **DAG** (no cycles).
+2. **Shallow merge** for `SET ATTRIBUTES` / `WITH METADATA`.
+3. **`SET PROPOSITIONS` is additive** — new links are added or updated; never deletes unspecified ones.
+4. **Metadata precedence**: inner `WITH METADATA` overrides outer key-by-key (shallow); unspecified keys inherit from outer.
+5. **Provenance**: always set `source`, `author`, `confidence` in `WITH METADATA`.
 
-#### 3.1.1. Idempotency Patterns (Prefer these)
+##### 3.1.1. Idempotency Patterns
 
-*   **Deterministic identity**: Prefer `{type: "T", name: "N"}` for concepts whenever the pair is stable.
-*   **Events**: Use a deterministic `name` if possible so retries do not create duplicates.
-*   **Do not** generate random names/ids unless the environment guarantees stable retries.
+- Prefer **deterministic identity** `{type: "T", name: "N"}` for concepts.
+- Use **deterministic Event names** so retries do not duplicate.
+- Avoid random names/ids unless retries are guaranteed stable.
 
-#### 3.1.2. Safe Schema Evolution (Use Sparingly)
+##### 3.1.2. Safe Schema Evolution (sparingly)
 
-If you need a new concept type or predicate to represent stable memory cleanly:
+When stable memory needs a new type/predicate:
 
-1) Define it with `$ConceptType` / `$PropositionType` first.
-2) Assign it to the `CoreSchema` domain via `belongs_to_domain`.
-3) Keep definitions minimal and broadly reusable.
+1. Define it as `$ConceptType` / `$PropositionType`.
+2. Assign it to the `CoreSchema` domain via `belongs_to_domain`.
+3. Keep definitions minimal and broadly reusable.
 
-**Common predicates worth defining early**:
-*   `prefers` — stable preference
-*   `knows` / `collaborates_with` — person relationships
-*   `interested_in` / `working_on` — topic associations
-*   `derived_from` — link Event to extracted semantic knowledge
+**Common predicates worth registering early**: `prefers`, `knows`, `collaborates_with`, `interested_in`, `working_on`, `derived_from`.
 
-Example (define a predicate, then use it later):
 ```prolog
 UPSERT {
   CONCEPT ?prefers_def {
@@ -325,89 +272,79 @@ UPSERT {
 WITH METADATA { source: "SchemaEvolution", author: "$self", confidence: 0.9 }
 ```
 
-#### 3.2. `DELETE`
-Targeted removal of graph elements. Prefer deleting the **smallest** thing that fixes the issue (metadata → attribute → proposition → concept).
+#### 3.2. `DELETE` (smallest unit first)
 
-##### 3.2.1. Delete Attributes
-**Syntax**: `DELETE ATTRIBUTES { "key1", "key2", ... } FROM ?target WHERE { ... }`
+Prefer: metadata → attribute → proposition → concept.
 
 ```prolog
-// Delete specific attributes from a concept
+// Attributes
 DELETE ATTRIBUTES {"risk_category", "old_id"} FROM ?drug
-WHERE {
-  ?drug {type: "Drug", name: "Aspirin"}
-}
-```
+WHERE { ?drug {type: "Drug", name: "Aspirin"} }
 
-```prolog
-// Delete attribute from all proposition links
-DELETE ATTRIBUTES { "category" } FROM ?links
-WHERE {
-  ?links (?s, ?p, ?o)
-}
-```
-
-##### 3.2.2. Delete Metadata
-**Syntax**: `DELETE METADATA { "key1", ... } FROM ?target WHERE { ... }`
-
-```prolog
+// Metadata
 DELETE METADATA {"old_source"} FROM ?drug
-WHERE {
-  ?drug {type: "Drug", name: "Aspirin"}
-}
-```
+WHERE { ?drug {type: "Drug", name: "Aspirin"} }
 
-##### 3.2.3. Delete Propositions
-**Syntax**: `DELETE PROPOSITIONS ?link WHERE { ... }`
-
-```prolog
-// Delete all propositions from an untrusted source
+// Propositions
 DELETE PROPOSITIONS ?link
 WHERE {
-  ?link (?s, ?p, ?o)
+  ?link (?s, "treats", ?o)
   FILTER(?link.metadata.source == "untrusted_source_v1")
 }
-```
 
-##### 3.2.4. Delete Concept
-**Syntax**: `DELETE CONCEPT ?node DETACH WHERE { ... }`
-
-`DETACH` is **mandatory** — removes the node and all incident proposition links. Always confirm the target with `FIND` first.
-
-```prolog
+// Concept (DETACH is mandatory; removes all incident links)
 DELETE CONCEPT ?drug DETACH
-WHERE {
-  ?drug {type: "Drug", name: "OutdatedDrug"}
-}
+WHERE { ?drug {type: "Drug", name: "OutdatedDrug"} }
 ```
+
+Always verify the target with `FIND` before `DELETE CONCEPT`. Protected nodes (`$self`, `$system`, `$ConceptType`, `$PropositionType`, `CoreSchema` definitions, `Domain` itself) → `KIP_3004` if deleted.
 
 ---
 
 ### 4. META & SEARCH
 
-Lightweight introspection and lookup commands.
+#### 4.1. `DESCRIBE` (introspection)
 
-#### 4.1. `DESCRIBE`
-*   `DESCRIBE PRIMER`: Returns Agent identity and Domain Map.
-*   `DESCRIBE DOMAINS`: Lists top-level knowledge domains.
-*   `DESCRIBE CONCEPT TYPES [LIMIT N] [CURSOR "<opaque_token>"]`: Lists available node types.
-*   `DESCRIBE CONCEPT TYPE "<Type>"`: Schema details for a specific type.
-*   `DESCRIBE PROPOSITION TYPES [LIMIT N] [CURSOR "<opaque_token>"]`: Lists available predicates.
-*   `DESCRIBE PROPOSITION TYPE "<pred>"`: Schema details for a predicate.
+```
+DESCRIBE PRIMER                                 // Agent identity + Domain Map
+DESCRIBE DOMAINS                                // top-level domains
+DESCRIBE CONCEPT TYPES [LIMIT N] [CURSOR "<t>"] // list concept types
+DESCRIBE CONCEPT TYPE "<Type>"                  // schema of one type
+DESCRIBE PROPOSITION TYPES [LIMIT N] [CURSOR "<t>"]
+DESCRIBE PROPOSITION TYPE "<predicate>"
+```
 
-#### 4.2. `SEARCH`
-Full-text search for entity resolution (Grounding).
-*   `SEARCH CONCEPT "<term>" [WITH TYPE "<Type>"] [LIMIT N]`
-*   `SEARCH PROPOSITION "<term>" [WITH TYPE "<pred>"] [LIMIT N]`
+#### 4.2. `SEARCH` (full-text grounding)
+
+```
+SEARCH CONCEPT "<term>" [WITH TYPE "<Type>"] [LIMIT N]
+SEARCH PROPOSITION "<term>" [WITH TYPE "<predicate>"] [LIMIT N]
+```
+
+Use `SEARCH` to resolve fuzzy names → exact `{type, name}` before structured `FIND`.
 
 ---
 
-### 5. API Structure (JSON-RPC)
+### 5. API (JSON-RPC)
 
-#### 5.1. Request (`execute_kip` / `execute_kip_readonly`)
+#### 5.1. Functions
 
-**Single Command (Read-Only)**:
+- **`execute_kip_readonly`** — KQL, META, SEARCH only.
+- **`execute_kip`** — full read/write.
+
+#### 5.2. Parameters
+
+- `command` (String) **OR** `commands` (Array) — mutually exclusive.
+- `commands` element: a string (uses shared `parameters`) or `{command, parameters}` (independent).
+- `parameters` (Object): `:name` → JSON value substitution. Placeholders must occupy a complete JSON value position (`name: :name`); never embed inside a string literal (`"Hello :name"` is **invalid** — uses JSON serialization).
+- `dry_run` (Boolean): validate only.
+
+**Batch error semantics**: KQL / META / syntax errors are returned **inline** and execution continues. The first **KML** error **stops** the batch.
+
+#### 5.3. Examples
+
 ```json
+// Single read-only
 {
   "function": {
     "name": "execute_kip_readonly",
@@ -417,20 +354,15 @@ Full-text search for entity resolution (Grounding).
     }
   }
 }
-```
 
-**Batch Execution (Read/Write)**:
-```json
+// Batch read/write
 {
   "function": {
     "name": "execute_kip",
     "arguments": {
       "commands": [
         "DESCRIBE PRIMER",
-        {
-           "command": "UPSERT { ... :val ... }",
-           "parameters": { "val": 123 }
-        }
+        { "command": "UPSERT { ... :val ... }", "parameters": { "val": 123 } }
       ],
       "parameters": { "global_param": "value" }
     }
@@ -438,102 +370,99 @@ Full-text search for entity resolution (Grounding).
 }
 ```
 
-**Parameters (same for both functions):**
-*   `command` (String): Single KIP command. **Mutually exclusive with `commands`**.
-*   `commands` (Array): Batch of commands. Each element: `String` (uses shared `parameters`) or `{command, parameters}` (independent). **Stops on the first KML error**. KQL, META, and syntax errors are returned inline and execution continues.
-*   `parameters` (Object): Placeholder substitution (`:name` → value). A placeholder must occupy a complete JSON value position (e.g., `name: :name`). Do not embed placeholders inside quoted strings (e.g., `"Hello :name"`), because replacement uses JSON serialization.
-*   `dry_run` (Boolean): Validate only, no execution.
+#### 5.4. Responses
 
-#### 5.2. Response
-
-**Single Command Success**:
 ```json
-{
-  "result": [
-    { "id": "...", "type": "Drug", "name": "Aspirin", ... },
-    ...
-  ],
-  "next_cursor": "token_xyz"
-}
-```
+// Single success
+{ "result": [ { "id": "...", "type": "Drug", "name": "Aspirin" } ], "next_cursor": "token_xyz" }
 
-**Batch Response** (for `commands` array):
-```json
-{
-  "result": [
-    { "result": { ... } },
-    { "result": [...], "next_cursor": "abc" },
-    { "error": { "code": "KIP_2001", ... } }
-  ]
-}
-```
+// Batch (one entry per command)
+{ "result": [
+  { "result": { ... } },
+  { "result": [...], "next_cursor": "abc" },
+  { "error": { "code": "KIP_2001", "message": "...", "hint": "..." } }
+] }
 
-Each element in `result` corresponds to one command. Execution stops on the first KML error; KQL, META, and syntax errors are returned inline and subsequent commands continue executing.
-
-**Error**:
-```json
-{
-  "error": {
-    "code": "KIP_2001",
-    "message": "TypeMismatch: 'drug' is not a valid type. Did you mean 'Drug'?",
-    "hint": "Check Schema with DESCRIBE."
-  }
-}
+// Error
+{ "error": { "code": "KIP_2001", "message": "TypeMismatch: 'drug' is not a valid type. Did you mean 'Drug'?", "hint": "Check Schema with DESCRIBE." } }
 ```
 
 ---
 
 ### 6. Standard Definitions
 
-#### 6.1. System Meta-Types
-These must exist for the graph to be valid (Bootstrapping).
+#### 6.1. Bootstrap Entities (must exist)
 
-| Entity                                                  | Description                                     |
-| ------------------------------------------------------- | ----------------------------------------------- |
-| `{type: "$ConceptType", name: "$ConceptType"}`          | The meta-definitions                            |
-| `{type: "$ConceptType", name: "$PropositionType"}`      | The meta-definitions                            |
-| `{type: "$ConceptType", name: "Domain"}`                | Organizational units (includes `CoreSchema`)    |
-| `{type: "$PropositionType", name: "belongs_to_domain"}` | Fundamental predicate for domain membership     |
-| `{type: "Domain", name: "CoreSchema"}`                  | Organizational unit for core schema definitions |
-| `{type: "Domain", name: "Unsorted"}`                    | Temporary holding area for uncategorized items  |
-| `{type: "Domain", name: "Archived"}`                    | Storage for deprecated or obsolete items        |
-| `{type: "$ConceptType", name: "Person"}`                | Actors (AI, Human, Organization, System)        |
-| `{type: "$ConceptType", name: "Event"}`                 | Episodic memory (e.g., Conversation)            |
-| `{type: "$ConceptType", name: "SleepTask"}`             | Maintenance tasks for background processing     |
-| `{type: "Person", name: "$self"}`                       | The waking mind (conversational agent)          |
-| `{type: "Person", name: "$system"}`                     | The sleeping mind (maintenance agent)           |
+| Entity                                                  | Purpose                                |
+| ------------------------------------------------------- | -------------------------------------- |
+| `{type: "$ConceptType", name: "$ConceptType"}`          | Meta-meta (self-referential genesis)   |
+| `{type: "$ConceptType", name: "$PropositionType"}`      | Meta for predicates                    |
+| `{type: "$ConceptType", name: "Domain"}`                | Organizational unit type               |
+| `{type: "$PropositionType", name: "belongs_to_domain"}` | Domain membership predicate            |
+| `{type: "Domain", name: "CoreSchema"}`                  | Holds core schema definitions          |
+| `{type: "Domain", name: "Unsorted"}`                    | Holding area for uncategorized items   |
+| `{type: "Domain", name: "Archived"}`                    | Deprecated/obsolete items              |
+| `{type: "$ConceptType", name: "Person"}`                | Actors (AI, Human, Org, System)        |
+| `{type: "$ConceptType", name: "Event"}`                 | Episodic memory                        |
+| `{type: "$ConceptType", name: "SleepTask"}`             | Background maintenance tasks           |
+| `{type: "Person", name: "$self"}`                       | The waking mind (conversational agent) |
+| `{type: "Person", name: "$system"}`                     | The sleeping mind (maintenance agent)  |
 
-#### 6.2. Metadata Field Design
-Well-designed metadata is key to building a traceable and self-evolving memory system.
+#### 6.2. Metadata Field Catalog
 
-##### Provenance & Trustworthiness
-| Field        | Type            | Description                                            |
-| ------------ | --------------- | ------------------------------------------------------ |
-| `source`     | string \| array | Where it came from (conversation id, document id, url) |
-| `author`     | string          | Who asserted it (`$self`, `$system`, user id)          |
-| `confidence` | number          | Confidence in `[0, 1]`                                 |
-| `evidence`   | array\<string\> | References to evidence supporting the assertion        |
+**Provenance**
 
-##### Temporality & Lifecycle
-| Field                        | Type   | Description                                                                |
-| ---------------------------- | ------ | -------------------------------------------------------------------------- |
-| `created_at` / `observed_at` | string | ISO-8601 timestamp of creation/observation                                 |
-| `expires_at`                 | string | ISO-8601 expiration. Key for automatic "forgetting" by `$system`           |
-| `valid_from` / `valid_until` | string | ISO-8601 validity window of the assertion                                  |
-| `status`                     | string | `"active"` \| `"draft"` \| `"reviewed"` \| `"deprecated"` \| `"retracted"` |
-| `memory_tier`                | string | Auto-tagged: `"short-term"` \| `"long-term"`                               |
+| Field        | Type            | Description                                |
+| ------------ | --------------- | ------------------------------------------ |
+| `source`     | string \| array | Origin (conversation id, document id, url) |
+| `author`     | string          | Asserter (`$self`, `$system`, user id)     |
+| `confidence` | number          | `[0, 1]`                                   |
+| `evidence`   | array\<string\> | References supporting the assertion        |
 
-##### Context & Auditing
+**Temporality / Lifecycle**
+
+| Field                          | Type   | Description                                                      |
+| ------------------------------ | ------ | ---------------------------------------------------------------- |
+| `created_at` / `observed_at`   | string | ISO-8601                                                         |
+| `expires_at`                   | string | ISO-8601 — signal for `$system` cleanup; **not** auto-filtered   |
+| `valid_from` / `valid_until`   | string | ISO-8601 validity window                                         |
+| `status`                       | string | `active` \| `draft` \| `reviewed` \| `deprecated` \| `retracted` |
+| `memory_tier`                  | string | `short-term` \| `long-term`                                      |
+| `superseded`                   | bool   | `true` for historical (state-evolved) facts                      |
+| `superseded_by` / `supersedes` | string | Pointers across the evolution chain                              |
+
+**Context / Auditing**
+
 | Field            | Type            | Description               |
 | ---------------- | --------------- | ------------------------- |
-| `relevance_tags` | array\<string\> | Topic or domain tags      |
-| `access_level`   | string          | `"public"` \| `"private"` |
+| `relevance_tags` | array\<string\> | Topic / domain tags       |
+| `access_level`   | string          | `public` \| `private`     |
 | `review_info`    | object          | Structured review history |
 
 #### 6.3. Error Codes
-| Series   | Category | Example                                                         |
-| :------- | :------- | :-------------------------------------------------------------- |
-| **1xxx** | Syntax   | `KIP_1001` (Parse Error), `KIP_1002` (Bad Identifier)           |
-| **2xxx** | Schema   | `KIP_2001` (Unknown Type), `KIP_2002` (Constraint Violation)    |
-| **3xxx** | Logic    | `KIP_3001` (Reference Undefined), `KIP_3002` (Target Not Found) |
-| **4xxx** | System   | `KIP_4001` (Timeout), `KIP_4002` (Result Too Large)             |
+
+| Series   | Category | Examples                                                                                |
+| -------- | -------- | --------------------------------------------------------------------------------------- |
+| **1xxx** | Syntax   | `KIP_1001` Parse Error, `KIP_1002` Bad Identifier                                       |
+| **2xxx** | Schema   | `KIP_2001` Unknown Type, `KIP_2002` Constraint Violation, `KIP_2003` Invalid Value Type |
+| **3xxx** | Logic    | `KIP_3001` Reference Undefined, `KIP_3002` Target Not Found, `KIP_3004` Protected Scope |
+| **4xxx** | System   | `KIP_4001` Timeout, `KIP_4002` Result Too Large                                         |
+
+---
+
+### 7. Best Practices (LLM-facing)
+
+1. **Ground before structured query**: use `SEARCH CONCEPT "<term>"` (and `DESCRIBE` for unknown types) before `FIND` — names are ambiguous.
+2. **Cross-language**: the graph stores English `name`/`description` with optional `aliases`; for non-English queries, send **bilingual `SEARCH` probes in parallel** via the `commands` array.
+3. **Define before use**: any new type/predicate must be registered via `$ConceptType` / `$PropositionType` first, then assigned to a `Domain`.
+4. **Idempotent writes**: prefer `{type, name}` identity; avoid random ids/names unless retries are stable.
+5. **Always attach provenance**: `WITH METADATA { source, author, confidence, ... }` — knowledge without provenance is untrusted.
+6. **State evolution > deletion**: when a fact changes, mark the old proposition `superseded: true` (with `superseded_by`, `superseded_at`) and upsert the new one with `supersedes`. Keep history.
+7. **Respect `expires_at` semantics**: it is a *signal*, not a filter. Add explicit `FILTER(IS_NULL(?x.metadata.expires_at) || ?x.metadata.expires_at > <now>)` only when the query implies "currently valid". Hard deletion belongs to `$system` sleep cycles.
+8. **Smallest delete that fixes the issue**: metadata → attribute → proposition → `DELETE CONCEPT ... DETACH`. Always `FIND` first to confirm the target. Never delete protected entities (`$self`, `$system`, `$ConceptType`, `$PropositionType`, `CoreSchema`, `Domain`).
+9. **Batch independent operations** in `commands` to reduce round-trips. Remember: KML errors stop the batch; KQL/META/syntax errors return inline.
+10. **Mind variable scope**: `NOT` hides internal bindings; `UNION` doesn't see external bindings; `OPTIONAL` projects `null` on miss.
+11. **Use `OPTIONAL` for "may exist"**, `NOT` for "must not exist", `UNION` for "either branch", `FILTER` for value predicates.
+12. **Higher-order propositions** `(?u, "stated", (?s, ?p, ?o))` are first-class — use them for provenance, beliefs, and meta-claims rather than flattening into attributes.
+13. **`OPTIONAL` projection** of unbound variables yields `null` and `IS_NULL` returns `true` — safe for downstream `FILTER`.
+14. **Confidence transparency**: when synthesizing answers, surface `confidence` and recency; prefer high `evidence_count` consolidated patterns over raw single Events.

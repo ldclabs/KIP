@@ -56,11 +56,12 @@ DESCRIBE PRIMER
 
 | Document                                           | Description                                       |
 | -------------------------------------------------- | ------------------------------------------------- |
-| [📖 Specification](./SPECIFICATION.md)              | Complete KIP protocol specification (English)     |
-| [📖 规范文档](./SPECIFICATION_CN.md)                | 完整的 KIP 协议规范 (中文)                        |
-| [🤖 Agent Instructions](./SelfInstructions.md)      | Operational guide for AI agents using KIP         |
-| [⚙️ System Instructions](./SystemInstructions.md)   | System-level maintenance and hygiene guide        |
-| [📋 Function Definition](./FunctionDefinition.json) | `execute_kip` function schema for LLM integration |
+| [📖 Specification](./SPECIFICATION.md)              | Complete KIP protocol specification (English)        |
+| [📖 规范文档](./SPECIFICATION_CN.md)                | 完整的 KIP 协议规范 (中文)                           |
+| [📐 Syntax Reference](./KIPSyntax.md)               | Condensed KQL / KML / META syntax for system prompts |
+| [🤖 Agent Instructions](./SelfInstructions.md)      | `$self` operational guide (waking mind)              |
+| [⚙️ System Instructions](./SystemInstructions.md)   | `$system` sleep-cycle maintenance guide              |
+| [📋 Function Definition](./FunctionDefinition.json) | `execute_kip` function schema for LLM integration    |
 
 ## Core Concepts
 
@@ -136,21 +137,6 @@ A dedicated LLM layer that manages the Cognitive Nexus on behalf of business age
 └─────────────────────┘
 ```
 
-### 🔌 MCP Server (`mcp/`)
-
-[kip-mcp-server](./mcp/kip-mcp-server/) - Model Context Protocol server that exposes KIP tools over stdio:
-
-- **Tools**: `execute_kip`, `list_logs`
-- **Resources**: `kip://docs/SelfInstructions.md`, `kip://docs/KIPSyntax.md`
-- **Prompt**: `kip_bootstrap` for ready-to-inject system prompt
-
-### 🎯 Agent Skills (`skill/`)
-
-[kip-cognitive-nexus](./skill/kip-cognitive-nexus/) - Publishable skill for AI agents:
-
-- Python client script for `anda_cognitive_nexus_server`
-- Complete syntax reference and agent workflow guide
-
 ## Implementations
 
 | Project                                                                                                         | Description                                                                                |
@@ -166,6 +152,7 @@ A dedicated LLM layer that manages the Cognitive Nexus on behalf of business age
 
 | Version     | Date       | Changes                                                                                                                                                                                              |
 | ----------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1.0-RC6    | 2026-04-25 | v1.0 Release Candidate 6: Added state-evolution metadata (`superseded` / `superseded_by` / `superseded_at`); clarified `expires_at` as a maintenance signal (only `$system` Phase 9 hard-deletes, capped 500/cycle); added `KIP_2003 InvalidValueType` and `KIP_3004 ProtectedScope` error codes; consolidated syntax reference into [KIPSyntax.md](./KIPSyntax.md); restructured Hippocampus prompts (Formation / Recall / Maintenance) for prompt-embedding |
 | v1.0-RC5    | 2026-03-25 | v1.0 Release Candidate 5: Added `execute_kip_readonly` interface                                                                                                                                     |
 | v1.0-RC4    | 2026-03-09 | v1.0 Release Candidate 4: Added `IN`, `IS_NULL`, `IS_NOT_NULL` FILTER operators; clarified UNION variable scope semantics; defined batch response structure; added temporal and UNION query examples |
 | v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：Optimized documentation; optimized instructions; optimized knowledge capsules                                                                                              |
