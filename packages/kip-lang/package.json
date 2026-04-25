@@ -1,6 +1,6 @@
 {
   "name": "@ldclabs/kip-lang",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "KIP (Knowledge Interaction Protocol) language toolkit: lexer, parser, formatter, and diagnostics",
   "type": "module",
   "main": "dist/index.js",
@@ -19,7 +19,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
-    "test": "node --test dist/**/*.test.js"
+    "test": "node --test test/**/*.test.mjs"
   },
   "keywords": [
     "kip",

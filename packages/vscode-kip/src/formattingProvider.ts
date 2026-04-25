@@ -2,9 +2,7 @@ import * as vscode from 'vscode'
 import { format } from '@ldclabs/kip-lang'
 
 export class KipFormattingProvider
-  implements
-    vscode.DocumentFormattingEditProvider,
-    vscode.DocumentRangeFormattingEditProvider
+  implements vscode.DocumentFormattingEditProvider
 {
   provideDocumentFormattingEdits(
     document: vscode.TextDocument,
@@ -26,15 +24,5 @@ export class KipFormattingProvider
     } catch {
       return []
     }
-  }
-
-  provideDocumentRangeFormattingEdits(
-    document: vscode.TextDocument,
-    range: vscode.Range,
-    options: vscode.FormattingOptions
-  ): vscode.TextEdit[] {
-    // For range formatting, we format the entire document and then apply
-    // only the changes within the requested range. This ensures consistency.
-    return this.provideDocumentFormattingEdits(document, options)
   }
 }

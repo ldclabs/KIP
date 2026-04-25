@@ -79,9 +79,11 @@ export interface ConceptMatcher extends BaseNode {
 export interface PropositionPattern extends BaseNode {
   kind: 'PropositionPattern'
   variable?: string // ?link
-  subject: PropositionEndpoint
-  predicate: PredicateExpr
-  object: PropositionEndpoint
+  /** Match by proposition link id: (id: "...") */
+  id?: StringLiteral | ParameterRef
+  subject?: PropositionEndpoint
+  predicate?: PredicateExpr
+  object?: PropositionEndpoint
 }
 
 export type PropositionEndpoint =
@@ -150,9 +152,11 @@ export interface ConceptBlock extends BaseNode {
 export interface PropositionBlock extends BaseNode {
   kind: 'PropositionBlock'
   handle?: string
-  subject: PropositionEndpoint
-  predicate: PredicateExpr
-  object: PropositionEndpoint
+  /** Match an existing proposition by id: (id: "...") */
+  id?: StringLiteral | ParameterRef
+  subject?: PropositionEndpoint
+  predicate?: PredicateExpr
+  object?: PropositionEndpoint
   setAttributes?: SetAttributes
   metadata?: WithMetadata
 }

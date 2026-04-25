@@ -12,7 +12,7 @@ TextMate grammar with scopes for:
 - Compound keywords (`SET ATTRIBUTES`, `ORDER BY`, `WITH METADATA`, …)
 - Variables (`?drug`), parameters (`:limit`), system identifiers (`$ConceptType`)
 - Strings, numbers, booleans, `null`
-- Built-in functions (`COUNT`, `FILTER`, `CONTAINS`, `REGEX`, …)
+- Built-in functions (`COUNT`, `CONTAINS`, `REGEX`, `IN`, `IS_NULL`, …)
 - Operators (`==`, `!=`, `&&`, `||`, `<`, `>`, …)
 - Comments (`// ...`)
 

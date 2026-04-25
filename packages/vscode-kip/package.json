@@ -2,7 +2,7 @@
   "name": "vscode-kip",
   "displayName": "KIP Language",
   "description": "Language support for KIP (Knowledge Interaction Protocol): syntax highlighting, formatting, diagnostics, and code folding for .kip files",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "ldclabs",
   "license": "MIT",
   "repository": {
@@ -17,9 +17,6 @@
     "Programming Languages",
     "Formatters"
   ],
-  "activationEvents": [
-    "onLanguage:kip"
-  ],
   "main": "./dist/extension.js",
   "contributes": {
     "languages": [
@@ -32,11 +29,7 @@
         "extensions": [
           ".kip"
         ],
-        "configuration": "./language-configuration.json",
-        "icon": {
-          "light": "./icon.png",
-          "dark": "./icon.png"
-        }
+        "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
@@ -55,8 +48,8 @@
   },
   "devDependencies": {
     "@types/vscode": "^1.85.0",
-    "esbuild": "^0.27.0",
-    "typescript": "^5.8.0"
+    "esbuild": "^0.28.0",
+    "typescript": "^6.0.0"
   },
   "dependencies": {
     "@ldclabs/kip-lang": "workspace:*"

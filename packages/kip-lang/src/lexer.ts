@@ -20,7 +20,13 @@ class Lexer {
     while (this.pos < this.source.length) {
       this.scanToken()
     }
-    this.tokens.push(this.makeToken(TokenType.EOF, '', this.pos))
+    this.tokens.push({
+      type: TokenType.EOF,
+      value: '',
+      offset: this.pos,
+      line: this.line,
+      column: this.column
+    })
     return this.tokens
   }
 
@@ -42,16 +48,6 @@ class Lexer {
       this.column++
     }
     return ch
-  }
-
-  private makeToken(
-    type: TokenType,
-    value: string,
-    startOffset: number
-  ): Token {
-    // Calculate line/column for the start of this token
-    // We need to track it before scanning
-    return { type, value, offset: startOffset, line: 0, column: 0 }
   }
 
   private scanToken(): void {

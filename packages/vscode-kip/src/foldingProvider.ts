@@ -5,16 +5,9 @@ import type {
   UpsertStatement,
   FindStatement,
   DeleteStatement,
-  WhereClause,
   WherePattern,
   ConceptBlock,
-  PropositionBlock,
-  SetAttributes,
-  SetPropositions,
-  WithMetadata,
-  NotClause,
-  OptionalClause,
-  UnionClause
+  PropositionBlock
 } from '@ldclabs/kip-lang'
 
 export class KipFoldingProvider implements vscode.FoldingRangeProvider {
@@ -23,8 +16,12 @@ export class KipFoldingProvider implements vscode.FoldingRangeProvider {
     const ranges: vscode.FoldingRange[] = []
 
     try {
-      const { ast } = parse(source)
-      this.collectFromProgram(ast, ranges)
+      const { ast, diagnostics } = parse(source)
+      if (diagnostics.some((d) => d.severity === 'error')) {
+        this.collectBraceFolding(document, ranges)
+      } else {
+        this.collectFromProgram(ast, ranges)
+      }
     } catch {
       // Fall back to simple brace matching if parsing fails
       this.collectBraceFolding(document, ranges)

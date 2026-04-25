@@ -1,5 +1,6 @@
 import { tokenize } from './lexer.js'
 import { parse } from './parser.js'
+import { diagnose } from './diagnostics.js'
 import { Token, TokenType } from './token.js'
 import type {
   Program,
@@ -46,6 +47,11 @@ export function format(source: string, options?: FormatOptions): string {
   const opts: Required<FormatOptions> = {
     indentSize: options?.indentSize ?? 4,
     sortAttributes: options?.sortAttributes ?? true
+  }
+
+  const firstError = diagnose(source).find((d) => d.severity === 'error')
+  if (firstError) {
+    throw new Error(`Cannot format invalid KIP: ${firstError.message}`)
   }
 
   const tokens = tokenize(source)
@@ -258,9 +264,7 @@ class Formatter {
     this.indentLevel++
 
     this.writeIndent()
-    this.write(
-      `(${this.endpointToString(block.subject)}, ${this.predicateToString(block.predicate)}, ${this.endpointToString(block.object)})`
-    )
+    this.write(this.propositionBlockPatternToString(block))
     this.newline()
 
     if (block.setAttributes) {
@@ -421,8 +425,7 @@ class Formatter {
     } else if (stmt.deleteType === 'PROPOSITIONS') {
       this.write(`DELETE PROPOSITIONS ${stmt.target}`)
     } else {
-      this.write(`DELETE CONCEPT ${stmt.target}`)
-      if (stmt.detach) this.write(' DETACH')
+      this.write(`DELETE CONCEPT ${stmt.target} DETACH`)
     }
     this.newline()
 
@@ -530,9 +533,7 @@ class Formatter {
   private formatPropositionPattern(p: PropositionPattern): void {
     this.writeIndent()
     if (p.variable) this.write(`${p.variable} `)
-    this.write(
-      `(${this.endpointToString(p.subject)}, ${this.predicateToString(p.predicate)}, ${this.endpointToString(p.object)})`
-    )
+    this.write(this.propositionPatternToString(p))
     this.newline()
   }
 
@@ -635,6 +636,9 @@ class Formatter {
       case 'UnaryExpression':
         return `${expr.operator}${this.exprToString(expr.operand, depth)}`
       case 'FunctionCallExpr':
+        if (expr.name === 'DISTINCT' && expr.args.length === 1) {
+          return `DISTINCT ${this.exprToString(expr.args[0]!, depth)}`
+        }
         return `${expr.name}(${expr.args.map((a) => this.exprToString(a, depth)).join(', ')})`
     }
   }
@@ -695,14 +699,31 @@ class Formatter {
         return `{${entries}}`
       }
       case 'PropositionPattern': {
-        const s = this.endpointToString(ep.subject)
-        const p = this.predicateToString(ep.predicate)
-        const o = this.endpointToString(ep.object)
-        return `(${s}, ${p}, ${o})`
+        return this.propositionPatternToString(ep)
       }
       default:
         return '?unknown'
     }
+  }
+
+  private propositionBlockPatternToString(block: PropositionBlock): string {
+    if (block.id) {
+      return `(id: ${this.idValueToString(block.id)})`
+    }
+    return `(${this.endpointToString(block.subject!)}, ${this.predicateToString(block.predicate!)}, ${this.endpointToString(block.object!)})`
+  }
+
+  private propositionPatternToString(pattern: PropositionPattern): string {
+    if (pattern.id) {
+      return `(id: ${this.idValueToString(pattern.id)})`
+    }
+    return `(${this.endpointToString(pattern.subject!)}, ${this.predicateToString(pattern.predicate!)}, ${this.endpointToString(pattern.object!)})`
+  }
+
+  private idValueToString(id: PropositionPattern['id']): string {
+    if (!id) return '""'
+    if (id.kind === 'StringLiteral') return id.value
+    return id.name
   }
 
   private predicateToString(pred: PredicateExpr): string {

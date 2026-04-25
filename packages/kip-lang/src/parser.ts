@@ -296,14 +296,7 @@ class Parser {
     }
 
     this.expect(TokenType.LBrace)
-    // Parse the proposition pattern (subject, "predicate", object)
-    this.expect(TokenType.LParen)
-    const subject = this.parsePropositionEndpoint()
-    this.expect(TokenType.Comma)
-    const predicate = this.parsePredicateExpr()
-    this.expect(TokenType.Comma)
-    const object = this.parsePropositionEndpoint()
-    this.expect(TokenType.RParen)
+    const proposition = this.parsePropositionPatternBody(undefined)
 
     let setAttributes: SetAttributes | undefined
     let metadata: WithMetadata | undefined
@@ -341,9 +334,10 @@ class Parser {
     return {
       kind: 'PropositionBlock',
       handle,
-      subject,
-      predicate,
-      object,
+      id: proposition.id,
+      subject: proposition.subject,
+      predicate: proposition.predicate,
+      object: proposition.object,
       setAttributes,
       metadata,
       range: { start, end: this.currentPos() },
@@ -388,6 +382,11 @@ class Parser {
       if (this.check(TokenType.Detach)) {
         detach = true
         this.advance()
+      } else {
+        this.error(
+          `Expected DETACH after DELETE CONCEPT target '${target}'`,
+          this.current()
+        )
       }
     } else {
       this.error(
@@ -624,7 +623,7 @@ class Parser {
       return this.parseConceptPatternBody(variable, start)
     }
     if (this.check(TokenType.LParen)) {
-      return this.parsePropositionPatternBody(variable)
+      return this.parsePropositionPatternBody(variable, start)
     }
 
     // Just a variable reference as a standalone concept pattern without matcher
@@ -671,10 +670,21 @@ class Parser {
   }
 
   private parsePropositionPatternBody(
-    variable: string | undefined
+    variable: string | undefined,
+    start: Position = this.currentPos()
   ): PropositionPattern {
-    const start = this.currentPos()
     this.expect(TokenType.LParen)
+
+    if (this.isIdMatcherStart()) {
+      const id = this.parseIdMatcherValue()
+      this.expect(TokenType.RParen)
+      return {
+        kind: 'PropositionPattern',
+        variable,
+        id,
+        range: { start, end: this.currentPos() }
+      }
+    }
 
     const subject = this.parsePropositionEndpoint()
     this.expect(TokenType.Comma)
@@ -903,6 +913,62 @@ class Parser {
       metadata,
       range: { start, end: this.currentPos() }
     }
+  }
+
+  private isIdMatcherStart(): boolean {
+    const next = this.tokens[this.pos + 1]
+    return this.isIdKeyToken(this.current()) && next?.type === TokenType.Colon
+  }
+
+  private parseIdMatcherValue(): StringLiteral | ParameterRef {
+    const keyTok = this.current()
+    if (!this.isIdKeyToken(keyTok)) {
+      this.error(`Expected id matcher key but got '${keyTok.value}'`, keyTok)
+    }
+    this.advance()
+    this.expect(TokenType.Colon)
+    return this.parseStringOrParameterValue('proposition id')
+  }
+
+  private parseStringOrParameterValue(
+    context: string
+  ): StringLiteral | ParameterRef {
+    const tok = this.current()
+    const start = this.currentPos()
+
+    if (tok.type === TokenType.String) {
+      this.advance()
+      return {
+        kind: 'StringLiteral',
+        value: tok.value,
+        parsed: this.unescapeString(tok.value),
+        range: { start, end: this.currentPos() }
+      }
+    }
+
+    if (tok.type === TokenType.Parameter) {
+      this.advance()
+      return {
+        kind: 'ParameterRef',
+        name: tok.value,
+        range: { start, end: this.currentPos() }
+      }
+    }
+
+    this.error(`Expected string or parameter for ${context}`, tok)
+    return {
+      kind: 'StringLiteral',
+      value: '""',
+      parsed: '',
+      range: { start, end: start }
+    }
+  }
+
+  private isIdKeyToken(tok: Token): boolean {
+    return (
+      (tok.type === TokenType.Identifier && tok.value === 'id') ||
+      (tok.type === TokenType.String && this.unescapeString(tok.value) === 'id')
+    )
   }
 
   private parseWithMetadata(): WithMetadata {

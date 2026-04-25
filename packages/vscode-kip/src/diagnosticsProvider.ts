@@ -3,18 +3,24 @@ import { diagnose, type Diagnostic as KipDiagnostic } from '@ldclabs/kip-lang'
 
 export class KipDiagnosticsProvider {
   private collection: vscode.DiagnosticCollection
-  private timer: ReturnType<typeof setTimeout> | undefined
+  private readonly timers = new Map<string, ReturnType<typeof setTimeout>>()
 
   constructor(collection: vscode.DiagnosticCollection) {
     this.collection = collection
   }
 
   scheduleUpdate(doc: vscode.TextDocument): void {
-    if (this.timer) clearTimeout(this.timer)
-    this.timer = setTimeout(() => this.update(doc), 300)
+    this.clearTimer(doc.uri)
+    const key = doc.uri.toString()
+    const timer = setTimeout(() => {
+      this.timers.delete(key)
+      this.update(doc)
+    }, 300)
+    this.timers.set(key, timer)
   }
 
   update(doc: vscode.TextDocument): void {
+    this.clearTimer(doc.uri)
     const source = doc.getText()
     try {
       const kipDiags = diagnose(source)
@@ -24,6 +30,24 @@ export class KipDiagnosticsProvider {
       // If the diagnostic engine itself throws, clear diagnostics
       this.collection.delete(doc.uri)
     }
+  }
+
+  delete(doc: vscode.TextDocument): void {
+    this.clearTimer(doc.uri)
+    this.collection.delete(doc.uri)
+  }
+
+  dispose(): void {
+    for (const timer of this.timers.values()) clearTimeout(timer)
+    this.timers.clear()
+  }
+
+  private clearTimer(uri: vscode.Uri): void {
+    const key = uri.toString()
+    const timer = this.timers.get(key)
+    if (!timer) return
+    clearTimeout(timer)
+    this.timers.delete(key)
   }
 
   private toVsDiagnostic(d: KipDiagnostic): vscode.Diagnostic {

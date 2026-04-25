@@ -4,8 +4,7 @@ import { KipDiagnosticsProvider } from './diagnosticsProvider.js'
 import { KipFoldingProvider } from './foldingProvider.js'
 
 const KIP_SELECTOR: vscode.DocumentSelector = {
-  language: 'kip',
-  scheme: 'file'
+  language: 'kip'
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -13,10 +12,6 @@ export function activate(context: vscode.ExtensionContext) {
   const formattingProvider = new KipFormattingProvider()
   context.subscriptions.push(
     vscode.languages.registerDocumentFormattingEditProvider(
-      KIP_SELECTOR,
-      formattingProvider
-    ),
-    vscode.languages.registerDocumentRangeFormattingEditProvider(
       KIP_SELECTOR,
       formattingProvider
     )
@@ -28,6 +23,7 @@ export function activate(context: vscode.ExtensionContext) {
   const diagnosticsProvider = new KipDiagnosticsProvider(diagnosticCollection)
   context.subscriptions.push(
     diagnosticCollection,
+    diagnosticsProvider,
     vscode.workspace.onDidOpenTextDocument((doc) => {
       if (doc.languageId === 'kip') diagnosticsProvider.update(doc)
     }),
@@ -36,7 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
         diagnosticsProvider.scheduleUpdate(e.document)
     }),
     vscode.workspace.onDidCloseTextDocument((doc) => {
-      diagnosticCollection.delete(doc.uri)
+      if (doc.languageId === 'kip') diagnosticsProvider.delete(doc)
     })
   )
 
