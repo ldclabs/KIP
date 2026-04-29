@@ -288,8 +288,13 @@ class Lexer {
       }
     }
 
-    // Exponent part
-    if (this.peek() === 'e' || this.peek() === 'E') {
+    // Exponent part: consume only if it is complete JSON-number syntax.
+    if (
+      (this.peek() === 'e' || this.peek() === 'E') &&
+      (this.isDigit(this.peekAt(1)) ||
+        ((this.peekAt(1) === '+' || this.peekAt(1) === '-') &&
+          this.isDigit(this.peekAt(2))))
+    ) {
       this.advance()
       if (this.peek() === '+' || this.peek() === '-') {
         this.advance()

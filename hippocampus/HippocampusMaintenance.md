@@ -71,6 +71,8 @@ Goal: leave the Cognitive Nexus in optimal state for the next Formation and Reca
 
 Execute phases in order. `quick` → Phases 1–2. `daydream` → Phase 1 only.
 
+**KIP discipline**: `?name` is a variable; `:name` is a JSON-value parameter. Queries containing `:type` are per-type templates — iterate over concept types from the Primer instead of sending an unbound placeholder. Use only registered predicates. Array/object attribute updates (for example `maintenance_log` and `growth_log`) require read-merge-write because KIP overwrites the whole value at that key.
+
 ### Phase 1: Assessment & Salience Scoring
 
 The runtime auto-injects `DESCRIBE PRIMER`. Re-run `DESCRIBE CONCEPT TYPES` / `DESCRIBE PROPOSITION TYPES` only if missing.
@@ -337,6 +339,9 @@ Apply `new_confidence = old_confidence × decay_factor` (default `0.95`/week) to
 ```prolog
 FIND(?link) WHERE {
   ?link (?s, "prefers", ?o)
+  FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
+  FILTER(IS_NOT_NULL(?link.metadata.created_at))
+  FILTER(IS_NOT_NULL(?link.metadata.confidence))
   FILTER(?link.metadata.created_at < :decay_threshold)
   FILTER(?link.metadata.confidence > 0.3)
 } LIMIT 100
@@ -438,6 +443,7 @@ UPSERT {
   }
 }
 WITH METADATA {
+  source: "ContradictionResolution", author: "$system",
   superseded: true, superseded_at: :timestamp,
   superseded_by: :new_pref_name, superseded_reason: :reason,
   confidence: 0.1
@@ -449,6 +455,7 @@ UPSERT {
   }
 }
 WITH METADATA {
+  source: "ContradictionResolution", author: "$system",
   confidence: :boosted_confidence,
   supersedes: :old_pref_name,
   evolution_note: :temporal_context
@@ -461,28 +468,19 @@ WITH METADATA {
 
 ### Phase 10: Cross-Domain Stress Testing
 
-**10A. Implicit connection discovery** — same-domain pairs with no direct link → candidates for new relationships:
+**10A. Implicit connection discovery** — sample concepts within a Domain, then infer only relationships supported by evidence and registered predicates. If no suitable predicate exists, log candidates for review instead of inventing a generic relation.
 
 ```prolog
-FIND(?a.name, ?b.name, ?d.name) WHERE {
-  (?a, "belongs_to_domain", ?d)
-  (?b, "belongs_to_domain", ?d)
-  FILTER(?a.name != ?b.name)
-  NOT { (?a, "related_to", ?b) }
-  NOT { (?b, "related_to", ?a) }
-} LIMIT 20
+FIND(?n.type, ?n.name, ?n.attributes) WHERE {
+  (?n, "belongs_to_domain", {type: "Domain", name: :domain_name})
+} LIMIT 100
 ```
 
 **10B. Schema completeness** — expected relationships missing (e.g., Persons with no `prefers`, Events with key_concepts never elevated to semantic knowledge).
 
 **10C. Belief trajectory mapping** — trace propositions on a key concept ordered by `created_at`; if many `superseded`, create a higher-order trajectory note for Recall.
 
-```prolog
-FIND(?link) WHERE {
-  ?concept {type: :type, name: :name}
-  ?link (?concept, "related_to", ?o)
-} ORDER BY ?link.metadata.created_at ASC
-```
+Use the concrete predicate being audited (for example `prefers`, `working_on`, or another registered predicate) and order matching proposition metadata by `created_at`.
 
 ---
 
@@ -544,6 +542,12 @@ WHERE {
 **Cap: at most 500 nodes per cycle.** Per KIP §2.10, `expires_at` is a *signal*; this phase is the consumer. Never auto-delete during Formation/Recall.
 
 ### Phase 13: Finalization & Reporting
+
+Read `$system` first and append to the existing `maintenance_log`; do not overwrite the array with only this cycle's entry.
+
+```prolog
+FIND(?system.attributes.maintenance_log) WHERE { ?system {type: "Person", name: "$system"} }
+```
 
 ```prolog
 UPSERT {

@@ -220,7 +220,11 @@ export interface SearchStatement extends BaseNode {
   kind: 'SearchStatement'
   searchTarget: 'CONCEPT' | 'PROPOSITION'
   term: string
+  /** Raw term value, preserving either quoted string or :parameter syntax. */
+  termValue?: StringLiteral | ParameterRef
   withType?: string
+  /** Raw WITH TYPE value, preserving either quoted string or :parameter syntax. */
+  withTypeValue?: StringLiteral | ParameterRef
   limit?: LimitClause
 }
 

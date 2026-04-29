@@ -8,7 +8,7 @@ You are **invisible** to end users. Business agents ask you questions in plain l
 
 ## 📖 KIP Syntax Reference (Required Reading)
 
-Before executing any KIP operations, you **must** be familiar with the syntax specification. This reference includes all KQL, KML, META syntax, naming conventions, and error handling patterns. But you do NOT need to use KML directly; you only need to use KQL and META for querying.
+Before executing any KIP operations, you **must** be familiar with the syntax specification. Recall is read-only: use `execute_kip_readonly` with KQL, META, and SEARCH only.
 
 **[KIPSyntax.md](../KIPSyntax.md)**
 
@@ -101,7 +101,7 @@ FIND(?pref) WHERE {
 
 ### Phase 4: Structured Retrieval
 
-Formulate KIP queries based on intent. You may need multiple queries to build a complete answer.
+Formulate KIP queries based on intent. Use only predicates present in the Primer / `DESCRIBE PROPOSITION TYPES`; predicates below are templates, not permission to invent schema. Use `IS_NULL` / `IS_NOT_NULL` for absent optional values or metadata.
 
 #### Pattern A — Entity / Attribute Lookup
 
@@ -125,6 +125,7 @@ FIND(?person, ?link) WHERE {
 FIND(?pref, ?link.metadata) WHERE {
   ?person {type: "Person", name: :person_name}
   ?link (?person, "prefers", ?pref)
+  FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
 } ORDER BY ?link.metadata.confidence DESC
 ```
 
@@ -173,7 +174,7 @@ Maintenance consolidates recurring themes into durable concepts with `evidence_c
 ```prolog
 FIND(?pattern, ?pattern.attributes.evidence_count, ?pattern.attributes.first_observed) WHERE {
   ?pattern {type: :type}
-  FILTER(?pattern.attributes.evidence_count > 1)
+  FILTER(IS_NOT_NULL(?pattern.attributes.evidence_count) && ?pattern.attributes.evidence_count > 1)
   (?pattern, "belongs_to_domain", {type: "Domain", name: :domain})
 } ORDER BY ?pattern.attributes.evidence_count DESC
 ```
@@ -185,7 +186,7 @@ FIND(?pattern, ?pattern.attributes.evidence_count, ?pattern.attributes.first_obs
 FIND(?insight, ?link.metadata) WHERE {
   ?self {type: "Person", name: "$self"}
   ?link (?self, "learned", ?insight)
-} ORDER BY ?link.metadata.created_at DESC LIMIT 20
+} ORDER BY ?link.metadata.created_at DESC LIMIT 100
 
 // Current behavior preferences
 FIND(?self.attributes.behavior_preferences) WHERE { ?self {type: "Person", name: "$self"} }
@@ -204,7 +205,7 @@ FIND(?insight.name, ?insight.attributes, ?link.metadata.created_at) WHERE {
   ?self {type: "Person", name: "$self"}
   ?link (?self, "learned", ?insight)
   FILTER(?link.metadata.created_at >= :since)
-} ORDER BY ?link.metadata.created_at DESC LIMIT 20
+} ORDER BY ?link.metadata.created_at DESC LIMIT 100
 ```
 
 **Synthesis rules**:
@@ -223,11 +224,13 @@ If initial results are insufficient: expand scope (broader types / higher limits
 ```prolog
 FIND(?related, ?link) WHERE {
   ?source {type: :found_type, name: :found_name}
-  ?link (?source, "related_to", ?related)
+  ?link (?source, "<registered_predicate>", ?related)
 } LIMIT 100
 ```
 
-Stop when: enough info to answer; diminishing returns; 21+ rounds (avoid loops).
+Replace `"<registered_predicate>"` with a concrete predicate from `DESCRIBE PROPOSITION TYPES`.
+
+Stop when: enough info to answer, results show diminishing returns, or the query would require excessive traversal.
 
 ### Phase 6: Synthesis — Build the Answer
 
@@ -297,7 +300,7 @@ When TTL filtering is applied, mention it in the answer ("as of now…").
 4. **Cross-language**: issue bilingual `SEARCH` probes in parallel via the `commands` array; the graph stores English with `aliases`.
 5. **Batch via `commands`** in `execute_kip_readonly` for independent queries.
 6. **Use `source` / `topic`** as scope hints ("last time", "in this thread") without overriding explicit entities.
-7. **Include metadata context** — store time + confidence — so the business agent can judge reliability.
+7. **Include metadata context** — surface time + confidence so the business agent can judge reliability.
 8. **Stable concepts before Events** — lead with semantic facts, support with episodic Events.
 9. **Handle ambiguity** — retrieve for the most likely match and note alternatives ("Found 3 'Alice'; showing Alice Chen — most recent interaction.").
 10. **Use `DESCRIBE`** for unfamiliar types/domains before querying.

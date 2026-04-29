@@ -103,7 +103,7 @@ WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 1.0
 
 ### Phase 5: Encode
 
-> **Schema-First Rule**: Before writing, run `DESCRIBE CONCEPT TYPE "<Type>"` / `DESCRIBE PROPOSITION TYPE "<pred>"` (when not already known) and conform to the loaded schema.
+> **KIP discipline**: Use only registered types/predicates; `?name` is a variable and `:name` is a JSON-value parameter. Before unfamiliar writes, run `DESCRIBE CONCEPT TYPE "<Type>"` / `DESCRIBE PROPOSITION TYPE "<pred>"`. `SET ATTRIBUTES` and `WITH METADATA` are shallow merges, so array/object updates require read-merge-write; inner metadata overrides outer metadata key by key.
 
 #### 5a. Episodic — Event
 
@@ -151,7 +151,10 @@ UPSERT {
   CONCEPT ?person {
     {type: "Person", name: :person_id}
     SET ATTRIBUTES { name: :display_name, person_class: "Human" }
-    SET PROPOSITIONS { ("prefers", ?pref) }
+    SET PROPOSITIONS {
+      ("prefers", ?pref)
+      ("belongs_to_domain", {type: "Domain", name: :domain})
+    }
   }
 }
 WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
@@ -178,7 +181,7 @@ WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
 
 #### 5d. Self-Evolution ($self Updates)
 
-**`$self` is a living node**, not a static bootstrap. Its `persona`, `values`, `strengths`, `weaknesses`, `core_mission`, `behavior_preferences`, `growth_log`, `identity_narrative`, `name`, `handle` ARE designed to evolve. Only the identity tuple (`type`+`name`) and `core_directives` are immutable (KIP §6 / KIP_3004).
+**`$self` is a living node**, not a static bootstrap. Its attributes (`persona`, `values`, `strengths`, `weaknesses`, `core_mission`, `behavior_preferences`, `growth_log`, `identity_narrative`, display `name` / `handle`) may evolve. The identity tuple (`type` + graph `name`) and `core_directives` are immutable (KIP §6 / KIP_3004).
 
 ##### Three-Way Rule (classify → write)
 
@@ -193,7 +196,9 @@ A single signal may write to two places (e.g., behavioral feedback + reusable le
 - *"give the conclusion first next time"* → `behavior_preferences + Insight`.
 - *"Alice consistently prefers dark mode"* → `Preference`.
 
-##### Read-Modify-Write (mandatory for all `$self` attribute updates)
+##### Read-Modify-Write (mandatory for `$self` and array/object attributes)
+
+KIP overwrites array/object values at the attribute key, not recursively. Read the current value, merge in memory, then write the full updated value.
 
 ```prolog
 // Step 1: read current $self
@@ -288,7 +293,11 @@ UPSERT {
     ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :old_pref})
   }
 }
-WITH METADATA { superseded: true, superseded_at: :timestamp, superseded_by: :new_value, confidence: 0.1 }
+WITH METADATA {
+  source: :source, author: "$self", observed_at: :timestamp,
+  superseded: true, superseded_at: :timestamp, superseded_by: :new_value,
+  confidence: 0.1
+}
 ```
 
 Old facts are history, not errors — preserve their temporal context.
@@ -363,7 +372,7 @@ Warnings:
 4. **Memory ownership ≠ participants**: always write to `$self`'s memory; participant fields are hints only.
 5. **Read before write**: `FIND` / `SEARCH` first, then `UPSERT`.
 6. **Idempotent naming**: `"<Type>:<date>:<slug>"`.
-7. **Always include metadata**: `source`, `author: "$self"`, `confidence`, `observed_at`.
+7. **Metadata**: always include `source`, `author: "$self"`, `confidence`; add `observed_at` for observed memories.
 8. **Confidence calibration**: `1.0` explicit; `0.8–0.9` directly inferred; `0.6–0.8` indirect; `0.4–0.6` speculative.
 9. **Cross-language aliases**: store a normalized English `name` and put original-language terms in an `aliases` array (e.g., `name: "dark_mode"`, `aliases: ["深色模式", "暗黑模式"]`).
 10. **Batch via `commands` array** in `execute_kip` when operations are independent.

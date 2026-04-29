@@ -157,6 +157,46 @@ WITH METADATA { source: :source }`
     assert.equal(errors.length, 0, `Parse errors: ${JSON.stringify(errors, null, 2)}`)
   })
 
+  test('parses named embedded proposition endpoints', () => {
+    const source = `FIND(?evidence, ?y)
+WHERE {
+  (?paper, "cites", ?evidence (?drug, "treats", ?symptom))
+  (?e, "involves", ?y {type: "Person", name: "Yan"})
+}`
+    const { ast, diagnostics } = parse(source)
+    assert.equal(ast.statements.length, 1)
+    const [cites, involves] = ast.statements[0].where.patterns
+    assert.equal(cites.kind, 'PropositionPattern')
+    assert.equal(cites.object.kind, 'PropositionPattern')
+    assert.equal(cites.object.variable, '?evidence')
+    assert.equal(cites.object.subject.name, '?drug')
+    assert.equal(cites.object.object.name, '?symptom')
+    assert.equal(involves.kind, 'PropositionPattern')
+    assert.equal(involves.object.kind, 'ConceptPattern')
+    assert.equal(involves.object.variable, '?y')
+    assert.equal(involves.object.matcher.entries[0].key, 'type')
+    const errors = diagnostics.filter((d) => d.severity === 'error')
+    assert.equal(errors.length, 0, `Parse errors: ${JSON.stringify(errors, null, 2)}`)
+  })
+
+  test('parses named embedded proposition endpoints in UPSERT targets', () => {
+    const source = `UPSERT {
+  CONCEPT ?claim {
+    {type: "Insight", name: "Claim"}
+    SET PROPOSITIONS {
+      ("supports", ?evidence (?drug, "treats", ?symptom))
+    }
+  }
+}`
+    const { ast, diagnostics } = parse(source)
+    assert.equal(ast.statements.length, 1)
+    const target = ast.statements[0].blocks[0].setPropositions.items[0].target
+    assert.equal(target.kind, 'PropositionPattern')
+    assert.equal(target.variable, '?evidence')
+    const errors = diagnostics.filter((d) => d.severity === 'error')
+    assert.equal(errors.length, 0, `Parse errors: ${JSON.stringify(errors, null, 2)}`)
+  })
+
   test('parses DELETE statements', () => {
     const source = `DELETE ATTRIBUTES {"risk_category", "old_id"} FROM ?drug
 WHERE {
@@ -211,8 +251,43 @@ WHERE {
     const { ast, diagnostics } = parse(source)
     assert.equal(ast.statements.length, 1)
     assert.equal(ast.statements[0].kind, 'SearchStatement')
+    assert.equal(ast.statements[0].term, 'aspirin')
+    assert.equal(ast.statements[0].termValue.kind, 'StringLiteral')
+    assert.equal(ast.statements[0].withType, 'Drug')
+    assert.equal(ast.statements[0].withTypeValue.kind, 'StringLiteral')
     const errors = diagnostics.filter((d) => d.severity === 'error')
     assert.equal(errors.length, 0, `Parse errors: ${JSON.stringify(errors)}`)
+  })
+
+  test('parses parameterized SEARCH statements', () => {
+    const source = `SEARCH PROPOSITION :search_term WITH TYPE :predicate LIMIT :limit`
+    const { ast, diagnostics } = parse(source)
+    assert.equal(ast.statements.length, 1)
+    const stmt = ast.statements[0]
+    assert.equal(stmt.kind, 'SearchStatement')
+    assert.equal(stmt.term, ':search_term')
+    assert.equal(stmt.termValue.kind, 'ParameterRef')
+    assert.equal(stmt.termValue.name, ':search_term')
+    assert.equal(stmt.withType, ':predicate')
+    assert.equal(stmt.withTypeValue.kind, 'ParameterRef')
+    assert.equal(stmt.withTypeValue.name, ':predicate')
+    assert.equal(stmt.limit.value.kind, 'ParameterRef')
+    const errors = diagnostics.filter((d) => d.severity === 'error')
+    assert.equal(errors.length, 0, `Parse errors: ${JSON.stringify(errors)}`)
+  })
+
+  test('parses JSON unicode escapes in strings', () => {
+    const source = `FIND(?n) WHERE { ?n {name: "A\\u0042"} }`
+    const { ast, diagnostics } = parse(source)
+    assert.equal(diagnostics.filter((d) => d.severity === 'error').length, 0)
+    const matcher = ast.statements[0].where.patterns[0].matcher
+    assert.equal(matcher.entries[0].value.parsed, 'AB')
+  })
+
+  test('does not tokenize incomplete exponents as numbers', () => {
+    const tokens = tokenize('FIND(?n) WHERE { FILTER(?n.attributes.score > 1e) }')
+    const numbers = tokens.filter((t) => t.type === 'Number').map((t) => t.value)
+    assert.deepEqual(numbers, ['1'])
   })
 })
 
@@ -262,6 +337,21 @@ confidence: 0.9
     assert.ok(result.includes('?fact (id: "P:12345:treats")'), result)
     const reparsed = parse(result)
     assert.equal(reparsed.diagnostics.filter((d) => d.severity === 'error').length, 0)
+  })
+
+  test('formats named embedded proposition endpoints', () => {
+    const source = `FIND(?evidence, ?y) WHERE { (?paper, "cites", ?evidence (?drug, "treats", ?symptom)) (?e, "involves", ?y {type: "Person", name: "Yan"}) }`
+    const result = format(source)
+    assert.ok(result.includes('(?paper, "cites", ?evidence (?drug, "treats", ?symptom))'), result)
+    assert.ok(result.includes('(?e, "involves", ?y {type: "Person", name: "Yan"})'), result)
+    const reparsed = parse(result)
+    assert.equal(reparsed.diagnostics.filter((d) => d.severity === 'error').length, 0)
+  })
+
+  test('formats parameterized SEARCH statements', () => {
+    const source = `SEARCH CONCEPT :search_term WITH TYPE :type LIMIT :limit`
+    const result = format(source)
+    assert.equal(result.trim(), 'SEARCH CONCEPT :search_term WITH TYPE :type LIMIT :limit')
   })
 
   test('does not format invalid KIP', () => {

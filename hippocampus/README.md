@@ -89,4 +89,5 @@ Without all three, the agent either accumulates self-data without integration, o
 
 Each system prompt references the shared KIP syntax specification:
 - **[KIPSyntax.md](../KIPSyntax.md)**: Must be loaded alongside each system prompt.
-- **`execute_kip`** tool: Must be available for the Hippocampus to interact with the Cognitive Nexus.
+- **`execute_kip`** tool: Required by Formation and Maintenance for read/write memory operations.
+- **`execute_kip_readonly`** tool: Required by Recall for read-only KQL, META, and SEARCH operations.

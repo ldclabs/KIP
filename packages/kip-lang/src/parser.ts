@@ -524,13 +524,20 @@ class Parser {
       searchTarget = 'CONCEPT'
     }
 
-    const term = this.expectStringValue()
+    const termValue = this.parseStringOrParameterValue('SEARCH term')
+    const term =
+      termValue.kind === 'StringLiteral' ? termValue.parsed : termValue.name
 
     let withType: string | undefined
+    let withTypeValue: StringLiteral | ParameterRef | undefined
     if (this.check(TokenType.With)) {
       this.advance()
       this.expect(TokenType.Type)
-      withType = this.expectStringValue()
+      withTypeValue = this.parseStringOrParameterValue('SEARCH WITH TYPE')
+      withType =
+        withTypeValue.kind === 'StringLiteral'
+          ? withTypeValue.parsed
+          : withTypeValue.name
     }
 
     let limit: LimitClause | undefined
@@ -542,7 +549,9 @@ class Parser {
       kind: 'SearchStatement',
       searchTarget,
       term,
+      termValue,
       withType,
+      withTypeValue,
       limit,
       range: { start, end: this.currentPos() },
       leadingComments: comments.length > 0 ? comments : undefined
@@ -705,10 +714,16 @@ class Parser {
   }
 
   private parsePropositionEndpoint(): PropositionEndpoint {
-    // Could be: ?var, {type: ..., name: ...}, or nested (subject, pred, object)
+    // Could be: ?var, ?var {...}, ?var (...), {...}, or nested (...)
     if (this.check(TokenType.Variable)) {
       const start = this.currentPos()
       const name = this.expectVariable()
+      if (this.check(TokenType.LBrace)) {
+        return this.parseConceptPatternBody(name, start)
+      }
+      if (this.check(TokenType.LParen)) {
+        return this.parsePropositionPatternBody(name, start)
+      }
       return {
         kind: 'VariableRef',
         name,
@@ -1057,7 +1072,7 @@ class Parser {
       value = {
         kind: 'StringLiteral',
         value: tok.value,
-        parsed: tok.value.slice(1, -1),
+        parsed: this.unescapeString(tok.value),
         range: { start: this.currentPos(), end: this.currentPos() }
       }
       this.advance()
@@ -1583,9 +1598,12 @@ class Parser {
   }
 
   private unescapeString(raw: string): string {
-    // Strip quotes
     if (raw.startsWith('"') && raw.endsWith('"')) {
-      raw = raw.slice(1, -1)
+      try {
+        return JSON.parse(raw) as string
+      } catch {
+        raw = raw.slice(1, -1)
+      }
     }
     return raw.replace(/\\(.)/g, (_, ch) => {
       switch (ch) {

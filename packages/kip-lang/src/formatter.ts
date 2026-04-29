@@ -473,9 +473,13 @@ class Formatter {
 
   private formatSearch(stmt: SearchStatement): void {
     this.writeIndent()
-    this.write(`SEARCH ${stmt.searchTarget} "${this.escapeString(stmt.term)}"`)
+    this.write(
+      `SEARCH ${stmt.searchTarget} ${this.searchValueToString(stmt.termValue, stmt.term)}`
+    )
     if (stmt.withType) {
-      this.write(` WITH TYPE "${this.escapeString(stmt.withType)}"`)
+      this.write(
+        ` WITH TYPE ${this.searchValueToString(stmt.withTypeValue, stmt.withType)}`
+      )
     }
     if (stmt.limit) {
       this.write(` LIMIT ${this.limitValueToString(stmt.limit)}`)
@@ -696,10 +700,12 @@ class Formatter {
             (e) => `${this.keyToString(e)}: ${this.exprToString(e.value, 0)}`
           )
           .join(', ')
-        return `{${entries}}`
+        const prefix = ep.variable ? `${ep.variable} ` : ''
+        return `${prefix}{${entries}}`
       }
       case 'PropositionPattern': {
-        return this.propositionPatternToString(ep)
+        const prefix = ep.variable ? `${ep.variable} ` : ''
+        return `${prefix}${this.propositionPatternToString(ep)}`
       }
       default:
         return '?unknown'
@@ -752,6 +758,17 @@ class Formatter {
   private cursorValueToString(cur: CursorClause): string {
     if (cur.value.kind === 'StringLiteral') return cur.value.value
     return cur.value.name
+  }
+
+  private searchValueToString(
+    value: SearchStatement['termValue'],
+    fallback: string
+  ): string {
+    if (value?.kind === 'StringLiteral') return value.value
+    if (value?.kind === 'ParameterRef') return value.name
+    return fallback.startsWith(':')
+      ? fallback
+      : `"${this.escapeString(fallback)}"`
   }
 
   private sortObjectEntries(entries: ObjectEntry[]): ObjectEntry[] {

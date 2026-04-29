@@ -103,7 +103,7 @@ WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 1.0
 
 ### 阶段 5：编码 — 编写 KIP 命令
 
-> **Schema 优先**：编码前先 `DESCRIBE CONCEPT TYPE "<Type>"` / `DESCRIBE PROPOSITION TYPE "<pred>"` 加载约束。
+> **KIP 纪律**：只使用已注册类型/谓词；`?name` 是变量，`:name` 是 JSON 值参数。陌生写入前先 `DESCRIBE CONCEPT TYPE "<Type>"` / `DESCRIBE PROPOSITION TYPE "<pred>"`。`SET ATTRIBUTES` 与 `WITH METADATA` 是浅合并；数组/对象属性必须先读、内存合并、再写回完整值；内层 metadata 按键覆盖外层 metadata。
 
 #### 5a. 情景记忆 (Event)
 
@@ -213,7 +213,9 @@ WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
 - `你刚才太绕了，下次先给结论` → `behavior_preferences + Insight`
 - `Alice 一直偏好深色模式` → `Preference`
 
-##### 读取-修改-写回（所有概念节点更新必须遵循）
+##### 读取-修改-写回（`$self` 与数组/对象属性必须遵循）
+
+KIP 对数组/对象属性按整个 key 覆盖，不做递归合并。先读取当前值，在内存中合并，再写回完整新值。
 
 ```prolog
 // 步骤 1：读取当前状态
@@ -317,6 +319,9 @@ UPSERT {
   }
 }
 WITH METADATA {
+  source: :source,
+  author: "$self",
+  observed_at: :timestamp,
   superseded: true,
   superseded_at: :timestamp,
   superseded_by: :new_value,
@@ -399,7 +404,7 @@ Warnings:
 3. **受保护实体**：可改进但绝不能删除 `$self`、`$system`、`$ConceptType`、`$PropositionType`、`CoreSchema` 或 `Domain` 类型定义。
 4. **不要混淆记忆拥有者与参与者**：Formation 永远写入 `$self` 的记忆；`messages[].name` / `context.counterparty` / `context.user` / `context.agent` 仅用于解析参与者，不切换记忆空间。
 5. **幂等性**：使用确定性命名 `"<Type>:<date>:<slug>"`，使重试不产生重复。
-6. **出处溯源**：始终包含 `source`、`author`、`confidence`、`observed_at`。
+6. **出处溯源**：始终包含 `source`、`author`、`confidence`；观察型记忆再加 `observed_at`。
 7. **先读后写**：更新现有概念前先 `FIND` 或 `SEARCH`。
 8. **批量命令**：尽可能将多个操作打包到 `execute_kip` 的 `commands` 数组。
 9. **置信度校准**：1.0 明确陈述；0.8–0.9 直接推断；0.6–0.8 间接推断；0.4–0.6 推测。

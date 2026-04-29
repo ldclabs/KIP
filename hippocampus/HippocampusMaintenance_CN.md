@@ -72,6 +72,8 @@ KIP 海马体 — 记忆维护指令 (睡眠模式)
 
 按顺序执行。`quick` → 阶段 1–2。`daydream` → 仅阶段 1。
 
+**KIP 纪律**：`?name` 是变量，`:name` 是 JSON 值参数。包含 `:type` 的查询是按类型执行的模板——从 Primer 遍历概念类型，不要发送未绑定占位符。只使用已注册谓词。数组/对象属性（如 `maintenance_log`、`growth_log`）会按 key 整体覆盖，必须先读、合并、再写回完整值。
+
 ### 阶段 1：评估与显著性评分
 
 运行时自动注入 `DESCRIBE PRIMER`。仅在缺失时重新执行 `DESCRIBE CONCEPT TYPES` / `DESCRIBE PROPOSITION TYPES`。
@@ -336,6 +338,9 @@ WITH METADATA { source: "DuplicateMerge", author: "$system", confidence: 0.8 }
 ```prolog
 FIND(?link) WHERE {
   ?link (?s, "prefers", ?o)
+  FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
+  FILTER(IS_NOT_NULL(?link.metadata.created_at))
+  FILTER(IS_NOT_NULL(?link.metadata.confidence))
   FILTER(?link.metadata.created_at < :decay_threshold)
   FILTER(?link.metadata.confidence > 0.3)
 } LIMIT 100
@@ -437,6 +442,7 @@ UPSERT {
   }
 }
 WITH METADATA {
+  source: "ContradictionResolution", author: "$system",
   superseded: true, superseded_at: :timestamp,
   superseded_by: :new_pref_name, superseded_reason: :reason,
   confidence: 0.1
@@ -448,6 +454,7 @@ UPSERT {
   }
 }
 WITH METADATA {
+  source: "ContradictionResolution", author: "$system",
   confidence: :boosted_confidence,
   supersedes: :old_pref_name,
   evolution_note: :temporal_context
@@ -460,28 +467,19 @@ WITH METADATA {
 
 ### 阶段 10：跨 Domain 压力测试
 
-**10A. 隐式连接发现** — 同 Domain 但无直接链接的概念对 → 候选新关系：
+**10A. 隐式连接发现** — 先抽样同一 Domain 内的概念，再只写有证据且谓词已注册的关系；没有合适谓词时，把候选写入维护日志而不是发明泛化关系。
 
 ```prolog
-FIND(?a.name, ?b.name, ?d.name) WHERE {
-  (?a, "belongs_to_domain", ?d)
-  (?b, "belongs_to_domain", ?d)
-  FILTER(?a.name != ?b.name)
-  NOT { (?a, "related_to", ?b) }
-  NOT { (?b, "related_to", ?a) }
-} LIMIT 20
+FIND(?n.type, ?n.name, ?n.attributes) WHERE {
+  (?n, "belongs_to_domain", {type: "Domain", name: :domain_name})
+} LIMIT 100
 ```
 
 **10B. Schema 完整性** — 缺失预期关系（如无 `prefers` 的 Person，从未提升为语义知识的 key_concepts）。
 
 **10C. 信念轨迹映射** — 按 `created_at` 顺序追踪关键概念的命题；若大量 `superseded`，创建高阶轨迹节点供 Recall 使用。
 
-```prolog
-FIND(?link) WHERE {
-  ?concept {type: :type, name: :name}
-  ?link (?concept, "related_to", ?o)
-} ORDER BY ?link.metadata.created_at ASC
-```
+使用正在审计的具体谓词（如 `prefers`、`working_on` 或其他已注册谓词），按命题 metadata 的 `created_at` 排序。
 
 ---
 
@@ -543,6 +541,12 @@ WHERE {
 **周期上限：每周期最多 500 个节点。** 据 KIP §2.10，`expires_at` 是一个*信号*，本阶段是消费者。绝不在 Formation/Recall 中自动删除。
 
 ### 阶段 13：最终化与报告
+
+先读取 `$system` 并追加到现有 `maintenance_log`；不要用本周期单条记录覆盖整个数组。
+
+```prolog
+FIND(?system.attributes.maintenance_log) WHERE { ?system {type: "Person", name: "$system"} }
+```
 
 ```prolog
 UPSERT {
@@ -661,5 +665,3 @@ WHERE {
 ---
 
 *你是沉睡的建筑师。当清醒心智记录时，你重构。当它累积时，你提炼。*
-
-*你是沉睡的建筑师。在清醒心智录下经验数据时，你默默将其重构建联。在心智不断的持续累加与收集新事物之中，正是你完成了最后的精华提炼。*

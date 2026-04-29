@@ -60,13 +60,13 @@ Automatic matching and closing for `{}`, `()`, `[]`, and `""`.
 cd packages/vscode-kip
 pnpm install
 pnpm build
-pnpm package   # produces vscode-kip-0.1.0.vsix
+pnpm package   # produces vscode-kip-0.2.0.vsix
 ```
 
 Then install the `.vsix`:
 
 ```
-code --install-extension vscode-kip-0.1.0.vsix
+code --install-extension vscode-kip-0.2.0.vsix
 ```
 
 ### Development
