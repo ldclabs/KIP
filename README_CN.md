@@ -119,17 +119,17 @@ KIP 使用自描述模式，类型定义存储在图本身中：
 
 ```
 ┌─────────────────────┐
-│    业务智能体        │  ← 无需了解 KIP 语法
+│     业务智能体        │  ← 无需了解 KIP 语法
 └────────┬────────────┘
          │ 自然语言
          ▼
 ┌─────────────────────┐
-│   海马体（LLM 层）   │  ← 记忆形成 / 记忆召回 / 记忆维护
+│    海马体（LLM 层）   │  ← 记忆形成 / 记忆召回 / 记忆维护
 └────────┬────────────┘
          │ KIP（KQL/KML/META）
          ▼
 ┌─────────────────────┐
-│   认知中枢           │  ← 持久化知识图谱
+│    认知中枢          │  ← 持久化知识图谱
 └─────────────────────┘
 ```
 
@@ -140,7 +140,7 @@ KIP 使用自描述模式，类型定义存储在图本身中：
 | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip)                                        | 用于构建 AI 知识记忆系统的 Rust SDK                                         |
 | [Anda Cognitive Nexus](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus)                    | 基于 Anda DB 的 KIP Rust 实现                                               |
-| [Anda Hippocampus](https://github.com/ldclabs/anda-hippocampus)                                                 | 为 AI 智能体打造的自主图谱记忆                                              |
+| [Anda Brain](https://github.com/ldclabs/anda-brain)                                                             | 为 AI 智能体打造的自主图谱记忆                                              |
 | [Anda Cognitive Nexus Python](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py)          | Anda Cognitive Nexus 的 Python 绑定                                         |
 | [Anda Cognitive Nexus HTTP Server](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus_server) | 基于 Rust 的 HTTP 服务器，通过 JSON-RPC API (`GET /`, `POST /kip`) 暴露 KIP |
 | [Anda App](https://github.com/ldclabs/anda-app)                                                                 | 基于 KIP 的 AI Agent 客户端应用                                             |
@@ -160,7 +160,7 @@ KIP 使用自描述模式，类型定义存储在图本身中：
 
 ## 关于我们
 
-- 🔔 产品：[Anda.AI](https://anda.ai/) | [天策 Celestian](https://celestian.ai/)
+- 🔔 产品：[Anda Bot](https://anda.bot/) | [Anda.AI](https://anda.ai/) | [天策 Celestian](https://celestian.ai/)
 - 💻 GitHub：[LDC Labs](https://github.com/ldclabs)
 - 🏢 公司：[Yiwen AI](https://yiwen.ai/)
 

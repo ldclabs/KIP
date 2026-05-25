@@ -54,8 +54,8 @@ DESCRIBE PRIMER
 
 ## Documentation
 
-| Document                                           | Description                                       |
-| -------------------------------------------------- | ------------------------------------------------- |
+| Document                                           | Description                                          |
+| -------------------------------------------------- | ---------------------------------------------------- |
 | [📖 Specification](./SPECIFICATION.md)              | Complete KIP protocol specification (English)        |
 | [📖 规范文档](./SPECIFICATION_CN.md)                | 完整的 KIP 协议规范 (中文)                           |
 | [📐 Syntax Reference](./KIPSyntax.md)               | Condensed KQL / KML / META syntax for system prompts |
@@ -143,27 +143,27 @@ A dedicated LLM layer that manages the Cognitive Nexus on behalf of business age
 | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip)                                        | Rust SDK for building AI knowledge memory systems                                          |
 | [Anda Cognitive Nexus](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus)                    | Rust implementation of KIP based on Anda DB                                                |
-| [Anda Hippocampus](https://github.com/ldclabs/anda-hippocampus)                                                 | Autonomous Graph Memory for AI Agents                                                      |
+| [Anda Brain](https://github.com/ldclabs/anda-brain)                                                             | Autonomous Graph Memory for AI Agents                                                      |
 | [Anda Cognitive Nexus Python](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py)          | Python binding for Anda Cognitive Nexus                                                    |
 | [Anda Cognitive Nexus HTTP Server](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus_server) | An Rust-based HTTP server that exposes KIP via a small JSON-RPC API (`GET /`, `POST /kip`) |
 | [Anda App](https://github.com/ldclabs/anda-app)                                                                 | AI Agent client app based on KIP                                                           |
 
 ## Version History
 
-| Version     | Date       | Changes                                                                                                                                                                                              |
-| ----------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Version     | Date       | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | v1.0-RC6    | 2026-04-25 | v1.0 Release Candidate 6: Added state-evolution metadata (`superseded` / `superseded_by` / `superseded_at`); clarified `expires_at` as a maintenance signal (only `$system` Phase 9 hard-deletes, capped 500/cycle); added `KIP_2003 InvalidValueType` and `KIP_3004 ProtectedScope` error codes; consolidated syntax reference into [KIPSyntax.md](./KIPSyntax.md); restructured Hippocampus prompts (Formation / Recall / Maintenance) for prompt-embedding |
-| v1.0-RC5    | 2026-03-25 | v1.0 Release Candidate 5: Added `execute_kip_readonly` interface                                                                                                                                     |
-| v1.0-RC4    | 2026-03-09 | v1.0 Release Candidate 4: Added `IN`, `IS_NULL`, `IS_NOT_NULL` FILTER operators; clarified UNION variable scope semantics; defined batch response structure; added temporal and UNION query examples |
-| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：Optimized documentation; optimized instructions; optimized knowledge capsules                                                                                              |
-| ...         | ...        | ...                                                                                                                                                                                                  |
-| v1.0-draft1 | 2025-06-09 | Initial Draft                                                                                                                                                                                        |
+| v1.0-RC5    | 2026-03-25 | v1.0 Release Candidate 5: Added `execute_kip_readonly` interface                                                                                                                                                                                                                                                                                                                                                                                              |
+| v1.0-RC4    | 2026-03-09 | v1.0 Release Candidate 4: Added `IN`, `IS_NULL`, `IS_NOT_NULL` FILTER operators; clarified UNION variable scope semantics; defined batch response structure; added temporal and UNION query examples                                                                                                                                                                                                                                                          |
+| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：Optimized documentation; optimized instructions; optimized knowledge capsules                                                                                                                                                                                                                                                                                                                                                       |
+| ...         | ...        | ...                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| v1.0-draft1 | 2025-06-09 | Initial Draft                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 [Full version history →](./SPECIFICATION.md)
 
 ## About Us
 
-- 🔔 Products: [Anda.AI](https://anda.ai/) | [天策 Celestian](https://celestian.ai/)
+- 🔔 Products: [Anda Bot](https://anda.bot/) | [Anda.AI](https://anda.ai/) | [天策 Celestian](https://celestian.ai/)
 - 💻 GitHub: [LDC Labs](https://github.com/ldclabs)
 - 🏢 Company: [Yiwen AI](https://yiwen.ai/)
 

@@ -4,7 +4,7 @@ The Hippocampus is a dedicated LLM layer that manages the Cognitive Nexus (Knowl
 
 ## Implementations
 
-https://github.com/ldclabs/anda-hippocampus
+https://github.com/ldclabs/anda-brain
 
 ## Architecture
 
@@ -17,7 +17,7 @@ https://github.com/ldclabs/anda-hippocampus
          ▼
 ┌─────────────────────┐
 │    Hippocampus      │  ← The ONLY layer that understands KIP
-│   (LLM + KIP)      │     Three operational modes
+│   (LLM + KIP)       │     Three operational modes
 └────────┬────────────┘
          │ KIP (KQL/KML/META)
          ▼
