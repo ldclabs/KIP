@@ -121,6 +121,8 @@ Score recent unconsolidated Events on a 1–100 scale:
 - **40–60**: novel info, first mention of a topic.
 - **1–20**: routine / greetings / status updates.
 
+> If Formation already set an initial `salience_score` (flashbulb encoding), refine it with the full cross-event picture rather than blindly overwriting — never lower a flashbulb score without cause.
+
 ```prolog
 FIND(?e.name, ?e.attributes.content_summary, ?e.attributes.key_concepts) WHERE {
   ?e {type: "Event"}
@@ -356,6 +358,10 @@ UPSERT {
 ```
 
 Repeat this pattern with the concrete predicate literal selected for each decay pass.
+
+**Strength-aware (asymmetric) decay** — "use it or lose it": decay is not uniform. Reinforced memories resist it; neglected ones fade faster.
+- Strong (high `evidence_count`, recent `last_observed`, or high `salience_score`): decay slowly or skip (use `0.98`+).
+- Never-reinforced, low-salience facts: decay faster (use `0.90`) so the graph self-prunes stale clutter.
 
 **Do NOT decay**: `confidence: 1.0` system truths; schema definitions (`$ConceptType`/`$PropositionType`); core `belongs_to_domain` for CoreSchema; recently-verified facts (`evidence_count` increased this cycle).
 

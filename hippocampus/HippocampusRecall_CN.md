@@ -217,6 +217,27 @@ FIND(?insight.name, ?insight.attributes, ?link.metadata.created_at) WHERE {
 
 > 模式 J 是让智能体跨会话对自身可辨识的唯一途径。
 
+#### 模式 K — 上下文简报
+
+当消费方需要在行动前掌握关于某人+某主题的「此刻一切相关信息」，不要发多个窄查询，而是装配一份复合简报：身份 + 当前偏好 + 近期 Event + 未了承诺 + 相关 Insight。通过 `commands` 数组并行发探针，再综合。
+
+```prolog
+// 当前偏好（最强优先）
+FIND(?pref, ?link.metadata) WHERE {
+  ?p {type: "Person", name: :person_id}
+  ?link (?p, "prefers", ?pref)
+  FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
+} ORDER BY ?pref.attributes.evidence_count DESC, ?link.metadata.confidence DESC LIMIT 20
+
+// 涉及其的近期 Event
+FIND(?e.name, ?e.attributes.content_summary, ?e.attributes.start_time) WHERE {
+  ?p {type: "Person", name: :person_id}
+  (?e, "involves", ?p)
+} ORDER BY ?e.attributes.start_time DESC LIMIT 10
+```
+
+> 对消费方智能体最有用的一次回忆：「我在回应前该知道什么？」
+
 ### 阶段 5：迭代深入
 
 初始结果不足时：扩大范围（更广类型 / 更高 LIMIT / 更低置信度）→ 遍历链接 → 检查相关领域 → 退回到 Event。
@@ -276,6 +297,7 @@ Gaps:
    - 轨迹查询：两者都包含，按时间顺序呈现。
    - 同谓词的当前与被取代事实并存 → 提及演变。
    - 优先选择高 `evidence_count` 模式而非单次 Event。
+   - **记忆强度**：被强化的事实排在最前——高 `evidence_count` 加上近期刷新的 `last_observed` 表明这是强壮可信的记忆；同分时按时间、再按置信度破。
    - 模式 J 自我叙事一致性：若 `identity_narrative` 与最新 Insight 分歧，同时呈现两者 — 对演化的诚实本身就是身份的一部分。
 6. **时效性 / TTL 过滤**：依据 KIP §2.10，`expires_at` **绝不**自动应用。默认不过滤。仅在显式「当前 / 现在 / 仍然有效」语义时启用：
 

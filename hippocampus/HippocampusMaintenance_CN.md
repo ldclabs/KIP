@@ -120,6 +120,8 @@ FIND(?d.name, COUNT(?n)) WHERE {
 - **40–60**：新信息、首次提及。
 - **1–20**：常规 / 问候 / 状态更新。
 
+> 若 Formation 已设初始 `salience_score`（闪光编码），用跨 Event 全局视野去精调而非盲目覆盖——无故不要调低闪光分。
+
 ```prolog
 FIND(?e.name, ?e.attributes.content_summary, ?e.attributes.key_concepts) WHERE {
   ?e {type: "Event"}
@@ -355,7 +357,9 @@ UPSERT {
 ```
 
 对每次衰减选择的具体谓词字面量，重复使用这一模式。
-
+**强度感知（非对称）衰减** — 「用则存，不用则失」：衰减并非均匀。被强化的记忆抗拒衰减，被冷落的加速褪色。
+- 强（高 `evidence_count`、近期 `last_observed`、或高 `salience_score`）：缓衰减或跳过（用 `0.98`+）。
+- 从不复现、低显著性的事实：加快衰减（用 `0.90`），让图谱自动修剪陈旧杂乱。
 **不衰减**：`confidence: 1.0` 系统真相；Schema 定义（`$ConceptType`/`$PropositionType`）；CoreSchema 的核心 `belongs_to_domain`；本周期 `evidence_count` 增加的最近验证事实。
 
 ---

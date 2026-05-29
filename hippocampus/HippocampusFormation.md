@@ -66,6 +66,7 @@ The runtime auto-injects the latest `DESCRIBE PRIMER`. Only re-run `DESCRIBE CON
 Classify what to extract:
 
 - **Episodic (Event)** — what happened, who, when, outcome, key concepts.
+- **Flashbulb salience** — for high-arousal moments (corrections, frustration, strong commitments, breakthroughs), set the Event's initial `salience_score` (60–100) at encoding time so emotionally charged memories resist decay and surface first.
 - **Semantic** — stable facts: identities, preferences, relationships, decisions, commitments.
 - **Cognitive patterns** — behavioral / decision / communication patterns observed across messages.
 - **Self-reflective ($self evolution)** — signals from the assistant's own messages and the user's reactions:
@@ -76,7 +77,7 @@ Classify what to extract:
 
 > Self-reflective signals are the substrate of `$self`'s growth. Treat user corrections as gifts and capture them with high priority.
 
-### Phase 3: Deduplicate — Read Before Write
+### Phase 3: Deduplicate & Reinforce — Read Before Write
 
 Before creating any concept, search:
 
@@ -84,7 +85,18 @@ Before creating any concept, search:
 SEARCH CONCEPT "Alice" WITH TYPE "Person" LIMIT 5
 ```
 
-If a match exists, `UPSERT` to update rather than creating a duplicate.
+If a match exists, `UPSERT` to update rather than duplicating. A re-mention is not noise — it is **reinforcement** (the spacing/testing effect). When existing knowledge is re-confirmed, strengthen it: bump `evidence_count`, refresh `last_observed`, and nudge `confidence` upward (cap `0.99`). This is the homeostatic counter-force to Maintenance's decay — facts that recur stay strong; facts that never recur fade.
+
+```prolog
+// Reinforce on re-confirmation (read evidence_count first, then increment)
+UPSERT {
+  CONCEPT ?pref {
+    {type: "Preference", name: :pref_name}
+    SET ATTRIBUTES { confidence: :nudged_confidence, evidence_count: :incremented, last_observed: :timestamp }
+  }
+}
+WITH METADATA { source: :source, author: "$self", confidence: :nudged_confidence, observed_at: :timestamp }
+```
 
 ### Phase 4: Schema Evolution — Define Before Use
 
@@ -177,7 +189,7 @@ UPSERT {
 WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
 ```
 
-`:semantic_type` is typically `Preference` or `Insight`.
+`:semantic_type` is typically `Preference` or `Insight`. **Associative encoding**: also link a new concept to already-grounded related concepts via *existing* predicates (don't invent any) so memory forms a connected web, not isolated islands — webbed memories are far easier to recall later.
 
 #### 5d. Self-Evolution ($self Updates)
 
