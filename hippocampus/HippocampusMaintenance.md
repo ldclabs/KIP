@@ -151,13 +151,14 @@ WITH METADATA { source: "SalienceScoring", author: "$system" }
 
 For each pending task: mark `in_progress` → execute `requested_action` → mark `completed` with `result`.
 
-| Action                    | Description                              |
-| ------------------------- | ---------------------------------------- |
-| `consolidate_to_semantic` | Extract stable knowledge from an Event   |
-| `archive`                 | Move a concept to the Archived domain    |
-| `merge_duplicates`        | Merge two similar concepts               |
-| `reclassify`              | Move a concept to a better domain        |
-| `review`                  | Assess and log findings without changing |
+| Action                    | Description                                                                        |
+| ------------------------- | ---------------------------------------------------------------------------------- |
+| `consolidate_to_semantic` | Extract stable knowledge from an Event                                             |
+| `archive`                 | Move a concept to the Archived domain                                              |
+| `merge_duplicates`        | Merge two similar concepts                                                         |
+| `reclassify`              | Move a concept to a better domain                                                  |
+| `review`                  | Assess and log findings without changing                                           |
+| `resolve_contradiction`   | Reconcile conflicting facts: supersede the older, strengthen the current (Phase 9) |
 
 ```prolog
 // State transitions

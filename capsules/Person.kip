@@ -125,13 +125,13 @@ UPSERT {
                     "type": "array",
                     "item_type": "object",
                     "is_required": false,
-                    "description": "Recent maintenance actions performed by $system, for audit and transparency. Each entry should include 'timestamp', 'action', and 'summary'."
+                    "description": "Recent maintenance actions performed by $system during sleep cycles, for audit and transparency. Append-only; older entries may be compressed. Each entry should include 'timestamp' (ISO 8601), 'trigger' ('scheduled' | 'threshold' | 'on_demand'), 'scope' ('daydream' | 'quick' | 'full'), 'actions_taken' (summary of operations), 'items_processed' (count), 'issues_found', and 'next_recommendations'."
                 },
                 "growth_log": {
                     "type": "array",
                     "item_type": "object",
                     "is_required": false,
-                    "description": "A chronicle of significant self-evolution moments. Each milestone marks a point where the person's identity, understanding, or capabilities underwent meaningful change. Each entry should have 'timestamp' (ISO 8601), 'category' (e.g., 'identity', 'capability', 'value', 'persona', 'correction'), 'description' (what changed), and 'trigger' (what caused the change)."
+                    "description": "A chronicle of significant self-evolution milestones. Append-only during Formation; Maintenance compresses older entries. Each entry should have 'timestamp' (ISO 8601), 'kind' (one of 'capability_gain', 'weakness_acknowledged', 'persona_shift', 'mission_clarified', 'values_emerged', 'identity_milestone', or 'summary' for compressed entries), 'summary' (a one-sentence, first-person description of what changed), and optional 'evidence_event' / 'evidence_insight' (names of the Event/Insight that evidenced the change). Reserved for identity-evolution milestones, not routine activity."
                 }
             }
         }

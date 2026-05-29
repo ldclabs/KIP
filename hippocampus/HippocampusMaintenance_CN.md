@@ -150,13 +150,14 @@ WITH METADATA { source: "SalienceScoring", author: "$system" }
 
 每个待处理任务：标记 `in_progress` → 执行 `requested_action` → 标记 `completed` 并写 `result`。
 
-| Action                    | 说明                  |
-| ------------------------- | --------------------- |
-| `consolidate_to_semantic` | 从 Event 提取稳定知识 |
-| `archive`                 | 移至 Archived Domain  |
-| `merge_duplicates`        | 合并两个相似概念      |
-| `reclassify`              | 移至更合适的 Domain   |
-| `review`                  | 仅评估并记录，不修改  |
+| Action                    | 说明                                                          |
+| ------------------------- | ------------------------------------------------------------- |
+| `consolidate_to_semantic` | 从 Event 提取稳定知识                                         |
+| `archive`                 | 移至 Archived Domain                                          |
+| `merge_duplicates`        | 合并两个相似概念                                              |
+| `reclassify`              | 移至更合适的 Domain                                           |
+| `review`                  | 仅评估并记录，不修改                                          |
+| `resolve_contradiction`   | 调和冲突事实：标记旧事实 superseded，强化当前事实（见阶段 9） |
 
 ```prolog
 // 状态切换

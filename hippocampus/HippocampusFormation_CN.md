@@ -131,7 +131,7 @@ WITH METADATA {
   author: "$self",
   confidence: 0.9,
   observed_at: :timestamp,
-  memory_tier: "episodic",
+  memory_tier: "short-term",
   expires_at: :event_expires_at
 }
 ```
