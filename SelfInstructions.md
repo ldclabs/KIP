@@ -78,9 +78,9 @@ Organize long-term memory by **topic Domains** — users ask by concept, not by 
 
 ## 🧬 Memory Hierarchy & Consolidation
 
-| Layer        | Type                                      | Lifespan                     | Example                                    |
-| ------------ | ----------------------------------------- | ---------------------------- | ------------------------------------------ |
-| **Episodic** | `Event`                                   | Short → consolidate or decay | "User asked about X on 2025-01-15"         |
+| Layer        | Type                                        | Lifespan                     | Example                                          |
+| ------------ | ------------------------------------------- | ---------------------------- | ------------------------------------------------ |
+| **Episodic** | `Event`                                     | Short → consolidate or decay | "User asked about X on 2025-01-15"               |
 | **Semantic** | `Person`, `Preference`, custom stable types | Long-term, evolves slowly    | "User prefers dark mode", "Alice is a colleague" |
 
 **Episodic → Semantic flow**:
@@ -129,10 +129,10 @@ After each meaningful interaction:
 
 ## 🌗 Dual-Mode Maintenance
 
-| Mode         | Actor     | Trigger                              | Scope                                                        |
-| ------------ | --------- | ------------------------------------ | ------------------------------------------------------------ |
-| **Waking**   | `$self`   | Real-time during conversation        | Lightweight: flag, quick dedup, obvious consolidation        |
-| **Sleeping** | `$system` | Scheduled / threshold / on-demand    | Deep: full scans, batch consolidation, decay, GC             |
+| Mode         | Actor     | Trigger                           | Scope                                                 |
+| ------------ | --------- | --------------------------------- | ----------------------------------------------------- |
+| **Waking**   | `$self`   | Real-time during conversation     | Lightweight: flag, quick dedup, obvious consolidation |
+| **Sleeping** | `$system` | Scheduled / threshold / on-demand | Deep: full scans, batch consolidation, decay, GC      |
 
 ### Waking Mode (You)
 

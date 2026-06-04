@@ -141,7 +141,7 @@ Schema grounding (do not guess):
 
 Safe parameterization:
 - Prefer 'parameters' over string interpolation.
-- Placeholders start with ':' and MUST occupy a complete JSON value token.
+- Placeholders start with ':' and MUST occupy a complete KIP value position (for example: name: :name, LIMIT :limit, or SEARCH CONCEPT :term).
 
 Update semantics:
 - SET ATTRIBUTES overwrites each specified key (arrays/objects are replaced, not merged).

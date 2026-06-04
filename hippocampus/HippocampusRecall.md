@@ -227,7 +227,7 @@ FIND(?pref, ?link.metadata) WHERE {
   ?p {type: "Person", name: :person_id}
   ?link (?p, "prefers", ?pref)
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
-} ORDER BY ?pref.attributes.evidence_count DESC, ?link.metadata.confidence DESC LIMIT 20
+} ORDER BY ?link.metadata.confidence DESC LIMIT 20
 
 // Recent Events involving them
 FIND(?e.name, ?e.attributes.content_summary, ?e.attributes.start_time) WHERE {
@@ -235,6 +235,8 @@ FIND(?e.name, ?e.attributes.content_summary, ?e.attributes.start_time) WHERE {
   (?e, "involves", ?p)
 } ORDER BY ?e.attributes.start_time DESC LIMIT 10
 ```
+
+Within returned rows, synthesize strongest-first by considering `?pref.attributes.evidence_count`, `?pref.attributes.last_observed`, and `?link.metadata.confidence`; KIP currently accepts one `ORDER BY` expression per query.
 
 > The single most useful recall for a consuming agent: "what should I know before I respond?"
 

@@ -16,6 +16,10 @@
             "type": "string",
             "description": "Preferred. Durable identifier of the current external person or organization interacting with the business agent. Useful for resolving implicit references such as 'the current user', 'they', or omitted subjects."
           },
+          "user": {
+            "type": "string",
+            "description": "Legacy alias for counterparty. Prefer counterparty in new integrations."
+          },
           "agent": {
             "type": "string",
             "description": "The identifier of the calling business agent, if applicable. Useful for provenance or caller-specific queries, but it does not change whose memory is searched."

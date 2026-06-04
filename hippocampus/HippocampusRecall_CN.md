@@ -227,7 +227,7 @@ FIND(?pref, ?link.metadata) WHERE {
   ?p {type: "Person", name: :person_id}
   ?link (?p, "prefers", ?pref)
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
-} ORDER BY ?pref.attributes.evidence_count DESC, ?link.metadata.confidence DESC LIMIT 20
+} ORDER BY ?link.metadata.confidence DESC LIMIT 20
 
 // 涉及其的近期 Event
 FIND(?e.name, ?e.attributes.content_summary, ?e.attributes.start_time) WHERE {
@@ -235,6 +235,8 @@ FIND(?e.name, ?e.attributes.content_summary, ?e.attributes.start_time) WHERE {
   (?e, "involves", ?p)
 } ORDER BY ?e.attributes.start_time DESC LIMIT 10
 ```
+
+在返回结果内部，根据 `?pref.attributes.evidence_count`、`?pref.attributes.last_observed` 与 `?link.metadata.confidence` 综合成“最强记忆优先”；KIP 当前每条查询只接受一个 `ORDER BY` 表达式。
 
 > 对消费方智能体最有用的一次回忆：「我在回应前该知道什么？」
 

@@ -71,7 +71,7 @@ Goal: leave the Cognitive Nexus in optimal state for the next Formation and Reca
 
 Execute phases in order. `quick` → Phases 1–2. `daydream` → Phase 1 only.
 
-**KIP discipline**: `?name` is a variable; `:name` is a JSON-value parameter. Queries containing `:type` are per-type templates — iterate over concept types from the Primer instead of sending an unbound placeholder. Use only registered predicates. Array/object attribute updates (for example `maintenance_log` and `growth_log`) require read-merge-write because KIP overwrites the whole value at that key.
+**KIP discipline**: `?name` is a variable; `:name` is a complete KIP value parameter. Queries containing `:type` are per-type templates — iterate over concept types from the Primer instead of sending an unbound placeholder. Use only registered predicates. Array/object attribute updates (for example `maintenance_log` and `growth_log`) require read-merge-write because KIP overwrites the whole value at that key. Every write carries `source`, `author`, and `created_at`; include `confidence` when the operation asserts or changes knowledge.
 
 ### Phase 1: Assessment & Salience Scoring
 
@@ -138,7 +138,7 @@ UPSERT {
     SET ATTRIBUTES { salience_score: :score, salience_scored_at: :timestamp }
   }
 }
-WITH METADATA { source: "SalienceScoring", author: "$system" }
+WITH METADATA { source: "SalienceScoring", author: "$system", created_at: :timestamp, confidence: 0.8 }
 ```
 
 > **`scope: "daydream"`**: stop here. Flag Events scoring 80+ for next full cycle; mark Events scoring <10 for archival.
@@ -170,7 +170,7 @@ UPSERT {
     SET ATTRIBUTES { status: "in_progress", started_at: :timestamp }
   }
 }
-WITH METADATA { source: "SleepCycle", author: "$system" }
+WITH METADATA { source: "SleepCycle", author: "$system", created_at: :timestamp }
 
 // Example: consolidate_to_semantic
 UPSERT {
@@ -183,7 +183,7 @@ UPSERT {
     }
   }
 }
-WITH METADATA { source: "SleepConsolidation", author: "$system", confidence: 0.8 }
+WITH METADATA { source: "SleepConsolidation", author: "$system", confidence: 0.8, created_at: :timestamp }
 
 // Completion
 UPSERT {
@@ -192,7 +192,7 @@ UPSERT {
     SET ATTRIBUTES { status: "completed", completed_at: :timestamp, result: :result_summary }
   }
 }
-WITH METADATA { source: "SleepCycle", author: "$system" }
+WITH METADATA { source: "SleepCycle", author: "$system", created_at: :timestamp }
 ```
 
 ### Phase 3: Unsorted Inbox Processing
@@ -216,7 +216,7 @@ UPSERT {
     SET PROPOSITIONS { ("belongs_to_domain", ?target_domain) }
   }
 }
-WITH METADATA { source: "SleepReclassification", author: "$system", confidence: 0.85 }
+WITH METADATA { source: "SleepReclassification", author: "$system", confidence: 0.85, created_at: :timestamp }
 ```
 
 ```prolog
@@ -237,7 +237,7 @@ UPSERT {
     SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: :target_domain}) }
   }
 }
-WITH METADATA { source: "OrphanResolution", author: "$system", confidence: :confidence }
+WITH METADATA { source: "OrphanResolution", author: "$system", confidence: :confidence, created_at: :timestamp }
 ```
 
 ### Phase 5: Gist Extraction & Schema Formation
@@ -256,7 +256,7 @@ UPSERT {
     SET PROPOSITIONS { ("consolidated_to", {type: :semantic_type, name: :semantic_name}) }
   }
 }
-WITH METADATA { source: "SleepConsolidation", author: "$system" }
+WITH METADATA { source: "SleepConsolidation", author: "$system", created_at: :timestamp, confidence: 0.8 }
 ```
 
 For Events with no extractable semantic content: archive them and set a short `expires_at` so Phase 12 can later reclaim raw episodic storage.
@@ -271,6 +271,7 @@ UPSERT {
 }
 WITH METADATA {
   source: "SleepConsolidation", author: "$system",
+  created_at: :timestamp,
   expires_at: :archive_expires_at  // e.g., archived_at + 30 days
 }
 ```
@@ -313,7 +314,7 @@ UPSERT {
     }
   }
 }
-WITH METADATA { source: "CrossEventConsolidation", author: "$system", confidence: :aggregated_confidence }
+WITH METADATA { source: "CrossEventConsolidation", author: "$system", confidence: :aggregated_confidence, created_at: :timestamp }
 ```
 
 > Cross-event pattern confidence should generally be **higher** than any single source Event — convergent evidence beats single observation. Track breadth via `evidence_count`.
@@ -332,7 +333,7 @@ UPSERT {
     SET PROPOSITIONS { ... }
   }
 }
-WITH METADATA { source: "DuplicateMerge", author: "$system", confidence: 0.8 }
+WITH METADATA { source: "DuplicateMerge", author: "$system", confidence: 0.8, created_at: :timestamp }
 ```
 
 ### Phase 7: Confidence Decay
@@ -340,7 +341,7 @@ WITH METADATA { source: "DuplicateMerge", author: "$system", confidence: 0.8 }
 Apply `new_confidence = old_confidence × decay_factor` (default `0.95`/week) to old unverified facts:
 
 ```prolog
-FIND(?link) WHERE {
+FIND(?link.id, ?link.metadata.confidence) WHERE {
   ?link (?s, "prefers", ?o)
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
   FILTER(IS_NOT_NULL(?link.metadata.created_at))
@@ -352,8 +353,13 @@ FIND(?link) WHERE {
 
 ```prolog
 UPSERT {
-  PROPOSITION ?link { ({id: :s_id}, "prefers", {id: :o_id}) }
-  WITH METADATA { confidence: :new_confidence, decay_applied_at: :timestamp }
+  PROPOSITION ?link { (id: :link_id) }
+  WITH METADATA {
+    source: "ConfidenceDecay", author: "$system",
+    confidence: :new_confidence,
+    created_at: :timestamp,
+    decay_applied_at: :timestamp
+  }
 }
 ```
 
@@ -432,7 +438,7 @@ UPSERT {
     }
   }
 }
-WITH METADATA { source: "SelfModelConsolidation", author: "$system", confidence: 0.85 }
+WITH METADATA { source: "SelfModelConsolidation", author: "$system", confidence: 0.85, created_at: :timestamp }
 ```
 
 **Hard constraints (KIP §6 / KIP_3004)**: never modify `$self`'s identity tuple or `core_directives`; preserve trajectory (prior `identity_narrative` essence should already be in `growth_log` history); skip an attribute when evidence is sparse or contradictory.
@@ -443,28 +449,41 @@ WITH METADATA { source: "SelfModelConsolidation", author: "$system", confidence:
 
 For conflicting facts: determine temporal order → mark older `superseded` (preserved as history, `confidence: 0.1`) → strengthen current with `supersedes` link.
 
+First retrieve the current proposition IDs; use `(id: :old_link_id)` when marking the older fact so the correction cannot accidentally create a missing old proposition.
+
+```prolog
+FIND(?old_link.id, ?current_link.id)
+WHERE {
+  ?old_link ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :old_pref})
+  ?current_link ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :current_pref})
+}
+LIMIT 1
+```
+
 ```prolog
 UPSERT {
   PROPOSITION ?old_link {
-    ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :old_pref})
+    (id: :old_link_id)
   }
 }
 WITH METADATA {
   source: "ContradictionResolution", author: "$system",
+  created_at: :timestamp,
   superseded: true, superseded_at: :timestamp,
-  superseded_by: :new_pref_name, superseded_reason: :reason,
+  superseded_by: :current_link_id, superseded_reason: :reason,
   confidence: 0.1
 }
 
 UPSERT {
   PROPOSITION ?current_link {
-    ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :current_pref})
+    (id: :current_link_id)
   }
 }
 WITH METADATA {
   source: "ContradictionResolution", author: "$system",
+  created_at: :timestamp,
   confidence: :boosted_confidence,
-  supersedes: :old_pref_name,
+  supersedes: :old_link_id,
   evolution_note: :temporal_context
 }
 ```
@@ -506,7 +525,7 @@ UPSERT {
     SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "Archived"}) }
   }
 }
-WITH METADATA { source: "DomainHealthCheck", author: "$system" }
+WITH METADATA { source: "DomainHealthCheck", author: "$system", created_at: :timestamp }
 ```
 
 ### Phase 12: Physical Cleanup — TTL Reclamation
@@ -562,21 +581,25 @@ UPSERT {
     {type: "Person", name: "$system"}
     SET ATTRIBUTES {
       last_sleep_cycle: :current_timestamp,
-      maintenance_log: [
-        {
-          "timestamp": :current_timestamp,
-          "trigger": :trigger_type,
-          "scope": :scope,
-          "actions_taken": :summary_of_actions,
-          "items_processed": :count,
-          "issues_found": :issues_list,
-          "next_recommendations": :recommendations
-        }
-      ]
+      maintenance_log: :appended_maintenance_log
     }
   }
 }
-WITH METADATA { source: "SleepCycle", author: "$system" }
+WITH METADATA { source: "SleepCycle", author: "$system", created_at: :current_timestamp }
+```
+
+`appended_maintenance_log` is the previously read array plus this cycle's entry:
+
+```json
+{
+  "timestamp": "<ISO 8601>",
+  "trigger": "<scheduled | threshold | on_demand>",
+  "scope": "<daydream | quick | full>",
+  "actions_taken": "<summary>",
+  "items_processed": 0,
+  "issues_found": [],
+  "next_recommendations": []
+}
 ```
 
 ---
@@ -634,7 +657,7 @@ UPSERT {
     SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "Archived"}) }
   }
 }
-WITH METADATA { source: "SleepArchive", author: "$system" }
+WITH METADATA { source: "SleepArchive", author: "$system", created_at: :timestamp }
 ```
 
 ```prolog

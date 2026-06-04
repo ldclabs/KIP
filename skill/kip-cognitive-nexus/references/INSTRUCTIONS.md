@@ -159,7 +159,7 @@ Exclusion filter. Discards solution if inner pattern matches.
 ```prolog
 ?drug {type: "Drug"}
 NOT {
-  (?drug, "is_class_of", {name: "NSAID"})
+  (?drug, "belongs_to_class", {name: "NSAID"})
 }
 ```
 
@@ -218,7 +218,7 @@ WHERE {
   ?drug {type: "Drug"}
   (?drug, "treats", {name: "Headache"})
   NOT {
-    (?drug, "is_class_of", {name: "NSAID"})
+    (?drug, "belongs_to_class", {name: "NSAID"})
   }
   FILTER(?drug.attributes.risk_level < 4)
 }
@@ -445,7 +445,7 @@ Full-text search for entity resolution (Grounding).
 **Parameters (same for both functions):**
 *   `command` (String): Single KIP command. **Mutually exclusive with `commands`**.
 *   `commands` (Array): Batch of commands. Each element: `String` (uses shared `parameters`) or `{command, parameters}` (independent). **Stops on the first KML error**. KQL, META, and syntax errors are returned inline and execution continues.
-*   `parameters` (Object): Placeholder substitution (`:name` → value). A placeholder must occupy a complete JSON value position (e.g., `name: :name`). Do not embed placeholders inside quoted strings (e.g., `"Hello :name"`), because replacement uses JSON serialization.
+*   `parameters` (Object): Placeholder substitution (`:name` → value). A placeholder must occupy a complete KIP value position (e.g., `name: :name`, `LIMIT :limit`, or `SEARCH CONCEPT :term`). Do not embed placeholders inside quoted strings (e.g., `"Hello :name"`), because replacement uses JSON serialization.
 *   `dry_run` (Boolean): Validate only, no execution.
 
 #### 5.2. Response

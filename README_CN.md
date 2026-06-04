@@ -35,14 +35,19 @@ WHERE {
 LIMIT 10
 
 // 存储：创建新的知识胶囊
+// 假设 Drug、Symptom 和 treats 已在 Schema 中注册。
 UPSERT {
+  CONCEPT ?headache {
+    {type: "Symptom", name: "Headache"}
+  }
+
   CONCEPT ?aspirin {
     {type: "Drug", name: "Aspirin"}
     SET ATTRIBUTES { molecular_formula: "C9H8O4", risk_level: 2 }
-    SET PROPOSITIONS { ("treats", {type: "Symptom", name: "Headache"}) }
+    SET PROPOSITIONS { ("treats", ?headache) }
   }
 }
-WITH METADATA { source: "FDA", confidence: 0.95 }
+WITH METADATA { source: "FDA", author: "$self", confidence: 0.95 }
 
 // 探索：发现模式
 DESCRIBE PRIMER
@@ -69,7 +74,7 @@ DESCRIBE PRIMER
 graph LR
     subgraph "认知中枢"
         A[Drug: Aspirin] -->|treats| B[Symptom: Headache]
-        A -->|is_class_of| C[DrugClass: NSAID]
+        A -->|belongs_to_class| C[DrugClass: NSAID]
         A -->|has_side_effect| D[Symptom: Stomach Upset]
     end
 ```
@@ -147,14 +152,15 @@ KIP 使用自描述模式，类型定义存储在图本身中：
 
 ## 版本历史
 
-| 版本        | 日期       | 变更                                                                                                                                                                                                                                                                                                                                                                        |
-| ----------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| v1.0-RC6    | 2026-04-25 | v1.0 Release Candidate 6：新增状态演进元数据（`superseded` / `superseded_by` / `superseded_at`）；明确 `expires_at` 仅作为维护信号（仅 `$system` 第 12 阶段执行物理清理，每周期上限 500 条）；新增 `KIP_2003 InvalidValueType` 与 `KIP_3004 ProtectedScope` 错误码；将语法参考归并至 [KIPSyntax.md](./KIPSyntax.md)；重构海马体提示词（形成 / 召回 / 维护）以便嵌入系统提示 |
-| v1.0-RC5    | 2026-03-25 | v1.0 Release Candidate 5：添加 `execute_kip_readonly` 接口                                                                                                                                                                                                                                                                                                                  |
-| v1.0-RC4    | 2026-03-09 | v1.0 Release Candidate 4：新增 `IN`、`IS_NULL`、`IS_NOT_NULL` FILTER 运算符；澄清 UNION 变量作用域语义；定义批量响应结构；新增时序查询与 UNION 查询示例                                                                                                                                                                                                                     |
-| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：优化文档；优化指令；优化知识胶囊                                                                                                                                                                                                                                                                                                                  |
-| ...         | ...        | ...                                                                                                                                                                                                                                                                                                                                                                         |
-| v1.0-draft1 | 2025-06-09 | 初始草案                                                                                                                                                                                                                                                                                                                                                                    |
+| 版本        | 日期       | 变更                                                                                                                                                                                                                                                                                                                                                                         |
+| ----------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1.0-RC7    | 2026-06-04 | v1.0 Release Candidate 7：新增 `execute_kip` 单条 `command`、批量命令逐条 `parameters`、适用于 `LIMIT` / `SEARCH` 的 KIP 值位置占位符、JSON 兼容未引号对象键、`belongs_to_class` 示例、强化的海马体溯源/取代指引，并同步 Recall/MCP schemas |
+| v1.0-RC6    | 2026-04-25 | v1.0 Release Candidate 6：新增状态演进元数据（`superseded` / `superseded_by` / `superseded_at`）；明确 `expires_at` 仅作为维护信号（仅 `$system` 第 12 阶段执行物理清理，每周期上限 500 条）；新增 `KIP_2003 InvalidValueType` 与 `KIP_3004 ImmutableTarget` 错误码；将语法参考归并至 [KIPSyntax.md](./KIPSyntax.md)；重构海马体提示词（形成 / 召回 / 维护）以便嵌入系统提示 |
+| v1.0-RC5    | 2026-03-25 | v1.0 Release Candidate 5：添加 `execute_kip_readonly` 接口                                                                                                                                                                                                                                                                                                                   |
+| v1.0-RC4    | 2026-03-09 | v1.0 Release Candidate 4：新增 `IN`、`IS_NULL`、`IS_NOT_NULL` FILTER 运算符；澄清 UNION 变量作用域语义；定义批量响应结构；新增时序查询与 UNION 查询示例                                                                                                                                                                                                                      |
+| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：优化文档；优化指令；优化知识胶囊                                                                                                                                                                                                                                                                                                                   |
+| ...         | ...        | ...                                                                                                                                                                                                                                                                                                                                                                          |
+| v1.0-draft1 | 2025-06-09 | 初始草案                                                                                                                                                                                                                                                                                                                                                                     |
 
 [完整版本历史 →](./SPECIFICATION_CN.md)
 

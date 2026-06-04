@@ -4,24 +4,59 @@
   "parameters": {
     "type": "object",
     "properties": {
+      "command": {
+        "type": "string",
+        "description": "A single complete KIP command (KQL / KML / META). Mutually exclusive with commands."
+      },
       "commands": {
         "type": "array",
         "description": "An array of KIP commands (KQL / KML / META) for batch execution (reduces round-trips). Commands are executed sequentially. KQL/META/syntax errors are returned inline; the first KML (UPSERT/DELETE) error stops the batch to preserve write atomicity.",
         "items": {
-          "type": "string"
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string",
+                  "description": "A complete KIP command with parameters scoped to this command."
+                },
+                "parameters": {
+                  "type": "object",
+                  "description": "Optional parameters for this command. These override shared parameters with the same keys."
+                }
+              },
+              "required": [
+                "command"
+              ],
+              "additionalProperties": false
+            }
+          ]
         }
       },
       "parameters": {
         "type": "object",
-        "description": "An optional JSON object of key-value pairs used for safe substitution of placeholders in the command string(s). Placeholders should start with ':' (e.g., :name, :limit). IMPORTANT: A placeholder must represent a complete JSON value token (e.g., name: :name). Do not embed placeholders inside quoted strings (e.g., \"Hello :name\"), because substitution uses JSON serialization."
+        "description": "An optional JSON object of key-value pairs used for safe substitution of placeholders in the command string(s). Placeholders should start with ':' (e.g., :name, :limit). IMPORTANT: A placeholder must occupy a complete KIP value position (e.g., name: :name, LIMIT :limit, or SEARCH CONCEPT :term). Do not embed placeholders inside quoted strings (e.g., \"Hello :name\"), because substitution uses JSON serialization."
       },
       "dry_run": {
         "type": "boolean",
         "description": "If set to true, the command(s) will only be validated for syntactical and logical correctness without being executed."
       }
     },
-    "required": [
-      "commands"
-    ]
+    "oneOf": [
+      {
+        "required": [
+          "command"
+        ]
+      },
+      {
+        "required": [
+          "commands"
+        ]
+      }
+    ],
+    "additionalProperties": false
   }
 }

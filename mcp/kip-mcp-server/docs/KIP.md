@@ -318,7 +318,7 @@ FILTER(?drug.attributes.risk_level < 3 && CONTAINS(?drug.name, "acid"))
 // Exclude all drugs belonging to the NSAID class
 NOT {
   ?nsaid_class {name: "NSAID"}
-  (?drug, "is_class_of", ?nsaid_class)
+  (?drug, "belongs_to_class", ?nsaid_class)
 }
 ```
 
@@ -326,7 +326,7 @@ Simpler version:
 ```prolog
 // Exclude all drugs belonging to the NSAID class
 NOT {
-  (?drug, "is_class_of", {name: "NSAID"})
+  (?drug, "belongs_to_class", {name: "NSAID"})
 }
 ```
 
@@ -389,12 +389,12 @@ WHERE {
     // Binding of ?drug is visible here
     // ?nsaid_class is an internal variable, scope limited to here
     ?nsaid_class {name: "NSAID"}
-    (?drug, "is_class_of", ?nsaid_class)
+    (?drug, "belongs_to_class", ?nsaid_class)
   }
 }
 ```
 1. Engine finds a solution `{?drug -> "Aspirin"}`.
-2. Engine enters `NOT` clause with this binding, attempts to match `("Aspirin", "is_class_of", ...)`.
+2. Engine enters `NOT` clause with this binding, attempts to match `("Aspirin", "belongs_to_class", ...)`.
 3. If matching succeeds (Aspirin is NSAID), the `NOT` clause fails, and `{?drug -> "Aspirin"}` is **discarded**.
 4. If matching fails (e.g., `{?drug -> "Vitamin C"}`), the `NOT` clause succeeds, and the solution is **kept**.
 5. In any case, `?nsaid_class` is not visible outside `NOT`.
@@ -478,7 +478,7 @@ WHERE {
   (?drug, "treats", ?headache)
 
   NOT {
-    (?drug, "is_class_of", {name: "NSAID"})
+    (?drug, "belongs_to_class", {name: "NSAID"})
   }
 
   FILTER(?drug.attributes.risk_level < 4)
@@ -496,7 +496,7 @@ FIND(
   ?link.metadata.source
 )
 WHERE {
-  (?drug, "is_class_of", {name: "NSAID"})
+  (?drug, "belongs_to_class", {name: "NSAID"})
 
   OPTIONAL {
     ?link (?drug, "has_side_effect", ?side_effect)
@@ -620,7 +620,7 @@ UPSERT {
     }
     SET PROPOSITIONS {
       // Link to an existing concept (Nootropic)
-      ("is_class_of", { type: "DrugClass", name: "Nootropic" })
+      ("belongs_to_class", { type: "DrugClass", name: "Nootropic" })
 
       // Link to an existing concept (Brain Fog)
       ("treats", { type: "Symptom", name: "Brain Fog" })
@@ -901,7 +901,7 @@ LLM-generated KIP commands should be sent to the Cognitive Nexus via the followi
 | :--------------- | :------ | :------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`command`**    | String  | No       | A complete KIP command text. **Mutually exclusive with `commands`**.                                                                                                                                                                                                                                                                         |
 | **`commands`**   | Array   | No       | An array of KIP commands for batch execution. **Mutually exclusive with `command`**. Each element can be a `String` (uses shared `parameters`) or an `Object` with `{command, parameters}` (independent parameters override shared). Commands execute sequentially; **execution stops on first error**.                                      |
-| **`parameters`** | Object  | No       | An optional key-value object for placeholder substitution. Placeholders (like `:symptom_name`) are safely replaced before execution. Placeholders must occupy a full JSON value position (e.g., `name: :symptom_name`), and must not be embedded inside quoted strings (e.g., `"Hello :name"`), because replacement uses JSON serialization. |
+| **`parameters`** | Object  | No       | An optional key-value object for placeholder substitution. Placeholders (like `:symptom_name`) are safely replaced before execution. Placeholders must occupy a full KIP value position (e.g., `name: :symptom_name`, `LIMIT :limit`, or `SEARCH CONCEPT :term`), and must not be embedded inside quoted strings (e.g., `"Hello :name"`), because replacement uses JSON serialization. |
 | **`dry_run`**    | Boolean | No       | If `true`, only validates the syntax and logic of the command(s) without executing.                                                                                                                                                                                                                                                          |
 
 ### 6.2. Response Structure

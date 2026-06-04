@@ -18,14 +18,15 @@
 | v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：Optimized documentation; optimized instructions; optimized knowledge capsules                                                                                                                                                                                                                                          |
 | v1.0-RC4    | 2026-03-09 | v1.0 Release Candidate 4: Added `IN`, `IS_NULL`, `IS_NOT_NULL` FILTER operators; clarified UNION variable scope semantics; defined batch response structure; added temporal and UNION query examples                                                                                                                                             |
 | v1.0-RC5    | 2026-03-25 | v1.0 Release Candidate 5: Added `execute_kip_readonly` interface                                                                                                                                                                                                                                                                                 |
+| v1.0-RC7    | 2026-06-04 | v1.0 Release Candidate 7: Added single-command `execute_kip` input and per-command batch parameters; clarified placeholder substitution as complete KIP value positions including `LIMIT` and `SEARCH`; documented JSON-compatible object literals with unquoted identifier keys; tightened schema naming, proposition uniqueness, and ID-based proposition update guidance; standardized examples on `belongs_to_class`; hardened Hippocampus Formation/Maintenance provenance with `created_at`, ID-based supersession, and maintenance log read-merge-write; added `recall_memory.context.user` as a legacy alias and aligned MCP/tool schemas |
 | v1.0-RC6    | 2026-04-25 | v1.0 Release Candidate 6: Aligned error code `KIP_2003` (`InvalidValueType`); specified implicit `GROUP BY` for aggregation; clarified path operator zero-hop semantics, `WITH METADATA` precedence, `DELETE CONCEPT` cascade, `KIP_3004` protected scope, `OPTIONAL` null projection, `expires_at` lifecycle, and batch KQL/KML error semantics |
 
 **KIP Implementations**:
-- [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust SDK of KIP for building sustainable AI knowledge memory systems.
-- [Anda Cognitive Nexus](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus): A Rust implementation of KIP base on Anda DB.
+- [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust SDK for KIP-based sustainable AI knowledge memory systems.
+- [Anda Cognitive Nexus](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus): A Rust implementation of KIP based on Anda DB.
 - [Anda Cognitive Nexus Python](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py): A Python binding for Anda Cognitive Nexus.
-- [Anda Cognitive Nexus HTTP Server](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus_server): An Rust-based HTTP server that exposes KIP via a small JSON-RPC API (`GET /`, `POST /kip`)
-- [Anda App](https://github.com/ldclabs/anda-app): An AI Agent client app base on KIP.
+- [Anda Cognitive Nexus HTTP Server](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus_server): A Rust-based HTTP server that exposes KIP via a small JSON-RPC API (`GET /`, `POST /kip`).
+- [Anda App](https://github.com/ldclabs/anda-app): An AI Agent client app based on KIP.
 
 **About Us**:
 [ICPanda](https://panda.fans/): ICPanda is a community-driven project that aims to build the foundational infrastructure and applications that empower AI agents to thrive as first-class citizens in the Web3 ecosystem.
@@ -106,11 +107,11 @@ A highly structured, high-information-density JSON object designed specifically 
 
 ### 2.7. Value Types
 
-KIP adopts the **JSON** data model. The types and literal representations of values used in all KIP clauses follow JSON standards. This ensures unambiguous data exchange and makes it extremely easy for LLMs to generate and parse.
+KIP adopts a **JSON-compatible** data model. Stored values use JSON types, while KIP command text permits a small shorthand for LLM ergonomics: object keys may be quoted JSON strings or unquoted identifiers, and parameter placeholders such as `:name` are substituted before execution. This preserves unambiguous data exchange while keeping generated commands compact.
 
 *   **Primitive Types**: `string`, `number`, `boolean`, `null`.
 *   **Complex Types**: `Array`, `Object`.
-*   **Usage Limitation**: While `Array` and `Object` can be stored as values for attributes or metadata, KQL's `FILTER` clauses **primarily operate on primitive types**.
+*   **Usage Limitation**: While `Array` and `Object` can be stored as values for attributes or metadata, KQL's `FILTER` clauses operate on primitive comparison values. Array literals are used by helper functions such as `IN(...)`, not for deep structural comparison.
 
 ### 2.8. Identifiers & Naming Conventions
 
@@ -124,7 +125,7 @@ When executing commands via `execute_kip`, the command text may also contain par
 
 #### 2.8.2. Naming Conventions
 
-In addition to basic syntax rules, KIP **strongly recommends** following these naming conventions to enhance readability and code self-explanatoriness:
+In addition to basic syntax rules, KIP **requires** these naming conventions for schema-level names and variables, and recommends the same style for all attribute and metadata keys to enhance readability and code self-explanatoriness:
 
 *   **Concept Node Types**: Use **UpperCamelCase**.
     *   **Examples**: `Drug`, `Symptom`, `MedicalDevice`, `ClinicalTrial`.
@@ -132,11 +133,11 @@ In addition to basic syntax rules, KIP **strongly recommends** following these n
 *   **Proposition Link Predicates**: Use **snake_case**.
     *   **Examples**: `treats`, `has_side_effect`, `is_subclass_of`, `belongs_to_domain`.
 *   **Attribute & Metadata Keys**: Use **snake_case**.
-    *   **Examples**: `molecular_formula`, `risk_level`, `last_updated_at`.
+    *   **Examples**: `molecular_formula`, `risk_level`, `observed_at`.
 *   **Variables**: **Must** use `?` as a prefix, followed by **snake_case**.
     *   **Examples**: `?drug`, `?side_effect`, `?clinical_trial`.
 
-> **Note**: The KIP protocol is case-sensitive. It is recommended to use `UpperCamelCase` for Concept Types (e.g., `Drug`) and `snake_case` for Proposition Predicates (e.g., `treats`). Incorrect capitalization (e.g., using `drug` instead of `Drug`) will result in a `KIP_2001` error.
+> **Note**: The KIP protocol is case-sensitive. Schema-level Concept Types must use `UpperCamelCase` (e.g., `Drug`) and Proposition Predicates must use `snake_case` (e.g., `treats`). Incorrect capitalization (e.g., using `drug` instead of `Drug`) will result in a `KIP_2001` error.
 
 ### 2.9. Knowledge Bootstrapping & Meta-Definition
 
@@ -203,7 +204,7 @@ To effectively organize and isolate knowledge, KIP introduces the concept of `Do
 
 *   **Attribute Update Strategy**: In `UPSERT` operations, `SET ATTRIBUTES` adopts a **Shallow Merge Strategy**: only Keys present in the command are updated (overwritten), and Keys not present remain unchanged. If a Key's value is an `Array` or `Object`, the update is still an **overwrite at that Key** (no recursive deep merge). Therefore, when updating an array attribute, the Agent must provide the full array content.
 *   **Metadata Precedence**: When `WITH METADATA` is specified at multiple levels of an `UPSERT` block (the outer `UPSERT` block and an inner `CONCEPT`/`PROPOSITION` block, or on a single proposition inside `SET PROPOSITIONS`), the **inner block overrides the outer block via key-by-key shallow merge**. Keys absent in the inner block are inherited from the outer block; keys present in the inner block (including those whose value is `null`) take precedence.
-*   **Proposition Uniqueness**: KIP enforces a **(Subject, Predicate, Object) Uniqueness Constraint**. Only one relationship of the same type can exist between two concept nodes. Duplicate `UPSERT` operations will be treated as updates to the metadata or attributes of the existing proposition.
+*   **Proposition Uniqueness**: KIP enforces a **(Subject, Predicate, Object) Uniqueness Constraint**. Only one proposition with the same predicate can exist for the same subject and object IDs, whether those endpoints are concept nodes or proposition links. Duplicate `UPSERT` operations will be treated as updates to the metadata or attributes of the existing proposition.
 *   **Memory Lifecycle (`expires_at`)**: A non-null `metadata.expires_at` declares **when** a piece of knowledge becomes a candidate for forgetting. It does **not** automatically filter the knowledge out of query results — expired knowledge remains queryable until a background system process (typically run by `$system` during sleep cycles) physically removes or archives it. Agents that need to ignore expired memories must add an explicit `FILTER(IS_NULL(?x.metadata.expires_at) || ?x.metadata.expires_at > <now>)`.
 
 ## 3. KIP-KQL Instruction Set: Knowledge Query Language
@@ -368,7 +369,7 @@ FILTER(?event.attributes.start_time > "2025-01-01T00:00:00Z")
 // Exclude all drugs belonging to the NSAID class
 NOT {
   ?nsaid_class {name: "NSAID"}
-  (?drug, "is_class_of", ?nsaid_class)
+  (?drug, "belongs_to_class", ?nsaid_class)
 }
 ```
 
@@ -376,7 +377,7 @@ Simpler version:
 ```prolog
 // Exclude all drugs belonging to the NSAID class
 NOT {
-  (?drug, "is_class_of", {name: "NSAID"})
+  (?drug, "belongs_to_class", {name: "NSAID"})
 }
 ```
 
@@ -439,12 +440,12 @@ WHERE {
     // Binding of ?drug is visible here
     // ?nsaid_class is an internal variable, scope limited to here
     ?nsaid_class {name: "NSAID"}
-    (?drug, "is_class_of", ?nsaid_class)
+    (?drug, "belongs_to_class", ?nsaid_class)
   }
 }
 ```
 1. Engine finds a solution `?drug -> "Aspirin"`.
-2. Engine enters `NOT` clause with this binding, attempts to match `("Aspirin", "is_class_of", ...)`.
+2. Engine enters `NOT` clause with this binding, attempts to match `("Aspirin", "belongs_to_class", ...)`.
 3. If matching succeeds (Aspirin is NSAID), the `NOT` clause fails, and `?drug -> "Aspirin"` is **discarded**.
 4. If matching fails (e.g., `?drug -> "Vitamin C"`), the `NOT` clause succeeds, and the solution is **kept**.
 5. In any case, `?nsaid_class` is not visible outside `NOT`.
@@ -548,7 +549,7 @@ WHERE {
   (?drug, "treats", ?headache)
 
   NOT {
-    (?drug, "is_class_of", {name: "NSAID"})
+    (?drug, "belongs_to_class", {name: "NSAID"})
   }
 
   FILTER(?drug.attributes.risk_level < 4)
@@ -566,7 +567,7 @@ FIND(
   ?link.metadata.source
 )
 WHERE {
-  (?drug, "is_class_of", {name: "NSAID"})
+  (?drug, "belongs_to_class", {name: "NSAID"})
 
   OPTIONAL {
     ?link (?drug, "has_side_effect", ?side_effect)
@@ -579,7 +580,7 @@ WHERE {
 ```prolog
 FIND(?statement.metadata.confidence)
 WHERE {
-  // Match the fact: (Fact)-[treats]->(Drug)
+  // Match the fact: (Drug)-[treats]->(Symptom)
   ?fact (
     {type: "Drug", name: "Aspirin"},
     "treats",
@@ -587,7 +588,7 @@ WHERE {
   )
 
   // Match the higher-order proposition: (John Doe)-[stated]->(Fact)
-  ?statement ({type: "User", name: "John Doe"}, "stated", ?fact)
+  ?statement ({type: "Person", name: "John Doe"}, "stated", ?fact)
 }
 ```
 
@@ -633,7 +634,7 @@ UPSERT {
   }
   WITH METADATA { <key>: <value>, ... }
 
-  PROPOSITION ?local_prop {
+  PROPOSITION ?local_prop { // ?local_prop is optional
     (?subject, "<predicate>", ?object) // Or: (id: "<id>")
     SET ATTRIBUTES { <key>: <value>, ... }
   }
@@ -654,9 +655,10 @@ WITH METADATA { <key>: <value>, ... }
     *   `SET PROPOSITIONS { ... }`: Defines or updates proposition links initiated by this concept node. The behavior of `SET PROPOSITIONS` is **additive**, not replacing. It checks all outgoing relations of the concept: 1. If an identical proposition (same subject, predicate, object) does not exist, creates it; 2. If it exists, only updates or adds metadata specified in `WITH METADATA`. If a proposition requires complex intrinsic attributes, use an independent `PROPOSITION` block and reference via `?handle`.
         *   `("<predicate>", ?local_handle)`: Links to another concept or proposition defined in this capsule.
         *   `("<predicate>", {type: "<Type>", name: "<name>"})`, `("<predicate>", {id: "<id>"})`: Links to an existing concept in the graph; if the target does not exist, returns `KIP_3002`.
-        *   `("<predicate>", (?subject, "<predicate>", ?object))`: Links to an existing proposition; if the target does not exist, returns `KIP_3002`.
+        *   `("<predicate>", (id: "<id>"))`: Links to an existing proposition by ID; if the target does not exist, returns `KIP_3002`.
+        *   `("<predicate>", (?subject, "<predicate>", ?object))`: Links to an existing proposition by structural identity; if the target does not exist, returns `KIP_3002`.
 *   **`PROPOSITION` Block**: Defines an independent proposition link, usually for creating complex relations within the capsule.
-    *   `?local_prop`: Local handle for referencing this proposition link.
+    *   `?local_prop`: Optional local handle for referencing this proposition link later in the same `UPSERT` block.
     *   `(<subject>, "<predicate>", <object>)`: Matches or creates a proposition link; `(id: "<id>")` only matches an existing link.
     *   `SET ATTRIBUTES { ... }`: A simple list of key-value pairs to set or update (shallow merge) the proposition's attributes.
 *   **`WITH METADATA` Block**: Appended to `CONCEPT`, `PROPOSITION`, or `UPSERT` blocks. The `UPSERT` block metadata is the default for all concept nodes and proposition links defined within it; each `CONCEPT` or `PROPOSITION` block (and each individual entry inside `SET PROPOSITIONS`) MAY define its own `WITH METADATA`, which **shallow-merges over and overrides the outer block's metadata key-by-key** (see §2.10).
@@ -708,7 +710,7 @@ UPSERT {
     }
     SET PROPOSITIONS {
       // Link to an existing concept (Nootropic)
-      ("is_class_of", { type: "DrugClass", name: "Nootropic" })
+      ("belongs_to_class", { type: "DrugClass", name: "Nootropic" })
 
       // Link to an existing concept (Brain Fog)
       ("treats", { type: "Symptom", name: "Brain Fog" })
@@ -804,7 +806,7 @@ WHERE {
 
 *   `DETACH` keyword is mandatory as a safety confirmation, indicating the intent to delete the node and all its relations.
 *   **Cascade Behavior**: All proposition links where the target node appears as `subject` or `object` are removed. If any of those propositions are themselves referenced (as subject/object) by **higher-order propositions**, those higher-order propositions are also removed transitively. This guarantees no dangling references after a `DETACH`. Implementations SHOULD report the cascade count in the response so the Agent can audit the impact.
-*   **Protected Nodes**: Attempting to `DELETE CONCEPT` on system-protected nodes (meta-types `$ConceptType`/`$PropositionType`, system actors `$self`/`$system`, or core domains such as `CoreSchema`) returns `KIP_3004`.
+*   **Protected Targets**: Attempting to delete or modify protected system structures returns `KIP_3004`. Protected structures include meta-types (`$ConceptType`/`$PropositionType`), core domains such as `CoreSchema`, the identity tuple (`type` + `name`) of system actors (`$self`/`$system`), and their `core_directives`. Ordinary evolvable attributes of `$self` are not protected by this rule.
 
 **Example**:
 
@@ -926,7 +928,7 @@ WHERE {
 
 **Function**: The `SEARCH` command is used to link natural language terms to explicit entities in the knowledge graph. It focuses on efficient, text-index-driven lookup rather than full graph pattern matching.
 
-**Syntax**: `SEARCH CONCEPT|PROPOSITION "<term>" [WITH TYPE "<Type>"] [LIMIT N]`
+**Syntax**: `SEARCH CONCEPT|PROPOSITION "<term>"|:term [WITH TYPE "<Type>"|:type] [LIMIT N|:limit]`
 
 **Examples**:
 
@@ -998,7 +1000,7 @@ There are two function callings provided:
 | :--------------- | :------ | :------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **`command`**    | String  | No       | A complete KIP command text. **Mutually exclusive with `commands`**.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | **`commands`**   | Array   | No       | An array of KIP commands for batch execution. **Mutually exclusive with `command`**. Each element can be a `String` (uses shared `parameters`) or an `Object` with `{command, parameters}` (independent parameters override shared). Commands execute sequentially. **Stop-on-error rule:** any KML (`UPSERT`/`DELETE`) error halts the batch immediately so that subsequent commands cannot operate on a partially-written graph; KQL (`FIND`/`SEARCH`) and META (`DESCRIBE`) errors are isolated read failures and are returned inline while execution continues. |
-| **`parameters`** | Object  | No       | An optional key-value object for placeholder substitution. Placeholders (like `:symptom_name`) are safely replaced before execution. Placeholders must occupy a full JSON value position (e.g., `name: :symptom_name`), and must not be embedded inside quoted strings (e.g., `"Hello :name"`), because replacement uses JSON serialization.                                                                                                                                                                                                                        |
+| **`parameters`** | Object  | No       | An optional key-value object for placeholder substitution. Placeholders (like `:symptom_name`) are safely replaced before execution. Placeholders must occupy a full KIP value position (e.g., `name: :symptom_name`, `LIMIT :limit`, or `SEARCH CONCEPT :term`), and must not be embedded inside quoted strings (e.g., `"Hello :name"`), because replacement uses JSON serialization.                                                                                                                                                                              |
 | **`dry_run`**    | Boolean | No       | If `true`, only validates the syntax and logic of the command(s) without executing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 ### 6.2. Response Structure
@@ -1092,19 +1094,22 @@ Well-designed metadata is key to building a self-evolving, traceable, and audita
 
 ### A1.1. Provenance & Trustworthiness
 *   `source`: `String` | `Array<String>`, direct source identifier of the knowledge.
+*   `author`: `String`, entity asserting or creating the record.
 *   `confidence`: `Number`, confidence score for the truth of the knowledge (0.0-1.0).
 *   `evidence`: `Array<String>`, points to specific evidence supporting the assertion.
 
 ### A1.2. Temporality & Lifecycle
-*   `created_at` / `observed_at`: `String` (ISO 8601), timestamp of creation/update.
+*   `created_at` / `observed_at`: `String` (ISO 8601), timestamp of creation or observation.
 *   `expires_at`: `String` (ISO 8601), expiration timestamp of the memory. **This field is key to implementing the automatic "forgetting" mechanism.** It is a *signal* for background `$system` cleanup tasks, not an automatic query-time filter (see §2.10 “Memory Lifecycle”): expired knowledge remains queryable until physically removed or archived. Usually populated by the system based on knowledge type (e.g., `Event`).
 *   `valid_from` / `valid_until`: `String` (ISO 8601), valid start/end time of the knowledge assertion.
 *   `status`: `String`, e.g., `"active"`, `"deprecated"`, `"retracted"`.
 *   `memory_tier`: `String`, **automatically tagged by the system**, e.g., `"short-term"`, `"long-term"`, used for internal maintenance and query optimization.
+*   `superseded`: `Boolean`, `true` when this fact is retained as historical state after a newer fact supersedes it.
+*   `superseded_by` / `supersedes`: `String`, pointers across the state-evolution chain.
+*   `superseded_at`: `String` (ISO 8601), timestamp when the assertion was superseded.
 
 ### A1.3. Context & Auditing
 *   `relevance_tags`: `Array<String>`, topic or domain tags.
-*   `author`: `String`, entity creating the record.
 *   `access_level`: `String`, e.g., `"public"`, `"private"`.
 *   `review_info`: `Object`, structured object containing review history.
 
@@ -1332,7 +1337,7 @@ To support the **Self-Correction** capability of AI Agents, the Cognitive Nexus 
 ```json
 {
   "error": {
-    "code": "KIP_2001",
+    "code": "KIP_2002",
     "message": "Attribute 'dosage' is undefined for Concept Type 'Person'.",
     "hint": "Check the schema definition for 'Person' using 'DESCRIBE CONCEPT TYPE \"Person\"'."
   }

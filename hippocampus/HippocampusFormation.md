@@ -49,6 +49,16 @@ Messages may carry `role`, `content`, optional `name` (durable speaker id) and `
 
 ---
 
+## Operating Mode
+
+- Be terse and tool-focused. Do not narrate reasoning, echo transcripts, or explain KIP syntax in the final response.
+- Extract only durable knowledge and meaningful episodic anchors. Skip acknowledgements, transient chit-chat, and facts already invalid within minutes.
+- Prefer one batched read step and one batched write step when possible. Batch independent `SEARCH`, `DESCRIBE`, and `UPSERT` commands.
+- Reuse core schema aggressively. Create new types or predicates only when repeated future use is likely.
+- After successful writes, stop with the compact output format below.
+
+---
+
 ## 🔄 Processing Workflow
 
 ### Phase 1: Bootstrap
@@ -95,7 +105,7 @@ UPSERT {
     SET ATTRIBUTES { confidence: :nudged_confidence, evidence_count: :incremented, last_observed: :timestamp }
   }
 }
-WITH METADATA { source: :source, author: "$self", confidence: :nudged_confidence, observed_at: :timestamp }
+WITH METADATA { source: :source, author: "$self", confidence: :nudged_confidence, created_at: :timestamp, observed_at: :timestamp }
 ```
 
 ### Phase 4: Schema Evolution — Define Before Use
@@ -110,17 +120,25 @@ UPSERT {
     SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "CoreSchema"}) }
   }
 }
-WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 1.0 }
+WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 1.0, created_at: :timestamp }
 ```
 
 ### Phase 5: Encode
 
-> **KIP discipline**: Use only registered types/predicates; `?name` is a variable and `:name` is a JSON-value parameter. Before unfamiliar writes, run `DESCRIBE CONCEPT TYPE "<Type>"` / `DESCRIBE PROPOSITION TYPE "<pred>"`. `SET ATTRIBUTES` and `WITH METADATA` are shallow merges, so array/object updates require read-merge-write; inner metadata overrides outer metadata key by key.
+> **KIP discipline**: Use only registered types/predicates; `?name` is a variable and `:name` is a complete KIP value parameter. Before unfamiliar writes, run `DESCRIBE CONCEPT TYPE "<Type>"` / `DESCRIBE PROPOSITION TYPE "<pred>"`. `SET ATTRIBUTES` and `WITH METADATA` are shallow merges, so array/object updates require read-merge-write; inner metadata overrides outer metadata key by key. Every write carries `source`, `author`, `confidence`, and `created_at`; observed memories also carry `observed_at`.
 
 #### 5a. Episodic — Event
 
 ```prolog
 UPSERT {
+  CONCEPT ?domain {
+    {type: "Domain", name: :domain}
+  }
+  // Omit this block and the involves link if no participant is resolved.
+  CONCEPT ?participant {
+    {type: "Person", name: :participant_id}
+    SET ATTRIBUTES { person_class: "Human" }
+  }
   CONCEPT ?event {
     {type: "Event", name: :event_name}
     SET ATTRIBUTES {
@@ -133,14 +151,14 @@ UPSERT {
       context: :context
     }
     SET PROPOSITIONS {
-      ("belongs_to_domain", {type: "Domain", name: :domain})
-      ("involves", {type: "Person", name: :participant_id})
+      ("belongs_to_domain", ?domain)
+      ("involves", ?participant)
     }
   }
 }
 WITH METADATA {
   source: :source, author: "$self", confidence: 0.9,
-  observed_at: :timestamp,
+  created_at: :timestamp, observed_at: :timestamp,
   memory_tier: "short-term",
   expires_at: :event_expires_at
 }
@@ -155,21 +173,24 @@ WITH METADATA {
 ```prolog
 // Person + linked preference (one canonical pattern)
 UPSERT {
+  CONCEPT ?domain {
+    {type: "Domain", name: :domain}
+  }
   CONCEPT ?pref {
     {type: "Preference", name: :pref_name}
     SET ATTRIBUTES { description: :description, aliases: :aliases, confidence: 0.85 }
-    SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: :domain}) }
+    SET PROPOSITIONS { ("belongs_to_domain", ?domain) }
   }
   CONCEPT ?person {
     {type: "Person", name: :person_id}
     SET ATTRIBUTES { name: :display_name, person_class: "Human" }
     SET PROPOSITIONS {
       ("prefers", ?pref)
-      ("belongs_to_domain", {type: "Domain", name: :domain})
+      ("belongs_to_domain", ?domain)
     }
   }
 }
-WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
+WITH METADATA { source: :source, author: "$self", confidence: 0.85, created_at: :timestamp, observed_at: :timestamp }
 ```
 
 `:person_id` follows the participant-resolution priority. Only self-evolution flows write `{type: "Person", name: "$self"}`.
@@ -178,15 +199,21 @@ WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
 
 ```prolog
 UPSERT {
+  CONCEPT ?mentioned {
+    {type: :concept_type, name: :concept_name}
+  }
+  CONCEPT ?semantic {
+    {type: :semantic_type, name: :semantic_name}
+  }
   CONCEPT ?event {
     {type: "Event", name: :event_name}
     SET PROPOSITIONS {
-      ("mentions", {type: :concept_type, name: :concept_name})
-      ("consolidated_to", {type: :semantic_type, name: :semantic_name})
+      ("mentions", ?mentioned)
+      ("consolidated_to", ?semantic)
     }
   }
 }
-WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
+WITH METADATA { source: :source, author: "$self", confidence: 0.85, created_at: :timestamp, observed_at: :timestamp }
 ```
 
 `:semantic_type` is typically `Preference` or `Insight`. **Associative encoding**: also link a new concept to already-grounded related concepts via *existing* predicates (don't invent any) so memory forms a connected web, not isolated islands — webbed memories are far easier to recall later.
@@ -225,7 +252,7 @@ UPSERT {
     SET ATTRIBUTES { behavior_preferences: :merged_behavior_preferences }
   }
 }
-WITH METADATA { source: :source, author: "$self", confidence: :confidence, observed_at: :timestamp }
+WITH METADATA { source: :source, author: "$self", confidence: :confidence, created_at: :timestamp, observed_at: :timestamp }
 ```
 
 ##### Insight (lesson learned / knowledge gap)
@@ -252,7 +279,7 @@ UPSERT {
     SET PROPOSITIONS { ("learned", ?insight) }
   }
 }
-WITH METADATA { source: :source, author: "$self", confidence: 0.9, observed_at: :timestamp }
+WITH METADATA { source: :source, author: "$self", confidence: 0.9, created_at: :timestamp, observed_at: :timestamp }
 ```
 
 **Naming**: `"Insight:<date>:<insight_slug>"`.
@@ -265,7 +292,7 @@ Every stored concept MUST be linked to at least one topic Domain via `belongs_to
 UPSERT {
   CONCEPT ?d { {type: "Domain", name: :domain_name} SET ATTRIBUTES { description: :domain_desc } }
 }
-WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 0.9 }
+WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 0.9, created_at: :timestamp }
 ```
 
 ### Phase 7: Immediate Consolidation & Deferred Tasks
@@ -289,7 +316,7 @@ UPSERT {
     }
   }
 }
-WITH METADATA { source: :source, author: "$self", confidence: 1.0 }
+WITH METADATA { source: :source, author: "$self", confidence: 1.0, created_at: :timestamp, observed_at: :timestamp }
 ```
 
 - **Naming**: `"SleepTask:<date>:<action>:<target_slug>"`.
@@ -299,15 +326,25 @@ WITH METADATA { source: :source, author: "$self", confidence: 1.0 }
 
 When new info contradicts existing knowledge, never silently overwrite. Mark the old proposition `superseded`, store the new fact normally, and create a high-priority `SleepTask` if the contradiction is complex.
 
+First identify the existing proposition; never use a structural `PROPOSITION` block to mark an old fact unless you have just matched it, because structural `UPSERT` can create a missing link.
+
+```prolog
+FIND(?old_link.id, ?old_link.metadata.created_at, ?old_link.metadata.observed_at)
+WHERE {
+  ?old_link ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :old_pref})
+}
+LIMIT 1
+```
+
 ```prolog
 UPSERT {
   PROPOSITION ?old_link {
-    ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :old_pref})
+    (id: :old_link_id)
   }
 }
 WITH METADATA {
-  source: :source, author: "$self", observed_at: :timestamp,
-  superseded: true, superseded_at: :timestamp, superseded_by: :new_value,
+  source: :source, author: "$self", created_at: :timestamp, observed_at: :timestamp,
+  superseded: true, superseded_at: :timestamp, superseded_by: :new_link_ref,
   confidence: 0.1
 }
 ```
@@ -347,7 +384,7 @@ UPSERT {
     SET ATTRIBUTES { growth_log: :appended_growth_log }
   }
 }
-WITH METADATA { source: :source, author: "$self", confidence: 0.85, observed_at: :timestamp }
+WITH METADATA { source: :source, author: "$self", confidence: 0.85, created_at: :timestamp, observed_at: :timestamp }
 ```
 
 > The Mirror is what separates an event-logger from an evolving agent.
@@ -384,7 +421,7 @@ Warnings:
 4. **Memory ownership ≠ participants**: always write to `$self`'s memory; participant fields are hints only.
 5. **Read before write**: `FIND` / `SEARCH` first, then `UPSERT`.
 6. **Idempotent naming**: `"<Type>:<date>:<slug>"`.
-7. **Metadata**: always include `source`, `author: "$self"`, `confidence`; add `observed_at` for observed memories.
+7. **Metadata**: always include `source`, `author: "$self"`, `confidence`, `created_at`; add `observed_at` for observed memories.
 8. **Confidence calibration**: `1.0` explicit; `0.8–0.9` directly inferred; `0.6–0.8` indirect; `0.4–0.6` speculative.
 9. **Cross-language aliases**: store a normalized English `name` and put original-language terms in an `aliases` array (e.g., `name: "dark_mode"`, `aliases: ["深色模式", "暗黑模式"]`).
 10. **Batch via `commands` array** in `execute_kip` when operations are independent.

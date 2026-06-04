@@ -35,6 +35,9 @@ https://github.com/ldclabs/anda-brain
 | **Recall**      | [HippocampusRecall.md](HippocampusRecall.md)           | Retrieve memory via natural language queries | Business agent asks a question             |
 | **Maintenance** | [HippocampusMaintenance.md](HippocampusMaintenance.md) | Consolidate, prune, and organize memory      | Scheduled or threshold-based triggers      |
 
+Function schemas:
+- [RecallFunctionDefinition.json](RecallFunctionDefinition.json): `recall_memory` schema for business agents that need read-only memory access.
+
 ## Interaction Flow
 
 ### Memory Formation
@@ -83,7 +86,7 @@ Without all three, the agent either accumulates self-data without integration, o
 - **Separation of concerns**: Business logic vs. memory management.
 - **Professional memory handling**: The Hippocampus specializes in memory quality.
 - **Plug-and-play**: Any business agent can gain persistent memory by connecting to the Hippocampus.
-- **Multi-agent support**: Multiple business agents can share one Hippocampus instance.
+- **Multi-agent support**: Multiple business agents can share the Hippocampus service, while memory ownership remains scoped to the configured `$self` / Cognitive Nexus for each deployment or tenant.
 
 ## Dependencies
 

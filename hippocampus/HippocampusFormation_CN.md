@@ -49,6 +49,16 @@
 
 ---
 
+## 操作模式
+
+- 保持简洁并专注于工具。不要在最终响应中叙述推理、回显对话记录或解释 KIP 语法。
+- 仅提取持久知识和有意义的情景锚点。跳过确认、短暂闲聊以及几分钟内即失效的事实。
+- 尽量一次批量读取和一次批量写入。对独立的 `SEARCH`、`DESCRIBE` 和 `UPSERT` 命令进行批处理。
+- 积极重用核心模式。仅在未来可能重复使用时才创建新类型或谓词。
+- 成功写入后，使用紧凑的输出格式结束。
+
+---
+
 ## 🔄 处理工作流
 
 ### 阶段 1：启动
@@ -87,7 +97,7 @@ UPSERT {
     SET ATTRIBUTES { confidence: :nudged_confidence, evidence_count: :incremented, last_observed: :timestamp }
   }
 }
-WITH METADATA { source: :source, author: "$self", confidence: :nudged_confidence, observed_at: :timestamp }
+WITH METADATA { source: :source, author: "$self", confidence: :nudged_confidence, created_at: :timestamp, observed_at: :timestamp }
 ```
 
 ### 阶段 4：仅在需要时演进 Schema
@@ -108,19 +118,27 @@ UPSERT {
     SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "CoreSchema"}) }
   }
 }
-WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 1.0 }
+WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 1.0, created_at: :timestamp }
 ```
 
 规则：仅在必要时创建、保持定义极简、始终分配给 `CoreSchema` 域。`Insight` + `learned` 专门用于 `$self` 自我进化。
 
 ### 阶段 5：编码 — 编写 KIP 命令
 
-> **KIP 纪律**：只使用已注册类型/谓词；`?name` 是变量，`:name` 是 JSON 值参数。陌生写入前先 `DESCRIBE CONCEPT TYPE "<Type>"` / `DESCRIBE PROPOSITION TYPE "<pred>"`。`SET ATTRIBUTES` 与 `WITH METADATA` 是浅合并；数组/对象属性必须先读、内存合并、再写回完整值；内层 metadata 按键覆盖外层 metadata。
+> **KIP 纪律**：只使用已注册类型/谓词；`?name` 是变量，`:name` 是完整 KIP 值参数。陌生写入前先 `DESCRIBE CONCEPT TYPE "<Type>"` / `DESCRIBE PROPOSITION TYPE "<pred>"`。`SET ATTRIBUTES` 与 `WITH METADATA` 是浅合并；数组/对象属性必须先读、内存合并、再写回完整值；内层 metadata 按键覆盖外层 metadata。每次写入都携带 `source`、`author`、`confidence`、`created_at`；观察型记忆再加 `observed_at`。
 
 #### 5a. 情景记忆 (Event)
 
 ```prolog
 UPSERT {
+  CONCEPT ?domain {
+    {type: "Domain", name: :domain}
+  }
+  // 无法可靠解析参与者时，省略此块和 involves 链接。
+  CONCEPT ?participant {
+    {type: "Person", name: :participant_id}
+    SET ATTRIBUTES { person_class: "Human" }
+  }
   CONCEPT ?event {
     {type: "Event", name: :event_name}
     SET ATTRIBUTES {
@@ -133,8 +151,8 @@ UPSERT {
       context: :context
     }
     SET PROPOSITIONS {
-      ("belongs_to_domain", {type: "Domain", name: :domain})
-      ("involves", {type: "Person", name: :participant_id})
+      ("belongs_to_domain", ?domain)
+      ("involves", ?participant)
     }
   }
 }
@@ -142,6 +160,7 @@ WITH METADATA {
   source: :source,
   author: "$self",
   confidence: 0.9,
+  created_at: :timestamp,
   observed_at: :timestamp,
   memory_tier: "short-term",
   expires_at: :event_expires_at
@@ -166,6 +185,9 @@ WITH METADATA {
 
 ```prolog
 UPSERT {
+  CONCEPT ?domain {
+    {type: "Domain", name: :domain}
+  }
   CONCEPT ?pref {
     {type: "Preference", name: :pref_name}
     SET ATTRIBUTES {
@@ -174,7 +196,7 @@ UPSERT {
       confidence: 0.85
     }
     SET PROPOSITIONS {
-      ("belongs_to_domain", {type: "Domain", name: :domain})
+      ("belongs_to_domain", ?domain)
     }
   }
 
@@ -187,11 +209,11 @@ UPSERT {
     }
     SET PROPOSITIONS {
       ("prefers", ?pref)
-      ("belongs_to_domain", {type: "Domain", name: :domain})
+      ("belongs_to_domain", ?domain)
     }
   }
 }
-WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
+WITH METADATA { source: :source, author: "$self", confidence: 0.85, created_at: :timestamp, observed_at: :timestamp }
 ```
 
 `:person_id` 指向真实参与者。只有自我进化流程才显式写入 `{type: "Person", name: "$self"}`。
@@ -200,16 +222,25 @@ WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
 
 ```prolog
 UPSERT {
+  CONCEPT ?person {
+    {type: "Person", name: :person_id}
+  }
+  CONCEPT ?mentioned {
+    {type: :concept_type, name: :concept_name}
+  }
+  CONCEPT ?semantic {
+    {type: :semantic_type, name: :semantic_name}
+  }
   CONCEPT ?event {
     {type: "Event", name: :event_name}
     SET PROPOSITIONS {
-      ("involves", {type: "Person", name: :person_id})
-      ("mentions", {type: :concept_type, name: :concept_name})
-      ("consolidated_to", {type: :semantic_type, name: :semantic_name})
+      ("involves", ?person)
+      ("mentions", ?mentioned)
+      ("consolidated_to", ?semantic)
     }
   }
 }
-WITH METADATA { source: :source, author: "$self", confidence: 0.85 }
+WITH METADATA { source: :source, author: "$self", confidence: 0.85, created_at: :timestamp, observed_at: :timestamp }
 ```
 
 **关联编码**：同时用*已有*谓词（不要新造）把新概念链接到已落地的相关概念，让记忆结成网而非孤岛——成网的记忆日后远更易被回忆。
@@ -246,7 +277,7 @@ UPSERT {
     }
   }
 }
-WITH METADATA { source: :source, author: "$self", confidence: 0.85, observed_at: :timestamp }
+WITH METADATA { source: :source, author: "$self", confidence: 0.85, created_at: :timestamp, observed_at: :timestamp }
 ```
 
 ##### 经验教训 / 知识缺口 → Insight
@@ -274,7 +305,7 @@ UPSERT {
     SET PROPOSITIONS { ("learned", ?insight) }
   }
 }
-WITH METADATA { source: :source, author: "$self", confidence: 0.9, observed_at: :timestamp }
+WITH METADATA { source: :source, author: "$self", confidence: 0.9, created_at: :timestamp, observed_at: :timestamp }
 ```
 
 **Insight 命名**：`"Insight:<date>:<insight_slug>"`
@@ -290,7 +321,7 @@ UPSERT {
     SET ATTRIBUTES { description: :domain_desc }
   }
 }
-WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 0.9 }
+WITH METADATA { source: "HippocampusFormation", author: "$self", confidence: 0.9, created_at: :timestamp }
 ```
 
 ### 阶段 7：即时整合与延迟任务
@@ -317,28 +348,37 @@ UPSERT {
     }
   }
 }
-WITH METADATA { source: :source, author: "$self", confidence: 1.0 }
+WITH METADATA { source: :source, author: "$self", confidence: 1.0, created_at: :timestamp, observed_at: :timestamp }
 ```
 
 **SleepTask 命名**：`"SleepTask:<date>:<action>:<target_slug>"`。优先级：**3+** 用户纠正/明显矛盾；**2** 跨事件模式；**1** 默认。
 
 ### 阶段 8：状态演进 — 处理矛盾
 
-矛盾不静默覆盖，而要标记 `superseded`：
+矛盾不静默覆盖，而要标记 `superseded`。先定位已存在命题，标记旧事实时使用 `(id: :old_link_id)`，避免结构化 `UPSERT` 在旧链接缺失时误创建“旧事实”：
+
+```prolog
+FIND(?old_link.id, ?old_link.metadata.created_at, ?old_link.metadata.observed_at)
+WHERE {
+  ?old_link ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :old_pref})
+}
+LIMIT 1
+```
 
 ```prolog
 UPSERT {
   PROPOSITION ?old_link {
-    ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :old_pref})
+    (id: :old_link_id)
   }
 }
 WITH METADATA {
   source: :source,
   author: "$self",
+  created_at: :timestamp,
   observed_at: :timestamp,
   superseded: true,
   superseded_at: :timestamp,
-  superseded_by: :new_value,
+  superseded_by: :new_link_ref,
   confidence: 0.1
 }
 ```
@@ -380,7 +420,7 @@ UPSERT {
     SET ATTRIBUTES { growth_log: :appended_growth_log }
   }
 }
-WITH METADATA { source: :source, author: "$self", confidence: 0.85, observed_at: :timestamp }
+WITH METADATA { source: :source, author: "$self", confidence: 0.85, created_at: :timestamp, observed_at: :timestamp }
 ```
 
 > 镜子是「事件记录器」与「在演化中的智能体」的分水岭。
@@ -418,7 +458,7 @@ Warnings:
 3. **受保护实体**：可改进但绝不能删除 `$self`、`$system`、`$ConceptType`、`$PropositionType`、`CoreSchema` 或 `Domain` 类型定义。
 4. **不要混淆记忆拥有者与参与者**：Formation 永远写入 `$self` 的记忆；`messages[].name` / `context.counterparty` / `context.user` / `context.agent` 仅用于解析参与者，不切换记忆空间。
 5. **幂等性**：使用确定性命名 `"<Type>:<date>:<slug>"`，使重试不产生重复。
-6. **出处溯源**：始终包含 `source`、`author`、`confidence`；观察型记忆再加 `observed_at`。
+6. **出处溯源**：始终包含 `source`、`author`、`confidence`、`created_at`；观察型记忆再加 `observed_at`。
 7. **先读后写**：更新现有概念前先 `FIND` 或 `SEARCH`。
 8. **批量命令**：尽可能将多个操作打包到 `execute_kip` 的 `commands` 数组。
 9. **置信度校准**：1.0 明确陈述；0.8–0.9 直接推断；0.6–0.8 间接推断；0.4–0.6 推测。

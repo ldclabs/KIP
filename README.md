@@ -37,14 +37,19 @@ LIMIT 10
 
 ```prolog
 // Store: Create a new knowledge capsule
+// Assumes Drug, Symptom, and treats are already registered in the schema.
 UPSERT {
+  CONCEPT ?headache {
+    {type: "Symptom", name: "Headache"}
+  }
+
   CONCEPT ?aspirin {
     {type: "Drug", name: "Aspirin"}
     SET ATTRIBUTES { molecular_formula: "C9H8O4", risk_level: 2 }
-    SET PROPOSITIONS { ("treats", {type: "Symptom", name: "Headache"}) }
+    SET PROPOSITIONS { ("treats", ?headache) }
   }
 }
-WITH METADATA { source: "FDA", confidence: 0.95 }
+WITH METADATA { source: "FDA", author: "$self", confidence: 0.95 }
 ```
 
 ```prolog
@@ -73,7 +78,7 @@ A knowledge graph composed of **Concept Nodes** and **Proposition Links**, servi
 graph LR
     subgraph "Cognitive Nexus"
         A[Drug: Aspirin] -->|treats| B[Symptom: Headache]
-        A -->|is_class_of| C[DrugClass: NSAID]
+        A -->|belongs_to_class| C[DrugClass: NSAID]
         A -->|has_side_effect| D[Symptom: Stomach Upset]
     end
 ```
@@ -150,14 +155,15 @@ A dedicated LLM layer that manages the Cognitive Nexus on behalf of business age
 
 ## Version History
 
-| Version     | Date       | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| ----------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| v1.0-RC6    | 2026-04-25 | v1.0 Release Candidate 6: Added state-evolution metadata (`superseded` / `superseded_by` / `superseded_at`); clarified `expires_at` as a maintenance signal (only `$system` Phase 12 hard-deletes, capped 500/cycle); added `KIP_2003 InvalidValueType` and `KIP_3004 ProtectedScope` error codes; consolidated syntax reference into [KIPSyntax.md](./KIPSyntax.md); restructured Hippocampus prompts (Formation / Recall / Maintenance) for prompt-embedding |
-| v1.0-RC5    | 2026-03-25 | v1.0 Release Candidate 5: Added `execute_kip_readonly` interface                                                                                                                                                                                                                                                                                                                                                                                               |
-| v1.0-RC4    | 2026-03-09 | v1.0 Release Candidate 4: Added `IN`, `IS_NULL`, `IS_NOT_NULL` FILTER operators; clarified UNION variable scope semantics; defined batch response structure; added temporal and UNION query examples                                                                                                                                                                                                                                                           |
-| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：Optimized documentation; optimized instructions; optimized knowledge capsules                                                                                                                                                                                                                                                                                                                                                        |
-| ...         | ...        | ...                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| v1.0-draft1 | 2025-06-09 | Initial Draft                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Version     | Date       | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ----------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1.0-RC7    | 2026-06-04 | v1.0 Release Candidate 7: Added single-command `execute_kip`, per-command batch parameters, KIP value-position placeholders for `LIMIT` / `SEARCH`, JSON-compatible unquoted object keys, `belongs_to_class` examples, stronger Hippocampus provenance/supersession guidance, and aligned Recall/MCP schemas |
+| v1.0-RC6    | 2026-04-25 | v1.0 Release Candidate 6: Added state-evolution metadata (`superseded` / `superseded_by` / `superseded_at`); clarified `expires_at` as a maintenance signal (only `$system` Phase 12 hard-deletes, capped 500/cycle); added `KIP_2003 InvalidValueType` and `KIP_3004 ImmutableTarget` error codes; consolidated syntax reference into [KIPSyntax.md](./KIPSyntax.md); restructured Hippocampus prompts (Formation / Recall / Maintenance) for prompt-embedding |
+| v1.0-RC5    | 2026-03-25 | v1.0 Release Candidate 5: Added `execute_kip_readonly` interface                                                                                                                                                                                                                                                                                                                                                                                                |
+| v1.0-RC4    | 2026-03-09 | v1.0 Release Candidate 4: Added `IN`, `IS_NULL`, `IS_NOT_NULL` FILTER operators; clarified UNION variable scope semantics; defined batch response structure; added temporal and UNION query examples                                                                                                                                                                                                                                                            |
+| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3：Optimized documentation; optimized instructions; optimized knowledge capsules                                                                                                                                                                                                                                                                                                                                                         |
+| ...         | ...        | ...                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| v1.0-draft1 | 2025-06-09 | Initial Draft                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 [Full version history →](./SPECIFICATION.md)
 

@@ -29,7 +29,7 @@ export const ExecuteKipInputSchema = z
       .record(z.string(), z.unknown())
       .optional()
       .describe(
-        "Optional key-value pairs used for safe substitution of placeholders in command(s). Placeholders start with ':' and must occupy a complete JSON value token."
+        "Optional key-value pairs used for safe substitution of placeholders in command(s). Placeholders start with ':' and must occupy a complete KIP value position (for example: name: :name, LIMIT :limit, or SEARCH CONCEPT :term)."
       ),
     dry_run: z
       .boolean()

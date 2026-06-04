@@ -72,7 +72,7 @@ KIP 海马体 — 记忆维护指令 (睡眠模式)
 
 按顺序执行。`quick` → 阶段 1–2。`daydream` → 仅阶段 1。
 
-**KIP 纪律**：`?name` 是变量，`:name` 是 JSON 值参数。包含 `:type` 的查询是按类型执行的模板——从 Primer 遍历概念类型，不要发送未绑定占位符。只使用已注册谓词。数组/对象属性（如 `maintenance_log`、`growth_log`）会按 key 整体覆盖，必须先读、合并、再写回完整值。
+**KIP 纪律**：`?name` 是变量，`:name` 是完整 KIP 值参数。包含 `:type` 的查询是按类型执行的模板——从 Primer 遍历概念类型，不要发送未绑定占位符。只使用已注册谓词。数组/对象属性（如 `maintenance_log`、`growth_log`）会按 key 整体覆盖，必须先读、合并、再写回完整值。每次写入都携带 `source`、`author`、`created_at`；当操作断言或改变知识时同时携带 `confidence`。
 
 ### 阶段 1：评估与显著性评分
 
@@ -137,7 +137,7 @@ UPSERT {
     SET ATTRIBUTES { salience_score: :score, salience_scored_at: :timestamp }
   }
 }
-WITH METADATA { source: "SalienceScoring", author: "$system" }
+WITH METADATA { source: "SalienceScoring", author: "$system", created_at: :timestamp, confidence: 0.8 }
 ```
 
 > **`scope: "daydream"`**：到此为止。≥80 分标记下一次完整周期处理；<10 分可立即标记归档。
@@ -169,7 +169,7 @@ UPSERT {
     SET ATTRIBUTES { status: "in_progress", started_at: :timestamp }
   }
 }
-WITH METADATA { source: "SleepCycle", author: "$system" }
+WITH METADATA { source: "SleepCycle", author: "$system", created_at: :timestamp }
 
 // 示例：consolidate_to_semantic
 UPSERT {
@@ -182,7 +182,7 @@ UPSERT {
     }
   }
 }
-WITH METADATA { source: "SleepConsolidation", author: "$system", confidence: 0.8 }
+WITH METADATA { source: "SleepConsolidation", author: "$system", confidence: 0.8, created_at: :timestamp }
 
 // 完成
 UPSERT {
@@ -191,7 +191,7 @@ UPSERT {
     SET ATTRIBUTES { status: "completed", completed_at: :timestamp, result: :result_summary }
   }
 }
-WITH METADATA { source: "SleepCycle", author: "$system" }
+WITH METADATA { source: "SleepCycle", author: "$system", created_at: :timestamp }
 ```
 
 ### 阶段 3：未分类收件箱处理
@@ -215,7 +215,7 @@ UPSERT {
     SET PROPOSITIONS { ("belongs_to_domain", ?target_domain) }
   }
 }
-WITH METADATA { source: "SleepReclassification", author: "$system", confidence: 0.85 }
+WITH METADATA { source: "SleepReclassification", author: "$system", confidence: 0.85, created_at: :timestamp }
 ```
 
 ```prolog
@@ -236,7 +236,7 @@ UPSERT {
     SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: :target_domain}) }
   }
 }
-WITH METADATA { source: "OrphanResolution", author: "$system", confidence: :confidence }
+WITH METADATA { source: "OrphanResolution", author: "$system", confidence: :confidence, created_at: :timestamp }
 ```
 
 ### 阶段 5：主旨提取与 Schema 形成
@@ -255,7 +255,7 @@ UPSERT {
     SET PROPOSITIONS { ("consolidated_to", {type: :semantic_type, name: :semantic_name}) }
   }
 }
-WITH METADATA { source: "SleepConsolidation", author: "$system" }
+WITH METADATA { source: "SleepConsolidation", author: "$system", created_at: :timestamp, confidence: 0.8 }
 ```
 
 无可提取语义内容的 Event：归档并设置较短 `expires_at`，让阶段 12 后续回收原始情景存储。
@@ -270,6 +270,7 @@ UPSERT {
 }
 WITH METADATA {
   source: "SleepConsolidation", author: "$system",
+  created_at: :timestamp,
   expires_at: :archive_expires_at  // 例如 archived_at + 30 天
 }
 ```
@@ -312,7 +313,7 @@ UPSERT {
     }
   }
 }
-WITH METADATA { source: "CrossEventConsolidation", author: "$system", confidence: :aggregated_confidence }
+WITH METADATA { source: "CrossEventConsolidation", author: "$system", confidence: :aggregated_confidence, created_at: :timestamp }
 ```
 
 > 跨 Event 模式置信度通常**高于**任何单一来源——汇聚证据胜过单次观察。用 `evidence_count` 跟踪证据广度。
@@ -331,7 +332,7 @@ UPSERT {
     SET PROPOSITIONS { ... }
   }
 }
-WITH METADATA { source: "DuplicateMerge", author: "$system", confidence: 0.8 }
+WITH METADATA { source: "DuplicateMerge", author: "$system", confidence: 0.8, created_at: :timestamp }
 ```
 
 ### 阶段 7：置信度衰减
@@ -339,7 +340,7 @@ WITH METADATA { source: "DuplicateMerge", author: "$system", confidence: 0.8 }
 应用 `new_confidence = old_confidence × decay_factor`（默认 0.95/周）：
 
 ```prolog
-FIND(?link) WHERE {
+FIND(?link.id, ?link.metadata.confidence) WHERE {
   ?link (?s, "prefers", ?o)
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
   FILTER(IS_NOT_NULL(?link.metadata.created_at))
@@ -351,8 +352,13 @@ FIND(?link) WHERE {
 
 ```prolog
 UPSERT {
-  PROPOSITION ?link { ({id: :s_id}, "prefers", {id: :o_id}) }
-  WITH METADATA { confidence: :new_confidence, decay_applied_at: :timestamp }
+  PROPOSITION ?link { (id: :link_id) }
+  WITH METADATA {
+    source: "ConfidenceDecay", author: "$system",
+    confidence: :new_confidence,
+    created_at: :timestamp,
+    decay_applied_at: :timestamp
+  }
 }
 ```
 
@@ -429,7 +435,7 @@ UPSERT {
     }
   }
 }
-WITH METADATA { source: "SelfModelConsolidation", author: "$system", confidence: 0.85 }
+WITH METADATA { source: "SelfModelConsolidation", author: "$system", confidence: 0.85, created_at: :timestamp }
 ```
 
 **硬约束（KIP §6 / KIP_3004）**：绝不修改 `$self` 身份元组或 `core_directives`；保留演化轨迹（旧 `identity_narrative` 内核应已在 `growth_log` 历史中）；证据稀疏或矛盾时跳过该属性。
@@ -440,28 +446,41 @@ WITH METADATA { source: "SelfModelConsolidation", author: "$system", confidence:
 
 冲突事实：确定时间顺序 → 较旧标记 `superseded`（保留为历史，`confidence: 0.1`）→ 强化当前并写 `supersedes` 链接。
 
+先检索当前命题 ID；标记旧事实时使用 `(id: :old_link_id)`，避免在旧命题缺失时误创建。
+
+```prolog
+FIND(?old_link.id, ?current_link.id)
+WHERE {
+  ?old_link ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :old_pref})
+  ?current_link ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :current_pref})
+}
+LIMIT 1
+```
+
 ```prolog
 UPSERT {
   PROPOSITION ?old_link {
-    ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :old_pref})
+    (id: :old_link_id)
   }
 }
 WITH METADATA {
   source: "ContradictionResolution", author: "$system",
+  created_at: :timestamp,
   superseded: true, superseded_at: :timestamp,
-  superseded_by: :new_pref_name, superseded_reason: :reason,
+  superseded_by: :current_link_id, superseded_reason: :reason,
   confidence: 0.1
 }
 
 UPSERT {
   PROPOSITION ?current_link {
-    ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :current_pref})
+    (id: :current_link_id)
   }
 }
 WITH METADATA {
   source: "ContradictionResolution", author: "$system",
+  created_at: :timestamp,
   confidence: :boosted_confidence,
-  supersedes: :old_pref_name,
+  supersedes: :old_link_id,
   evolution_note: :temporal_context
 }
 ```
@@ -503,7 +522,7 @@ UPSERT {
     SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "Archived"}) }
   }
 }
-WITH METADATA { source: "DomainHealthCheck", author: "$system" }
+WITH METADATA { source: "DomainHealthCheck", author: "$system", created_at: :timestamp }
 ```
 
 ### 阶段 12：物理清理 — TTL 回收
@@ -559,21 +578,25 @@ UPSERT {
     {type: "Person", name: "$system"}
     SET ATTRIBUTES {
       last_sleep_cycle: :current_timestamp,
-      maintenance_log: [
-        {
-          "timestamp": :current_timestamp,
-          "trigger": :trigger_type,
-          "scope": :scope,
-          "actions_taken": :summary_of_actions,
-          "items_processed": :count,
-          "issues_found": :issues_list,
-          "next_recommendations": :recommendations
-        }
-      ]
+      maintenance_log: :appended_maintenance_log
     }
   }
 }
-WITH METADATA { source: "SleepCycle", author: "$system" }
+WITH METADATA { source: "SleepCycle", author: "$system", created_at: :current_timestamp }
+```
+
+`appended_maintenance_log` 是已读取数组追加本周期条目后的完整数组：
+
+```json
+{
+  "timestamp": "<ISO 8601>",
+  "trigger": "<scheduled | threshold | on_demand>",
+  "scope": "<daydream | quick | full>",
+  "actions_taken": "<summary>",
+  "items_processed": 0,
+  "issues_found": [],
+  "next_recommendations": []
+}
 ```
 
 ---
@@ -631,7 +654,7 @@ UPSERT {
     SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "Archived"}) }
   }
 }
-WITH METADATA { source: "SleepArchive", author: "$system" }
+WITH METADATA { source: "SleepArchive", author: "$system", created_at: :timestamp }
 ```
 
 ```prolog
