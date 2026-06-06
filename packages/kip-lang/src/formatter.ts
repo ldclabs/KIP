@@ -448,7 +448,7 @@ class Formatter {
         break
       case 'CONCEPT_TYPE':
         this.write(
-          `DESCRIBE CONCEPT TYPE "${this.escapeString(stmt.typeName ?? '')}"`
+          `DESCRIBE CONCEPT TYPE ${this.quotedOrParameterValueToString(stmt.typeNameValue, stmt.typeName ?? '')}`
         )
         break
       case 'PROPOSITION_TYPES':
@@ -456,7 +456,7 @@ class Formatter {
         break
       case 'PROPOSITION_TYPE':
         this.write(
-          `DESCRIBE PROPOSITION TYPE "${this.escapeString(stmt.typeName ?? '')}"`
+          `DESCRIBE PROPOSITION TYPE ${this.quotedOrParameterValueToString(stmt.typeNameValue, stmt.typeName ?? '')}`
         )
         break
     }
@@ -474,11 +474,11 @@ class Formatter {
   private formatSearch(stmt: SearchStatement): void {
     this.writeIndent()
     this.write(
-      `SEARCH ${stmt.searchTarget} ${this.searchValueToString(stmt.termValue, stmt.term)}`
+      `SEARCH ${stmt.searchTarget} ${this.quotedOrParameterValueToString(stmt.termValue, stmt.term)}`
     )
-    if (stmt.withType) {
+    if (stmt.withTypeValue || stmt.withType !== undefined) {
       this.write(
-        ` WITH TYPE ${this.searchValueToString(stmt.withTypeValue, stmt.withType)}`
+        ` WITH TYPE ${this.quotedOrParameterValueToString(stmt.withTypeValue, stmt.withType ?? '')}`
       )
     }
     if (stmt.limit) {
@@ -760,8 +760,8 @@ class Formatter {
     return cur.value.name
   }
 
-  private searchValueToString(
-    value: SearchStatement['termValue'],
+  private quotedOrParameterValueToString(
+    value: SearchStatement['termValue'] | DescribeStatement['typeNameValue'],
     fallback: string
   ): string {
     if (value?.kind === 'StringLiteral') return value.value

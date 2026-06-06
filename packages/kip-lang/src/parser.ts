@@ -436,6 +436,7 @@ class Parser {
 
     let describeType: DescribeStatement['describeType']
     let typeName: string | undefined
+    let typeNameValue: StringLiteral | ParameterRef | undefined
     let limit: LimitClause | undefined
     let cursor: CursorClause | undefined
 
@@ -453,7 +454,13 @@ class Parser {
       } else if (this.check(TokenType.Type)) {
         describeType = 'CONCEPT_TYPE'
         this.advance()
-        typeName = this.expectStringValue()
+        typeNameValue = this.parseStringOrParameterValue(
+          'DESCRIBE CONCEPT TYPE'
+        )
+        typeName =
+          typeNameValue.kind === 'StringLiteral'
+            ? typeNameValue.parsed
+            : typeNameValue.name
       } else {
         this.error(
           `Expected TYPE or TYPES after DESCRIBE CONCEPT`,
@@ -469,7 +476,13 @@ class Parser {
       } else if (this.check(TokenType.Type)) {
         describeType = 'PROPOSITION_TYPE'
         this.advance()
-        typeName = this.expectStringValue()
+        typeNameValue = this.parseStringOrParameterValue(
+          'DESCRIBE PROPOSITION TYPE'
+        )
+        typeName =
+          typeNameValue.kind === 'StringLiteral'
+            ? typeNameValue.parsed
+            : typeNameValue.name
       } else {
         this.error(
           `Expected TYPE or TYPES after DESCRIBE PROPOSITION`,
@@ -496,6 +509,7 @@ class Parser {
       kind: 'DescribeStatement',
       describeType,
       typeName,
+      typeNameValue,
       limit,
       cursor,
       range: { start, end: this.currentPos() },
@@ -1409,9 +1423,13 @@ class Parser {
         range: { start: entryStart, end: this.currentPos() }
       })
 
-      // Optional comma
-      this.match(TokenType.Comma)
       this.skipComments()
+      if (this.check(TokenType.RBrace)) break
+      if (this.match(TokenType.Comma)) {
+        this.skipComments()
+        continue
+      }
+      this.error(`Expected ',' or '}' after object entry`, this.current())
     }
     return entries
   }

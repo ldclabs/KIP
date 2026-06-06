@@ -246,6 +246,34 @@ WHERE {
     }
   })
 
+  test('parses parameterized DESCRIBE type names and cursors', () => {
+    const source = `DESCRIBE CONCEPT TYPE :type_name LIMIT :limit CURSOR :cursor`
+    const { ast, diagnostics } = parse(source)
+    assert.equal(ast.statements.length, 1)
+    const stmt = ast.statements[0]
+    assert.equal(stmt.kind, 'DescribeStatement')
+    assert.equal(stmt.describeType, 'CONCEPT_TYPE')
+    assert.equal(stmt.typeName, ':type_name')
+    assert.equal(stmt.typeNameValue.kind, 'ParameterRef')
+    assert.equal(stmt.typeNameValue.name, ':type_name')
+    assert.equal(stmt.limit.value.kind, 'ParameterRef')
+    assert.equal(stmt.cursor.value.kind, 'ParameterRef')
+    const errors = diagnostics.filter((d) => d.severity === 'error')
+    assert.equal(errors.length, 0, `Parse errors: ${JSON.stringify(errors)}`)
+  })
+
+  test('reports missing commas between object entries', () => {
+    const source = `FIND(?drug)
+WHERE {
+  ?drug {type: "Drug" name: "Aspirin"}
+}`
+    const { diagnostics } = parse(source)
+    assert.ok(
+      diagnostics.some((d) => d.message.includes("Expected ',' or '}'")),
+      `Expected missing-comma diagnostic: ${JSON.stringify(diagnostics)}`
+    )
+  })
+
   test('parses SEARCH statements', () => {
     const source = `SEARCH CONCEPT "aspirin" WITH TYPE "Drug" LIMIT 5`
     const { ast, diagnostics } = parse(source)
@@ -354,6 +382,21 @@ confidence: 0.9
     assert.equal(result.trim(), 'SEARCH CONCEPT :search_term WITH TYPE :type LIMIT :limit')
   })
 
+  test('formats parameterized DESCRIBE statements', () => {
+    const source = `DESCRIBE PROPOSITION TYPE :predicate LIMIT :limit CURSOR :cursor`
+    const result = format(source)
+    assert.equal(
+      result.trim(),
+      'DESCRIBE PROPOSITION TYPE :predicate LIMIT :limit CURSOR :cursor'
+    )
+  })
+
+  test('formats SEARCH statements with empty WITH TYPE values', () => {
+    const source = `SEARCH CONCEPT "" WITH TYPE "" LIMIT 1`
+    const result = format(source)
+    assert.equal(result.trim(), 'SEARCH CONCEPT "" WITH TYPE "" LIMIT 1')
+  })
+
   test('does not format invalid KIP', () => {
     const source = `UPSERT { CONCEPT ?x { {type: "Drug"} }`
     assert.throws(() => format(source), /Cannot format invalid KIP/)
@@ -378,5 +421,21 @@ describe('diagnose', () => {
     const source = `UPSERT { CONCEPT ?x { {type: "Drug"} }`
     const diags = diagnose(source)
     assert.ok(diags.length > 0, 'Should report unclosed brace')
+  })
+
+  test('reports invalid JSON-compatible literals', () => {
+    const source = `FIND(?n)
+WHERE {
+  ?n {name: "bad\\q", score: 01}
+}`
+    const diags = diagnose(source)
+    assert.ok(
+      diags.some((d) => d.code === 'KIP_LEX_INVALID_STRING'),
+      `Expected invalid string diagnostic: ${JSON.stringify(diags)}`
+    )
+    assert.ok(
+      diags.some((d) => d.code === 'KIP_LEX_INVALID_NUMBER'),
+      `Expected invalid number diagnostic: ${JSON.stringify(diags)}`
+    )
   })
 })

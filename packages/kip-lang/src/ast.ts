@@ -210,6 +210,8 @@ export interface DescribeStatement extends BaseNode {
     | 'PROPOSITION_TYPE'
   /** The type/predicate name for specific describe */
   typeName?: string
+  /** Raw type/predicate value, preserving either quoted string or :parameter syntax. */
+  typeNameValue?: StringLiteral | ParameterRef
   limit?: LimitClause
   cursor?: CursorClause
 }

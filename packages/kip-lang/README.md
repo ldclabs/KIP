@@ -4,6 +4,13 @@ TypeScript toolkit for **KIP** (Knowledge Interaction Protocol) — a structured
 
 Provides a full-featured **lexer → parser → AST → formatter / diagnostics** pipeline for `.kip` files.
 
+The parser targets the KIP v1.0-RC7 command-text syntax, including `:parameter`
+placeholders in full value positions, JSON-compatible object literals with
+unquoted identifier keys, `SEARCH`, `DESCRIBE`, and batch-friendly multi-command
+source text. The `execute_kip` request envelope (`command`, `commands`,
+`parameters`, `dry_run`) is JSON outside the `.kip` language and should be
+validated by the caller.
+
 ## Installation
 
 ```bash
@@ -78,6 +85,7 @@ const diagnostics = diagnose('UPSERT { CONCEPT ?x { {type: "Drug"} }')
 
 Diagnostics cover:
 - Lexer errors (unknown characters, unterminated strings)
+- Invalid JSON-compatible string and number literals
 - Bracket matching (unclosed / mismatched braces, brackets, parentheses)
 - Parser errors (unexpected tokens, missing clauses)
 
@@ -101,6 +109,10 @@ All AST types are exported for downstream consumption:
 - **Blocks**: `ConceptBlock`, `PropositionBlock`, `SetAttributes`, `SetPropositions`, `WithMetadata`
 - **Patterns**: `ConceptPattern`, `PropositionPattern`, `FilterClause`, `NotClause`, `OptionalClause`, `UnionClause`
 - **Expressions**: `ObjectLiteral`, `ArrayLiteral`, `ObjectEntry`, `Expression`
+
+String-or-parameter statement fields such as `SearchStatement.termValue`,
+`SearchStatement.withTypeValue`, and `DescribeStatement.typeNameValue` preserve
+whether the original source used a quoted string or a `:parameter` placeholder.
 
 ## KIP Language
 

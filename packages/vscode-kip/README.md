@@ -2,6 +2,10 @@
 
 VS Code extension providing full language support for **KIP** (Knowledge Interaction Protocol) `.kip` files.
 
+The extension uses `@ldclabs/kip-lang` for KIP v1.0-RC7 command-text parsing,
+formatting, and diagnostics, including `:parameter` placeholders in full value
+positions and JSON-compatible object literals with unquoted identifier keys.
+
 ## Features
 
 ### Syntax Highlighting
@@ -25,6 +29,7 @@ Format on save or via `Shift+Alt+F`:
 - Alphabetical sorting of `SET ATTRIBUTES` keys
 - Comment preservation with correct placement
 - Quoted/unquoted key style preservation
+- Parameter placeholders such as `LIMIT :limit`, `SEARCH CONCEPT :term`, and `DESCRIBE CONCEPT TYPE :type`
 
 ### Real-time Diagnostics
 
@@ -60,13 +65,13 @@ Automatic matching and closing for `{}`, `()`, `[]`, and `""`.
 cd packages/vscode-kip
 pnpm install
 pnpm build
-pnpm package   # produces vscode-kip-0.2.0.vsix
+pnpm package   # produces vscode-kip-0.2.2.vsix
 ```
 
 Then install the `.vsix`:
 
 ```
-code --install-extension vscode-kip-0.2.0.vsix
+code --install-extension vscode-kip-0.2.2.vsix
 ```
 
 ### Development

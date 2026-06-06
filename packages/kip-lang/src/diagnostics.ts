@@ -45,7 +45,33 @@ export function diagnose(source: string): Diagnostic[] {
           message: 'Unterminated string literal',
           code: 'KIP_LEX_UNTERMINATED_STRING'
         })
+      } else {
+        try {
+          JSON.parse(tok.value)
+        } catch {
+          diagnostics.push({
+            range: {
+              start: { line: tok.line, column: tok.column },
+              end: { line: tok.line, column: tok.column + tok.value.length }
+            },
+            severity: 'error',
+            message: 'Invalid JSON string literal escape sequence',
+            code: 'KIP_LEX_INVALID_STRING'
+          })
+        }
       }
+    }
+
+    if (tok.type === TokenType.Number && !isJsonNumberLiteral(tok.value)) {
+      diagnostics.push({
+        range: {
+          start: { line: tok.line, column: tok.column },
+          end: { line: tok.line, column: tok.column + tok.value.length }
+        },
+        severity: 'error',
+        message: 'Invalid JSON number literal',
+        code: 'KIP_LEX_INVALID_NUMBER'
+      })
     }
   }
 
@@ -113,4 +139,8 @@ export function diagnose(source: string): Diagnostic[] {
   diagnostics.push(...parseDiags)
 
   return diagnostics
+}
+
+function isJsonNumberLiteral(value: string): boolean {
+  return /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(value)
 }
