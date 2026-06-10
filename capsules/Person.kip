@@ -125,13 +125,13 @@ UPSERT {
                     "type": "array",
                     "item_type": "object",
                     "is_required": false,
-                    "description": "Recent maintenance actions performed by $system during sleep cycles, for audit and transparency. Append-only; older entries may be compressed. Each entry should include 'timestamp' (ISO 8601), 'trigger' ('scheduled' | 'threshold' | 'on_demand'), 'scope' ('daydream' | 'quick' | 'full'), 'actions_taken' (summary of operations), 'items_processed' (count), 'issues_found', and 'next_recommendations'."
+                    "description": "Recent maintenance actions performed by $system during sleep cycles, for audit and transparency. Operational telemetry, not memory: Maintenance trims it to the most recent ~50 entries on append; durable conclusions belong in the graph. Each entry should include 'timestamp' (ISO 8601), 'trigger' ('scheduled' | 'threshold' | 'on_demand'), 'scope' ('daydream' | 'quick' | 'full'), 'actions_taken' (summary of operations), 'items_processed' (count), 'issues_found', and 'next_recommendations'."
                 },
                 "growth_log": {
                     "type": "array",
                     "item_type": "object",
                     "is_required": false,
-                    "description": "A chronicle of significant self-evolution milestones. Append-only during Formation; Maintenance compresses older entries. Each entry should have 'timestamp' (ISO 8601), 'kind' (one of 'capability_gain', 'weakness_acknowledged', 'persona_shift', 'mission_clarified', 'values_emerged', 'identity_milestone', or 'summary' for compressed entries), 'summary' (a one-sentence, first-person description of what changed), and optional 'evidence_event' / 'evidence_insight' (names of the Event/Insight that evidenced the change). Reserved for identity-evolution milestones, not routine activity."
+                    "description": "DEPRECATED — do not append. The growth timeline now lives in the graph as Event nodes with event_class 'GrowthMilestone' ('involves' → $self, 'SelfModel' domain), so the autobiography never bloats this node or the context window. If this array still holds legacy entries, the Maintenance sleep cycle migrates them to GrowthMilestone Events and then deletes this attribute."
                 }
             }
         }

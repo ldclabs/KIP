@@ -119,16 +119,16 @@ Pre-built knowledge capsules for bootstrapping your Cognitive Nexus:
 | [persons/self.kip](./capsules/persons/self.kip)     | The `$self` concept instance                                |
 | [persons/system.kip](./capsules/persons/system.kip) | The `$system` concept instance                              |
 
-### 🧠 Hippocampus (`hippocampus/`)
+### 🧠 Brain (`brain/`)
 
 A dedicated LLM layer that manages the Cognitive Nexus on behalf of business agents — no KIP knowledge required:
 
-| File                                                                         | Description                                                          |
-| ---------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| [HippocampusFormation.md](./hippocampus/HippocampusFormation.md)             | System prompt for memory encoding (messages → structured knowledge)  |
-| [HippocampusRecall.md](./hippocampus/HippocampusRecall.md)                   | System prompt for memory retrieval (natural language → KIP → answer) |
-| [HippocampusMaintenance.md](./hippocampus/HippocampusMaintenance.md)         | System prompt for memory maintenance (sleep mode)                    |
-| [RecallFunctionDefinition.json](./hippocampus/RecallFunctionDefinition.json) | `recall_memory` function schema for business agent integration       |
+| File                                                               | Description                                                          |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| [BrainFormation.md](./brain/BrainFormation.md)                     | System prompt for memory encoding (messages → structured knowledge)  |
+| [BrainRecall.md](./brain/BrainRecall.md)                           | System prompt for memory retrieval (natural language → KIP → answer) |
+| [BrainMaintenance.md](./brain/BrainMaintenance.md)                 | System prompt for memory maintenance (sleep mode)                    |
+| [RecallFunctionDefinition.json](./brain/RecallFunctionDefinition.json) | `recall_memory` function schema for business agent integration       |
 
 ```
 ┌─────────────────────┐
@@ -137,7 +137,7 @@ A dedicated LLM layer that manages the Cognitive Nexus on behalf of business age
          │ Natural Language
          ▼
 ┌─────────────────────┐
-│    Hippocampus      │  ← Formation / Recall / Maintenance
+│       Brain         │  ← Formation / Recall / Maintenance
 └────────┬────────────┘
          │ KIP (KQL/KML/META)
          ▼

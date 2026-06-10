@@ -115,16 +115,16 @@ KIP 使用自描述模式，类型定义存储在图本身中：
 | [persons/self.kip](./capsules/persons/self.kip)     | `$self` 概念实例                                 |
 | [persons/system.kip](./capsules/persons/system.kip) | `$system` 概念实例                               |
 
-### 🧠 海马体 (`hippocampus/`)
+### 🧠 大脑 (`brain/`)
 
 专职管理认知中枢的 LLM 层，业务智能体无需了解 KIP 语法即可集成长期记忆：
 
-| 文件                                                                         | 描述                                                     |
-| ---------------------------------------------------------------------------- | -------------------------------------------------------- |
-| [HippocampusFormation.md](./hippocampus/HippocampusFormation.md)             | 记忆形成系统提示词（消息 → 结构化知识）                  |
-| [HippocampusRecall.md](./hippocampus/HippocampusRecall.md)                   | 记忆召回系统提示词（自然语言 → KIP 查询 → 自然语言回答） |
-| [HippocampusMaintenance.md](./hippocampus/HippocampusMaintenance.md)         | 记忆维护系统提示词（睡眠模式）                           |
-| [RecallFunctionDefinition.json](./hippocampus/RecallFunctionDefinition.json) | 业务智能体调用记忆召回的 `recall_memory` 函数定义        |
+| 文件                                                                   | 描述                                                     |
+| ---------------------------------------------------------------------- | -------------------------------------------------------- |
+| [BrainFormation.md](./brain/BrainFormation.md)                         | 记忆形成系统提示词（消息 → 结构化知识）                  |
+| [BrainRecall.md](./brain/BrainRecall.md)                               | 记忆召回系统提示词（自然语言 → KIP 查询 → 自然语言回答） |
+| [BrainMaintenance.md](./brain/BrainMaintenance.md)                     | 记忆维护系统提示词（睡眠模式）                           |
+| [RecallFunctionDefinition.json](./brain/RecallFunctionDefinition.json) | 业务智能体调用记忆召回的 `recall_memory` 函数定义        |
 
 ```
 ┌─────────────────────┐
@@ -133,7 +133,7 @@ KIP 使用自描述模式，类型定义存储在图本身中：
          │ 自然语言
          ▼
 ┌─────────────────────┐
-│    海马体（LLM 层）   │  ← 记忆形成 / 记忆召回 / 记忆维护
+│     大脑（LLM 层）    │  ← 记忆形成 / 记忆召回 / 记忆维护
 └────────┬────────────┘
          │ KIP（KQL/KML/META）
          ▼

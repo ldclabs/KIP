@@ -9,7 +9,7 @@ UPSERT {
                 "event_class": {
                     "type": "string",
                     "is_required": true,
-                    "description": "The classification of the event, e.g., 'Conversation', 'WebpageView', 'ToolExecution', 'SelfReflection'."
+                    "description": "The classification of the event, e.g., 'Conversation', 'WebpageView', 'ToolExecution', 'SelfReflection', 'GrowthMilestone' (a $self identity-evolution milestone)."
                 },
                 "start_time": {
                     "type": "string",

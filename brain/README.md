@@ -1,6 +1,6 @@
-# Hippocampus (海马体) — Autonomous Graph Memory for AI Agents
+# Brain — Autonomous Graph Memory for AI Agents
 
-The Hippocampus is a dedicated LLM layer that manages the Cognitive Nexus (Knowledge Graph) on behalf of business AI agents. It eliminates the need for business agents to understand KIP syntax, dramatically lowering the integration barrier.
+The Brain is a dedicated LLM layer that manages the Cognitive Nexus (Knowledge Graph) on behalf of business AI agents. It eliminates the need for business agents to understand KIP syntax, dramatically lowering the integration barrier.
 
 ## Implementations
 
@@ -16,7 +16,7 @@ https://github.com/ldclabs/anda-brain
          │ Natural Language
          ▼
 ┌─────────────────────┐
-│    Hippocampus      │  ← The ONLY layer that understands KIP
+│       Brain         │  ← The ONLY layer that understands KIP
 │   (LLM + KIP)       │     Three operational modes
 └────────┬────────────┘
          │ KIP (KQL/KML/META)
@@ -31,9 +31,9 @@ https://github.com/ldclabs/anda-brain
 
 | Mode            | System Prompt                                          | Purpose                                      | Trigger                                    |
 | --------------- | ------------------------------------------------------ | -------------------------------------------- | ------------------------------------------ |
-| **Formation**   | [HippocampusFormation.md](HippocampusFormation.md)     | Encode messages into structured memory       | Business agent sends conversation messages |
-| **Recall**      | [HippocampusRecall.md](HippocampusRecall.md)           | Retrieve memory via natural language queries | Business agent asks a question             |
-| **Maintenance** | [HippocampusMaintenance.md](HippocampusMaintenance.md) | Consolidate, prune, and organize memory      | Scheduled or threshold-based triggers      |
+| **Formation**   | [BrainFormation.md](BrainFormation.md)     | Encode messages into structured memory       | Business agent sends conversation messages |
+| **Recall**      | [BrainRecall.md](BrainRecall.md)           | Retrieve memory via natural language queries | Business agent asks a question             |
+| **Maintenance** | [BrainMaintenance.md](BrainMaintenance.md) | Consolidate, prune, and organize memory      | Scheduled or threshold-based triggers      |
 
 Function schemas:
 - [RecallFunctionDefinition.json](RecallFunctionDefinition.json): `recall_memory` schema for business agents that need read-only memory access.
@@ -41,24 +41,24 @@ Function schemas:
 ## Interaction Flow
 
 ### Memory Formation
-1. Business agent sends conversation messages to the Hippocampus.
-2. Hippocampus extracts knowledge (entities, facts, preferences, relationships, commitments).
-3. Hippocampus writes structured memory to the Cognitive Nexus via KIP.
-4. Hippocampus returns a brief summary of what was memorized — or `skipped` when nothing met the storage bar (the empty write is a valid outcome).
+1. Business agent sends conversation messages to the Brain.
+2. Brain extracts knowledge (entities, facts, preferences, relationships, commitments).
+3. Brain writes structured memory to the Cognitive Nexus via KIP.
+4. Brain returns a brief summary of what was memorized — or `skipped` when nothing met the storage bar (the empty write is a valid outcome).
 
 ### Memory Recall
-1. Business agent sends a natural language query to the Hippocampus.
-2. Hippocampus translates the query into KIP operations (possibly multi-step).
-3. Hippocampus synthesizes results into a natural language answer.
+1. Business agent sends a natural language query to the Brain.
+2. Brain translates the query into KIP operations (possibly multi-step).
+3. Brain synthesizes results into a natural language answer.
 4. Business agent receives a coherent, contextualized answer.
 
 ### Memory Maintenance (Sleep Mode)
 1. Triggered on schedule or when thresholds are exceeded.
-2. Hippocampus consolidates episodic memories into semantic knowledge.
-3. Hippocampus prunes stale, duplicate, or low-confidence data.
-4. Hippocampus resolves orphans, rebalances domains, and decays confidence.
-5. Hippocampus refines `$self`'s self-model (identity narrative, values, mission, growth log) — the dedicated self-consciousness loop.
-6. Hippocampus reclaims storage by hard-deleting only those nodes whose `expires_at` has passed (the single hard-delete entry point).
+2. Brain consolidates episodic memories into semantic knowledge.
+3. Brain prunes stale, duplicate, or low-confidence data.
+4. Brain resolves orphans, rebalances domains, and decays confidence.
+5. Brain refines `$self`'s self-model (identity narrative, values, mission, growth timeline) — the dedicated self-consciousness loop.
+6. Brain reclaims storage by hard-deleting only those nodes whose `expires_at` has passed (the single hard-delete entry point).
 
 ## The Three Forgetting Mechanisms (Orthogonal)
 
@@ -72,7 +72,7 @@ The Cognitive Nexus separates three independent decay axes so that no fact is si
 
 ## Memory Quality Principles
 
-Seven cross-mode invariants keep the graph beautiful (densely linked, accurately routed) and efficient (no noise, no stale maps):
+Eight cross-mode invariants keep the graph beautiful (densely linked, accurately routed) and efficient (no noise, no stale maps):
 
 1. **Selectivity** — the empty write is a valid outcome: Formation returns `skipped` rather than storing noise; typical yield is 1 Event + 0–3 semantic concepts.
 2. **Absolute time** — relative expressions ("tomorrow") are resolved to ISO 8601 at encoding; a memory that says "tomorrow" is corrupt the moment tomorrow arrives.
@@ -81,6 +81,7 @@ Seven cross-mode invariants keep the graph beautiful (densely linked, accurately
 5. **Privacy as metadata** — sensitive-but-memorable facts carry `access_level: "private"`; Recall surfaces them only to their subject.
 6. **A curated Primer** — Maintenance refreshes Domain descriptions so the auto-injected `DESCRIBE PRIMER` Domain Map stays an accurate routing table for every future call.
 7. **Prospective memory is first-class** — promises, reminders, and deadlines live as `Commitment` nodes with absolute `due_at` and a status lifecycle (pending → fulfilled / cancelled / expired); briefings lead with what is overdue, and the sleep cycle sweeps what was fulfilled or abandoned.
+8. **Unbounded histories are nodes, never node attributes** — `$self` carries only the compact consolidated self-model; the growth timeline lives as `GrowthMilestone` Events queried with `LIMIT`, so the autobiography never rides the context window (append = one idempotent write, no read-modify-write to corrupt).
 
 ## The Self-Consciousness Loop
 
@@ -96,9 +97,9 @@ Without all three, the agent either accumulates self-data without integration, o
 
 - **Zero KIP knowledge required** for business agents.
 - **Separation of concerns**: Business logic vs. memory management.
-- **Professional memory handling**: The Hippocampus specializes in memory quality.
-- **Plug-and-play**: Any business agent can gain persistent memory by connecting to the Hippocampus.
-- **Multi-agent support**: Multiple business agents can share the Hippocampus service, while memory ownership remains scoped to the configured `$self` / Cognitive Nexus for each deployment or tenant.
+- **Professional memory handling**: The Brain specializes in memory quality.
+- **Plug-and-play**: Any business agent can gain persistent memory by connecting to the Brain.
+- **Multi-agent support**: Multiple business agents can share the Brain service, while memory ownership remains scoped to the configured `$self` / Cognitive Nexus for each deployment or tenant.
 
 ## Dependencies
 
