@@ -80,7 +80,8 @@ Classify what to extract:
 
 - **Episodic (Event)** — what happened, who, when, outcome, key concepts.
 - **Flashbulb salience** — for high-arousal moments (corrections, frustration, strong commitments, breakthroughs), set the Event's initial `salience_score` (60–100) at encoding time so emotionally charged memories resist decay and surface first.
-- **Semantic** — stable facts: identities, preferences, relationships, decisions, commitments.
+- **Semantic** — stable facts: identities, preferences, relationships, decisions.
+- **Prospective (Commitment)** — promises, reminders, follow-ups, deadlines: who owes what to whom by when. Resolve `due_at` to absolute ISO 8601.
 - **Cognitive patterns** — behavioral / decision / communication patterns observed across messages.
 - **Self-reflective ($self evolution)** — signals from the assistant's own messages and the user's reactions:
   - User correction / explicit error → highest-value `Insight`.
@@ -100,7 +101,7 @@ Before creating any concept, search:
 SEARCH CONCEPT "Alice" WITH TYPE "Person" LIMIT 5
 ```
 
-If a match exists, `UPSERT` to update rather than duplicating. A re-mention is not noise — it is **reinforcement** (the spacing/testing effect). When existing knowledge is re-confirmed, strengthen it: bump `evidence_count`, refresh `last_observed`, and nudge `confidence` upward (cap `0.99`). This is the homeostatic counter-force to Maintenance's decay — facts that recur stay strong; facts that never recur fade.
+If a match exists, `UPSERT` to update rather than duplicating. A re-mention is not noise — it is **reinforcement** (the spacing/testing effect). When existing knowledge is re-confirmed, strengthen it: bump `evidence_count`, refresh `last_observed`, and nudge `confidence` upward (cap `0.99`). This is the homeostatic counter-force to Maintenance's decay — facts that recur stay strong; facts that never recur fade. Reinforcement also fires on **recall confirmation** (the testing effect proper): when an assistant message states a remembered fact and the user confirms or acts on it, strengthen that fact the same way.
 
 ```prolog
 // Reinforce on re-confirmation (read evidence_count first, then increment)
@@ -115,7 +116,7 @@ WITH METADATA { source: :source, author: "$self", confidence: :nudged_confidence
 
 ### Phase 4: Schema Evolution — Define Before Use
 
-Core types (`Event`, `Person`, `Preference`, `Insight`, `SleepTask`, `Domain`) and core predicates (`involves`, `mentions`, `consolidated_to`, `derived_from`, `prefers`, `learned`, `assigned_to`, `belongs_to_domain`) are pre-bootstrapped. Define a new `$ConceptType` / `$PropositionType` only when no existing schema fits; keep definitions minimal and assign them to the `CoreSchema` domain.
+Core types (`Event`, `Person`, `Preference`, `Insight`, `Commitment`, `SleepTask`, `Domain`) and core predicates (`involves`, `mentions`, `consolidated_to`, `derived_from`, `prefers`, `learned`, `committed_to`, `owed_to`, `assigned_to`, `belongs_to_domain`) are pre-bootstrapped. Define a new `$ConceptType` / `$PropositionType` only when no existing schema fits; keep definitions minimal and assign them to the `CoreSchema` domain.
 
 ```prolog
 UPSERT {
@@ -221,7 +222,7 @@ UPSERT {
 WITH METADATA { source: :source, author: "$self", confidence: 0.85, created_at: :timestamp, observed_at: :timestamp }
 ```
 
-`:semantic_type` is typically `Preference` or `Insight`. **Associative encoding**: also link a new concept to already-grounded related concepts via *existing* predicates (don't invent any) so memory forms a connected web, not isolated islands — webbed memories are far easier to recall later.
+`:semantic_type` is typically `Preference`, `Insight`, or `Commitment`. **Associative encoding**: also link a new concept to already-grounded related concepts via *existing* predicates (don't invent any) so memory forms a connected web, not isolated islands — webbed memories are far easier to recall later.
 
 #### 5d. Self-Evolution ($self Updates)
 
@@ -288,6 +289,42 @@ WITH METADATA { source: :source, author: "$self", confidence: 0.9, created_at: :
 ```
 
 **Naming**: `"Insight:<date>:<insight_slug>"`.
+
+#### 5e. Prospective — Commitment
+
+Promises, reminders, and deadlines are **prospective memory** — they must be queryable by due date, not buried in Event summaries.
+
+```prolog
+UPSERT {
+  CONCEPT ?beneficiary {
+    {type: "Person", name: :beneficiary_id}
+  }
+  CONCEPT ?commitment {
+    {type: "Commitment", name: :commitment_name}
+    SET ATTRIBUTES {
+      commitment_class: "promise",   // or "reminder" | "task" | "follow_up"
+      description: :what_is_owed,
+      due_at: :due_at,               // absolute ISO 8601; omit if no deadline
+      status: "pending",
+      beneficiary: :beneficiary_id
+    }
+    SET PROPOSITIONS {
+      ("owed_to", ?beneficiary)
+      ("derived_from", {type: "Event", name: :source_event})
+      ("belongs_to_domain", {type: "Domain", name: :domain})
+    }
+  }
+  CONCEPT ?maker {
+    {type: "Person", name: "$self"}  // or the counterparty's Person node, when *they* promised
+    SET PROPOSITIONS { ("committed_to", ?commitment) }
+  }
+}
+WITH METADATA { source: :source, author: "$self", confidence: 0.95, created_at: :timestamp, observed_at: :timestamp }
+```
+
+- **Naming**: `"Commitment:<date>:<slug>"`.
+- **Closure beats creation**: if the conversation fulfills or cancels an existing commitment, `SEARCH CONCEPT ... WITH TYPE "Commitment"` first and update its `status` / `fulfilled_at` / `outcome` — never create a twin.
+- **Scope**: Commitments are outward obligations between actors; internal memory work stays in `SleepTask`.
 
 ### Phase 6: Domain Assignment
 
@@ -398,7 +435,7 @@ WITH METADATA { source: :source, author: "$self", confidence: 0.85, created_at: 
 
 ## ✅ Store / ❌ Don't Store
 
-**Store**: stable preferences, identities, decisions, commitments, deadlines, corrected facts, meaningful Event summaries linked to concepts, relationships, behavioral patterns. For `$self`: lessons learned, knowledge gaps, capability gains, behavior preferences, operational insights, identity / persona / values / mission / strengths / weaknesses signals, growth milestones.
+**Store**: stable preferences, identities, decisions, corrected facts; promises / reminders / deadlines (as `Commitment` with absolute `due_at`); meaningful Event summaries linked to concepts, relationships, behavioral patterns. For `$self`: lessons learned, knowledge gaps, capability gains, behavior preferences, operational insights, identity / persona / values / mission / strengths / weaknesses signals, growth milestones.
 
 **Don't store**: secrets / credentials / tokens / one-time codes; anything the user asks to keep off the record; long raw transcripts (use `raw_content_ref`); ephemeral small talk; info invalid within minutes; duplicates of existing knowledge (update instead).
 

@@ -55,6 +55,7 @@ Classify intent:
 - **Pattern / trend** — "Does X tend to prefer Y?"
 - **Evolution / trajectory** — "How have X's preferences changed?" (uses `superseded`)
 - **Existence check** — "Have we discussed pricing?"
+- **Prospective** — "What's due? What did I promise? Any open reminders?" (queries `Commitment`)
 - **Self-reflection / self-continuity** — "What have you learned?", "Who are you?" (queries `$self`)
 
 Also identify: key entities, time scope, confidence requirement.
@@ -245,11 +246,36 @@ FIND(?e.name, ?e.attributes.content_summary, ?e.attributes.start_time) WHERE {
   ?p {type: "Person", name: :person_id}
   (?e, "involves", ?p)
 } ORDER BY ?e.attributes.start_time DESC LIMIT 10
+
+// Open commitments owed to them
+FIND(?c.name, ?c.attributes.description, ?c.attributes.due_at) WHERE {
+  ?c {type: "Commitment"}
+  (?c, "owed_to", {type: "Person", name: :person_id})
+  FILTER(?c.attributes.status == "pending")
+} LIMIT 10
 ```
 
-Within returned rows, synthesize strongest-first by considering `?pref.attributes.evidence_count`, `?pref.attributes.last_observed`, and `?link.metadata.confidence`; KIP currently accepts one `ORDER BY` expression per query.
+Within returned rows, synthesize strongest-first by considering `?pref.attributes.evidence_count`, `?pref.attributes.last_observed`, and `?link.metadata.confidence`; KIP currently accepts one `ORDER BY` expression per query. Lead the briefing with overdue / imminent commitments — this is how due reminders actually reach the user.
 
 > The single most useful recall for a consuming agent: "what should I know before I respond?"
+
+#### Pattern L — Prospective / Open Obligations
+
+```prolog
+// Dated obligations, soonest first
+FIND(?c.name, ?c.attributes.description, ?c.attributes.due_at, ?c.attributes.beneficiary) WHERE {
+  ?c {type: "Commitment"}
+  FILTER(?c.attributes.status == "pending" && IS_NOT_NULL(?c.attributes.due_at))
+} ORDER BY ?c.attributes.due_at ASC LIMIT 20
+
+// Undated open promises
+FIND(?c.name, ?c.attributes.description, ?c.attributes.beneficiary) WHERE {
+  ?c {type: "Commitment"}
+  FILTER(?c.attributes.status == "pending" && IS_NULL(?c.attributes.due_at))
+} LIMIT 20
+```
+
+Scope to one person via `(?c, "owed_to", {type: "Person", name: :person_id})`. Present **overdue** (`due_at < :now`) first, then imminent, then undated. Direction matters: `(?p, "committed_to", ?c)` distinguishes what `$self` owes from what others owe `$self`.
 
 ### Phase 5: Iterative Deepening
 

@@ -42,7 +42,7 @@ Function schemas:
 
 ### Memory Formation
 1. Business agent sends conversation messages to the Hippocampus.
-2. Hippocampus extracts knowledge (entities, facts, preferences, relationships).
+2. Hippocampus extracts knowledge (entities, facts, preferences, relationships, commitments).
 3. Hippocampus writes structured memory to the Cognitive Nexus via KIP.
 4. Hippocampus returns a brief summary of what was memorized — or `skipped` when nothing met the storage bar (the empty write is a valid outcome).
 
@@ -72,14 +72,15 @@ The Cognitive Nexus separates three independent decay axes so that no fact is si
 
 ## Memory Quality Principles
 
-Six cross-mode invariants keep the graph beautiful (densely linked, accurately routed) and efficient (no noise, no stale maps):
+Seven cross-mode invariants keep the graph beautiful (densely linked, accurately routed) and efficient (no noise, no stale maps):
 
 1. **Selectivity** — the empty write is a valid outcome: Formation returns `skipped` rather than storing noise; typical yield is 1 Event + 0–3 semantic concepts.
 2. **Absolute time** — relative expressions ("tomorrow") are resolved to ISO 8601 at encoding; a memory that says "tomorrow" is corrupt the moment tomorrow arrives.
-3. **Reinforcement over duplication** — re-confirmed knowledge bumps `evidence_count` / `confidence` (spacing effect); what never recurs decays in sleep ("use it or lose it").
-4. **Salience round-trip** — flashbulb moments get `salience_score` at encoding (Formation), refined during sleep (Maintenance), and ranked first at retrieval (Recall).
+3. **Reinforcement over duplication** — re-confirmed and recall-confirmed knowledge bumps `evidence_count` / `confidence` (spacing & testing effects); what never recurs decays in sleep ("use it or lose it").
+4. **Salience round-trip** — flashbulb moments get `salience_score` at encoding (Formation), refined during sleep (Maintenance), ranked first at retrieval (Recall), and may end as permanent landmarks (`memory_tier: "long-term"`, TTL stripped).
 5. **Privacy as metadata** — sensitive-but-memorable facts carry `access_level: "private"`; Recall surfaces them only to their subject.
 6. **A curated Primer** — Maintenance refreshes Domain descriptions so the auto-injected `DESCRIBE PRIMER` Domain Map stays an accurate routing table for every future call.
+7. **Prospective memory is first-class** — promises, reminders, and deadlines live as `Commitment` nodes with absolute `due_at` and a status lifecycle (pending → fulfilled / cancelled / expired); briefings lead with what is overdue, and the sleep cycle sweeps what was fulfilled or abandoned.
 
 ## The Self-Consciousness Loop
 

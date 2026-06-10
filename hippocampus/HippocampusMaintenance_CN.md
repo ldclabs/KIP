@@ -109,6 +109,12 @@ FIND(?d.name, COUNT(?n)) WHERE {
   ?d {type: "Domain"}
   OPTIONAL { (?n, "belongs_to_domain", ?d) }
 } ORDER BY COUNT(?n) ASC LIMIT 20
+
+// 待兑现 Commitment（前瞻记忆——阶段 5C 的输入）
+FIND(?c.name, ?c.attributes.due_at, ?c.attributes.beneficiary) WHERE {
+  ?c {type: "Commitment"}
+  FILTER(?c.attributes.status == "pending")
+} LIMIT 50
 ```
 
 #### 1B. 显著性评分
@@ -184,14 +190,15 @@ UPSERT {
 }
 WITH METADATA { source: "SleepConsolidation", author: "$system", confidence: 0.8, created_at: :timestamp }
 
-// 完成
+// 完成——终态附带短 TTL（如 completed_at + 14 天），
+// 让阶段 12 回收该任务，而不是任其永久堆积
 UPSERT {
   CONCEPT ?task {
     {type: "SleepTask", name: :task_name}
     SET ATTRIBUTES { status: "completed", completed_at: :timestamp, result: :result_summary }
   }
 }
-WITH METADATA { source: "SleepCycle", author: "$system", created_at: :timestamp }
+WITH METADATA { source: "SleepCycle", author: "$system", created_at: :timestamp, expires_at: :task_expires_at }
 ```
 
 ### 阶段 3：未分类收件箱处理
@@ -277,11 +284,25 @@ WITH METADATA {
 
 > 此处的 `expires_at` 是允许阶段 12 日后硬删除的契约。切勿对仍被活跃引用、或巩固未完成的 Event 缩短 `expires_at`。
 
+**地标晋升**（闪光记忆的终态）：`salience_score ≥ 90`、或被多条 Insight / `growth_log` 引为证据的 Event 属于自传体记忆——不归档，而是晋升：标记 `memory_tier: "long-term"` 并剥离其 TTL，使阶段 12 永不回收。
+
+```prolog
+UPSERT {
+  CONCEPT ?landmark { {type: "Event", name: :event_name} }
+}
+WITH METADATA { source: "LandmarkPromotion", author: "$system", created_at: :timestamp, memory_tier: "long-term" }
+```
+
+```prolog
+DELETE METADATA {"expires_at"} FROM ?landmark
+WHERE { ?landmark {type: "Event", name: :event_name} }
+```
+
 #### 5B. 跨 Event 模式提取
 
 多个看似平凡的 Event 放在一起可能揭示高阶模式。
 
-流程：聚类（按参与者 / 主题 / Domain / `key_concepts`）→ 识别重复主题 → 综合为持久概念 → 标记源 Event 已巩固。
+流程：聚类（按参与者 / 主题 / Domain / `key_concepts`）→ 识别重复主题 → **先锚定**（`SEARCH` 已有语义概念；找到则强化它——递增 `evidence_count`、扩展 `derived_from`——而非合成孪生节点）→ 仅在不存在时才综合新持久概念 → 标记源 Event 已巩固。
 
 ```prolog
 // 按共同参与者聚类
@@ -319,6 +340,25 @@ WITH METADATA { source: "CrossEventConsolidation", author: "$system", confidence
 > 跨 Event 模式置信度通常**高于**任何单一来源——汇聚证据胜过单次观察。用 `evidence_count` 跟踪证据广度。
 
 **模式类型**：重复偏好 → preference；重复决策 → 认知特征；互动模式 → 关系特征；时间聚集 → 日程洞察；立场转变 → 信念轨迹。
+
+#### 5C. 前瞻记忆清扫 (Commitments)
+
+前瞻记忆不清扫就会静默失效。对每个 `pending` 的 Commitment（阶段 1A 已收集）：
+
+1. **已兑现？** 涉及受益人的近期 Event 可能显示已交付 → 设 `status: "fulfilled"`、`fulfilled_at`、`outcome`，并附终态 `expires_at`（如 +90 天）供阶段 12 日后回收。
+2. **已逾期**（`due_at < :now`）？保持 `pending`——绝不静默作废仍然欠着的承诺。在 Issues / Next Recommendations 中呈报，让下一次 Recall 简报得以提醒。
+3. **已废弃**（远超期限——如 30 天以上——且无相关活动，或被明确放弃）？设 `status: "expired"` 并写 `outcome` 备注 + 终态 `expires_at`。这是历史，不是删除。
+
+```prolog
+// 只设置与本次状态转换相关的字段
+UPSERT {
+  CONCEPT ?c {
+    {type: "Commitment", name: :commitment_name}
+    SET ATTRIBUTES { status: :new_status, fulfilled_at: :closed_at, outcome: :outcome }
+  }
+}
+WITH METADATA { source: "ProspectiveSweep", author: "$system", confidence: 0.85, created_at: :timestamp, expires_at: :terminal_expires_at }
+```
 
 ### 阶段 6：重复检测与合并
 
@@ -624,6 +664,7 @@ Trigger: scheduled
 - Processed 5 SleepTasks (3 consolidations, 1 archive, 1 reclassification)
 - Reclassified 8 items from Unsorted; resolved 3 orphans
 - Extracted 2 cross-event patterns: "Prefers Japanese food" (4 Events / 3 weeks); "Prefers dark mode" (3 Events)
+- Prospective sweep: 2 commitments fulfilled; 1 overdue surfaced ("Q3 report" → alice, due 2026-01-14)
 - Merged 1 duplicate: "JS" → "JavaScript"; applied confidence decay to 12 propositions
 
 ## REM (Memory Evolution)
@@ -691,6 +732,7 @@ WHERE {
 | Domain 规模        | 5–100 | 合并小的、拆分大的           |
 | 待处理 SleepTask   | < 10  | 处理所有待办                 |
 | 未评分近期 Event   | < 10  | 运行 daydream 周期评分       |
+| 逾期 Commitment    | 0     | 阶段 5C 清扫；在简报中呈报   |
 | 被取代命题         | 审计  | 验证时间上下文是否保留       |
 | 跨事件模式         | 审计  | 检查重复主题是否仍是分散碎片 |
 | Domain 描述        | 新鲜  | 阶段 11 刷新（PRIMER 依赖）  |

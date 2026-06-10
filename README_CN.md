@@ -110,6 +110,7 @@ KIP 使用自描述模式，类型定义存储在图本身中：
 | [Event.kip](./capsules/Event.kip)                   | 用于情景记忆的 `Event` 概念类型                  |
 | [Preference.kip](./capsules/Preference.kip)         | 用于稳定偏好事实的 `Preference` 概念类型         |
 | [Insight.kip](./capsules/Insight.kip)               | 用于自我反思经验的 `Insight` 概念类型            |
+| [Commitment.kip](./capsules/Commitment.kip)         | 用于前瞻记忆（承诺与期限）的 `Commitment` 类型   |
 | [SleepTask.kip](./capsules/SleepTask.kip)           | `SleepTask` 类型及 `Unsorted` / `Archived` 领域  |
 | [persons/self.kip](./capsules/persons/self.kip)     | `$self` 概念实例                                 |
 | [persons/system.kip](./capsules/persons/system.kip) | `$system` 概念实例                               |

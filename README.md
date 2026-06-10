@@ -114,6 +114,7 @@ Pre-built knowledge capsules for bootstrapping your Cognitive Nexus:
 | [Event.kip](./capsules/Event.kip)                   | `Event` concept type for episodic memory                    |
 | [Preference.kip](./capsules/Preference.kip)         | `Preference` concept type for stable preference facts       |
 | [Insight.kip](./capsules/Insight.kip)               | `Insight` concept type for self-reflective lessons          |
+| [Commitment.kip](./capsules/Commitment.kip)         | `Commitment` type for prospective promises & deadlines      |
 | [SleepTask.kip](./capsules/SleepTask.kip)           | `SleepTask` type plus `Unsorted` / `Archived` domains       |
 | [persons/self.kip](./capsules/persons/self.kip)     | The `$self` concept instance                                |
 | [persons/system.kip](./capsules/persons/system.kip) | The `$system` concept instance                              |

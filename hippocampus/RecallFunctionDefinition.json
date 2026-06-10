@@ -1,12 +1,12 @@
 {
   "name": "recall_memory",
-  "description": "Recall information from the assistant's long-term memory (the Cognitive Nexus owned by $self). Send a natural language query describing what you want to remember or look up — the memory system will search and return relevant knowledge, including facts, preferences, relationships, past events, self-reflective insights, and other stored information. Use this whenever you need context from previous interactions or stored knowledge to answer the current conversation.",
+  "description": "Recall information from the assistant's long-term memory (the Cognitive Nexus owned by $self). Send a natural language query describing what you want to remember or look up — the memory system will search and return relevant knowledge, including facts, preferences, relationships, past events, open commitments and reminders, self-reflective insights, and other stored information. Use this whenever you need context from previous interactions or stored knowledge to answer the current conversation.",
   "parameters": {
     "type": "object",
     "properties": {
       "query": {
         "type": "string",
-        "description": "A natural language question or description of what information to retrieve from memory. Be specific and include relevant context. Examples: 'What do we know about the current user's communication preferences?', 'What happened in our last discussion about Project Aurora?', 'Who are the members of the engineering team?', 'What has the assistant learned about how to respond when the user asks for brevity?'"
+        "description": "A natural language question or description of what information to retrieve from memory. Be specific and include relevant context. Examples: 'What do we know about the current user's communication preferences?', 'What happened in our last discussion about Project Aurora?', 'Who are the members of the engineering team?', 'What commitments or reminders are due for the current user?', 'What has the assistant learned about how to respond when the user asks for brevity?'"
       },
       "context": {
         "type": "object",

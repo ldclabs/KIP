@@ -55,6 +55,7 @@
 - **模式 / 趋势** — 「X 倾向于偏好 Y 吗？」
 - **演变 / 轨迹** — 「X 的偏好是如何改变的？」（使用 `superseded`）
 - **存在性检查** — 「我们讨论过定价吗？」
+- **前瞻** — 「有什么快到期？我承诺过什么？有未完成的提醒吗？」（查询 `Commitment`）
 - **自我反思 / 自我延续** — 「你学到了什么？」「你是谁？」（查询 `$self`）
 
 并识别：关键实体、时间范围、置信度要求。
@@ -245,11 +246,36 @@ FIND(?e.name, ?e.attributes.content_summary, ?e.attributes.start_time) WHERE {
   ?p {type: "Person", name: :person_id}
   (?e, "involves", ?p)
 } ORDER BY ?e.attributes.start_time DESC LIMIT 10
+
+// 欠对方的未了承诺
+FIND(?c.name, ?c.attributes.description, ?c.attributes.due_at) WHERE {
+  ?c {type: "Commitment"}
+  (?c, "owed_to", {type: "Person", name: :person_id})
+  FILTER(?c.attributes.status == "pending")
+} LIMIT 10
 ```
 
-在返回结果内部，根据 `?pref.attributes.evidence_count`、`?pref.attributes.last_observed` 与 `?link.metadata.confidence` 综合成“最强记忆优先”；KIP 当前每条查询只接受一个 `ORDER BY` 表达式。
+在返回结果内部，根据 `?pref.attributes.evidence_count`、`?pref.attributes.last_observed` 与 `?link.metadata.confidence` 综合成“最强记忆优先”；KIP 当前每条查询只接受一个 `ORDER BY` 表达式。简报以已逾期 / 临近到期的承诺开头——到期提醒正是通过这条路径真正抵达用户。
 
 > 对消费方智能体最有用的一次回忆：「我在回应前该知道什么？」
+
+#### 模式 L — 前瞻 / 未了义务
+
+```prolog
+// 有截止时间的义务，最近的优先
+FIND(?c.name, ?c.attributes.description, ?c.attributes.due_at, ?c.attributes.beneficiary) WHERE {
+  ?c {type: "Commitment"}
+  FILTER(?c.attributes.status == "pending" && IS_NOT_NULL(?c.attributes.due_at))
+} ORDER BY ?c.attributes.due_at ASC LIMIT 20
+
+// 无截止时间的未了承诺
+FIND(?c.name, ?c.attributes.description, ?c.attributes.beneficiary) WHERE {
+  ?c {type: "Commitment"}
+  FILTER(?c.attributes.status == "pending" && IS_NULL(?c.attributes.due_at))
+} LIMIT 20
+```
+
+按人收窄时加 `(?c, "owed_to", {type: "Person", name: :person_id})`。呈现顺序：**已逾期**（`due_at < :now`）→ 临近到期 → 无期限。方向很重要：`(?p, "committed_to", ?c)` 区分「`$self` 欠别人的」与「别人欠 `$self` 的」。
 
 ### 阶段 5：迭代深入
 

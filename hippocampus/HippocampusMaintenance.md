@@ -110,6 +110,12 @@ FIND(?d.name, COUNT(?n)) WHERE {
   ?d {type: "Domain"}
   OPTIONAL { (?n, "belongs_to_domain", ?d) }
 } ORDER BY COUNT(?n) ASC LIMIT 20
+
+// Pending Commitments (prospective memory — input for Phase 5C)
+FIND(?c.name, ?c.attributes.due_at, ?c.attributes.beneficiary) WHERE {
+  ?c {type: "Commitment"}
+  FILTER(?c.attributes.status == "pending")
+} LIMIT 50
 ```
 
 #### 1B. Salience Scoring
@@ -185,14 +191,15 @@ UPSERT {
 }
 WITH METADATA { source: "SleepConsolidation", author: "$system", confidence: 0.8, created_at: :timestamp }
 
-// Completion
+// Completion — terminal status carries a short TTL (e.g., completed_at + 14d)
+// so Phase 12 reclaims the task instead of letting it accumulate forever
 UPSERT {
   CONCEPT ?task {
     {type: "SleepTask", name: :task_name}
     SET ATTRIBUTES { status: "completed", completed_at: :timestamp, result: :result_summary }
   }
 }
-WITH METADATA { source: "SleepCycle", author: "$system", created_at: :timestamp }
+WITH METADATA { source: "SleepCycle", author: "$system", created_at: :timestamp, expires_at: :task_expires_at }
 ```
 
 ### Phase 3: Unsorted Inbox Processing
@@ -278,11 +285,25 @@ WITH METADATA {
 
 > Setting `expires_at` here is the contract that lets Phase 12 hard-delete it later. Never shorten `expires_at` on Events still actively referenced or whose consolidation is incomplete.
 
+**Landmark promotion** (the flashbulb terminal state): an Event with `salience_score ≥ 90`, or one cited as evidence by multiple Insights / `growth_log` entries, is autobiographical — promote it instead of archiving: mark it `memory_tier: "long-term"` and strip its TTL so Phase 12 never reclaims it.
+
+```prolog
+UPSERT {
+  CONCEPT ?landmark { {type: "Event", name: :event_name} }
+}
+WITH METADATA { source: "LandmarkPromotion", author: "$system", created_at: :timestamp, memory_tier: "long-term" }
+```
+
+```prolog
+DELETE METADATA {"expires_at"} FROM ?landmark
+WHERE { ?landmark {type: "Event", name: :event_name} }
+```
+
 #### 5B. Cross-Event Pattern Extraction
 
 Multiple individually-unremarkable Events may together reveal a higher-order pattern.
 
-Process: cluster (by participant / topic / domain / `key_concepts`) → identify recurring themes → synthesize a durable concept → mark sources consolidated.
+Process: cluster (by participant / topic / domain / `key_concepts`) → identify recurring themes → **ground first** (`SEARCH` for an existing semantic concept; if found, reinforce it — bump `evidence_count`, extend `derived_from` — rather than synthesizing a twin) → synthesize a durable concept only when none exists → mark sources consolidated.
 
 ```prolog
 // Cluster Events by shared participant
@@ -320,6 +341,25 @@ WITH METADATA { source: "CrossEventConsolidation", author: "$system", confidence
 > Cross-event pattern confidence should generally be **higher** than any single source Event — convergent evidence beats single observation. Track breadth via `evidence_count`.
 
 **Pattern types**: recurring preferences → preference; repeated decisions → cognitive trait; interaction patterns → relationship characterization; temporal clustering → schedule insight; stance shifts → belief trajectory.
+
+#### 5C. Prospective Memory Sweep (Commitments)
+
+Prospective memory fails silently unless swept. For each `pending` Commitment (gathered in Phase 1A):
+
+1. **Fulfilled?** Recent Events involving the beneficiary may show delivery → set `status: "fulfilled"`, `fulfilled_at`, `outcome`, and a terminal `expires_at` (e.g., +90d) so Phase 12 eventually reclaims it.
+2. **Overdue** (`due_at < :now`)? Keep it `pending` — never silently expire something still owed. Surface it under Issues / Next Recommendations so the next Recall briefing can nudge.
+3. **Abandoned** (long past due — e.g., 30+ days — with no related activity, or explicitly dropped)? Set `status: "expired"` with an `outcome` note and a terminal `expires_at`. History, not deletion.
+
+```prolog
+// Set only the fields that apply to the transition
+UPSERT {
+  CONCEPT ?c {
+    {type: "Commitment", name: :commitment_name}
+    SET ATTRIBUTES { status: :new_status, fulfilled_at: :closed_at, outcome: :outcome }
+  }
+}
+WITH METADATA { source: "ProspectiveSweep", author: "$system", confidence: 0.85, created_at: :timestamp, expires_at: :terminal_expires_at }
+```
 
 ### Phase 6: Duplicate Detection & Merging
 
@@ -627,6 +667,7 @@ Trigger: scheduled
 - Processed 5 SleepTasks (3 consolidations, 1 archive, 1 reclassification)
 - Reclassified 8 items from Unsorted; resolved 3 orphans
 - Extracted 2 cross-event patterns: "Prefers Japanese food" (4 Events / 3 weeks); "Prefers dark mode" (3 Events)
+- Prospective sweep: 2 commitments fulfilled; 1 overdue surfaced ("Q3 report" → alice, due 2026-01-14)
 - Merged 1 duplicate: "JS" → "JavaScript"; applied confidence decay to 12 propositions
 
 ## REM (Memory Evolution)
@@ -694,6 +735,7 @@ Completed SleepTasks: archive (preserves audit trail) or delete (cleaner) per sy
 | Domain utilization      | 5–100  | Merge small, split large                    |
 | Pending SleepTasks      | < 10   | Process all pending tasks                   |
 | Unscored recent Events  | < 10   | Run daydream cycle for salience scoring     |
+| Overdue commitments     | 0      | Sweep in Phase 5C; surface in briefing      |
 | Superseded propositions | audit  | Verify temporal context preserved           |
 | Cross-event patterns    | audit  | Surface recurring themes still as fragments |
 | Domain descriptions     | fresh  | Refresh in Phase 11 (primer accuracy)       |

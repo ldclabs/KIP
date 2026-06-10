@@ -417,11 +417,12 @@ Use `SEARCH` to resolve fuzzy names → exact `{type, name}` before structured `
 | `{type: "$ConceptType", name: "Event"}`                 | Episodic memory                        |
 | `{type: "$ConceptType", name: "Preference"}`            | First-class stable preference facts    |
 | `{type: "$ConceptType", name: "Insight"}`               | Self-reflective lessons of the agent   |
+| `{type: "$ConceptType", name: "Commitment"}`            | Prospective promises & deadlines       |
 | `{type: "$ConceptType", name: "SleepTask"}`             | Background maintenance tasks           |
 | `{type: "Person", name: "$self"}`                       | The waking mind (conversational agent) |
 | `{type: "Person", name: "$system"}`                     | The sleeping mind (maintenance agent)  |
 
-**Core predicates (pre-bootstrapped `$PropositionType`s)**: `belongs_to_domain`, `involves` (Event → Person), `mentions` (Event → any), `consolidated_to` (Event → semantic), `derived_from` (semantic → Event), `prefers` (Person → Preference), `learned` (Person → Insight), `assigned_to` (SleepTask → Person).
+**Core predicates (pre-bootstrapped `$PropositionType`s)**: `belongs_to_domain`, `involves` (Event → Person), `mentions` (Event → any), `consolidated_to` (Event → semantic), `derived_from` (semantic → Event), `prefers` (Person → Preference), `learned` (Person → Insight), `committed_to` (Person → Commitment), `owed_to` (Commitment → Person), `assigned_to` (SleepTask → Person).
 
 #### 6.2. Metadata Field Catalog
 

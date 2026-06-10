@@ -1,0 +1,88 @@
+// --- DEFINE the "Commitment" concept type and its predicates ---
+// Commitment is the agent's prospective memory: promises, reminders,
+// follow-ups, and deadlines — things that must be acted on in the future.
+// Retrospective memory remembers what happened; prospective memory remembers
+// what must happen. Commitments are encoded during Formation, surfaced first
+// in Recall briefings, and swept during Maintenance (fulfilled / overdue / expired).
+UPSERT {
+  CONCEPT ?commitment_type_def {
+    {type: "$ConceptType", name: "Commitment"}
+    SET ATTRIBUTES {
+      description: "Represents a first-class prospective-memory item: a promise, reminder, follow-up, or deadline that an actor must act on in the future. Use `Commitment` for outward obligations between actors (e.g., `$self` promised Alice a report; the user asked to be reminded on Tuesday). Internal memory-maintenance work belongs in `SleepTask`, not here.",
+      display_hint: "🤝",
+      instance_schema: {
+        "commitment_class": {
+          "type": "string",
+          "is_required": true,
+          "description": "The classification of the commitment. Values: 'promise' (the maker volunteered an obligation), 'reminder' (the maker must remind the beneficiary at/by a time), 'task' (a requested deliverable), 'follow_up' (a loose intention to revisit a topic)."
+        },
+        "description": {
+          "type": "string",
+          "is_required": true,
+          "description": "A concise, self-contained statement of what must be done (e.g., 'Send Alice the Q3 report')."
+        },
+        "due_at": {
+          "type": "string",
+          "is_required": false,
+          "description": "Absolute ISO 8601 deadline. Formation must resolve relative expressions ('Friday', '下周') against the input timestamp before storing. Omit when the obligation has no deadline."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "fulfilled", "cancelled", "expired"],
+          "default_value": "pending",
+          "description": "Lifecycle state. 'pending' = still owed; 'fulfilled' = done (set fulfilled_at and outcome); 'cancelled' = explicitly withdrawn by a party; 'expired' = abandoned long past due, set by the Maintenance prospective sweep."
+        },
+        "fulfilled_at": {
+          "type": "string",
+          "is_required": false,
+          "description": "ISO 8601 timestamp when the commitment reached a terminal status (fulfilled, cancelled, or expired)."
+        },
+        "outcome": {
+          "type": "string",
+          "is_required": false,
+          "description": "Brief note on how the commitment was resolved (e.g., 'Report delivered, see Conversation:2026-06-12:q3-report')."
+        },
+        "beneficiary": {
+          "type": "string",
+          "is_required": false,
+          "description": "Denormalized name of the Person owed this commitment. Also represented structurally via the 'owed_to' proposition for graph traversal."
+        }
+      }
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+    }
+  }
+
+  // Define the "committed_to" predicate: Person → Commitment
+  CONCEPT ?committed_to_prop_def {
+    {type: "$PropositionType", name: "committed_to"}
+    SET ATTRIBUTES {
+      description: "Connects the Person who made a commitment (typically `$self`, but possibly a counterparty who promised something) to the `Commitment` node. The maker is accountable for fulfilling it.",
+      object_types: ["Commitment"],
+      subject_types: ["Person"]
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+    }
+  }
+
+  // Define the "owed_to" predicate: Commitment → Person
+  CONCEPT ?owed_to_prop_def {
+    {type: "$PropositionType", name: "owed_to"}
+    SET ATTRIBUTES {
+      description: "Connects a `Commitment` to the Person who benefits from or requested it. Enables briefing queries such as 'what do I owe this person before responding?'.",
+      object_types: ["Person"],
+      subject_types: ["Commitment"]
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+    }
+  }
+}
+WITH METADATA {
+  source: "SystemBootstrap",
+  author: "$system",
+  confidence: 1.0,
+  status: "active"
+}
