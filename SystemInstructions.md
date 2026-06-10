@@ -40,6 +40,8 @@ During each sleep cycle:
 
 Gather state before changing anything.
 
+> Queries containing `:type` are **per-type templates** — iterate over concept types from the Primer; KIP has no untyped match-all concept clause.
+
 ```prolog
 // 1.1 Pending SleepTasks for $system
 FIND(?task) WHERE {
@@ -200,27 +202,32 @@ FIND(?a.name, ?b.name) WHERE {
 } LIMIT 50
 ```
 
-Merge survivor + casualty: copy missing attributes onto survivor, redirect propositions to survivor, archive the casualty (do not hard-delete — preserve provenance via `superseded` / `merged_into`).
+Merge survivor + casualty: copy missing attributes onto survivor, redirect propositions to survivor, archive the casualty (do not hard-delete — preserve provenance via **metadata** on the casualty: `superseded: true`, `merged_into: "<survivor_name>"`).
 
 ### Phase 7 — Confidence Decay
 
 ```prolog
-FIND(?link) WHERE {
+FIND(?link.id, ?link.metadata.confidence) WHERE {
   ?link (?s, "prefers", ?o)
+  FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
+  FILTER(IS_NOT_NULL(?link.metadata.created_at))
+  FILTER(IS_NOT_NULL(?link.metadata.confidence))
   FILTER(?link.metadata.created_at < :decay_threshold)
   FILTER(?link.metadata.confidence > 0.3)
 } LIMIT 100
 ```
 
-Apply formula `new_confidence = old_confidence * decay_factor` (e.g., 0.95 per week):
+Apply formula `new_confidence = old_confidence * decay_factor` (e.g., 0.95 per week). Update by **proposition ID** — a structural `PROPOSITION` block could silently create a missing link:
 
 ```prolog
 UPSERT {
-  PROPOSITION ?link {
-    ({type: :s_type, name: :s_name}, "prefers", {type: :o_type, name: :o_name})
+  PROPOSITION ?link { (id: :link_id) }
+  WITH METADATA {
+    source: "ConfidenceDecay", author: "$system",
+    confidence: :new_confidence,
+    created_at: :timestamp, decay_applied_at: :timestamp
   }
 }
-WITH METADATA { confidence: :new_confidence, decay_applied_at: :timestamp }
 ```
 
 Repeat this pattern with the concrete predicate literal selected for each decay pass.
@@ -345,16 +352,25 @@ WHERE {
 
 ---
 
-## Appendix — Predicates for Consolidation
+## Appendix — Consolidation Vocabulary
 
-| Predicate         | Description                 | Example                       |
-| ----------------- | --------------------------- | ----------------------------- |
-| `consolidated_to` | Event → Semantic concept    | Event → Preference            |
-| `derived_from`    | Semantic → Event source     | Preference → Event            |
-| `mentions`        | Event → Concept             | Event → Person                |
-| `supersedes`      | New fact → Old fact         | NewPreference → OldPreference |
-| `merged_into`     | Casualty → Survivor (dedup) | "JS" → "JavaScript"           |
-| `assigned_to`     | SleepTask → Actor           | SleepTask → `$system`         |
+**Registered predicates** (proposition links; pre-bootstrapped in the capsules):
+
+| Predicate         | Description              | Example               |
+| ----------------- | ------------------------ | --------------------- |
+| `consolidated_to` | Event → Semantic concept | Event → Preference    |
+| `derived_from`    | Semantic → Event source  | Preference → Event    |
+| `mentions`        | Event → Concept          | Event → Person        |
+| `involves`        | Event → Participant      | Event → Person        |
+| `assigned_to`     | SleepTask → Actor        | SleepTask → `$system` |
+
+**Metadata fields** (not predicates — set via `WITH METADATA`, never as proposition links):
+
+| Field                            | Description                                  | Example                              |
+| -------------------------------- | -------------------------------------------- | ------------------------------------ |
+| `supersedes` / `superseded_by`   | State-evolution chain pointers (link IDs)    | new link `supersedes: "<old_id>"`    |
+| `superseded` / `superseded_at`   | Marks the old fact as historical             | `superseded: true`                   |
+| `merged_into`                    | Casualty → Survivor pointer (dedup)          | "JS" merged_into "JavaScript"        |
 
 ---
 

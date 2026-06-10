@@ -505,7 +505,6 @@ UPSERT {
     }
     SET PROPOSITIONS {
       ("assigned_to", {type: "Person", name: "$system"})
-      ("created_by", {type: "Person", name: "$self"})
     }
   }
 }

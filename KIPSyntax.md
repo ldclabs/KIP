@@ -49,6 +49,7 @@ In `FIND` / `FILTER` / `ORDER BY`:
 - **Proposition**: `?var.id`, `?var.subject`, `?var.predicate`, `?var.object`
 - **Attributes**: `?var.attributes.<key>`
 - **Metadata**: `?var.metadata.<key>`
+- **Whole object**: `?var.attributes` / `?var.metadata` — full-object projection in `FIND` (not comparable in `FILTER`).
 
 #### 1.6. Schema Bootstrapping (Define Before Use)
 
@@ -84,6 +85,7 @@ CURSOR "<token>"
 - **Variables / dot-paths**: `FIND(?a, ?b.name, ?b.attributes.risk_level)`
 - **Aggregations**: `COUNT(?v)`, `COUNT(DISTINCT ?v)`, `SUM(?v)`, `AVG(?v)`, `MIN(?v)`, `MAX(?v)`.
 - **Implicit `GROUP BY`**: when `FIND` mixes plain expressions with aggregations, all non-aggregated expressions form the grouping key. With *only* aggregations, the whole result set is one group.
+- **Null handling**: aggregations ignore `null` (unbound) values — `COUNT(?v)` over an `OPTIONAL`-miss group returns `0`.
 
 #### 2.2. `WHERE` Patterns (AND-connected by default)
 
@@ -106,7 +108,7 @@ When used directly as subject/object inside a proposition clause, omit the varia
 (?u, "stated", (?s, "<pred>", ?o))          // higher-order (object is a link)
 ```
 
-The leading `?link` is optional; endpoints are `?var`, `{...}`, nested `(...)`, or inline named embedded clauses such as `?x {...}` / `?fact (...)`.
+The leading `?link` is optional; endpoints are `?var`, an unnamed `{...}` concept clause, or an unnamed nested `(...)` proposition clause. Do not attach a variable name to an embedded endpoint clause — bind it in a separate clause first, then reference the variable.
 
 **Predicate path modifiers**:
 - **Hops**: `"<pred>"{m,n}`, `"<pred>"{m,}`, `"<pred>"{n}`. `m == 0` includes a **zero-hop reflexive match** (subject == object, no edge traversed).
@@ -172,7 +174,7 @@ UNION {
 
 #### 2.3. Solution Modifiers
 
-- `ORDER BY <expr> [ASC|DESC]` — default `ASC`.
+- `ORDER BY <expr> [ASC|DESC]` — default `ASC`. One sort expression per query: a variable, a dot-path, or an aggregation expression that also appears in `FIND` (e.g., `ORDER BY COUNT(?n) ASC`).
 - `LIMIT N` or `LIMIT :param`.
 - `CURSOR "<token>"` or `CURSOR :param` — opaque pagination token from a previous response's `next_cursor`.
 
@@ -303,7 +305,7 @@ DELETE CONCEPT ?drug DETACH
 WHERE { ?drug {type: "Drug", name: "OutdatedDrug"} }
 ```
 
-`DELETE ATTRIBUTES` / `DELETE METADATA` targets may be concept or proposition variables. Always verify with `FIND` before `DELETE CONCEPT`; `DETACH` cascades through higher-order propositions. `KIP_3004` protects meta-types, core domains, `$self`/`$system` identity tuples, and their `core_directives`; ordinary `$self` attributes may evolve.
+`DELETE ATTRIBUTES` / `DELETE METADATA` targets may be concept or proposition variables. Always verify with `FIND` before `DELETE CONCEPT`; `DETACH` cascades through higher-order propositions. `KIP_3004` protects meta-types, the `Domain` type and `belongs_to_domain` definitions, core domains, `$self`/`$system` identity tuples, and their `core_directives`; ordinary `$self` attributes may evolve.
 
 ---
 
@@ -413,9 +415,13 @@ Use `SEARCH` to resolve fuzzy names → exact `{type, name}` before structured `
 | `{type: "Domain", name: "Archived"}`                    | Deprecated/obsolete items              |
 | `{type: "$ConceptType", name: "Person"}`                | Actors (AI, Human, Org, System)        |
 | `{type: "$ConceptType", name: "Event"}`                 | Episodic memory                        |
+| `{type: "$ConceptType", name: "Preference"}`            | First-class stable preference facts    |
+| `{type: "$ConceptType", name: "Insight"}`               | Self-reflective lessons of the agent   |
 | `{type: "$ConceptType", name: "SleepTask"}`             | Background maintenance tasks           |
 | `{type: "Person", name: "$self"}`                       | The waking mind (conversational agent) |
 | `{type: "Person", name: "$system"}`                     | The sleeping mind (maintenance agent)  |
+
+**Core predicates (pre-bootstrapped `$PropositionType`s)**: `belongs_to_domain`, `involves` (Event → Person), `mentions` (Event → any), `consolidated_to` (Event → semantic), `derived_from` (semantic → Event), `prefers` (Person → Preference), `learned` (Person → Insight), `assigned_to` (SleepTask → Person).
 
 #### 6.2. Metadata Field Catalog
 
@@ -477,7 +483,7 @@ Use `SEARCH` to resolve fuzzy names → exact `{type, name}` before structured `
 5. **Always attach provenance**: `WITH METADATA { source, author, confidence, ... }` — knowledge without provenance is untrusted.
 6. **State evolution > deletion**: when a fact changes, mark the old proposition `superseded: true` (with `superseded_by`, `superseded_at`) and upsert the new one with `supersedes`. Keep history.
 7. **Respect `expires_at` semantics**: it is a *signal*, not a filter. Add explicit `FILTER(IS_NULL(?x.metadata.expires_at) || ?x.metadata.expires_at > <now>)` only when the query implies "currently valid". Hard deletion belongs to `$system` sleep cycles.
-8. **Smallest delete that fixes the issue**: metadata → attribute → proposition → `DELETE CONCEPT ... DETACH`. Always `FIND` first. Never modify/delete protected core: meta-types, core domains, `$self`/`$system` identity tuples, or `core_directives`.
+8. **Smallest delete that fixes the issue**: metadata → attribute → proposition → `DELETE CONCEPT ... DETACH`. Always `FIND` first. Never modify/delete protected core: meta-types, the `Domain` type and `belongs_to_domain` definitions, core domains, `$self`/`$system` identity tuples, or `core_directives`.
 9. **Batch independent operations** in `commands` to reduce round-trips. Remember: KML errors stop the batch; KQL/META/syntax errors return inline.
 10. **Mind variable scope**: `NOT` hides internal bindings; `UNION` doesn't see external bindings; `OPTIONAL` projects `null` on miss.
 11. **Use `OPTIONAL` for "may exist"**, `NOT` for "must not exist", `UNION` for "either branch", `FILTER` for value predicates.

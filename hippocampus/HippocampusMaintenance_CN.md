@@ -438,7 +438,7 @@ UPSERT {
 WITH METADATA { source: "SelfModelConsolidation", author: "$system", confidence: 0.85, created_at: :timestamp }
 ```
 
-**硬约束（KIP §6 / KIP_3004）**：绝不修改 `$self` 身份元组或 `core_directives`；保留演化轨迹（旧 `identity_narrative` 内核应已在 `growth_log` 历史中）；证据稀疏或矛盾时跳过该属性。
+**硬约束（`KIP_3004`；见 KIPSyntax §6.3）**：绝不修改 `$self` 身份元组或 `core_directives`；保留演化轨迹（旧 `identity_narrative` 内核应已在 `growth_log` 历史中）；证据稀疏或矛盾时跳过该属性。
 
 > Formation 中的镜子一次捕捉一个自我信号，本阶段则将它们编织。记忆在这里成为身份。
 

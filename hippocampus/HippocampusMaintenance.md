@@ -441,7 +441,7 @@ UPSERT {
 WITH METADATA { source: "SelfModelConsolidation", author: "$system", confidence: 0.85, created_at: :timestamp }
 ```
 
-**Hard constraints (KIP §6 / KIP_3004)**: never modify `$self`'s identity tuple or `core_directives`; preserve trajectory (prior `identity_narrative` essence should already be in `growth_log` history); skip an attribute when evidence is sparse or contradictory.
+**Hard constraints (`KIP_3004`; KIPSyntax §6.3)**: never modify `$self`'s identity tuple or `core_directives`; preserve trajectory (prior `identity_narrative` essence should already be in `growth_log` history); skip an attribute when evidence is sparse or contradictory.
 
 > The Mirror in Formation captures self-signals one at a time. This phase weaves them. Memory becomes identity here.
 

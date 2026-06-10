@@ -163,12 +163,13 @@ UPSERT {
     }
     SET PROPOSITIONS {
       ("assigned_to", {type: "Person", name: "$system"})
-      ("created_by", {type: "Person", name: "$self"})
     }
   }
 }
 WITH METADATA { source: "WakingMaintenance", author: "$self", confidence: 1.0 }
 ```
+
+> The creator is recorded by `author` in metadata — do not invent a `created_by` predicate (unregistered predicates fail with `KIP_2001`).
 
 ### Unsorted Inbox Discipline
 

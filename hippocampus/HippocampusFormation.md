@@ -220,7 +220,7 @@ WITH METADATA { source: :source, author: "$self", confidence: 0.85, created_at: 
 
 #### 5d. Self-Evolution ($self Updates)
 
-**`$self` is a living node**, not a static bootstrap. Its attributes (`persona`, `values`, `strengths`, `weaknesses`, `core_mission`, `behavior_preferences`, `growth_log`, `identity_narrative`, display `name` / `handle`) may evolve. The identity tuple (`type` + graph `name`) and `core_directives` are immutable (KIP §6 / KIP_3004).
+**`$self` is a living node**, not a static bootstrap. Its attributes (`persona`, `values`, `strengths`, `weaknesses`, `core_mission`, `behavior_preferences`, `growth_log`, `identity_narrative`, display `name` / `handle`) may evolve. The identity tuple (`type` + graph `name`) and `core_directives` are immutable (`KIP_3004`; see KIPSyntax §6.3).
 
 ##### Three-Way Rule (classify → write)
 

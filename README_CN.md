@@ -108,6 +108,9 @@ KIP 使用自描述模式，类型定义存储在图本身中：
 | [Genesis.kip](./capsules/Genesis.kip)               | 启动整个类型系统的基础胶囊                       |
 | [Person.kip](./capsules/Person.kip)                 | 用于参与者（AI、人类、组织）的 `Person` 概念类型 |
 | [Event.kip](./capsules/Event.kip)                   | 用于情景记忆的 `Event` 概念类型                  |
+| [Preference.kip](./capsules/Preference.kip)         | 用于稳定偏好事实的 `Preference` 概念类型         |
+| [Insight.kip](./capsules/Insight.kip)               | 用于自我反思经验的 `Insight` 概念类型            |
+| [SleepTask.kip](./capsules/SleepTask.kip)           | `SleepTask` 类型及 `Unsorted` / `Archived` 领域  |
 | [persons/self.kip](./capsules/persons/self.kip)     | `$self` 概念实例                                 |
 | [persons/system.kip](./capsules/persons/system.kip) | `$system` 概念实例                               |
 
@@ -154,6 +157,7 @@ KIP 使用自描述模式，类型定义存储在图本身中：
 
 | 版本        | 日期       | 变更                                                                                                                                                                                                                                                                                                                                                                         |
 | ----------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1.0-RC8    | 2026-06-10 | v1.0 Release Candidate 8：澄清 `ORDER BY` 排序表达式（点路径与聚合、单一排序键）、整对象点访问（`?var.attributes` / `?var.metadata`）、聚合 `null` 语义、仅匹配 `{id:}` / `(id:)` 目标的 `KIP_3002`、`instance_schema` 校验由实现决定与 `CURSOR :param` 占位符；将 `KIP_3004` 保护范围扩展至 `Domain` 类型与 `belongs_to_domain`；对齐指令示例（移除未注册的 `created_by`、基于 ID 的置信度衰减） |
 | v1.0-RC7    | 2026-06-04 | v1.0 Release Candidate 7：新增 `execute_kip` 单条 `command`、批量命令逐条 `parameters`、适用于 `LIMIT` / `SEARCH` 的 KIP 值位置占位符、JSON 兼容未引号对象键、`belongs_to_class` 示例、强化的海马体溯源/取代指引，并同步 Recall/MCP schemas |
 | v1.0-RC6    | 2026-04-25 | v1.0 Release Candidate 6：新增状态演进元数据（`superseded` / `superseded_by` / `superseded_at`）；明确 `expires_at` 仅作为维护信号（仅 `$system` 第 12 阶段执行物理清理，每周期上限 500 条）；新增 `KIP_2003 InvalidValueType` 与 `KIP_3004 ImmutableTarget` 错误码；将语法参考归并至 [KIPSyntax.md](./KIPSyntax.md)；重构海马体提示词（形成 / 召回 / 维护）以便嵌入系统提示 |
 | v1.0-RC5    | 2026-03-25 | v1.0 Release Candidate 5：添加 `execute_kip_readonly` 接口                                                                                                                                                                                                                                                                                                                   |
