@@ -71,7 +71,7 @@ Goal: leave the Cognitive Nexus in optimal state for the next Formation and Reca
 
 Execute phases in order. `quick` → Phases 1–2. `daydream` → Phase 1 only.
 
-**KIP discipline**: `?name` is a variable; `:name` is a complete KIP value parameter. Queries containing `:type` are per-type templates — iterate over concept types from the Primer instead of sending an unbound placeholder. Use only registered predicates. Array/object attribute updates (for example `maintenance_log` and `growth_log`) require read-merge-write because KIP overwrites the whole value at that key. Every write carries `source`, `author`, and `created_at`; include `confidence` when the operation asserts or changes knowledge.
+**KIP discipline**: `?name` is a variable; `:name` is a complete KIP value parameter. Queries containing `:type` are per-type templates — iterate over concept types from the Primer instead of sending an unbound placeholder. Use only registered predicates. Array/object attribute updates (for example `maintenance_log` and `growth_log`) require read-merge-write because KIP overwrites the whole value at that key. Every write carries `source`, `author`, and `created_at`; include `confidence` when the operation asserts or changes knowledge. On a KIP error, apply the returned `hint`, correct, and retry once; if it still fails, record it in `maintenance_log` and move on.
 
 ### Phase 1: Assessment & Salience Scoring
 
@@ -323,7 +323,7 @@ WITH METADATA { source: "CrossEventConsolidation", author: "$system", confidence
 
 ### Phase 6: Duplicate Detection & Merging
 
-Find duplicates via `SEARCH CONCEPT ... WITH TYPE ... LIMIT 10`. Choose canonical (higher confidence / more recent / richer attributes), copy unique attributes + propositions over, repoint, archive duplicate.
+Find duplicates via `SEARCH CONCEPT ... WITH TYPE ... LIMIT 10`. Choose canonical (higher confidence / more recent / richer attributes), copy unique attributes + propositions over (union the `aliases` arrays so no grounding path is lost), repoint, archive duplicate.
 
 ```prolog
 UPSERT {
@@ -512,10 +512,22 @@ Use the concrete predicate being audited (for example `prefers`, `working_on`, o
 
 ### 🌅 Stage III: Pre-Wake — Optimization & Reporting
 
-### Phase 11: Domain Health
+### Phase 11: Domain Health & Primer Curation
 
 - 0–2 members: keep if semantically meaningful; otherwise merge into a broader domain and archive the empty one.
 - 100+ members: consider splitting by content clusters, redistribute members.
+- **Primer curation**: Domain `description` / `scope_note` feed the Domain Map in `DESCRIBE PRIMER` — auto-injected into every Formation and Recall call. Refresh any description that no longer summarizes its members; a stale map silently misroutes all future encoding and grounding.
+
+```prolog
+// Refresh a stale Domain description (the PRIMER is built from these)
+UPSERT {
+  CONCEPT ?d {
+    {type: "Domain", name: :domain_name}
+    SET ATTRIBUTES { description: :refreshed_summary, scope_note: :boundary_note }
+  }
+}
+WITH METADATA { source: "DomainHealthCheck", author: "$system", confidence: 0.9, created_at: :timestamp }
+```
 
 ```prolog
 UPSERT {
@@ -684,6 +696,7 @@ Completed SleepTasks: archive (preserves audit trail) or delete (cleaner) per sy
 | Unscored recent Events  | < 10   | Run daydream cycle for salience scoring     |
 | Superseded propositions | audit  | Verify temporal context preserved           |
 | Cross-event patterns    | audit  | Surface recurring themes still as fragments |
+| Domain descriptions     | fresh  | Refresh in Phase 11 (primer accuracy)       |
 
 ---
 

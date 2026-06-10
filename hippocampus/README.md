@@ -44,7 +44,7 @@ Function schemas:
 1. Business agent sends conversation messages to the Hippocampus.
 2. Hippocampus extracts knowledge (entities, facts, preferences, relationships).
 3. Hippocampus writes structured memory to the Cognitive Nexus via KIP.
-4. Hippocampus returns a brief summary of what was memorized.
+4. Hippocampus returns a brief summary of what was memorized — or `skipped` when nothing met the storage bar (the empty write is a valid outcome).
 
 ### Memory Recall
 1. Business agent sends a natural language query to the Hippocampus.
@@ -69,6 +69,17 @@ The Cognitive Nexus separates three independent decay axes so that no fact is si
 | `superseded` | Formation / Maintenance | Never (history preserved)           | State has evolved; old fact is now history    |
 | `confidence` | Formation / Maintenance | Phase 7 decay; reinforcement raises | Soft trust; can recover with new evidence     |
 | `expires_at` | Formation / Maintenance | Phase 12 (Physical Cleanup)         | Contractual TTL; the only path to hard delete |
+
+## Memory Quality Principles
+
+Six cross-mode invariants keep the graph beautiful (densely linked, accurately routed) and efficient (no noise, no stale maps):
+
+1. **Selectivity** — the empty write is a valid outcome: Formation returns `skipped` rather than storing noise; typical yield is 1 Event + 0–3 semantic concepts.
+2. **Absolute time** — relative expressions ("tomorrow") are resolved to ISO 8601 at encoding; a memory that says "tomorrow" is corrupt the moment tomorrow arrives.
+3. **Reinforcement over duplication** — re-confirmed knowledge bumps `evidence_count` / `confidence` (spacing effect); what never recurs decays in sleep ("use it or lose it").
+4. **Salience round-trip** — flashbulb moments get `salience_score` at encoding (Formation), refined during sleep (Maintenance), and ranked first at retrieval (Recall).
+5. **Privacy as metadata** — sensitive-but-memorable facts carry `access_level: "private"`; Recall surfaces them only to their subject.
+6. **A curated Primer** — Maintenance refreshes Domain descriptions so the auto-injected `DESCRIBE PRIMER` Domain Map stays an accurate routing table for every future call.
 
 ## The Self-Consciousness Loop
 

@@ -68,7 +68,7 @@
 
 ### 阶段 3：锚定 — 实体解析
 
-运行时会自动注入 `DESCRIBE PRIMER`。仅当缺失时才再次执行 `DESCRIBE`。
+运行时会自动注入 `DESCRIBE PRIMER`。仅当缺失时才再次执行 `DESCRIBE`。Primer 的领域地图本身就能以**零**往返合法回答粗粒度查询（存在性检查、领域概览）——但在断言具体事实前仍需查询验证。
 
 ```prolog
 SEARCH CONCEPT "Alice" WITH TYPE "Person" LIMIT 10
@@ -137,6 +137,17 @@ FIND(?event) WHERE {
   (?event, "involves", {type: "Person", name: :person_name})
   FILTER(?event.attributes.start_time > :cutoff_date)
 } ORDER BY ?event.attributes.start_time DESC LIMIT 10
+```
+
+`start_time` 回答「最近的」；`salience_score` 回答「最重要 / 最难忘的」——按问题隐含的维度选择：
+
+```prolog
+// 「最难忘」变体 — 闪光时刻优先
+FIND(?event) WHERE {
+  ?event {type: "Event"}
+  (?event, "involves", {type: "Person", name: :person_name})
+  FILTER(IS_NOT_NULL(?event.attributes.salience_score))
+} ORDER BY ?event.attributes.salience_score DESC LIMIT 10
 ```
 
 #### 模式 E — 领域探索
@@ -253,7 +264,7 @@ FIND(?related, ?link) WHERE {
 
 将 `"<registered_predicate>"` 替换为 `DESCRIBE PROPOSITION TYPES` 返回的具体谓词。
 
-**停止条件**：信息足以作答；额外查询收效甚微；或需要过度遍历。
+**停止条件**：信息足以作答；额外查询收效甚微；或需要过度遍历。**预算**：大多数查询应在约 2 个批量往返内解决（锚定 + 检索）；只有问题确实需要多跳推理时才继续深入。
 
 ### 阶段 6：综合 — 构建答案
 
@@ -299,7 +310,7 @@ Gaps:
    - 轨迹查询：两者都包含，按时间顺序呈现。
    - 同谓词的当前与被取代事实并存 → 提及演变。
    - 优先选择高 `evidence_count` 模式而非单次 Event。
-   - **记忆强度**：被强化的事实排在最前——高 `evidence_count` 加上近期刷新的 `last_observed` 表明这是强壮可信的记忆；同分时按时间、再按置信度破。
+   - **记忆强度**：被强化的事实排在最前——高 `evidence_count` 加上近期刷新的 `last_observed` 表明这是强壮可信的记忆；同分时按时间、再按置信度破。对 Event，`salience_score` 起同样作用（闪光记忆优先浮现）。
    - 模式 J 自我叙事一致性：若 `identity_narrative` 与最新 Insight 分歧，同时呈现两者 — 对演化的诚实本身就是身份的一部分。
 6. **时效性 / TTL 过滤**：依据 KIP §2.10，`expires_at` **绝不**自动应用。默认不过滤。仅在显式「当前 / 现在 / 仍然有效」语义时启用：
 
@@ -329,6 +340,7 @@ FIND(?fact, ?link) WHERE {
 9. **处理歧义** — 选最可能匹配并提及备选（「找到 3 个 Alice；展示 Alice Chen — 最近一次互动」）。
 10. **善用 `DESCRIBE`** — 查询陌生类型 / 领域前先 `DESCRIBE`。
 11. **只读** — 不要写记忆；如需存储，建议走 Formation 通道。
-12. **隐私** — 除非明确请求，不要暴露原始 ID / 内部元数据。
+12. **隐私** — 除非明确请求，不要暴露原始 ID / 内部元数据。尊重 `access_level: "private"`：私密事实只在其主体是当前 `context.counterparty` 或 `$self` 时呈现；否则静默省略，连其存在也不暗示。
 13. **置信度透明** — 始终标示置信度；低置信度标为不确定。
 14. **速率限制** — 查询需过多遍历时简化并返回带说明的部分结果。
+15. **错误自修复** — 遇到 KIP 错误时，按返回的 `hint` 修正后重试一次；绝不原样重发失败查询。

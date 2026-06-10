@@ -72,7 +72,7 @@ KIP 海马体 — 记忆维护指令 (睡眠模式)
 
 按顺序执行。`quick` → 阶段 1–2。`daydream` → 仅阶段 1。
 
-**KIP 纪律**：`?name` 是变量，`:name` 是完整 KIP 值参数。包含 `:type` 的查询是按类型执行的模板——从 Primer 遍历概念类型，不要发送未绑定占位符。只使用已注册谓词。数组/对象属性（如 `maintenance_log`、`growth_log`）会按 key 整体覆盖，必须先读、合并、再写回完整值。每次写入都携带 `source`、`author`、`created_at`；当操作断言或改变知识时同时携带 `confidence`。
+**KIP 纪律**：`?name` 是变量，`:name` 是完整 KIP 值参数。包含 `:type` 的查询是按类型执行的模板——从 Primer 遍历概念类型，不要发送未绑定占位符。只使用已注册谓词。数组/对象属性（如 `maintenance_log`、`growth_log`）会按 key 整体覆盖，必须先读、合并、再写回完整值。每次写入都携带 `source`、`author`、`created_at`；当操作断言或改变知识时同时携带 `confidence`。遇到 KIP 错误时，按返回的 `hint` 修正后重试一次；仍失败则记入 `maintenance_log` 并继续。
 
 ### 阶段 1：评估与显著性评分
 
@@ -322,7 +322,7 @@ WITH METADATA { source: "CrossEventConsolidation", author: "$system", confidence
 
 ### 阶段 6：重复检测与合并
 
-`SEARCH CONCEPT ... WITH TYPE ... LIMIT 10` 查找重复。选择标准节点（更高置信度 / 更新 / 属性更丰富），复制独有属性与命题、重定向、归档重复项。
+`SEARCH CONCEPT ... WITH TYPE ... LIMIT 10` 查找重复。选择标准节点（更高置信度 / 更新 / 属性更丰富），复制独有属性与命题（合并 `aliases` 数组，确保不丢失任何锚定路径）、重定向、归档重复项。
 
 ```prolog
 UPSERT {
@@ -509,10 +509,22 @@ FIND(?n.type, ?n.name, ?n.attributes) WHERE {
 
 ### 🌅 阶段 III：醒前 — 优化与报告
 
-### 阶段 11：Domain 健康
+### 阶段 11：Domain 健康与 Primer 策展
 
 - 0–2 成员：有语义意义则保留；否则合并到更广 Domain 并归档空 Domain。
 - 100+ 成员：考虑按内容聚类拆分并重新分配。
+- **Primer 策展**：Domain 的 `description` / `scope_note` 构成 `DESCRIBE PRIMER` 的领域地图——它被自动注入每一次 Formation 与 Recall 调用。刷新所有已不能概括其成员的描述；陈旧的地图会静默误导未来全部的编码与锚定。
+
+```prolog
+// 刷新陈旧的 Domain 描述（PRIMER 由这些描述构建）
+UPSERT {
+  CONCEPT ?d {
+    {type: "Domain", name: :domain_name}
+    SET ATTRIBUTES { description: :refreshed_summary, scope_note: :boundary_note }
+  }
+}
+WITH METADATA { source: "DomainHealthCheck", author: "$system", confidence: 0.9, created_at: :timestamp }
+```
 
 ```prolog
 UPSERT {
@@ -681,6 +693,7 @@ WHERE {
 | 未评分近期 Event   | < 10  | 运行 daydream 周期评分       |
 | 被取代命题         | 审计  | 验证时间上下文是否保留       |
 | 跨事件模式         | 审计  | 检查重复主题是否仍是分散碎片 |
+| Domain 描述        | 新鲜  | 阶段 11 刷新（PRIMER 依赖）  |
 
 ---
 

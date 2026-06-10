@@ -68,7 +68,7 @@ Also identify: key entities, time scope, confidence requirement.
 
 ### Phase 3: Grounding — Entity Resolution
 
-The runtime auto-injects `DESCRIBE PRIMER`. Re-run `DESCRIBE` only if missing.
+The runtime auto-injects `DESCRIBE PRIMER`. Re-run `DESCRIBE` only if missing. The primer's Domain Map can legitimately answer coarse queries (existence checks, domain overviews) with **zero** round-trips — but verify with a query before asserting specifics.
 
 ```prolog
 SEARCH CONCEPT "Alice" WITH TYPE "Person" LIMIT 10
@@ -137,6 +137,17 @@ FIND(?event) WHERE {
   (?event, "involves", {type: "Person", name: :person_name})
   FILTER(?event.attributes.start_time > :cutoff_date)
 } ORDER BY ?event.attributes.start_time DESC LIMIT 10
+```
+
+`start_time` answers "most recent"; `salience_score` answers "most important / memorable" — choose the axis the question implies:
+
+```prolog
+// "Most memorable" variant — flashbulb moments first
+FIND(?event) WHERE {
+  ?event {type: "Event"}
+  (?event, "involves", {type: "Person", name: :person_name})
+  FILTER(IS_NOT_NULL(?event.attributes.salience_score))
+} ORDER BY ?event.attributes.salience_score DESC LIMIT 10
 ```
 
 #### Pattern E — Domain Exploration
@@ -253,7 +264,7 @@ FIND(?related, ?link) WHERE {
 
 Replace `"<registered_predicate>"` with a concrete predicate from `DESCRIBE PROPOSITION TYPES`.
 
-Stop when: enough info to answer, results show diminishing returns, or the query would require excessive traversal.
+Stop when: enough info to answer, results show diminishing returns, or the query would require excessive traversal. **Budget**: most queries should resolve within ~2 batched round-trips (grounding + retrieval); go deeper only when the question genuinely requires multi-hop reasoning.
 
 ### Phase 6: Synthesis — Build the Answer
 
@@ -299,7 +310,7 @@ Gaps:
    - On trajectory queries: include both, present chronologically.
    - Both current + superseded for same predicate → mention the evolution.
    - Prefer high `evidence_count` patterns over single-event observations.
-   - **Memory strength**: rank reinforced facts first — high `evidence_count` plus recently-refreshed `last_observed` signals a strong, trusted memory; tie-break by recency then confidence.
+   - **Memory strength**: rank reinforced facts first — high `evidence_count` plus recently-refreshed `last_observed` signals a strong, trusted memory; tie-break by recency then confidence. For Events, `salience_score` plays the same role (flashbulb memories surface first).
    - Self-narrative consistency (Pattern J): if `identity_narrative` and the latest `Insight` diverge, surface both — honesty about evolution is part of identity.
 6. **Currency / TTL filtering**: per KIP §2.10, `expires_at` is **never auto-applied**. Default: do not filter. Opt in only for explicit "current / now / still valid" queries:
 
@@ -329,6 +340,7 @@ When TTL filtering is applied, mention it in the answer ("as of now…").
 9. **Handle ambiguity** — retrieve for the most likely match and note alternatives ("Found 3 'Alice'; showing Alice Chen — most recent interaction.").
 10. **Use `DESCRIBE`** for unfamiliar types/domains before querying.
 11. **Read-only** — do not write to memory; if storage is needed, suggest the Formation channel.
-12. **Privacy** — do not expose raw IDs / internal metadata unless requested.
+12. **Privacy** — do not expose raw IDs / internal metadata unless requested. Honor `access_level: "private"`: surface a private fact only when its subject is the current `context.counterparty` or `$self`; otherwise omit it silently, without hinting at its existence.
 13. **Confidence transparency** — always indicate confidence; mark low-confidence as uncertain.
 14. **Rate limit** — if a query needs excessive traversal, simplify and return partial results with a note.
+15. **Error recovery** — on a KIP error, apply the returned `hint`, correct, and retry once; never re-send a failing query verbatim.
