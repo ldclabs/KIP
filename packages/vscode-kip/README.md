@@ -2,9 +2,11 @@
 
 VS Code extension providing full language support for **KIP** (Knowledge Interaction Protocol) `.kip` files.
 
-The extension uses `@ldclabs/kip-lang` for KIP v1.0-RC7 command-text parsing,
+The extension uses `@ldclabs/kip-lang` for KIP v1.0-RC9 command-text parsing,
 formatting, and diagnostics, including `:parameter` placeholders in full value
-positions and JSON-compatible object literals with unquoted identifier keys.
+positions, predicate variables, multi-key `ORDER BY`, `SEARCH` retrieval modes,
+`EXPECT VERSION`, `UPDATE`, `MERGE`, `EXPORT`, and JSON-compatible object
+literals with unquoted identifier keys.
 
 ## Features
 
@@ -12,11 +14,11 @@ positions and JSON-compatible object literals with unquoted identifier keys.
 
 TextMate grammar with scopes for:
 
-- Keywords (`FIND`, `UPSERT`, `WHERE`, `CONCEPT`, `PROPOSITION`, …)
-- Compound keywords (`SET ATTRIBUTES`, `ORDER BY`, `WITH METADATA`, …)
+- Keywords (`FIND`, `UPSERT`, `UPDATE`, `MERGE`, `EXPORT`, `WHERE`, …)
+- Compound keywords (`SET ATTRIBUTES`, `SET METADATA`, `ORDER BY`, `EXPECT VERSION`, …)
 - Variables (`?drug`), parameters (`:limit`), system identifiers (`$ConceptType`)
 - Strings, numbers, booleans, `null`
-- Built-in functions (`COUNT`, `CONTAINS`, `REGEX`, `IN`, `IS_NULL`, …)
+- Built-in functions (`COUNT`, `CONTAINS`, `REGEX`, `IN`, `IS_NULL`, `ADD`, `MUL`, `CLAMP`, `COALESCE`, …)
 - Operators (`==`, `!=`, `&&`, `||`, `<`, `>`, …)
 - Comments (`// ...`)
 
@@ -29,7 +31,7 @@ Format on save or via `Shift+Alt+F`:
 - Alphabetical sorting of `SET ATTRIBUTES` keys
 - Comment preservation with correct placement
 - Quoted/unquoted key style preservation
-- Parameter placeholders such as `LIMIT :limit`, `SEARCH CONCEPT :term`, and `DESCRIBE CONCEPT TYPE :type`
+- Parameter placeholders such as `LIMIT :limit`, `SEARCH CONCEPT :term`, `MODE :mode`, `THRESHOLD :threshold`, and `DESCRIBE CONCEPT TYPE :type`
 
 ### Real-time Diagnostics
 
@@ -46,6 +48,7 @@ Fold/unfold blocks:
 - Statement bodies (`UPSERT { ... }`, `WHERE { ... }`)
 - `CONCEPT` / `PROPOSITION` blocks
 - `SET ATTRIBUTES` / `SET PROPOSITIONS` blocks
+- `UPDATE` `SET ATTRIBUTES` / `SET METADATA` blocks
 - `NOT` / `OPTIONAL` / `UNION` clauses
 - Consecutive comment blocks
 
@@ -65,13 +68,13 @@ Automatic matching and closing for `{}`, `()`, `[]`, and `""`.
 cd packages/vscode-kip
 pnpm install
 pnpm build
-pnpm package   # produces vscode-kip-0.2.2.vsix
+pnpm package   # produces vscode-kip-0.2.3.vsix
 ```
 
 Then install the `.vsix`:
 
 ```
-code --install-extension vscode-kip-0.2.2.vsix
+code --install-extension vscode-kip-0.2.3.vsix
 ```
 
 ### Development

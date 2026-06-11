@@ -31,6 +31,8 @@ export enum TokenType {
 
   // Keywords - KML
   Upsert = 'UPSERT',
+  Update = 'UPDATE',
+  Merge = 'MERGE',
   Delete = 'DELETE',
   Concept = 'CONCEPT',
   Proposition = 'PROPOSITION',
@@ -41,14 +43,20 @@ export enum TokenType {
   Metadata = 'METADATA',
   Detach = 'DETACH',
   From = 'FROM',
+  Into = 'INTO',
+  Expect = 'EXPECT',
+  Version = 'VERSION',
 
   // Keywords - META
   Describe = 'DESCRIBE',
   Search = 'SEARCH',
+  Export = 'EXPORT',
   Primer = 'PRIMER',
   Domains = 'DOMAINS',
   Type = 'TYPE',
   Types = 'TYPES',
+  Mode = 'MODE',
+  Threshold = 'THRESHOLD',
 
   // Keywords - common
   Order = 'ORDER',
@@ -68,6 +76,10 @@ export enum TokenType {
   IsNull = 'IS_NULL',
   IsNotNull = 'IS_NOT_NULL',
   Distinct = 'DISTINCT',
+  Add = 'ADD',
+  Mul = 'MUL',
+  Clamp = 'CLAMP',
+  Coalesce = 'COALESCE',
 
   // Operators
   Eq = '==',
@@ -133,6 +145,8 @@ export const KEYWORDS: ReadonlyMap<string, TokenType> = new Map([
   ['ASC', TokenType.Asc],
   ['DESC', TokenType.Desc],
   ['UPSERT', TokenType.Upsert],
+  ['UPDATE', TokenType.Update],
+  ['MERGE', TokenType.Merge],
   ['DELETE', TokenType.Delete],
   ['CONCEPT', TokenType.Concept],
   ['PROPOSITION', TokenType.Proposition],
@@ -143,12 +157,18 @@ export const KEYWORDS: ReadonlyMap<string, TokenType> = new Map([
   ['METADATA', TokenType.Metadata],
   ['DETACH', TokenType.Detach],
   ['FROM', TokenType.From],
+  ['INTO', TokenType.Into],
+  ['EXPECT', TokenType.Expect],
+  ['VERSION', TokenType.Version],
   ['DESCRIBE', TokenType.Describe],
   ['SEARCH', TokenType.Search],
+  ['EXPORT', TokenType.Export],
   ['PRIMER', TokenType.Primer],
   ['DOMAINS', TokenType.Domains],
   ['TYPE', TokenType.Type],
-  ['TYPES', TokenType.Types]
+  ['TYPES', TokenType.Types],
+  ['MODE', TokenType.Mode],
+  ['THRESHOLD', TokenType.Threshold]
 ])
 
 /** Set of built-in function names mapped to their TokenType */
@@ -165,7 +185,11 @@ export const FUNCTIONS: ReadonlyMap<string, TokenType> = new Map([
   ['IN', TokenType.In],
   ['IS_NULL', TokenType.IsNull],
   ['IS_NOT_NULL', TokenType.IsNotNull],
-  ['DISTINCT', TokenType.Distinct]
+  ['DISTINCT', TokenType.Distinct],
+  ['ADD', TokenType.Add],
+  ['MUL', TokenType.Mul],
+  ['CLAMP', TokenType.Clamp],
+  ['COALESCE', TokenType.Coalesce]
 ])
 
 export function isKeyword(type: TokenType): boolean {

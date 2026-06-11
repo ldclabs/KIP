@@ -371,11 +371,11 @@ WHERE {
 
 **Metadata fields** (not predicates — set via `WITH METADATA`, never as proposition links):
 
-| Field                            | Description                                  | Example                              |
-| -------------------------------- | -------------------------------------------- | ------------------------------------ |
-| `supersedes` / `superseded_by`   | State-evolution chain pointers (link IDs)    | new link `supersedes: "<old_id>"`    |
-| `superseded` / `superseded_at`   | Marks the old fact as historical             | `superseded: true`                   |
-| `merged_into`                    | Casualty → Survivor pointer (dedup)          | "JS" merged_into "JavaScript"        |
+| Field                          | Description                               | Example                           |
+| ------------------------------ | ----------------------------------------- | --------------------------------- |
+| `supersedes` / `superseded_by` | State-evolution chain pointers (link IDs) | new link `supersedes: "<old_id>"` |
+| `superseded` / `superseded_at` | Marks the old fact as historical          | `superseded: true`                |
+| `merged_into`                  | Casualty → Survivor pointer (dedup)       | "JS" merged_into "JavaScript"     |
 
 ---
 

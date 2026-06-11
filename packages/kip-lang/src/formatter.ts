@@ -7,12 +7,17 @@ import type {
   Statement,
   FindStatement,
   UpsertStatement,
+  UpdateStatement,
+  MergeStatement,
   DeleteStatement,
   DescribeStatement,
   SearchStatement,
+  ExportStatement,
   ConceptBlock,
   PropositionBlock,
+  ExpectVersion,
   SetAttributes,
+  SetMetadata,
   SetPropositions,
   PropositionItem,
   WithMetadata,
@@ -29,7 +34,10 @@ import type {
   OrderByClause,
   LimitClause,
   CursorClause,
+  ThresholdClause,
   Expression,
+  StringLiteral,
+  ParameterRef,
   ObjectEntry,
   ArrayLiteral,
   ObjectLiteral,
@@ -134,12 +142,18 @@ class Formatter {
         return this.formatFind(stmt)
       case 'UpsertStatement':
         return this.formatUpsert(stmt)
+      case 'UpdateStatement':
+        return this.formatUpdate(stmt)
+      case 'MergeStatement':
+        return this.formatMerge(stmt)
       case 'DeleteStatement':
         return this.formatDelete(stmt)
       case 'DescribeStatement':
         return this.formatDescribe(stmt)
       case 'SearchStatement':
         return this.formatSearch(stmt)
+      case 'ExportStatement':
+        return this.formatExport(stmt)
     }
   }
 
@@ -238,6 +252,9 @@ class Formatter {
     this.write('}')
     this.newline()
 
+    if (block.expectVersion) {
+      this.formatExpectVersion(block.expectVersion)
+    }
     if (block.setAttributes) {
       this.formatSetAttributes(block.setAttributes)
     }
@@ -267,6 +284,9 @@ class Formatter {
     this.write(this.propositionBlockPatternToString(block))
     this.newline()
 
+    if (block.expectVersion) {
+      this.formatExpectVersion(block.expectVersion)
+    }
     if (block.setAttributes) {
       this.formatSetAttributes(block.setAttributes)
     }
@@ -325,6 +345,53 @@ class Formatter {
     this.indentLevel--
     this.writeIndent()
     this.write('}')
+    this.newline()
+  }
+
+  private formatSetMetadata(sm: SetMetadata): void {
+    this.writeIndent()
+    this.write('SET METADATA {')
+
+    if (sm.entries.length === 0) {
+      this.write('}')
+      this.newline()
+      return
+    }
+
+    const allSimple = sm.entries.every((e) => this.isSimpleValue(e.value))
+
+    if (allSimple && sm.entries.length <= 3) {
+      this.write(' ')
+      this.write(
+        sm.entries
+          .map(
+            (e) => `${this.keyToString(e)}: ${this.exprToString(e.value, 0)}`
+          )
+          .join(', ')
+      )
+      this.write(' }')
+      this.newline()
+      return
+    }
+
+    this.newline()
+    this.indentLevel++
+    for (let i = 0; i < sm.entries.length; i++) {
+      this.formatObjectEntry(sm.entries[i]!)
+      if (i < sm.entries.length - 1) {
+        this.write(',')
+      }
+      this.newline()
+    }
+    this.indentLevel--
+    this.writeIndent()
+    this.write('}')
+    this.newline()
+  }
+
+  private formatExpectVersion(ev: ExpectVersion): void {
+    this.writeIndent()
+    this.write(`EXPECT VERSION ${this.numberOrParameterValueToString(ev.value)}`)
     this.newline()
   }
 
@@ -412,6 +479,35 @@ class Formatter {
     this.newline()
   }
 
+  // ── UPDATE ─────────────────────────────────────────────────────────
+
+  private formatUpdate(stmt: UpdateStatement): void {
+    this.writeIndent()
+    this.write(`UPDATE ${stmt.target}`)
+    this.newline()
+
+    if (stmt.setAttributes) {
+      this.formatSetAttributes(stmt.setAttributes)
+    }
+    if (stmt.setMetadata) {
+      this.formatSetMetadata(stmt.setMetadata)
+    }
+
+    this.formatWhere(stmt.where)
+    if (stmt.limit) {
+      this.formatLimit(stmt.limit)
+    }
+  }
+
+  // ── MERGE ──────────────────────────────────────────────────────────
+
+  private formatMerge(stmt: MergeStatement): void {
+    this.writeIndent()
+    this.write(`MERGE CONCEPT ${stmt.source} INTO ${stmt.target}`)
+    this.newline()
+    this.formatWhere(stmt.where)
+  }
+
   // ── DELETE ─────────────────────────────────────────────────────────
 
   private formatDelete(stmt: DeleteStatement): void {
@@ -481,8 +577,28 @@ class Formatter {
         ` WITH TYPE ${this.quotedOrParameterValueToString(stmt.withTypeValue, stmt.withType ?? '')}`
       )
     }
+    if (stmt.modeValue || stmt.mode !== undefined) {
+      this.write(
+        ` MODE ${this.quotedOrParameterValueToString(stmt.modeValue, stmt.mode ?? '')}`
+      )
+    }
+    if (stmt.threshold) {
+      this.write(` THRESHOLD ${this.thresholdValueToString(stmt.threshold)}`)
+    }
     if (stmt.limit) {
       this.write(` LIMIT ${this.limitValueToString(stmt.limit)}`)
+    }
+  }
+
+  // ── EXPORT ─────────────────────────────────────────────────────────
+
+  private formatExport(stmt: ExportStatement): void {
+    this.writeIndent()
+    this.write(`EXPORT ${stmt.target}`)
+    this.newline()
+    this.formatWhere(stmt.where)
+    if (stmt.limit) {
+      this.formatLimit(stmt.limit)
     }
   }
 
@@ -593,8 +709,14 @@ class Formatter {
 
   private formatOrderBy(ob: OrderByClause): void {
     this.writeIndent()
+    const keys =
+      ob.keys && ob.keys.length > 0
+        ? ob.keys
+        : [{ expression: ob.expression, direction: ob.direction }]
     this.write(
-      `ORDER BY ${this.exprToString(ob.expression, 0)} ${ob.direction}`
+      `ORDER BY ${keys
+        .map((key) => `${this.exprToString(key.expression, 0)} ${key.direction}`)
+        .join(', ')}`
     )
     this.newline()
   }
@@ -733,6 +855,9 @@ class Formatter {
   }
 
   private predicateToString(pred: PredicateExpr): string {
+    if (pred.kind === 'PredicateVariable') {
+      return pred.name
+    }
     if (pred.kind === 'PredicateLiteral') {
       let s = `"${this.escapeString(pred.value)}"`
       if (pred.hopRange) {
@@ -751,8 +876,18 @@ class Formatter {
   }
 
   private limitValueToString(lim: LimitClause): string {
-    if (lim.value.kind === 'NumberLiteral') return lim.value.raw
-    return lim.value.name
+    return this.numberOrParameterValueToString(lim.value)
+  }
+
+  private thresholdValueToString(threshold: ThresholdClause): string {
+    return this.numberOrParameterValueToString(threshold.value)
+  }
+
+  private numberOrParameterValueToString(
+    value: LimitClause['value'] | ThresholdClause['value']
+  ): string {
+    if (value.kind === 'NumberLiteral') return value.raw
+    return value.name
   }
 
   private cursorValueToString(cur: CursorClause): string {
@@ -761,7 +896,7 @@ class Formatter {
   }
 
   private quotedOrParameterValueToString(
-    value: SearchStatement['termValue'] | DescribeStatement['typeNameValue'],
+    value: StringLiteral | ParameterRef | undefined,
     fallback: string
   ): string {
     if (value?.kind === 'StringLiteral') return value.value

@@ -47,6 +47,21 @@ WHERE {
       assert.equal(unknowns.length, 0, `Unknown tokens in ${f}: ${JSON.stringify(unknowns)}`)
     }
   })
+
+  test('tokenizes RC9 keywords and update functions', () => {
+    const source = `UPDATE ?link
+SET METADATA { confidence: CLAMP(MUL(?link.metadata.confidence, :decay), 0.0, 1.0) }
+WHERE { ?link (?s, ?p, ?o) }
+MERGE CONCEPT ?dup INTO ?canonical WHERE { ?dup {type: "Person"} ?canonical {type: "Person"} }
+EXPORT ?n WHERE { ?n {type: "Event"} }
+SEARCH CONCEPT "headache relief" MODE "semantic" THRESHOLD 0.75 LIMIT 10`
+    const tokens = tokenize(source)
+    const unknowns = tokens.filter((t) => t.type === 'Unknown')
+    assert.equal(unknowns.length, 0, `Found unknown tokens: ${JSON.stringify(unknowns)}`)
+    for (const expected of ['UPDATE', 'MERGE', 'INTO', 'EXPORT', 'MODE', 'THRESHOLD', 'CLAMP', 'MUL']) {
+      assert.ok(tokens.some((t) => t.type === expected), `Missing ${expected} token`)
+    }
+  })
 })
 
 describe('parse', () => {
@@ -84,6 +99,43 @@ LIMIT 20`
     assert.equal(ast.statements[0].kind, 'FindStatement')
     const errors = diagnostics.filter((d) => d.severity === 'error')
     assert.equal(errors.length, 0, `Parse errors: ${JSON.stringify(errors, null, 2)}`)
+  })
+
+  test('parses predicate variables and multi-key ORDER BY', () => {
+    const source = `FIND(?pred, ?neighbor, ?link.metadata.confidence)
+WHERE {
+  ?person {type: "Person", name: "Alice"}
+  ?link (?person, ?pred, ?neighbor)
+  FILTER(?pred != "belongs_to_domain")
+}
+ORDER BY ?link.metadata.confidence DESC, ?link.metadata.created_at DESC
+LIMIT 50`
+    const { ast, diagnostics } = parse(source)
+    const stmt = ast.statements[0]
+    assert.equal(stmt.kind, 'FindStatement')
+    const linkPattern = stmt.where.patterns[1]
+    assert.equal(linkPattern.kind, 'PropositionPattern')
+    assert.equal(linkPattern.predicate.kind, 'PredicateVariable')
+    assert.equal(linkPattern.predicate.name, '?pred')
+    assert.equal(stmt.orderBy.keys.length, 2)
+    assert.equal(stmt.orderBy.expression.kind, 'DotExpression')
+    assert.equal(stmt.orderBy.direction, 'DESC')
+    const errors = diagnostics.filter((d) => d.severity === 'error')
+    assert.equal(errors.length, 0, `Parse errors: ${JSON.stringify(errors, null, 2)}`)
+  })
+
+  test('rejects predicate variable path traversal and alternation syntax', () => {
+    const invalidHop = parse(`FIND(?o) WHERE { (?s, ?p{1,3}, ?o) }`)
+    assert.ok(
+      invalidHop.diagnostics.some((d) => d.message.includes('Predicate variables cannot use hop ranges')),
+      `Expected predicate-variable hop diagnostic: ${JSON.stringify(invalidHop.diagnostics)}`
+    )
+
+    const invalidAlt = parse(`FIND(?o) WHERE { (?s, ?p | "treats", ?o) }`)
+    assert.ok(
+      invalidAlt.diagnostics.some((d) => d.message.includes('Predicate variables cannot be used in predicate alternations')),
+      `Expected predicate-variable alternation diagnostic: ${JSON.stringify(invalidAlt.diagnostics)}`
+    )
   })
 
   test('keeps final statement ranges on the final source line', () => {
@@ -155,6 +207,45 @@ WITH METADATA { source: :source }`
     assert.equal(claimBlock.setPropositions.items[0].target.id.parsed, 'P:456:supports')
     const errors = diagnostics.filter((d) => d.severity === 'error')
     assert.equal(errors.length, 0, `Parse errors: ${JSON.stringify(errors, null, 2)}`)
+  })
+
+  test('parses EXPECT VERSION in UPSERT concept and proposition blocks', () => {
+    const source = `UPSERT {
+  CONCEPT ?self {
+    {type: "Person", name: "$self"}
+    EXPECT VERSION :self_version
+    SET ATTRIBUTES { behavior_preferences: :prefs }
+  }
+  PROPOSITION ?fact {
+    (?self, "prefers", {type: "Preference", name: "Dark Mode"})
+    EXPECT VERSION 3
+    SET ATTRIBUTES { evidence_count: 2 }
+  }
+}`
+    const { ast, diagnostics } = parse(source)
+    const [concept, proposition] = ast.statements[0].blocks
+    assert.equal(concept.kind, 'ConceptBlock')
+    assert.equal(concept.expectVersion.value.kind, 'ParameterRef')
+    assert.equal(proposition.kind, 'PropositionBlock')
+    assert.equal(proposition.expectVersion.value.kind, 'NumberLiteral')
+    assert.equal(proposition.expectVersion.value.value, 3)
+    const errors = diagnostics.filter((d) => d.severity === 'error')
+    assert.equal(errors.length, 0, `Parse errors: ${JSON.stringify(errors, null, 2)}`)
+  })
+
+  test('requires EXPECT VERSION immediately after UPSERT block identity', () => {
+    const source = `UPSERT {
+  CONCEPT ?self {
+    {type: "Person", name: "$self"}
+    SET ATTRIBUTES { behavior_preferences: :prefs }
+    EXPECT VERSION :self_version
+  }
+}`
+    const { diagnostics } = parse(source)
+    assert.ok(
+      diagnostics.some((d) => d.message.includes("Unexpected token 'EXPECT' in CONCEPT block")),
+      `Expected misplaced EXPECT diagnostic: ${JSON.stringify(diagnostics)}`
+    )
   })
 
   test('parses named embedded proposition endpoints', () => {
@@ -304,6 +395,57 @@ WHERE {
     assert.equal(errors.length, 0, `Parse errors: ${JSON.stringify(errors)}`)
   })
 
+  test('parses SEARCH retrieval modes and thresholds', () => {
+    const cases = [
+      `SEARCH CONCEPT "headache relief" MODE "semantic" THRESHOLD 0.75 LIMIT 10`,
+      `SEARCH PROPOSITION :term WITH TYPE :predicate MODE :mode THRESHOLD :threshold LIMIT :limit`
+    ]
+    for (const source of cases) {
+      const { ast, diagnostics } = parse(source)
+      const stmt = ast.statements[0]
+      assert.equal(stmt.kind, 'SearchStatement')
+      assert.ok(stmt.modeValue, `Missing MODE for ${source}`)
+      assert.ok(stmt.threshold, `Missing THRESHOLD for ${source}`)
+      const errors = diagnostics.filter((d) => d.severity === 'error')
+      assert.equal(errors.length, 0, `Parse errors for "${source}": ${JSON.stringify(errors)}`)
+    }
+  })
+
+  test('parses UPDATE, MERGE, and EXPORT statements', () => {
+    const source = `UPDATE ?link
+SET METADATA {
+  confidence: CLAMP(MUL(?link.metadata.confidence, :decay_factor), 0.0, 1.0),
+  access_count: ADD(COALESCE(?link.metadata.access_count, 0), 1)
+}
+WHERE {
+  ?link (?s, ?p, ?o)
+  FILTER(?link.metadata.confidence > 0.3)
+}
+LIMIT :limit
+
+MERGE CONCEPT ?dup INTO ?canonical
+WHERE {
+  ?dup {type: "SkillTopic", name: "JS"}
+  ?canonical {type: "SkillTopic", name: "JavaScript"}
+}
+
+EXPORT ?n
+WHERE {
+  (?n, "belongs_to_domain", {type: "Domain", name: "Medical"})
+}
+LIMIT 500`
+    const { ast, diagnostics } = parse(source)
+    assert.equal(ast.statements.length, 3)
+    assert.equal(ast.statements[0].kind, 'UpdateStatement')
+    assert.equal(ast.statements[0].setMetadata.entries.length, 2)
+    assert.equal(ast.statements[0].limit.value.kind, 'ParameterRef')
+    assert.equal(ast.statements[1].kind, 'MergeStatement')
+    assert.equal(ast.statements[2].kind, 'ExportStatement')
+    assert.equal(ast.statements[2].limit.value.value, 500)
+    const errors = diagnostics.filter((d) => d.severity === 'error')
+    assert.equal(errors.length, 0, `Parse errors: ${JSON.stringify(errors, null, 2)}`)
+  })
+
   test('parses JSON unicode escapes in strings', () => {
     const source = `FIND(?n) WHERE { ?n {name: "A\\u0042"} }`
     const { ast, diagnostics } = parse(source)
@@ -359,6 +501,18 @@ confidence: 0.9
     assert.ok(!result.includes('DISTINCT('), result)
   })
 
+  test('formats RC9 predicate variables and multi-key ORDER BY', () => {
+    const source = `FIND(?pred, ?neighbor) WHERE { ?link (?person, ?pred, ?neighbor) } ORDER BY ?link.metadata.confidence DESC, ?link.metadata.created_at DESC LIMIT 50`
+    const result = format(source)
+    assert.ok(
+      result.includes('ORDER BY ?link.metadata.confidence DESC, ?link.metadata.created_at DESC'),
+      result
+    )
+    assert.ok(result.includes('?link (?person, ?pred, ?neighbor)'), result)
+    const reparsed = parse(result)
+    assert.equal(reparsed.diagnostics.filter((d) => d.severity === 'error').length, 0)
+  })
+
   test('formats proposition id matchers', () => {
     const source = `FIND(?fact) WHERE { ?fact (id: "P:12345:treats") }`
     const result = format(source)
@@ -380,6 +534,24 @@ confidence: 0.9
     const source = `SEARCH CONCEPT :search_term WITH TYPE :type LIMIT :limit`
     const result = format(source)
     assert.equal(result.trim(), 'SEARCH CONCEPT :search_term WITH TYPE :type LIMIT :limit')
+  })
+
+  test('formats SEARCH mode and threshold', () => {
+    const source = `SEARCH CONCEPT :term MODE :mode THRESHOLD :threshold LIMIT :limit`
+    const result = format(source)
+    assert.equal(result.trim(), 'SEARCH CONCEPT :term MODE :mode THRESHOLD :threshold LIMIT :limit')
+  })
+
+  test('formats EXPECT VERSION and RC9 mutation statements', () => {
+    const source = `UPSERT { CONCEPT ?self { {type: "Person", name: "$self"} EXPECT VERSION :v SET ATTRIBUTES { behavior_preferences: :prefs } } } UPDATE ?pref SET ATTRIBUTES { evidence_count: ADD(COALESCE(?pref.attributes.evidence_count, 0), 1) } SET METADATA { observed_at: :timestamp } WHERE { ?pref {type: "Preference", name: :pref_name} } LIMIT :limit MERGE CONCEPT ?dup INTO ?canonical WHERE { ?dup {type: "SkillTopic", name: "JS"} ?canonical {type: "SkillTopic", name: "JavaScript"} } EXPORT ?n WHERE { ?n {type: "Event"} } LIMIT 20`
+    const result = format(source)
+    assert.ok(result.includes('EXPECT VERSION :v'), result)
+    assert.ok(result.includes('UPDATE ?pref'), result)
+    assert.ok(result.includes('SET METADATA { observed_at: :timestamp }'), result)
+    assert.ok(result.includes('MERGE CONCEPT ?dup INTO ?canonical'), result)
+    assert.ok(result.includes('EXPORT ?n'), result)
+    const reparsed = parse(result)
+    assert.equal(reparsed.diagnostics.filter((d) => d.severity === 'error').length, 0)
   })
 
   test('formats parameterized DESCRIBE statements', () => {

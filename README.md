@@ -164,15 +164,15 @@ What TCP/IP did for connecting machines, and SQL did for querying data, KIP aims
 
 ## Documentation
 
-| Document                                            | Description                                           |
-| --------------------------------------------------- | ----------------------------------------------------- |
-| [📖 Specification](./SPECIFICATION.md)               | Complete KIP protocol specification (English)         |
-| [📖 规范文档](./SPECIFICATION_CN.md)                 | 完整的 KIP 协议规范 (中文)                            |
-| [📐 Syntax Reference](./KIPSyntax.md)                | Condensed KQL / KML / META syntax for system prompts  |
-| [🧠 Brain Overview](./brain/README.md)               | The autonomous memory layer: Formation / Recall / Maintenance |
-| [🤖 Agent Instructions](./SelfInstructions.md)       | `$self` operational guide (waking mind)               |
-| [⚙️ System Instructions](./SystemInstructions.md)    | `$system` sleep-cycle maintenance guide               |
-| [📋 Function Definition](./FunctionDefinition.json)  | `execute_kip` function schema for LLM integration     |
+| Document                                           | Description                                                   |
+| -------------------------------------------------- | ------------------------------------------------------------- |
+| [📖 Specification](./SPECIFICATION.md)              | Complete KIP protocol specification (English)                 |
+| [📖 规范文档](./SPECIFICATION_CN.md)                | 完整的 KIP 协议规范 (中文)                                    |
+| [📐 Syntax Reference](./KIPSyntax.md)               | Condensed KQL / KML / META syntax for system prompts          |
+| [🧠 Brain Overview](./brain/README.md)              | The autonomous memory layer: Formation / Recall / Maintenance |
+| [🤖 Agent Instructions](./SelfInstructions.md)      | `$self` operational guide (waking mind)                       |
+| [⚙️ System Instructions](./SystemInstructions.md)   | `$system` sleep-cycle maintenance guide                       |
+| [📋 Function Definition](./FunctionDefinition.json) | `execute_kip` function schema for LLM integration             |
 
 ## Resources
 
@@ -207,10 +207,10 @@ A dedicated LLM layer that manages the Cognitive Nexus on behalf of business age
 
 ### 🔧 Tooling
 
-| Tool                                      | Description                                                                                                     |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| [kip-mcp-server](./mcp/kip-mcp-server/)   | `@ldclabs/kip-mcp-server` — MCP server bridging any MCP client (Claude, Cursor, VS Code, ...) to a KIP backend    |
-| [vscode-kip](./packages/vscode-kip/)      | VS Code language support for `.kip` files: syntax highlighting, formatting, diagnostics, folding                  |
+| Tool                                    | Description                                                                                                    |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [kip-mcp-server](./mcp/kip-mcp-server/) | `@ldclabs/kip-mcp-server` — MCP server bridging any MCP client (Claude, Cursor, VS Code, ...) to a KIP backend |
+| [vscode-kip](./packages/vscode-kip/)    | VS Code language support for `.kip` files: syntax highlighting, formatting, diagnostics, folding               |
 
 ## Implementations
 
@@ -226,7 +226,7 @@ A dedicated LLM layer that manages the Cognitive Nexus on behalf of business age
 ## Version History
 
 | Version     | Date       | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| ----------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ----------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | v1.0-RC9    | 2026-06-11 | v1.0 Release Candidate 9: Associative-recall & memory-metabolism primitives — predicate variables (`(?s, ?p, ?o)`), multi-key `ORDER BY`, specified `SEARCH` modes (`keyword` \| `semantic` \| `hybrid` with `THRESHOLD` / `_score`), new KML `UPDATE` (bulk mutation with `ADD`/`MUL`/`CLAMP`/`COALESCE`) and `MERGE CONCEPT ... INTO ...` (atomic entity consolidation), reserved engine-maintained `_` metadata (`_version`, `_accessed_at`, ...), `EXPECT VERSION` optimistic concurrency (`KIP_3005`), and META `EXPORT` for capsule round-tripping |
 | v1.0-RC8    | 2026-06-10 | v1.0 Release Candidate 8: Clarified `ORDER BY` sort expressions (dot-paths and aggregations, single key), whole-object dot access (`?var.attributes` / `?var.metadata`), aggregation `null` semantics, `KIP_3002` for match-only `{id:}` / `(id:)` targets, advisory `instance_schema` enforcement, and `CURSOR :param` placeholders; extended `KIP_3004` protected scope to the `Domain` type and `belongs_to_domain`; aligned instruction examples (removed unregistered `created_by`, ID-based confidence decay)                                      |
 | v1.0-RC7    | 2026-06-04 | v1.0 Release Candidate 7: Added single-command `execute_kip`, per-command batch parameters, KIP value-position placeholders for `LIMIT` / `SEARCH`, JSON-compatible unquoted object keys, `belongs_to_class` examples, stronger Hippocampus provenance/supersession guidance, and aligned Recall/MCP schemas                                                                                                                                                                                                                                             |
@@ -241,7 +241,7 @@ A dedicated LLM layer that manages the Cognitive Nexus on behalf of business age
 
 ## About Us
 
-- 🔔 Products: [Anda Bot](https://anda.bot/) | [Anda.AI](https://anda.ai/) | [天策 Celestian](https://celestian.ai/)
+- 🔔 Products: [Anda Bot](https://anda.bot/) | [Anda.AI](https://anda.ai/)
 - 💻 GitHub: [LDC Labs](https://github.com/ldclabs)
 - 🏢 Company: [Yiwen AI](https://yiwen.ai/)
 

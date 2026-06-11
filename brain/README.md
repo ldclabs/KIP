@@ -29,8 +29,8 @@ https://github.com/ldclabs/anda-brain
 
 ## Three Operational Modes
 
-| Mode            | System Prompt                                          | Purpose                                      | Trigger                                    |
-| --------------- | ------------------------------------------------------ | -------------------------------------------- | ------------------------------------------ |
+| Mode            | System Prompt                              | Purpose                                      | Trigger                                    |
+| --------------- | ------------------------------------------ | -------------------------------------------- | ------------------------------------------ |
 | **Formation**   | [BrainFormation.md](BrainFormation.md)     | Encode messages into structured memory       | Business agent sends conversation messages |
 | **Recall**      | [BrainRecall.md](BrainRecall.md)           | Retrieve memory via natural language queries | Business agent asks a question             |
 | **Maintenance** | [BrainMaintenance.md](BrainMaintenance.md) | Consolidate, prune, and organize memory      | Scheduled or threshold-based triggers      |

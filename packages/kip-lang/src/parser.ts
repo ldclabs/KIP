@@ -6,9 +6,12 @@ import type {
   Statement,
   FindStatement,
   UpsertStatement,
+  UpdateStatement,
+  MergeStatement,
   DeleteStatement,
   DescribeStatement,
   SearchStatement,
+  ExportStatement,
   WhereClause,
   WherePattern,
   ConceptPattern,
@@ -17,6 +20,7 @@ import type {
   PropositionEndpoint,
   PredicateExpr,
   PredicateLiteral,
+  PredicateVariable,
   HopRange,
   FilterClause,
   NotClause,
@@ -24,13 +28,17 @@ import type {
   UnionClause,
   ConceptBlock,
   PropositionBlock,
+  ExpectVersion,
   SetAttributes,
+  SetMetadata,
   SetPropositions,
   PropositionItem,
   WithMetadata,
   OrderByClause,
+  OrderByKey,
   LimitClause,
   CursorClause,
+  ThresholdClause,
   Expression,
   BinaryExpression,
   UnaryExpression,
@@ -107,15 +115,21 @@ class Parser {
         return this.parseFindStatement()
       case TokenType.Upsert:
         return this.parseUpsertStatement()
+      case TokenType.Update:
+        return this.parseUpdateStatement()
+      case TokenType.Merge:
+        return this.parseMergeStatement()
       case TokenType.Delete:
         return this.parseDeleteStatement()
       case TokenType.Describe:
         return this.parseDescribeStatement()
       case TokenType.Search:
         return this.parseSearchStatement()
+      case TokenType.Export:
+        return this.parseExportStatement()
       default:
         this.error(
-          `Unexpected token '${tok.value}', expected a statement keyword (FIND, UPSERT, DELETE, DESCRIBE, SEARCH)`,
+          `Unexpected token '${tok.value}', expected a statement keyword (FIND, UPSERT, UPDATE, MERGE, DELETE, DESCRIBE, SEARCH, EXPORT)`,
           tok
         )
         this.advance()
@@ -226,6 +240,10 @@ class Parser {
     this.expect(TokenType.LBrace)
 
     const matcher = this.parseConceptMatcher()
+    let expectVersion: ExpectVersion | undefined
+    if (this.check(TokenType.Expect)) {
+      expectVersion = this.parseExpectVersion()
+    }
 
     let setAttributes: SetAttributes | undefined
     let setPropositions: SetPropositions | undefined
@@ -277,6 +295,7 @@ class Parser {
       kind: 'ConceptBlock',
       handle,
       matcher,
+      expectVersion,
       setAttributes,
       setPropositions,
       metadata,
@@ -297,6 +316,10 @@ class Parser {
 
     this.expect(TokenType.LBrace)
     const proposition = this.parsePropositionPatternBody(undefined)
+    let expectVersion: ExpectVersion | undefined
+    if (this.check(TokenType.Expect)) {
+      expectVersion = this.parseExpectVersion()
+    }
 
     let setAttributes: SetAttributes | undefined
     let metadata: WithMetadata | undefined
@@ -338,8 +361,92 @@ class Parser {
       subject: proposition.subject,
       predicate: proposition.predicate,
       object: proposition.object,
+      expectVersion,
       setAttributes,
       metadata,
+      range: { start, end: this.currentPos() },
+      leadingComments: comments.length > 0 ? comments : undefined
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  UPDATE
+  // ────────────────────────────────────────────────────────────────────
+
+  private parseUpdateStatement(): UpdateStatement {
+    const start = this.currentPos()
+    const comments = this.collectLeadingComments()
+    this.expect(TokenType.Update)
+
+    const target = this.expectVariable()
+    let setAttributes: SetAttributes | undefined
+    let setMetadata: SetMetadata | undefined
+
+    this.skipComments()
+    while (this.check(TokenType.Set) && !this.isAtEnd()) {
+      const setStart = this.currentPos()
+      this.advance()
+      if (this.check(TokenType.Attributes)) {
+        this.advance()
+        setAttributes = this.parseSetAttributesBody(setStart)
+      } else if (this.check(TokenType.Metadata)) {
+        this.advance()
+        setMetadata = this.parseSetMetadataBody(setStart)
+      } else {
+        this.error(
+          `Expected ATTRIBUTES or METADATA after SET in UPDATE statement`,
+          this.current()
+        )
+        this.advance()
+      }
+      this.skipComments()
+    }
+
+    if (!setAttributes && !setMetadata) {
+      this.error(
+        `Expected SET ATTRIBUTES or SET METADATA in UPDATE statement`,
+        this.current()
+      )
+    }
+
+    const where = this.parseWhereClause()
+
+    let limit: LimitClause | undefined
+    if (this.check(TokenType.Limit)) {
+      limit = this.parseLimitClause()
+    }
+
+    return {
+      kind: 'UpdateStatement',
+      target,
+      setAttributes,
+      setMetadata,
+      where,
+      limit,
+      range: { start, end: this.currentPos() },
+      leadingComments: comments.length > 0 ? comments : undefined
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  MERGE
+  // ────────────────────────────────────────────────────────────────────
+
+  private parseMergeStatement(): MergeStatement {
+    const start = this.currentPos()
+    const comments = this.collectLeadingComments()
+    this.expect(TokenType.Merge)
+    this.expect(TokenType.Concept)
+    const source = this.expectVariable()
+    this.expect(TokenType.Into)
+    const target = this.expectVariable()
+    const where = this.parseWhereClause()
+
+    return {
+      kind: 'MergeStatement',
+      source,
+      target,
+      where,
       range: { start, end: this.currentPos() },
       leadingComments: comments.length > 0 ? comments : undefined
     }
@@ -544,19 +651,32 @@ class Parser {
 
     let withType: string | undefined
     let withTypeValue: StringLiteral | ParameterRef | undefined
-    if (this.check(TokenType.With)) {
-      this.advance()
-      this.expect(TokenType.Type)
-      withTypeValue = this.parseStringOrParameterValue('SEARCH WITH TYPE')
-      withType =
-        withTypeValue.kind === 'StringLiteral'
-          ? withTypeValue.parsed
-          : withTypeValue.name
-    }
-
+    let mode: string | undefined
+    let modeValue: StringLiteral | ParameterRef | undefined
+    let threshold: ThresholdClause | undefined
     let limit: LimitClause | undefined
-    if (this.check(TokenType.Limit)) {
-      limit = this.parseLimitClause()
+
+    while (!this.isAtEnd()) {
+      if (this.check(TokenType.With)) {
+        this.advance()
+        this.expect(TokenType.Type)
+        withTypeValue = this.parseStringOrParameterValue('SEARCH WITH TYPE')
+        withType =
+          withTypeValue.kind === 'StringLiteral'
+            ? withTypeValue.parsed
+            : withTypeValue.name
+      } else if (this.check(TokenType.Mode)) {
+        this.advance()
+        modeValue = this.parseStringOrParameterValue('SEARCH MODE')
+        mode =
+          modeValue.kind === 'StringLiteral' ? modeValue.parsed : modeValue.name
+      } else if (this.check(TokenType.Threshold)) {
+        threshold = this.parseThresholdClause()
+      } else if (this.check(TokenType.Limit)) {
+        limit = this.parseLimitClause()
+      } else {
+        break
+      }
     }
 
     return {
@@ -566,6 +686,35 @@ class Parser {
       termValue,
       withType,
       withTypeValue,
+      mode,
+      modeValue,
+      threshold,
+      limit,
+      range: { start, end: this.currentPos() },
+      leadingComments: comments.length > 0 ? comments : undefined
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  EXPORT
+  // ────────────────────────────────────────────────────────────────────
+
+  private parseExportStatement(): ExportStatement {
+    const start = this.currentPos()
+    const comments = this.collectLeadingComments()
+    this.expect(TokenType.Export)
+    const target = this.expectVariable()
+    const where = this.parseWhereClause()
+
+    let limit: LimitClause | undefined
+    if (this.check(TokenType.Limit)) {
+      limit = this.parseLimitClause()
+    }
+
+    return {
+      kind: 'ExportStatement',
+      target,
+      where,
       limit,
       range: { start, end: this.currentPos() },
       leadingComments: comments.length > 0 ? comments : undefined
@@ -770,6 +919,36 @@ class Parser {
 
   private parsePredicateExpr(): PredicateExpr {
     const start = this.currentPos()
+    if (this.check(TokenType.Variable)) {
+      const pred = this.parsePredicateVariable()
+      if (this.check(TokenType.LBrace)) {
+        this.error(
+          `Predicate variables cannot use hop ranges; use a quoted predicate literal for path traversal`,
+          this.current()
+        )
+        this.parseHopRange()
+      }
+      if (this.check(TokenType.Pipe)) {
+        this.error(
+          `Predicate variables cannot be used in predicate alternations`,
+          this.current()
+        )
+        while (this.match(TokenType.Pipe)) {
+          if (this.check(TokenType.String)) {
+            this.parsePredicateLiteral()
+          } else if (this.check(TokenType.Variable)) {
+            this.parsePredicateVariable()
+          } else {
+            break
+          }
+        }
+      }
+      return {
+        ...pred,
+        range: { start, end: this.currentPos() }
+      }
+    }
+
     const first = this.parsePredicateLiteral()
 
     // Check for alternation: "pred1" | "pred2"
@@ -786,6 +965,16 @@ class Parser {
     }
 
     return first
+  }
+
+  private parsePredicateVariable(): PredicateVariable {
+    const start = this.currentPos()
+    const name = this.expectVariable()
+    return {
+      kind: 'PredicateVariable',
+      name,
+      range: { start, end: this.currentPos() }
+    }
   }
 
   private parsePredicateLiteral(): PredicateLiteral {
@@ -904,6 +1093,17 @@ class Parser {
     }
   }
 
+  private parseSetMetadataBody(start: Position): SetMetadata {
+    this.expect(TokenType.LBrace)
+    const entries = this.parseObjectEntries()
+    this.expect(TokenType.RBrace)
+    return {
+      kind: 'SetMetadata',
+      entries,
+      range: { start, end: this.currentPos() }
+    }
+  }
+
   private parseSetPropositionsBody(start: Position): SetPropositions {
     this.expect(TokenType.LBrace)
     const items: PropositionItem[] = []
@@ -1014,6 +1214,18 @@ class Parser {
     }
   }
 
+  private parseExpectVersion(): ExpectVersion {
+    const start = this.currentPos()
+    this.expect(TokenType.Expect)
+    this.expect(TokenType.Version)
+    const value = this.parseNumberOrParameterValue('EXPECT VERSION')
+    return {
+      kind: 'ExpectVersion',
+      value,
+      range: { start, end: this.currentPos() }
+    }
+  }
+
   // ────────────────────────────────────────────────────────────────────
   //  ORDER BY, LIMIT, CURSOR
   // ────────────────────────────────────────────────────────────────────
@@ -1022,6 +1234,25 @@ class Parser {
     const start = this.currentPos()
     this.expect(TokenType.Order)
     this.expect(TokenType.By)
+    const keys: OrderByKey[] = []
+
+    keys.push(this.parseOrderByKey())
+    while (this.match(TokenType.Comma)) {
+      keys.push(this.parseOrderByKey())
+    }
+
+    const first = keys[0]!
+    return {
+      kind: 'OrderByClause',
+      keys,
+      expression: first.expression,
+      direction: first.direction,
+      range: { start, end: this.currentPos() }
+    }
+  }
+
+  private parseOrderByKey(): OrderByKey {
+    const start = this.currentPos()
     const expression = this.parseExpression()
     let direction: 'ASC' | 'DESC' = 'ASC'
     if (this.check(TokenType.Asc)) {
@@ -1032,44 +1263,67 @@ class Parser {
       direction = 'DESC'
     }
     return {
-      kind: 'OrderByClause',
+      kind: 'OrderByKey',
       expression,
       direction,
       range: { start, end: this.currentPos() }
     }
   }
 
-  private parseLimitClause(): LimitClause {
+  private parseThresholdClause(): ThresholdClause {
     const start = this.currentPos()
-    this.expect(TokenType.Limit)
+    this.expect(TokenType.Threshold)
+    const value = this.parseNumberOrParameterValue('THRESHOLD')
+    return {
+      kind: 'ThresholdClause',
+      value,
+      range: { start, end: this.currentPos() }
+    }
+  }
+
+  private parseNumberOrParameterValue(
+    context: string
+  ): NumberLiteral | ParameterRef {
     const tok = this.current()
+    const start = this.currentPos()
     let value: NumberLiteral | ParameterRef
+
     if (tok.type === TokenType.Number) {
       value = {
         kind: 'NumberLiteral',
         value: Number(tok.value),
         raw: tok.value,
-        range: { start: this.currentPos(), end: this.currentPos() }
+        range: { start, end: start }
       }
       this.advance()
       value.range.end = this.currentPos()
-    } else if (tok.type === TokenType.Parameter) {
+      return value
+    }
+
+    if (tok.type === TokenType.Parameter) {
       value = {
         kind: 'ParameterRef',
         name: tok.value,
-        range: { start: this.currentPos(), end: this.currentPos() }
+        range: { start, end: start }
       }
       this.advance()
       value.range.end = this.currentPos()
-    } else {
-      this.error(`Expected number or parameter after LIMIT`, tok)
-      value = {
-        kind: 'NumberLiteral',
-        value: 0,
-        raw: '0',
-        range: { start: this.currentPos(), end: this.currentPos() }
-      }
+      return value
     }
+
+    this.error(`Expected number or parameter after ${context}`, tok)
+    return {
+      kind: 'NumberLiteral',
+      value: 0,
+      raw: '0',
+      range: { start, end: start }
+    }
+  }
+
+  private parseLimitClause(): LimitClause {
+    const start = this.currentPos()
+    this.expect(TokenType.Limit)
+    const value = this.parseNumberOrParameterValue('LIMIT')
     return {
       kind: 'LimitClause',
       value,
@@ -1589,7 +1843,11 @@ class Parser {
       type === TokenType.Regex ||
       type === TokenType.In ||
       type === TokenType.IsNull ||
-      type === TokenType.IsNotNull
+      type === TokenType.IsNotNull ||
+      type === TokenType.Add ||
+      type === TokenType.Mul ||
+      type === TokenType.Clamp ||
+      type === TokenType.Coalesce
     )
   }
 
@@ -1611,7 +1869,12 @@ class Parser {
       type === TokenType.By ||
       type === TokenType.Order ||
       type === TokenType.Set ||
-      type === TokenType.With
+      type === TokenType.With ||
+      type === TokenType.Into ||
+      type === TokenType.Expect ||
+      type === TokenType.Version ||
+      type === TokenType.Mode ||
+      type === TokenType.Threshold
     )
   }
 
@@ -1659,9 +1922,12 @@ class Parser {
     const stmtStarters = new Set([
       TokenType.Find,
       TokenType.Upsert,
+      TokenType.Update,
+      TokenType.Merge,
       TokenType.Delete,
       TokenType.Describe,
       TokenType.Search,
+      TokenType.Export,
       TokenType.EOF
     ])
     while (!this.isAtEnd() && !stmtStarters.has(this.current().type)) {

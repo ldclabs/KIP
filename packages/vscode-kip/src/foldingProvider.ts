@@ -3,8 +3,11 @@ import { parse } from '@ldclabs/kip-lang'
 import type {
   Program,
   UpsertStatement,
+  UpdateStatement,
+  MergeStatement,
   FindStatement,
   DeleteStatement,
+  ExportStatement,
   WherePattern,
   ConceptBlock,
   PropositionBlock
@@ -44,11 +47,20 @@ export class KipFoldingProvider implements vscode.FoldingRangeProvider {
         case 'UpsertStatement':
           this.collectFromUpsert(stmt, ranges)
           break
+        case 'UpdateStatement':
+          this.collectFromUpdate(stmt, ranges)
+          break
+        case 'MergeStatement':
+          this.collectFromMerge(stmt, ranges)
+          break
         case 'FindStatement':
           this.collectFromFind(stmt, ranges)
           break
         case 'DeleteStatement':
           this.collectFromDelete(stmt, ranges)
+          break
+        case 'ExportStatement':
+          this.collectFromExport(stmt, ranges)
           break
       }
     }
@@ -97,6 +109,24 @@ export class KipFoldingProvider implements vscode.FoldingRangeProvider {
     }
   }
 
+  private collectFromUpdate(
+    stmt: UpdateStatement,
+    ranges: vscode.FoldingRange[]
+  ): void {
+    if (stmt.setAttributes) this.addRange(stmt.setAttributes.range, ranges)
+    if (stmt.setMetadata) this.addRange(stmt.setMetadata.range, ranges)
+    this.addRange(stmt.where.range, ranges)
+    this.collectFromPatterns(stmt.where.patterns, ranges)
+  }
+
+  private collectFromMerge(
+    stmt: MergeStatement,
+    ranges: vscode.FoldingRange[]
+  ): void {
+    this.addRange(stmt.where.range, ranges)
+    this.collectFromPatterns(stmt.where.patterns, ranges)
+  }
+
   private collectFromDelete(
     stmt: DeleteStatement,
     ranges: vscode.FoldingRange[]
@@ -105,6 +135,14 @@ export class KipFoldingProvider implements vscode.FoldingRangeProvider {
       this.addRange(stmt.where.range, ranges)
       this.collectFromPatterns(stmt.where.patterns, ranges)
     }
+  }
+
+  private collectFromExport(
+    stmt: ExportStatement,
+    ranges: vscode.FoldingRange[]
+  ): void {
+    this.addRange(stmt.where.range, ranges)
+    this.collectFromPatterns(stmt.where.patterns, ranges)
   }
 
   private collectFromPatterns(

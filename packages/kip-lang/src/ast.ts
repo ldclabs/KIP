@@ -19,9 +19,12 @@ export interface Program extends BaseNode {
 export type Statement =
   | FindStatement
   | UpsertStatement
+  | UpdateStatement
+  | MergeStatement
   | DeleteStatement
   | DescribeStatement
   | SearchStatement
+  | ExportStatement
 
 // ─── FIND ────────────────────────────────────────────────────────────
 
@@ -36,6 +39,15 @@ export interface FindStatement extends BaseNode {
 
 export interface OrderByClause extends BaseNode {
   kind: 'OrderByClause'
+  keys: OrderByKey[]
+  /** First sort key, preserved for compatibility with pre-RC9 consumers. */
+  expression: Expression
+  /** First sort direction, preserved for compatibility with pre-RC9 consumers. */
+  direction: 'ASC' | 'DESC'
+}
+
+export interface OrderByKey extends BaseNode {
+  kind: 'OrderByKey'
   expression: Expression
   direction: 'ASC' | 'DESC'
 }
@@ -91,7 +103,15 @@ export type PropositionEndpoint =
   | ConceptPattern
   | PropositionPattern
 
-export type PredicateExpr = PredicateLiteral | PredicateAlternation
+export type PredicateExpr =
+  | PredicateLiteral
+  | PredicateVariable
+  | PredicateAlternation
+
+export interface PredicateVariable extends BaseNode {
+  kind: 'PredicateVariable'
+  name: string // ?predicate variable name (including ?)
+}
 
 export interface PredicateLiteral extends BaseNode {
   kind: 'PredicateLiteral'
@@ -144,6 +164,7 @@ export interface ConceptBlock extends BaseNode {
   kind: 'ConceptBlock'
   handle: string // ?local_handle
   matcher: ConceptMatcher
+  expectVersion?: ExpectVersion
   setAttributes?: SetAttributes
   setPropositions?: SetPropositions
   metadata?: WithMetadata
@@ -157,8 +178,14 @@ export interface PropositionBlock extends BaseNode {
   subject?: PropositionEndpoint
   predicate?: PredicateExpr
   object?: PropositionEndpoint
+  expectVersion?: ExpectVersion
   setAttributes?: SetAttributes
   metadata?: WithMetadata
+}
+
+export interface ExpectVersion extends BaseNode {
+  kind: 'ExpectVersion'
+  value: NumberLiteral | ParameterRef
 }
 
 export interface SetAttributes extends BaseNode {
@@ -181,6 +208,31 @@ export interface PropositionItem extends BaseNode {
 export interface WithMetadata extends BaseNode {
   kind: 'WithMetadata'
   entries: ObjectEntry[]
+}
+
+export interface SetMetadata extends BaseNode {
+  kind: 'SetMetadata'
+  entries: ObjectEntry[]
+}
+
+// ─── UPDATE ──────────────────────────────────────────────────────────
+
+export interface UpdateStatement extends BaseNode {
+  kind: 'UpdateStatement'
+  target: string
+  setAttributes?: SetAttributes
+  setMetadata?: SetMetadata
+  where: WhereClause
+  limit?: LimitClause
+}
+
+// ─── MERGE ───────────────────────────────────────────────────────────
+
+export interface MergeStatement extends BaseNode {
+  kind: 'MergeStatement'
+  source: string
+  target: string
+  where: WhereClause
 }
 
 // ─── DELETE ──────────────────────────────────────────────────────────
@@ -227,6 +279,24 @@ export interface SearchStatement extends BaseNode {
   withType?: string
   /** Raw WITH TYPE value, preserving either quoted string or :parameter syntax. */
   withTypeValue?: StringLiteral | ParameterRef
+  mode?: string
+  /** Raw MODE value, preserving either quoted string or :parameter syntax. */
+  modeValue?: StringLiteral | ParameterRef
+  threshold?: ThresholdClause
+  limit?: LimitClause
+}
+
+export interface ThresholdClause extends BaseNode {
+  kind: 'ThresholdClause'
+  value: NumberLiteral | ParameterRef
+}
+
+// ─── EXPORT ──────────────────────────────────────────────────────────
+
+export interface ExportStatement extends BaseNode {
+  kind: 'ExportStatement'
+  target: string
+  where: WhereClause
   limit?: LimitClause
 }
 

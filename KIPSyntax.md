@@ -70,13 +70,13 @@ Using an unregistered type/predicate → `KIP_2001`.
 
 Metadata keys starting with `_` are **engine-maintained and read-only to KML** (writing them → `KIP_2002`). Readable via dot notation like any metadata:
 
-| Field           | Semantics                                                                                  |
-| --------------- | ------------------------------------------------------------------------------------------ |
-| `_version`      | Monotonic mutation counter (starts at 1). Target of `EXPECT VERSION`.                       |
-| `_updated_at`   | Engine-recorded ISO-8601 time of last mutation.                                             |
+| Field                            | Semantics                                                                                                                               |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `_version`                       | Monotonic mutation counter (starts at 1). Target of `EXPECT VERSION`.                                                                   |
+| `_updated_at`                    | Engine-recorded ISO-8601 time of last mutation.                                                                                         |
 | `_accessed_at` / `_access_count` | Engine-measured retrieval stats (top-level `FIND`/`SEARCH` results) — the real "use it or lose it" signal for decay/landmark decisions. |
-| `_score`        | Transient normalized `SEARCH` relevance `[0,1]`; never persisted.                           |
-| `_merged_from`  | Provenance trail left by `MERGE` (`"<Type>:<name>"` entries).                               |
+| `_score`                         | Transient normalized `SEARCH` relevance `[0,1]`; never persisted.                                                                       |
+| `_merged_from`                   | Provenance trail left by `MERGE` (`"<Type>:<name>"` entries).                                                                           |
 
 **`EXPECT VERSION <n>`** (optional line in `UPSERT` `CONCEPT`/`PROPOSITION` blocks, right after the identity clause): block executes only if the element's `_version` equals `<n>`; `EXPECT VERSION 0` = must-not-exist (create-only). On mismatch the whole `UPSERT` aborts with `KIP_3005` → re-read, re-merge, retry. Use it for every read-modify-write of array/object values (e.g., `$self` attributes, logs).
 
@@ -538,31 +538,31 @@ Serializes matched concepts/propositions into an idempotent `UPSERT` capsule for
 
 **Reserved System Fields (`_` namespace — engine-maintained, read-only to KML; see §1.8)**
 
-| Field                            | Type   | Description                                                  |
-| -------------------------------- | ------ | ------------------------------------------------------------ |
-| `_version`                       | number | Monotonic mutation counter; target of `EXPECT VERSION`       |
-| `_updated_at`                    | string | ISO-8601 last-mutation time (engine truth)                   |
+| Field                            | Type            | Description                                            |
+| -------------------------------- | --------------- | ------------------------------------------------------ |
+| `_version`                       | number          | Monotonic mutation counter; target of `EXPECT VERSION` |
+| `_updated_at`                    | string          | ISO-8601 last-mutation time (engine truth)             |
 | `_accessed_at` / `_access_count` | string / number | Retrieval stats from top-level `FIND`/`SEARCH` results |
-| `_score`                         | number | Transient `SEARCH` relevance `[0,1]`; never persisted        |
-| `_merged_from`                   | array\<string\> | `MERGE` provenance trail                            |
+| `_score`                         | number          | Transient `SEARCH` relevance `[0,1]`; never persisted  |
+| `_merged_from`                   | array\<string\> | `MERGE` provenance trail                               |
 
 #### 6.3. Error Codes
 
-| Code       | Name                  | Meaning                                     |
-| ---------- | --------------------- | ------------------------------------------- |
-| `KIP_1001` | `InvalidSyntax`       | Parse or structural error                   |
-| `KIP_1002` | `InvalidIdentifier`   | Illegal identifier format                   |
-| `KIP_2001` | `TypeMismatch`        | Unknown type or predicate                   |
+| Code       | Name                  | Meaning                                                                          |
+| ---------- | --------------------- | -------------------------------------------------------------------------------- |
+| `KIP_1001` | `InvalidSyntax`       | Parse or structural error                                                        |
+| `KIP_1002` | `InvalidIdentifier`   | Illegal identifier format                                                        |
+| `KIP_2001` | `TypeMismatch`        | Unknown type or predicate                                                        |
 | `KIP_2002` | `ConstraintViolation` | Schema constraint violated (incl. writing `_` reserved keys, cross-type `MERGE`) |
-| `KIP_2003` | `InvalidValueType`    | JSON value type mismatches schema           |
-| `KIP_3001` | `ReferenceError`      | Undefined variable or handle                |
-| `KIP_3002` | `NotFound`            | Referenced node/link does not exist         |
-| `KIP_3003` | `DuplicateExists`     | Uniqueness constraint violated; `MERGE` variable matched >1 node |
-| `KIP_3004` | `ImmutableTarget`     | Protected system structure modified/deleted |
-| `KIP_3005` | `VersionConflict`     | `EXPECT VERSION` mismatch — re-read, re-merge, retry |
-| `KIP_4001` | `ExecutionTimeout`    | Query exceeded execution time               |
-| `KIP_4002` | `ResourceExhausted`   | Result/resource limit exceeded              |
-| `KIP_4003` | `InternalError`       | Unknown internal system error               |
+| `KIP_2003` | `InvalidValueType`    | JSON value type mismatches schema                                                |
+| `KIP_3001` | `ReferenceError`      | Undefined variable or handle                                                     |
+| `KIP_3002` | `NotFound`            | Referenced node/link does not exist                                              |
+| `KIP_3003` | `DuplicateExists`     | Uniqueness constraint violated; `MERGE` variable matched >1 node                 |
+| `KIP_3004` | `ImmutableTarget`     | Protected system structure modified/deleted                                      |
+| `KIP_3005` | `VersionConflict`     | `EXPECT VERSION` mismatch — re-read, re-merge, retry                             |
+| `KIP_4001` | `ExecutionTimeout`    | Query exceeded execution time                                                    |
+| `KIP_4002` | `ResourceExhausted`   | Result/resource limit exceeded                                                   |
+| `KIP_4003` | `InternalError`       | Unknown internal system error                                                    |
 
 ---
 

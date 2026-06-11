@@ -4,12 +4,13 @@ TypeScript toolkit for **KIP** (Knowledge Interaction Protocol) — a structured
 
 Provides a full-featured **lexer → parser → AST → formatter / diagnostics** pipeline for `.kip` files.
 
-The parser targets the KIP v1.0-RC7 command-text syntax, including `:parameter`
+The parser targets the KIP v1.0-RC9 command-text syntax, including `:parameter`
 placeholders in full value positions, JSON-compatible object literals with
-unquoted identifier keys, `SEARCH`, `DESCRIBE`, and batch-friendly multi-command
-source text. The `execute_kip` request envelope (`command`, `commands`,
-`parameters`, `dry_run`) is JSON outside the `.kip` language and should be
-validated by the caller.
+unquoted identifier keys, predicate variables, multi-key `ORDER BY`, `SEARCH`
+retrieval modes and thresholds, `EXPECT VERSION`, `UPDATE`, `MERGE`, `EXPORT`,
+and batch-friendly multi-command source text. The `execute_kip` request envelope
+(`command`, `commands`, `parameters`, `dry_run`) is JSON outside the `.kip`
+language and should be validated by the caller.
 
 ## Installation
 
@@ -105,14 +106,15 @@ Diagnostics cover:
 
 All AST types are exported for downstream consumption:
 
-- **Statements**: `FindStatement`, `UpsertStatement`, `DeleteStatement`, `DescribeStatement`, `SearchStatement`
-- **Blocks**: `ConceptBlock`, `PropositionBlock`, `SetAttributes`, `SetPropositions`, `WithMetadata`
+- **Statements**: `FindStatement`, `UpsertStatement`, `UpdateStatement`, `MergeStatement`, `DeleteStatement`, `DescribeStatement`, `SearchStatement`, `ExportStatement`
+- **Blocks**: `ConceptBlock`, `PropositionBlock`, `SetAttributes`, `SetMetadata`, `SetPropositions`, `WithMetadata`, `ExpectVersion`
 - **Patterns**: `ConceptPattern`, `PropositionPattern`, `FilterClause`, `NotClause`, `OptionalClause`, `UnionClause`
 - **Expressions**: `ObjectLiteral`, `ArrayLiteral`, `ObjectEntry`, `Expression`
 
 String-or-parameter statement fields such as `SearchStatement.termValue`,
-`SearchStatement.withTypeValue`, and `DescribeStatement.typeNameValue` preserve
-whether the original source used a quoted string or a `:parameter` placeholder.
+`SearchStatement.withTypeValue`, `SearchStatement.modeValue`, and
+`DescribeStatement.typeNameValue` preserve whether the original source used a
+quoted string or a `:parameter` placeholder.
 
 ## KIP Language
 
