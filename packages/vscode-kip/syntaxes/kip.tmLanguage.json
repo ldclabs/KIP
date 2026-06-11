@@ -95,7 +95,7 @@
     },
     "function": {
       "name": "support.function.kip",
-      "match": "\\b(COUNT|SUM|AVG|MIN|MAX|CONTAINS|STARTS_WITH|ENDS_WITH|REGEX|IN|IS_NULL|IS_NOT_NULL|DISTINCT)\\b"
+      "match": "\\b(COUNT|SUM|AVG|MIN|MAX|CONTAINS|STARTS_WITH|ENDS_WITH|REGEX|IN|IS_NULL|IS_NOT_NULL|DISTINCT|ADD|MUL|CLAMP|COALESCE)\\b"
     },
     "keyword-compound": {
       "patterns": [
@@ -142,12 +142,24 @@
         {
           "name": "keyword.other.kip",
           "match": "\\bDELETE\\s+CONCEPT\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "\\bSET\\s+METADATA\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "\\bMERGE\\s+CONCEPT\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "\\bEXPECT\\s+VERSION\\b"
         }
       ]
     },
     "keyword": {
       "name": "keyword.control.kip",
-      "match": "\\b(FIND|WHERE|UPSERT|DELETE|CONCEPT|PROPOSITION|SET|ATTRIBUTES|PROPOSITIONS|WITH|METADATA|ORDER|BY|LIMIT|CURSOR|FILTER|NOT|OPTIONAL|UNION|DETACH|FROM|ASC|DESC|DESCRIBE|SEARCH|PRIMER|DOMAINS|TYPE|TYPES)\\b"
+      "match": "\\b(FIND|WHERE|UPSERT|UPDATE|MERGE|INTO|DELETE|CONCEPT|PROPOSITION|SET|ATTRIBUTES|PROPOSITIONS|WITH|METADATA|ORDER|BY|LIMIT|CURSOR|FILTER|NOT|OPTIONAL|UNION|DETACH|FROM|ASC|DESC|DESCRIBE|SEARCH|EXPORT|PRIMER|DOMAINS|TYPE|TYPES|MODE|THRESHOLD|EXPECT|VERSION)\\b"
     },
     "operator": {
       "patterns": [

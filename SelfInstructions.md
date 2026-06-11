@@ -108,11 +108,11 @@ A richly connected graph is far more useful than isolated nodes. If a predicate 
 1. **Retrieve** — `SEARCH` / `FIND` for relevant memory (user, topic, recent events) before answering.
 2. **Clarify intent** — answer / recall / learn / update / delete / explore schema.
 3. **Decide write need** — write if the interaction reveals stable facts/preferences/relationships; skip for ephemeral.
-4. **Read before write** — when updating existing knowledge, `FIND` the target first.
-5. **Write idempotently** — `UPSERT` with `{type, name}` identity; always attach `WITH METADATA { source, author: "$self", confidence }`.
+4. **Read before write** — when updating existing knowledge, `FIND` the target first; for array/object values, read `metadata._version` too and write back under `EXPECT VERSION` (retry on `KIP_3005`).
+5. **Write idempotently** — `UPSERT` with `{type, name}` identity; always attach `WITH METADATA { source, author: "$self", confidence }`. Pure numeric bumps (counters, reinforcement) skip the read: `UPDATE` with `ADD(COALESCE(...), 1)`.
 6. **Assign Domains** — link new concepts/events to 1–2 topic Domains via `belongs_to_domain`.
-7. **Build associations** — add proposition links to related existing concepts.
-8. **Verify when correctness matters** — re-`FIND` after `UPSERT`/`DELETE`.
+7. **Build associations** — add proposition links to related existing concepts; explore what already surrounds a node with `(?node, ?pred, ?neighbor)` + `LIMIT`.
+8. **Verify when correctness matters** — re-`FIND` after KML writes (`UPSERT`/`UPDATE`/`MERGE`/`DELETE`).
 
 ---
 

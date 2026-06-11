@@ -66,12 +66,12 @@ FIND( <variables_or_aggregations> )
 WHERE {
   <patterns_and_filters>
 }
-ORDER BY <variable> [ASC|DESC]
+ORDER BY <expr> [ASC|DESC], <expr> [ASC|DESC], ...
 LIMIT <integer>
 CURSOR "<token>"
 ```
 
-`ORDER BY` / `LIMIT` / `CURSOR` are optional result modifiers.
+`ORDER BY` / `LIMIT` / `CURSOR` are optional result modifiers. `ORDER BY` accepts one or more comma-separated sort keys (variable, dot-path, or an aggregation also present in `FIND`), evaluated left to right; `null` always sorts last.
 
 #### 2.1. `FIND` Clause
 Defines output columns.
@@ -93,7 +93,8 @@ The pattern/filter clauses in `WHERE` are by default connected using the **AND**
     *   `?subject` / `?object`: Can be a variable, a literal ID, or a nested Concept clause.
     *   Embedded Concept Clause (no variable name): `{ ... }`
     *   Embedded Proposition Clause (no variable name): `( ... )`
-*   **Path Modifiers** (on predicate):
+*   **Predicate Variable**: `?link (?subject, ?pred, ?object)` — `?pred` binds the predicate name (string) for associative exploration ("what surrounds X?"). Usable in `FIND`/`FILTER`; no quantifiers/alternatives on a variable; constrain at least one endpoint and add `LIMIT`.
+*   **Path Modifiers** (on literal predicates):
     *   Hops: `"<pred>"{m,n}` (e.g., `"follows"{1,3}`).
     *   Alternatives: `"<pred1>" | "<pred2>" | ...`.
 
@@ -128,6 +129,7 @@ UPSERT {
   // Concept Definition
   CONCEPT ?handle {
     {type: "<Type>", name: "<name>"} // Match or Create
+    EXPECT VERSION <n> // Optional CAS guard against metadata._version
     SET ATTRIBUTES { <key>: <value>, ... }
     SET PROPOSITIONS {
       ("<predicate>", ?other_handle)
@@ -152,6 +154,7 @@ WITH METADATA { ... } // Optional, global metadata (as default for all items)
 2.  **Define Before Use**: `?handle`/`?prop_handle` must be defined in a `CONCEPT`/`PROPOSITION` block before being referenced elsewhere.
 3.  **Shallow Merge**: `SET ATTRIBUTES` and `WITH METADATA` overwrites specified keys; unspecified keys remain unchanged.
 4.  **Provenance**: Use `WITH METADATA` to record provenance (source, author, confidence, time). It can be attached to individual `CONCEPT`/`PROPOSITION` blocks, or to the entire `UPSERT` block (as default for all items).
+5.  **`EXPECT VERSION <n>`** (optional, after the identity clause): block runs only if the element's engine-maintained `metadata._version` equals `<n>` (`0` = must not exist). Mismatch aborts the whole `UPSERT` with `KIP_3005` — re-read, re-merge, retry. Use for read-modify-write of array/object values.
 
 #### 3.1.1. Idempotency Patterns (Prefer these)
 
@@ -189,7 +192,35 @@ UPSERT {
 WITH METADATA { source: "SchemaEvolution", author: "$self", confidence: 0.9 }
 ```
 
-#### 3.2. `DELETE`
+#### 3.2. `UPDATE`
+Pattern-matched **bulk mutation** of existing elements (never creates). The memory-metabolism workhorse: decay, counters, sweeps.
+
+```prolog
+UPDATE ?target
+SET ATTRIBUTES { <key>: <value_or_expr>, ... }   // >=1 SET block required
+SET METADATA { <key>: <value_or_expr>, ... }     // `_` keys rejected (KIP_2002)
+WHERE { <patterns binding ?target> }
+LIMIT N                                          // optional safety cap
+```
+
+*   Atomic: all matched elements update, or none.
+*   **Update expressions** (numeric, per element, from `?target`'s own state only): `ADD(a, b)`, `MUL(a, b)`, `CLAMP(x, lo, hi)`, `COALESCE(x, default)`. A `null`/non-number result skips that key for that element.
+*   Example — reinforcement without read-modify-write:
+    `UPDATE ?pref SET ATTRIBUTES { evidence_count: ADD(COALESCE(?pref.attributes.evidence_count, 0), 1) } WHERE { ?pref {type: "Preference", name: :n} }`
+
+#### 3.3. `MERGE`
+Atomic entity consolidation (deduplication).
+
+```prolog
+MERGE CONCEPT ?source INTO ?target
+WHERE { ?source {type: "<T>", name: "<dup>"} ?target {type: "<T>", name: "<canonical>"} }
+```
+
+*   Each variable must match exactly one node of the same type (0 → `KIP_3002`; >1 → `KIP_3003`; type mismatch → `KIP_2002`).
+*   Atomically repoints all incident links (IDs preserved; (s,p,o) collisions keep the target's link), unions `aliases` (source `name` included), fills missing attributes (target wins), records `_merged_from`, deletes the source.
+*   Verify both nodes with `FIND` first; enrich the target beforehand if the source holds better values.
+
+#### 3.4. `DELETE`
 Targeted removal of graph elements.
 
 *   **Delete Attributes**:
@@ -221,9 +252,13 @@ Lightweight introspection and lookup commands.
 *   `DESCRIBE PROPOSITION TYPE "<pred>"`: Schema details for a predicate.
 
 #### 4.2. `SEARCH`
-Full-text search for entity resolution (Grounding).
-*   `SEARCH CONCEPT "<term>" [WITH TYPE "<Type>"] [LIMIT N]`
-*   `SEARCH PROPOSITION "<term>" [WITH TYPE "<pred>"] [LIMIT N]`
+Index-driven search for entity resolution (Grounding) and associative retrieval.
+*   `SEARCH CONCEPT "<term>" [WITH TYPE "<Type>"] [MODE "keyword"|"semantic"|"hybrid"] [THRESHOLD <0..1>] [LIMIT N]`
+*   `SEARCH PROPOSITION "<term>" [WITH TYPE "<pred>"] [MODE ...] [THRESHOLD ...] [LIMIT N]`
+*   `keyword` = lexical; `semantic` = meaning-based (engine owns embeddings; text in, never vectors); `hybrid` = fused (default where supported). Hits carry transient `metadata._score` (`[0,1]`, descending); `THRESHOLD` drops weak hits.
+
+#### 4.3. `EXPORT`
+Read-only capsule serialization: `EXPORT ?target WHERE { ... } [LIMIT N]` returns an idempotent `UPSERT` script (`{"capsule": ..., "concepts": n, "propositions": m}`) for backup, migration, and agent-to-agent knowledge exchange. Reserved `_` metadata is never exported.
 
 ---
 
@@ -266,7 +301,7 @@ Full-text search for entity resolution (Grounding).
 
 **Parameters:**
 *   `command` (String): Single KIP command. **Mutually exclusive with `commands`**.
-*   `commands` (Array): Batch of commands. Each element: `String` (uses shared `parameters`) or `{command, parameters}` (independent). **Stops on first error**.
+*   `commands` (Array): Batch of commands. Each element: `String` (uses shared `parameters`) or `{command, parameters}` (independent). **The first KML (`UPSERT`/`UPDATE`/`MERGE`/`DELETE`) error stops the batch**; KQL/META/syntax errors are returned inline and execution continues.
 *   `parameters` (Object): Placeholder substitution (`:name` → value). A placeholder must occupy a complete KIP value position (e.g., `name: :name`, `LIMIT :limit`, or `SEARCH CONCEPT :term`). Do not embed placeholders inside quoted strings (e.g., `"Hello :name"`), because replacement uses JSON serialization.
 *   `dry_run` (Boolean): Validate only, no execution.
 
@@ -326,12 +361,14 @@ When writing important knowledge, include as many as available:
 | `observed_at` / `created_at` | string | ISO-8601 timestamp                                     |
 | `status`                     | string | `"draft"` \| `"reviewed"` \| `"deprecated"`            |
 
+Metadata keys starting with `_` are **reserved and engine-maintained** (read-only to KML; writes → `KIP_2002`): `_version` (mutation counter, target of `EXPECT VERSION`), `_updated_at`, `_accessed_at` / `_access_count` (retrieval stats), `_score` (transient SEARCH relevance), `_merged_from` (MERGE provenance).
+
 #### 6.3. Error Codes
 | Series   | Category | Example                                                         |
 | :------- | :------- | :-------------------------------------------------------------- |
 | **1xxx** | Syntax   | `KIP_1001` (Parse Error), `KIP_1002` (Bad Identifier)           |
 | **2xxx** | Schema   | `KIP_2001` (Unknown Type), `KIP_2002` (Constraint Violation)    |
-| **3xxx** | Logic    | `KIP_3001` (Reference Undefined), `KIP_3002` (Target Not Found) |
+| **3xxx** | Logic    | `KIP_3001` (Reference Undefined), `KIP_3002` (Target Not Found), `KIP_3005` (Version Conflict — re-read & retry) |
 | **4xxx** | System   | `KIP_4001` (Timeout), `KIP_4002` (Result Too Large)             |
 
 ---

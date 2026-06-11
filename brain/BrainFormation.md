@@ -101,17 +101,20 @@ Before creating any concept, search:
 SEARCH CONCEPT "Alice" WITH TYPE "Person" LIMIT 5
 ```
 
-If a match exists, `UPSERT` to update rather than duplicating. A re-mention is not noise — it is **reinforcement** (the spacing/testing effect). When existing knowledge is re-confirmed, strengthen it: bump `evidence_count`, refresh `last_observed`, and nudge `confidence` upward (cap `0.99`). This is the homeostatic counter-force to Maintenance's decay — facts that recur stay strong; facts that never recur fade. Reinforcement also fires on **recall confirmation** (the testing effect proper): when an assistant message states a remembered fact and the user confirms or acts on it, strengthen that fact the same way.
+If a match exists, update rather than duplicating. A re-mention is not noise — it is **reinforcement** (the spacing/testing effect). When existing knowledge is re-confirmed, strengthen it: bump `evidence_count`, refresh `last_observed`, and nudge `confidence` upward (cap `0.99`). This is the homeostatic counter-force to Maintenance's decay — facts that recur stay strong; facts that never recur fade. Reinforcement also fires on **recall confirmation** (the testing effect proper): when an assistant message states a remembered fact and the user confirms or acts on it, strengthen that fact the same way.
 
 ```prolog
-// Reinforce on re-confirmation (read evidence_count first, then increment)
-UPSERT {
-  CONCEPT ?pref {
-    {type: "Preference", name: :pref_name}
-    SET ATTRIBUTES { confidence: :nudged_confidence, evidence_count: :incremented, last_observed: :timestamp }
-  }
+// Reinforce on re-confirmation — single UPDATE, no read round-trip
+UPDATE ?pref
+SET ATTRIBUTES {
+  evidence_count: ADD(COALESCE(?pref.attributes.evidence_count, 0), 1),
+  confidence: CLAMP(ADD(COALESCE(?pref.attributes.confidence, 0.7), 0.05), 0.0, 0.99),
+  last_observed: :timestamp
 }
-WITH METADATA { source: :source, author: "$self", confidence: :nudged_confidence, created_at: :timestamp, observed_at: :timestamp }
+SET METADATA { observed_at: :timestamp }
+WHERE {
+  ?pref {type: "Preference", name: :pref_name}
+}
 ```
 
 ### Phase 4: Schema Evolution — Define Before Use
@@ -131,7 +134,7 @@ WITH METADATA { source: "Formation", author: "$self", confidence: 1.0, created_a
 
 ### Phase 5: Encode
 
-> **KIP discipline**: Use only registered types/predicates; `?name` is a variable and `:name` is a complete KIP value parameter. Before unfamiliar writes, run `DESCRIBE CONCEPT TYPE "<Type>"` / `DESCRIBE PROPOSITION TYPE "<pred>"`. `SET ATTRIBUTES` and `WITH METADATA` are shallow merges, so array/object updates require read-merge-write; inner metadata overrides outer metadata key by key. Every write carries `source`, `author`, `confidence`, and `created_at`; observed memories also carry `observed_at`.
+> **KIP discipline**: Use only registered types/predicates; `?name` is a variable and `:name` is a complete KIP value parameter. Before unfamiliar writes, run `DESCRIBE CONCEPT TYPE "<Type>"` / `DESCRIBE PROPOSITION TYPE "<pred>"`. `SET ATTRIBUTES` and `WITH METADATA` are shallow merges, so array/object updates require read-merge-write — read the element's `metadata._version` along with the value and write back under `EXPECT VERSION` (on `KIP_3005`, re-read and retry); pure numeric bumps need no read at all (`UPDATE` + `ADD`/`COALESCE`). Inner metadata overrides outer metadata key by key. Every write carries `source`, `author`, `confidence`, and `created_at`; observed memories also carry `observed_at`.
 
 #### 5a. Episodic — Event
 
@@ -243,23 +246,26 @@ A single signal may write to two places (e.g., behavioral feedback + reusable le
 
 ##### Read-Modify-Write (mandatory for `$self` and array/object attributes)
 
-KIP overwrites array/object values at the attribute key, not recursively. Read the current value, merge in memory, then write the full updated value.
+KIP overwrites array/object values at the attribute key, not recursively. Read the current value **and its `_version`**, merge in memory, then write the full updated value guarded by `EXPECT VERSION` — Formation may run concurrently with other Formation calls or a sleep cycle, and an unguarded write can silently drop their changes.
 
 ```prolog
-// Step 1: read current $self
-FIND(?self) WHERE { ?self {type: "Person", name: "$self"} }
+// Step 1: read current $self with its version
+FIND(?self, ?self.metadata._version) WHERE { ?self {type: "Person", name: "$self"} }
 ```
 
 ```prolog
-// Step 2: merge in memory, write back only the attributes you change
+// Step 2: merge in memory, write back only the attributes you change, guarded
 UPSERT {
   CONCEPT ?self {
     {type: "Person", name: "$self"}
+    EXPECT VERSION :v
     SET ATTRIBUTES { behavior_preferences: :merged_behavior_preferences }
   }
 }
 WITH METADATA { source: :source, author: "$self", confidence: :confidence, created_at: :timestamp, observed_at: :timestamp }
 ```
+
+On `KIP_3005` (a concurrent writer won the race): re-read, re-merge, retry once.
 
 ##### Insight (lesson learned / knowledge gap)
 

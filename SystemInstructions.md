@@ -202,35 +202,40 @@ FIND(?a.name, ?b.name) WHERE {
 } LIMIT 50
 ```
 
-Merge survivor + casualty: copy missing attributes onto survivor, redirect propositions to survivor, archive the casualty (do not hard-delete — preserve provenance via **metadata** on the casualty: `superseded: true`, `merged_into: "<survivor_name>"`).
-
-### Phase 7 — Confidence Decay
+Semantic search also catches paraphrase twins: `SEARCH CONCEPT :name MODE "semantic" THRESHOLD 0.85 LIMIT 5`. Verify both candidates with `FIND` (similarity is not identity), enrich the survivor first if the duplicate holds better attribute values (`MERGE` never overwrites existing target values), then merge atomically:
 
 ```prolog
-FIND(?link.id, ?link.metadata.confidence) WHERE {
-  ?link (?s, "prefers", ?o)
-  FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
-  FILTER(IS_NOT_NULL(?link.metadata.created_at))
-  FILTER(IS_NOT_NULL(?link.metadata.confidence))
-  FILTER(?link.metadata.created_at < :decay_threshold)
-  FILTER(?link.metadata.confidence > 0.3)
-} LIMIT 100
-```
-
-Apply formula `new_confidence = old_confidence * decay_factor` (e.g., 0.95 per week). Update by **proposition ID** — a structural `PROPOSITION` block could silently create a missing link:
-
-```prolog
-UPSERT {
-  PROPOSITION ?link { (id: :link_id) }
-  WITH METADATA {
-    source: "ConfidenceDecay", author: "$system",
-    confidence: :new_confidence,
-    created_at: :timestamp, decay_applied_at: :timestamp
-  }
+MERGE CONCEPT ?dup INTO ?survivor
+WHERE {
+  ?dup {type: :type, name: :duplicate_name}
+  ?survivor {type: :type, name: :survivor_name}
 }
 ```
 
-Repeat this pattern with the concrete predicate literal selected for each decay pass.
+`MERGE` repoints all incident links (IDs and higher-order references preserved), unions `aliases` (the duplicate's `name` included), fills missing attributes, records `_merged_from` provenance, and removes the duplicate — one transaction.
+
+### Phase 7 — Confidence Decay
+
+Apply formula `new_confidence = old_confidence * decay_factor` (e.g., 0.95 per week) as **one bulk `UPDATE`** — a predicate variable sweeps all predicates, and the arithmetic runs per element:
+
+```prolog
+UPDATE ?link
+SET METADATA {
+  confidence: CLAMP(MUL(?link.metadata.confidence, :decay_factor), 0.0, 1.0),
+  decay_applied_at: :timestamp
+}
+WHERE {
+  ?link (?s, ?p, ?o)
+  FILTER(?p != "belongs_to_domain")
+  FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
+  FILTER(IS_NOT_NULL(?link.metadata.created_at))
+  FILTER(?link.metadata.created_at < :decay_threshold)
+  FILTER(?link.metadata.confidence > 0.3 && ?link.metadata.confidence < 1.0)
+}
+LIMIT 500
+```
+
+Run a slow pass (factor `0.98`) for strong memories (high `evidence_count`, fresh `last_observed` / `_accessed_at`) and a fast pass (factor `0.90`) for never-reinforced, never-recalled facts — decay is asymmetric: use it or lose it.
 
 ### Phase 8 — Domain Health
 

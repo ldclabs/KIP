@@ -1,16 +1,16 @@
 {
   "name": "execute_kip_readonly",
-  "description": "Executes one or more read-only KIP (Knowledge Interaction Protocol) commands (e.g. FIND, SEARCH, DESCRIBE) against the Cognitive Nexus to query from your persistent memory.",
+  "description": "Executes one or more read-only KIP (Knowledge Interaction Protocol) commands (e.g. FIND, SEARCH, DESCRIBE, EXPORT) against the Cognitive Nexus to query from your persistent memory.",
   "parameters": {
     "type": "object",
     "properties": {
       "command": {
         "type": "string",
-        "description": "A single complete read-only KIP command (FIND / SEARCH / DESCRIBE). Mutually exclusive with commands."
+        "description": "A single complete read-only KIP command (FIND / SEARCH / DESCRIBE / EXPORT). Mutually exclusive with commands."
       },
       "commands": {
         "type": "array",
-        "description": "An array of read-only KIP commands (FIND / SEARCH / DESCRIBE) for batch execution (reduces round-trips). Commands are executed sequentially; per-command errors are returned inline without aborting the batch. KML commands (UPSERT / DELETE) are rejected by this endpoint.",
+        "description": "An array of read-only KIP commands (FIND / SEARCH / DESCRIBE / EXPORT) for batch execution (reduces round-trips). Commands are executed sequentially; per-command errors are returned inline without aborting the batch. KML commands (UPSERT / UPDATE / MERGE / DELETE) are rejected by this endpoint.",
         "items": {
           "oneOf": [
             {

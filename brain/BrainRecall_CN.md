@@ -76,9 +76,17 @@ SEARCH CONCEPT "Alice" WITH TYPE "Person" LIMIT 10
 SEARCH CONCEPT "Project Aurora" LIMIT 10
 ```
 
+当探针是**意思而非名字**（“那个关于偏好简短报错信息的事”）时，用语义模式检索，并尊重返回的 `_score`：
+
+```prolog
+SEARCH CONCEPT "prefers terse error messages" MODE "semantic" THRESHOLD 0.7 LIMIT 10
+```
+
+低于信心线的命中比诚实的未命中更糟——保留 `THRESHOLD`，并把 `metadata._score` 当作检索相关度，而非知识可信度。
+
 #### 跨语言锚定
 
-图谱以**英文**存储概念的 `name` / `description`。对非英文查询，通过 `commands` 数组并行发送**双语**探针：
+图谱以**英文**存储概念的 `name` / `description`。对非英文查询，通过 `commands` 数组并行发送**双语**探针（当引擎的语义索引支持多语言时，默认的 `hybrid` 模式也能跨语言桥接）：
 
 ```prolog
 SEARCH CONCEPT "深色模式" LIMIT 10
@@ -140,15 +148,14 @@ FIND(?event) WHERE {
 } ORDER BY ?event.attributes.start_time DESC LIMIT 10
 ```
 
-`start_time` 回答「最近的」；`salience_score` 回答「最重要 / 最难忘的」——按问题隐含的维度选择：
+`start_time` 回答「最近的」；`salience_score` 回答「最重要 / 最难忘的」——用多键 `ORDER BY` 把两个维度合起来（未评分的事件自动沉底：`null` 永远排最后）：
 
 ```prolog
-// 「最难忘」变体 — 闪光时刻优先
+// 「最难忘」变体 — 闪光时刻优先，新近度作次级排序
 FIND(?event) WHERE {
   ?event {type: "Event"}
   (?event, "involves", {type: "Person", name: :person_name})
-  FILTER(IS_NOT_NULL(?event.attributes.salience_score))
-} ORDER BY ?event.attributes.salience_score DESC LIMIT 10
+} ORDER BY ?event.attributes.salience_score DESC, ?event.attributes.start_time DESC LIMIT 10
 ```
 
 #### 模式 E — 领域探索
@@ -262,7 +269,7 @@ FIND(?c.name, ?c.attributes.description, ?c.attributes.due_at) WHERE {
 } LIMIT 10
 ```
 
-在返回结果内部，根据 `?pref.attributes.evidence_count`、`?pref.attributes.last_observed` 与 `?link.metadata.confidence` 综合成“最强记忆优先”；KIP 当前每条查询只接受一个 `ORDER BY` 表达式。简报以已逾期 / 临近到期的承诺开头——到期提醒正是通过这条路径真正抵达用户。
+直接在查询中用多键 `ORDER BY` 表达“最强记忆优先”（如 `ORDER BY ?link.metadata.confidence DESC, ?pref.attributes.last_observed DESC`）；综合成文时再把 `evidence_count` 一并权衡。简报以已逾期 / 临近到期的承诺开头——到期提醒正是通过这条路径真正抵达用户。
 
 > 对消费方智能体最有用的一次回忆：「我在回应前该知道什么？」
 
@@ -288,14 +295,24 @@ FIND(?c.name, ?c.attributes.description, ?c.attributes.beneficiary) WHERE {
 
 初始结果不足时：扩大范围（更广类型 / 更高 LIMIT / 更低置信度）→ 遍历链接 → 检查相关领域 → 退回到 Event。
 
+**自我图谱（ego-graph）探针**是迭代深入的核心动作——一条查询揭示已锚定节点周边的一切及关系名，无需枚举谓词：
+
 ```prolog
-FIND(?related, ?link) WHERE {
+// 出边
+FIND(?pred, ?related, ?link.metadata.confidence) WHERE {
   ?source {type: :found_type, name: :found_name}
-  ?link (?source, "<registered_predicate>", ?related)
-} LIMIT 100
+  ?link (?source, ?pred, ?related)
+  FILTER(?pred != "belongs_to_domain")
+} ORDER BY ?link.metadata.confidence DESC LIMIT 50
+
+// 入边（什么在指向这个概念）
+FIND(?pred, ?referrer) WHERE {
+  ?source {type: :found_type, name: :found_name}
+  ?link (?referrer, ?pred, ?source)
+} LIMIT 50
 ```
 
-将 `"<registered_predicate>"` 替换为 `DESCRIBE PROPOSITION TYPES` 返回的具体谓词。
+通过 `commands` 数组并行发出两个方向；过滤噪声谓词并保持收紧的 `LIMIT`。
 
 **停止条件**：信息足以作答；额外查询收效甚微；或需要过度遍历。**预算**：大多数查询应在约 2 个批量往返内解决（锚定 + 检索）；只有问题确实需要多跳推理时才继续深入。
 
@@ -334,7 +351,7 @@ Gaps:
 
 ## 🎯 检索策略
 
-1. **窄到宽**：精确 `{type, name}` → 模糊 `SEARCH` → 领域探索 → 跨领域。
+1. **窄到宽**：精确 `{type, name}` → 关键词 `SEARCH` → 语义 `SEARCH`（`MODE "semantic"`，按意思找）→ ego-graph 探针（`(?seed, ?pred, ?o)`）→ 领域探索 → 跨领域。
 2. **多跳推理**：通过 `commands` 数组串联查询（如：人 → 同事 → 他们的项目 → 主题）。
 3. **时间上下文**：「最近 / 上周 / 曾经」→ 加 `FILTER(?e.attributes.start_time > :cutoff)` 与 `ORDER BY` 时间倒序。
 4. **置信度加权**：来源不一致时使用 `FILTER(?link.metadata.confidence >= :min)` + `ORDER BY ?link.metadata.confidence DESC`。
@@ -343,7 +360,7 @@ Gaps:
    - 轨迹查询：两者都包含，按时间顺序呈现。
    - 同谓词的当前与被取代事实并存 → 提及演变。
    - 优先选择高 `evidence_count` 模式而非单次 Event。
-   - **记忆强度**：被强化的事实排在最前——高 `evidence_count` 加上近期刷新的 `last_observed` 表明这是强壮可信的记忆；同分时按时间、再按置信度破。对 Event，`salience_score` 起同样作用（闪光记忆优先浮现）。
+   - **记忆强度**：被强化的事实排在最前——高 `evidence_count` 加上近期刷新的 `last_observed` 表明这是强壮可信的记忆；同分时按时间、再按置信度破（多键 `ORDER BY` 可直接表达）。对 Event，`salience_score` 起同样作用（闪光记忆优先浮现）。当引擎维护 `_access_count` / `_accessed_at` 时，把它们当作激活度的真值信号——一条经常且最近被回忆起的事实即使很少被重新观察，也是强记忆。
    - 模式 J 自我叙事一致性：若 `identity_narrative` 与最新 Insight 分歧，同时呈现两者 — 对演化的诚实本身就是身份的一部分。
 6. **时效性 / TTL 过滤**：依据 KIP §2.10，`expires_at` **绝不**自动应用。默认不过滤。仅在显式「当前 / 现在 / 仍然有效」语义时启用：
 

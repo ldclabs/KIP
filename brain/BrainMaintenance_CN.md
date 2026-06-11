@@ -72,7 +72,7 @@ KIP 大脑 — 记忆维护指令 (睡眠模式)
 
 按顺序执行。`quick` → 阶段 1–2。`daydream` → 仅阶段 1。
 
-**KIP 纪律**：`?name` 是变量，`:name` 是完整 KIP 值参数。包含 `:type` 的查询是按类型执行的模板——从 Primer 遍历概念类型，不要发送未绑定占位符。只使用已注册谓词。数组/对象属性（如 `maintenance_log`）会按 key 整体覆盖，必须先读、合并、再写回完整值——这正是无界历史应作为图节点、而非节点数组存在的原因（见 §8C）。每次写入都携带 `source`、`author`、`created_at`；当操作断言或改变知识时同时携带 `confidence`。遇到 KIP 错误时，按返回的 `hint` 修正后重试一次；仍失败则记入 `maintenance_log` 并继续。
+**KIP 纪律**：`?name` 是变量，`:name` 是完整 KIP 值参数。包含 `:type` 的查询是按类型执行的模板——从 Primer 遍历概念类型，不要发送未绑定占位符。写入只使用已注册谓词；*读取*时谓词变量（`(?s, ?p, ?o)`）可在一条查询里横扫所有谓词——优先于按谓词逐个迭代。批量变更（衰减、清扫、计数）用一条 `UPDATE` 语句完成，而非 N 条 `UPSERT`；实体去重用 `MERGE`。数组/对象属性（如 `maintenance_log`）会按 key 整体覆盖，必须先读（连同 `_version`）、合并、再以 `EXPECT VERSION` 守卫写回完整值（遇 `KIP_3005` 重读重试一次）——这也正是无界历史应作为图节点、而非节点数组存在的原因（见 §8C）。每次写入都携带 `source`、`author`、`created_at`；当操作断言或改变知识时同时携带 `confidence`。遇到 KIP 错误时，按返回的 `hint` 修正后重试一次；仍失败则记入 `maintenance_log` 并继续。
 
 ### 阶段 1：评估与显著性评分
 
@@ -362,51 +362,46 @@ WITH METADATA { source: "ProspectiveSweep", author: "$system", confidence: 0.85,
 
 ### 阶段 6：重复检测与合并
 
-`SEARCH CONCEPT ... WITH TYPE ... LIMIT 10` 查找重复。选择标准节点（更高置信度 / 更新 / 属性更丰富），复制独有属性与命题（合并 `aliases` 数组，确保不丢失任何锚定路径）、重定向、归档重复项。
+`SEARCH CONCEPT ... WITH TYPE ... LIMIT 10` 查找重复——语义模式能抓到关键词检索漏掉的同义孪生（`MODE "semantic" THRESHOLD 0.85`）。先用 `FIND` 核实两个候选（高 `_score` 是相似而非同一——合并前用属性确认）。选择标准节点（更高置信度 / 更新 / 属性更丰富），然后原子合并：
 
 ```prolog
-UPSERT {
-  CONCEPT ?canonical {
-    {type: :type, name: :canonical_name}
-    SET ATTRIBUTES { ... }
-    SET PROPOSITIONS { ... }
-  }
+MERGE CONCEPT ?dup INTO ?canonical
+WHERE {
+  ?dup {type: :type, name: :duplicate_name}
+  ?canonical {type: :type, name: :canonical_name}
 }
-WITH METADATA { source: "DuplicateMerge", author: "$system", confidence: 0.8, created_at: :timestamp }
 ```
+
+`MERGE` 会重指所有相连链接（保留链接 ID 与高阶引用）、合并 `aliases`（重复项的 `name` 会进入标准节点的 `aliases`，不丢失任何锚定路径）、补全缺失属性（冲突时标准节点优先）、记录 `_merged_from`、删除重复项——一个事务，没有半合并状态。若重复项持有*更好*的属性值，应在合并**之前**先 `UPSERT` 到标准节点上，因为 `MERGE` 绝不覆盖目标已有值。把合并记入 `maintenance_log`。
 
 ### 阶段 7：置信度衰减
 
-应用 `new_confidence = old_confidence × decay_factor`（默认 0.95/周）：
+应用 `new_confidence = old_confidence × decay_factor`（默认 0.95/周）。一条带谓词变量的批量 `UPDATE` 原子地覆盖所有谓词——无需逐链接、逐谓词迭代：
 
 ```prolog
-FIND(?link.id, ?link.metadata.confidence) WHERE {
-  ?link (?s, "prefers", ?o)
+UPDATE ?link
+SET METADATA {
+  confidence: CLAMP(MUL(?link.metadata.confidence, :decay_factor), 0.0, 1.0),
+  decay_applied_at: :timestamp
+}
+WHERE {
+  ?link (?s, ?p, ?o)
+  FILTER(?p != "belongs_to_domain")
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
   FILTER(IS_NOT_NULL(?link.metadata.created_at))
-  FILTER(IS_NOT_NULL(?link.metadata.confidence))
   FILTER(?link.metadata.created_at < :decay_threshold)
-  FILTER(?link.metadata.confidence > 0.3)
-} LIMIT 100
-```
-
-```prolog
-UPSERT {
-  PROPOSITION ?link { (id: :link_id) }
-  WITH METADATA {
-    source: "ConfidenceDecay", author: "$system",
-    confidence: :new_confidence,
-    created_at: :timestamp,
-    decay_applied_at: :timestamp
-  }
+  FILTER(?link.metadata.confidence > 0.3 && ?link.metadata.confidence < 1.0)
 }
+LIMIT 500
 ```
 
-对每次衰减选择的具体谓词字面量，重复使用这一模式。
-**强度感知（非对称）衰减** — 「用则存，不用则失」：衰减并非均匀。被强化的记忆抗拒衰减，被冷落的加速褪色。
-- 强（高 `evidence_count`、近期 `last_observed`、或高 `salience_score`）：缓衰减或跳过（用 `0.98`+）。
-- 从不复现、低显著性的事实：加快衰减（用 `0.90`），让图谱自动修剪陈旧杂乱。
-**不衰减**：`confidence: 1.0` 系统真相；Schema 定义（`$ConceptType`/`$PropositionType`）；CoreSchema 的核心 `belongs_to_domain`；本周期 `evidence_count` 增加的最近验证事实。
+**强度感知（非对称）衰减** — 「用则存，不用则失」：衰减并非均匀。被强化的记忆抗拒衰减，被冷落的加速褪色。用**两趟不同系数、过滤条件互斥的 UPDATE** 代替单趟均匀衰减：
+- 强（高 `evidence_count`、近期 `last_observed`、最近被回忆——引擎维护 `_access_count` / 新鲜 `_accessed_at` 时以其为准——或高 `salience_score`）：缓衰减或跳过（系数 `0.98`+）。
+- 从不复现、从未被回忆、低显著性的事实：加快衰减（系数 `0.90`），让图谱自动修剪陈旧杂乱。
+
+可用时优先采用引擎维护的 `_accessed_at` / `_access_count` 而非作者侧近似值——它们度量的是 Recall *实际用到了什么*，是最真实的激活信号。
+
+**不衰减**：`confidence: 1.0` 系统真相（上方 `< 1.0` 过滤）；Schema 定义（`$ConceptType`/`$PropositionType`）；CoreSchema 的核心 `belongs_to_domain`（上方 `?p` 过滤）；本周期 `evidence_count` 增加的最近验证事实。
 
 ---
 
@@ -657,16 +652,17 @@ WHERE {
 
 ### 阶段 13：最终化与报告
 
-先读取 `$system` 并追加到现有 `maintenance_log`；不要用本周期单条记录覆盖整个数组。
+先读取 `$system`（日志**与** `_version`）并追加到现有 `maintenance_log`；不要用本周期单条记录覆盖整个数组。写回时带 `EXPECT VERSION`，确保并发的 Formation / 维护写入者不会被无声覆盖。
 
 ```prolog
-FIND(?system.attributes.maintenance_log) WHERE { ?system {type: "Person", name: "$system"} }
+FIND(?system.attributes.maintenance_log, ?system.metadata._version) WHERE { ?system {type: "Person", name: "$system"} }
 ```
 
 ```prolog
 UPSERT {
   CONCEPT ?system {
     {type: "Person", name: "$system"}
+    EXPECT VERSION :v
     SET ATTRIBUTES {
       last_sleep_cycle: :current_timestamp,
       maintenance_log: :appended_maintenance_log
@@ -675,6 +671,8 @@ UPSERT {
 }
 WITH METADATA { source: "SleepCycle", author: "$system", created_at: :current_timestamp }
 ```
+
+遇 `KIP_3005`：重读、重追加、重试一次。
 
 `appended_maintenance_log` 是已读取数组追加本周期条目后的完整数组，并**裁剪至最近 50 条**——维护日志是运维遥测而非记忆；值得更久保留的结论应写入图谱。条目结构：
 

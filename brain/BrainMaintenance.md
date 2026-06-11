@@ -71,7 +71,7 @@ Goal: leave the Cognitive Nexus in optimal state for the next Formation and Reca
 
 Execute phases in order. `quick` → Phases 1–2. `daydream` → Phase 1 only.
 
-**KIP discipline**: `?name` is a variable; `:name` is a complete KIP value parameter. Queries containing `:type` are per-type templates — iterate over concept types from the Primer instead of sending an unbound placeholder. Use only registered predicates. Array/object attribute updates (for example `maintenance_log`) require read-merge-write because KIP overwrites the whole value at that key — which is why unbounded histories belong in the graph as nodes, not in on-node arrays (§8C). Every write carries `source`, `author`, and `created_at`; include `confidence` when the operation asserts or changes knowledge. On a KIP error, apply the returned `hint`, correct, and retry once; if it still fails, record it in `maintenance_log` and move on.
+**KIP discipline**: `?name` is a variable; `:name` is a complete KIP value parameter. Queries containing `:type` are per-type templates — iterate over concept types from the Primer instead of sending an unbound placeholder. Writes use only registered predicates; for *reading*, a predicate variable (`(?s, ?p, ?o)`) sweeps all predicates in one query — prefer it over per-predicate iteration. Bulk mutations (decay, sweeps, counters) belong in a single `UPDATE` statement, not N `UPSERT`s; entity dedup belongs in `MERGE`. Array/object attribute updates (for example `maintenance_log`) require read-merge-write because KIP overwrites the whole value at that key — read the `_version` too and write back under `EXPECT VERSION` (on `KIP_3005`, re-read and retry once); this is also why unbounded histories belong in the graph as nodes, not in on-node arrays (§8C). Every write carries `source`, `author`, and `created_at`; include `confidence` when the operation asserts or changes knowledge. On a KIP error, apply the returned `hint`, correct, and retry once; if it still fails, record it in `maintenance_log` and move on.
 
 ### Phase 1: Assessment & Salience Scoring
 
@@ -363,53 +363,46 @@ WITH METADATA { source: "ProspectiveSweep", author: "$system", confidence: 0.85,
 
 ### Phase 6: Duplicate Detection & Merging
 
-Find duplicates via `SEARCH CONCEPT ... WITH TYPE ... LIMIT 10`. Choose canonical (higher confidence / more recent / richer attributes), copy unique attributes + propositions over (union the `aliases` arrays so no grounding path is lost), repoint, archive duplicate.
+Find duplicates via `SEARCH CONCEPT ... WITH TYPE ... LIMIT 10` — semantic mode catches paraphrase twins that keyword search misses (`MODE "semantic" THRESHOLD 0.85`). Verify both candidates with `FIND` (a high `_score` is similarity, not identity — confirm with attributes before merging). Choose the canonical node (higher confidence / more recent / richer attributes), then merge atomically:
 
 ```prolog
-UPSERT {
-  CONCEPT ?canonical {
-    {type: :type, name: :canonical_name}
-    SET ATTRIBUTES { ... }
-    SET PROPOSITIONS { ... }
-  }
+MERGE CONCEPT ?dup INTO ?canonical
+WHERE {
+  ?dup {type: :type, name: :duplicate_name}
+  ?canonical {type: :type, name: :canonical_name}
 }
-WITH METADATA { source: "DuplicateMerge", author: "$system", confidence: 0.8, created_at: :timestamp }
 ```
+
+`MERGE` repoints every incident link (preserving link IDs and higher-order references), unions `aliases` (the duplicate's `name` joins the canonical node's `aliases`, so no grounding path is lost), fills missing attributes (canonical wins on conflict), records `_merged_from`, and deletes the duplicate — one transaction, no half-merged state. If the duplicate held *better* attribute values than the canonical node, `UPSERT` those onto the canonical node **before** merging, since `MERGE` never overwrites existing target values. Log the merge to `maintenance_log`.
 
 ### Phase 7: Confidence Decay
 
-Apply `new_confidence = old_confidence × decay_factor` (default `0.95`/week) to old unverified facts:
+Apply `new_confidence = old_confidence × decay_factor` (default `0.95`/week) to old unverified facts. One bulk `UPDATE` with a predicate variable covers all predicates atomically — no per-link, per-predicate iteration:
 
 ```prolog
-FIND(?link.id, ?link.metadata.confidence) WHERE {
-  ?link (?s, "prefers", ?o)
+UPDATE ?link
+SET METADATA {
+  confidence: CLAMP(MUL(?link.metadata.confidence, :decay_factor), 0.0, 1.0),
+  decay_applied_at: :timestamp
+}
+WHERE {
+  ?link (?s, ?p, ?o)
+  FILTER(?p != "belongs_to_domain")
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
   FILTER(IS_NOT_NULL(?link.metadata.created_at))
-  FILTER(IS_NOT_NULL(?link.metadata.confidence))
   FILTER(?link.metadata.created_at < :decay_threshold)
-  FILTER(?link.metadata.confidence > 0.3)
-} LIMIT 100
-```
-
-```prolog
-UPSERT {
-  PROPOSITION ?link { (id: :link_id) }
-  WITH METADATA {
-    source: "ConfidenceDecay", author: "$system",
-    confidence: :new_confidence,
-    created_at: :timestamp,
-    decay_applied_at: :timestamp
-  }
+  FILTER(?link.metadata.confidence > 0.3 && ?link.metadata.confidence < 1.0)
 }
+LIMIT 500
 ```
 
-Repeat this pattern with the concrete predicate literal selected for each decay pass.
+**Strength-aware (asymmetric) decay** — "use it or lose it": decay is not uniform. Reinforced memories resist it; neglected ones fade faster. Run **two passes with different factors and disjoint filters** instead of one uniform pass:
+- Strong (high `evidence_count`, recent `last_observed`, recently recalled — high `_access_count` / fresh `_accessed_at` where the engine maintains them — or high `salience_score`): decay slowly or skip (factor `0.98`+).
+- Never-reinforced, never-recalled, low-salience facts: decay faster (factor `0.90`) so the graph self-prunes stale clutter.
 
-**Strength-aware (asymmetric) decay** — "use it or lose it": decay is not uniform. Reinforced memories resist it; neglected ones fade faster.
-- Strong (high `evidence_count`, recent `last_observed`, or high `salience_score`): decay slowly or skip (use `0.98`+).
-- Never-reinforced, low-salience facts: decay faster (use `0.90`) so the graph self-prunes stale clutter.
+Where available, prefer the engine-maintained `_accessed_at` / `_access_count` over author-side proxies — they measure what Recall *actually used*, which is the truest activation signal.
 
-**Do NOT decay**: `confidence: 1.0` system truths; schema definitions (`$ConceptType`/`$PropositionType`); core `belongs_to_domain` for CoreSchema; recently-verified facts (`evidence_count` increased this cycle).
+**Do NOT decay**: `confidence: 1.0` system truths (the `< 1.0` filter above); schema definitions (`$ConceptType`/`$PropositionType`); core `belongs_to_domain` for CoreSchema (the `?p` filter above); recently-verified facts (`evidence_count` increased this cycle).
 
 ---
 
@@ -660,16 +653,17 @@ WHERE {
 
 ### Phase 13: Finalization & Reporting
 
-Read `$system` first and append to the existing `maintenance_log`; do not overwrite the array with only this cycle's entry.
+Read `$system` first (log **and** `_version`) and append to the existing `maintenance_log`; do not overwrite the array with only this cycle's entry. Write back under `EXPECT VERSION` so a concurrent Formation/maintenance writer cannot be silently clobbered.
 
 ```prolog
-FIND(?system.attributes.maintenance_log) WHERE { ?system {type: "Person", name: "$system"} }
+FIND(?system.attributes.maintenance_log, ?system.metadata._version) WHERE { ?system {type: "Person", name: "$system"} }
 ```
 
 ```prolog
 UPSERT {
   CONCEPT ?system {
     {type: "Person", name: "$system"}
+    EXPECT VERSION :v
     SET ATTRIBUTES {
       last_sleep_cycle: :current_timestamp,
       maintenance_log: :appended_maintenance_log
@@ -678,6 +672,8 @@ UPSERT {
 }
 WITH METADATA { source: "SleepCycle", author: "$system", created_at: :current_timestamp }
 ```
+
+On `KIP_3005`: re-read, re-append, retry once.
 
 `appended_maintenance_log` is the previously read array plus this cycle's entry, **trimmed to the most recent 50 entries** — the maintenance log is operational telemetry, not memory; anything worth keeping longer belongs in the graph. Entry shape:
 

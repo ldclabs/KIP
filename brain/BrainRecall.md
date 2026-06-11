@@ -76,9 +76,17 @@ SEARCH CONCEPT "Alice" WITH TYPE "Person" LIMIT 10
 SEARCH CONCEPT "Project Aurora" LIMIT 10
 ```
 
+When the probe is a **meaning rather than a name** ("that thing about preferring terse error messages"), search semantically and respect the returned `_score`:
+
+```prolog
+SEARCH CONCEPT "prefers terse error messages" MODE "semantic" THRESHOLD 0.7 LIMIT 10
+```
+
+A hit below your confidence bar is worse than an honest miss — keep the `THRESHOLD`, and treat `metadata._score` as retrieval relevance, not knowledge confidence.
+
 #### Cross-Language Grounding
 
-The graph stores concepts with **English** `name` / `description`. For non-English queries, issue **bilingual** probes in parallel via the `commands` array:
+The graph stores concepts with **English** `name` / `description`. For non-English queries, issue **bilingual** probes in parallel via the `commands` array (the default `hybrid` mode also bridges languages when the engine's semantic index is multilingual):
 
 ```prolog
 SEARCH CONCEPT "深色模式" LIMIT 10
@@ -140,15 +148,14 @@ FIND(?event) WHERE {
 } ORDER BY ?event.attributes.start_time DESC LIMIT 10
 ```
 
-`start_time` answers "most recent"; `salience_score` answers "most important / memorable" — choose the axis the question implies:
+`start_time` answers "most recent"; `salience_score` answers "most important / memorable" — combine the axes with multi-key `ORDER BY` (unscored events sort last automatically: `null` always sorts last):
 
 ```prolog
-// "Most memorable" variant — flashbulb moments first
+// "Most memorable" variant — flashbulb moments first, recency as tie-breaker
 FIND(?event) WHERE {
   ?event {type: "Event"}
   (?event, "involves", {type: "Person", name: :person_name})
-  FILTER(IS_NOT_NULL(?event.attributes.salience_score))
-} ORDER BY ?event.attributes.salience_score DESC LIMIT 10
+} ORDER BY ?event.attributes.salience_score DESC, ?event.attributes.start_time DESC LIMIT 10
 ```
 
 #### Pattern E — Domain Exploration
@@ -262,7 +269,7 @@ FIND(?c.name, ?c.attributes.description, ?c.attributes.due_at) WHERE {
 } LIMIT 10
 ```
 
-Within returned rows, synthesize strongest-first by considering `?pref.attributes.evidence_count`, `?pref.attributes.last_observed`, and `?link.metadata.confidence`; KIP currently accepts one `ORDER BY` expression per query. Lead the briefing with overdue / imminent commitments — this is how due reminders actually reach the user.
+Rank strongest-first directly in the query with multi-key `ORDER BY` (e.g., `ORDER BY ?link.metadata.confidence DESC, ?pref.attributes.last_observed DESC`); within synthesized prose, still weigh `evidence_count` alongside. Lead the briefing with overdue / imminent commitments — this is how due reminders actually reach the user.
 
 > The single most useful recall for a consuming agent: "what should I know before I respond?"
 
@@ -288,14 +295,24 @@ Scope to one person via `(?c, "owed_to", {type: "Person", name: :person_id})`. P
 
 If initial results are insufficient: expand scope (broader types / higher limits / lower confidence) → traverse links → check related domains → fall back to Events.
 
+The **ego-graph probe** is the core deepening move — one query reveals everything around a grounded node, with the relation names, no predicate enumeration needed:
+
 ```prolog
-FIND(?related, ?link) WHERE {
+// Outgoing edges
+FIND(?pred, ?related, ?link.metadata.confidence) WHERE {
   ?source {type: :found_type, name: :found_name}
-  ?link (?source, "<registered_predicate>", ?related)
-} LIMIT 100
+  ?link (?source, ?pred, ?related)
+  FILTER(?pred != "belongs_to_domain")
+} ORDER BY ?link.metadata.confidence DESC LIMIT 50
+
+// Incoming edges (what points AT this concept)
+FIND(?pred, ?referrer) WHERE {
+  ?source {type: :found_type, name: :found_name}
+  ?link (?referrer, ?pred, ?source)
+} LIMIT 50
 ```
 
-Replace `"<registered_predicate>"` with a concrete predicate from `DESCRIBE PROPOSITION TYPES`.
+Issue both directions in parallel via the `commands` array; filter noisy predicates and keep `LIMIT` tight.
 
 Stop when: enough info to answer, results show diminishing returns, or the query would require excessive traversal. **Budget**: most queries should resolve within ~2 batched round-trips (grounding + retrieval); go deeper only when the question genuinely requires multi-hop reasoning.
 
@@ -334,7 +351,7 @@ Gaps:
 
 ## 🎯 Retrieval Strategies
 
-1. **Narrow-to-broad**: exact `{type, name}` → fuzzy `SEARCH` → domain exploration → cross-domain.
+1. **Narrow-to-broad**: exact `{type, name}` → keyword `SEARCH` → semantic `SEARCH` (`MODE "semantic"`, meaning-based) → ego-graph probe (`(?seed, ?pred, ?o)`) → domain exploration → cross-domain.
 2. **Multi-hop**: chain queries through the graph (e.g., person → colleagues → their projects → topics) using the `commands` array.
 3. **Temporal context**: "recently / last week / ever" → add `FILTER(?e.attributes.start_time > :cutoff)` and `ORDER BY` recency.
 4. **Confidence-weighted**: `FILTER(?link.metadata.confidence >= :min)` + `ORDER BY ?link.metadata.confidence DESC` when sources disagree.
@@ -343,7 +360,7 @@ Gaps:
    - On trajectory queries: include both, present chronologically.
    - Both current + superseded for same predicate → mention the evolution.
    - Prefer high `evidence_count` patterns over single-event observations.
-   - **Memory strength**: rank reinforced facts first — high `evidence_count` plus recently-refreshed `last_observed` signals a strong, trusted memory; tie-break by recency then confidence. For Events, `salience_score` plays the same role (flashbulb memories surface first).
+   - **Memory strength**: rank reinforced facts first — high `evidence_count` plus recently-refreshed `last_observed` signals a strong, trusted memory; tie-break by recency then confidence (multi-key `ORDER BY` expresses this directly). For Events, `salience_score` plays the same role (flashbulb memories surface first). Where the engine maintains `_access_count` / `_accessed_at`, treat them as the ground-truth activation signal — a fact recalled often and recently is a strong memory even if rarely re-observed.
    - Self-narrative consistency (Pattern J): if `identity_narrative` and the latest `Insight` diverge, surface both — honesty about evolution is part of identity.
 6. **Currency / TTL filtering**: per KIP §2.10, `expires_at` is **never auto-applied**. Default: do not filter. Opt in only for explicit "current / now / still valid" queries:
 
