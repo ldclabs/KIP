@@ -396,10 +396,10 @@ LIMIT 500
 ```
 
 **强度感知（非对称）衰减** — 「用则存，不用则失」：衰减并非均匀。被强化的记忆抗拒衰减，被冷落的加速褪色。用**两趟不同系数、过滤条件互斥的 UPDATE** 代替单趟均匀衰减：
-- 强（高 `evidence_count`、近期 `last_observed`、最近被回忆——引擎维护 `_access_count` / 新鲜 `_accessed_at` 时以其为准——或高 `salience_score`）：缓衰减或跳过（系数 `0.98`+）。
-- 从不复现、从未被回忆、低显著性的事实：加快衰减（系数 `0.90`），让图谱自动修剪陈旧杂乱。
+- 强（高 `evidence_count`、近期 `last_observed`，或高 `salience_score`）：缓衰减或跳过（系数 `0.98`+）。
+- 从不复现、低显著性的事实：加快衰减（系数 `0.90`），让图谱自动修剪陈旧杂乱。
 
-可用时优先采用引擎维护的 `_accessed_at` / `_access_count` 而非作者侧近似值——它们度量的是 Recall *实际用到了什么*，是最真实的激活信号。
+KIP 不在引擎侧保留任何访问统计（读永远是读）：「最近被回忆」只会以强化的形式显现——被再次确认的事实会刷新 `evidence_count` / `last_observed`。仅凭召回频率低，并不能说明一条记忆不重要。
 
 **不衰减**：`confidence: 1.0` 系统真相（上方 `< 1.0` 过滤）；Schema 定义（`$ConceptType`/`$PropositionType`）；CoreSchema 的核心 `belongs_to_domain`（上方 `?p` 过滤）；本周期 `evidence_count` 增加的最近验证事实。
 

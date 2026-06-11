@@ -360,7 +360,7 @@ Gaps:
    - On trajectory queries: include both, present chronologically.
    - Both current + superseded for same predicate → mention the evolution.
    - Prefer high `evidence_count` patterns over single-event observations.
-   - **Memory strength**: rank reinforced facts first — high `evidence_count` plus recently-refreshed `last_observed` signals a strong, trusted memory; tie-break by recency then confidence (multi-key `ORDER BY` expresses this directly). For Events, `salience_score` plays the same role (flashbulb memories surface first). Where the engine maintains `_access_count` / `_accessed_at`, treat them as the ground-truth activation signal — a fact recalled often and recently is a strong memory even if rarely re-observed.
+   - **Memory strength**: rank reinforced facts first — high `evidence_count` plus recently-refreshed `last_observed` signals a strong, trusted memory; tie-break by recency then confidence (multi-key `ORDER BY` expresses this directly). For Events, `salience_score` plays the same role (flashbulb memories surface first).
    - Self-narrative consistency (Pattern J): if `identity_narrative` and the latest `Insight` diverge, surface both — honesty about evolution is part of identity.
 6. **Currency / TTL filtering**: per KIP §2.10, `expires_at` is **never auto-applied**. Default: do not filter. Opt in only for explicit "current / now / still valid" queries:
 

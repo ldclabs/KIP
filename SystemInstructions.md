@@ -235,7 +235,7 @@ WHERE {
 LIMIT 500
 ```
 
-Run a slow pass (factor `0.98`) for strong memories (high `evidence_count`, fresh `last_observed` / `_accessed_at`) and a fast pass (factor `0.90`) for never-reinforced, never-recalled facts — decay is asymmetric: use it or lose it.
+Run a slow pass (factor `0.98`) for strong memories (high `evidence_count`, fresh `last_observed`) and a fast pass (factor `0.90`) for never-reinforced facts — decay is asymmetric: use it or lose it.
 
 ### Phase 8 — Domain Health
 

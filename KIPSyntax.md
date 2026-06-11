@@ -70,13 +70,12 @@ Using an unregistered type/predicate → `KIP_2001`.
 
 Metadata keys starting with `_` are **engine-maintained and read-only to KML** (writing them → `KIP_2002`). Readable via dot notation like any metadata:
 
-| Field                            | Semantics                                                                                                                               |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `_version`                       | Monotonic mutation counter (starts at 1). Target of `EXPECT VERSION`.                                                                   |
-| `_updated_at`                    | Engine-recorded ISO-8601 time of last mutation.                                                                                         |
-| `_accessed_at` / `_access_count` | Engine-measured retrieval stats (top-level `FIND`/`SEARCH` results) — the real "use it or lose it" signal for decay/landmark decisions. |
-| `_score`                         | Transient normalized `SEARCH` relevance `[0,1]`; never persisted.                                                                       |
-| `_merged_from`                   | Provenance trail left by `MERGE` (`"<Type>:<name>"` entries).                                                                           |
+| Field          | Semantics                                                             |
+| -------------- | --------------------------------------------------------------------- |
+| `_version`     | Monotonic mutation counter (starts at 1). Target of `EXPECT VERSION`. |
+| `_updated_at`  | Engine-recorded ISO-8601 time of last mutation.                       |
+| `_score`       | Transient normalized `SEARCH` relevance `[0,1]`; never persisted.     |
+| `_merged_from` | Provenance trail left by `MERGE` (`"<Type>:<name>"` entries).         |
 
 **`EXPECT VERSION <n>`** (optional line in `UPSERT` `CONCEPT`/`PROPOSITION` blocks, right after the identity clause): block executes only if the element's `_version` equals `<n>`; `EXPECT VERSION 0` = must-not-exist (create-only). On mismatch the whole `UPSERT` aborts with `KIP_3005` → re-read, re-merge, retry. Use it for every read-modify-write of array/object values (e.g., `$self` attributes, logs).
 
@@ -538,13 +537,12 @@ Serializes matched concepts/propositions into an idempotent `UPSERT` capsule for
 
 **Reserved System Fields (`_` namespace — engine-maintained, read-only to KML; see §1.8)**
 
-| Field                            | Type            | Description                                            |
-| -------------------------------- | --------------- | ------------------------------------------------------ |
-| `_version`                       | number          | Monotonic mutation counter; target of `EXPECT VERSION` |
-| `_updated_at`                    | string          | ISO-8601 last-mutation time (engine truth)             |
-| `_accessed_at` / `_access_count` | string / number | Retrieval stats from top-level `FIND`/`SEARCH` results |
-| `_score`                         | number          | Transient `SEARCH` relevance `[0,1]`; never persisted  |
-| `_merged_from`                   | array\<string\> | `MERGE` provenance trail                               |
+| Field          | Type            | Description                                            |
+| -------------- | --------------- | ------------------------------------------------------ |
+| `_version`     | number          | Monotonic mutation counter; target of `EXPECT VERSION` |
+| `_updated_at`  | string          | ISO-8601 last-mutation time (engine truth)             |
+| `_score`       | number          | Transient `SEARCH` relevance `[0,1]`; never persisted  |
+| `_merged_from` | array\<string\> | `MERGE` provenance trail                               |
 
 #### 6.3. Error Codes
 
@@ -586,5 +584,5 @@ Serializes matched concepts/propositions into an idempotent `UPSERT` capsule for
 16. **Bulk mutation belongs to `UPDATE`**: decay, counters, status sweeps, salience refresh — one pattern-matched `UPDATE` with `ADD`/`MUL`/`CLAMP`/`COALESCE` beats N per-element `UPSERT`s, and never needs a prior read for pure increments.
 17. **Guard read-modify-write with `EXPECT VERSION`**: read `_version` together with the value, merge in memory, write back guarded; on `KIP_3005` re-read and retry. Required discipline for `$self` attributes and any shared array/object value.
 18. **Deduplicate with `MERGE`, not by hand**: one atomic `MERGE CONCEPT ?dup INTO ?canonical` repoints every link and preserves aliases/provenance; verify both nodes with `FIND` first.
-19. **Trust engine signals over proxies**: prefer `_accessed_at`/`_access_count` (real recall usage) when deciding decay or landmark promotion; `evidence_count` measures observation, `_access_count` measures usefulness.
+19. **Reads are reads**: the protocol keeps no access statistics (tracking reads would turn every query into a write, and recall frequency ≠ importance). Decide decay and landmark promotion from author-maintained signals: `evidence_count` (observation), `last_observed` (recency), `salience_score` (impact), `expires_at` (declared intent).
 20. **Memories are portable**: use `EXPORT` for backup, migration, and sharing knowledge between agents — and remember imports need the schema and referenced endpoints to exist first.

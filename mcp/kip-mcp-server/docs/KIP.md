@@ -180,7 +180,7 @@ To effectively organize and isolate knowledge, KIP introduces the concept of `Do
 
 ### 2.11. System-Maintained Metadata & Optimistic Concurrency
 
-A memory brain shared by multiple writers (e.g., several business agents feeding one Cognitive Nexus, or Formation running concurrently with a sleep cycle) needs two guarantees that author-asserted metadata cannot provide: **trustworthy bookkeeping** (what actually changed, what is actually being used) and **lost-update protection** for read-modify-write flows. KIP provides both through the reserved `_` metadata namespace.
+A memory brain shared by multiple writers (e.g., several business agents feeding one Cognitive Nexus, or Formation running concurrently with a sleep cycle) needs two guarantees that author-asserted metadata cannot provide: **trustworthy bookkeeping** (what actually changed, and when) and **lost-update protection** for read-modify-write flows. KIP provides both through the reserved `_` metadata namespace.
 
 #### 2.11.1. Reserved `_` Metadata Fields
 
@@ -190,11 +190,11 @@ Metadata keys beginning with `_` are maintained exclusively by the engine. KML s
 | :-------------- | :----- | :------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `_version`      | Number | **REQUIRED**   | Monotonic mutation counter for the element. Starts at `1` on creation and increments by at least 1 on every successful mutation of the element (attributes, metadata, or — for propositions — endpoint repointing by `MERGE`). |
 | `_updated_at`   | String | RECOMMENDED    | ISO 8601 timestamp of the element's last mutation, set by the engine. Unlike author-asserted `created_at` / `observed_at`, this is engine truth.                              |
-| `_accessed_at`  | String | OPTIONAL       | ISO 8601 timestamp of the last time the element was returned as a top-level result of `FIND` or `SEARCH` (intermediate pattern bindings and `dry_run` do not count).          |
-| `_access_count` | Number | OPTIONAL       | Total number of times the element was returned as a top-level result of `FIND` or `SEARCH`. Together with `_accessed_at`, this gives memory-metabolism processes a *real* usage signal ("use it or lose it") instead of an author-maintained proxy. |
 | `_score`        | Number | OPTIONAL       | **Transient, never persisted.** Normalized relevance score `[0, 1]` attached to elements returned by `SEARCH` (see §5.2). Absent outside search results.                      |
 
 Engines MAY define additional `_`-prefixed fields; agents MUST treat unknown `_` fields as read-only and MUST NOT rely on their presence.
+
+The protocol deliberately defines **no access statistics** (e.g., last-recall timestamps or recall counters): maintaining them would turn every read into a write — hostile to caching, read replicas, and idempotent retries — and recall frequency is a poor proxy for importance (a long-unrecalled commitment or identity fact is no less true or vital). Memory-metabolism processes should weigh author-maintained signals (`evidence_count`, `last_observed`, `salience_score`, `expires_at`) instead.
 
 #### 2.11.2. `EXPECT VERSION` — Conditional Writes
 
@@ -1142,7 +1142,7 @@ LIMIT N
 *   **Capsule contents**:
     *   Each exported concept appears as a `CONCEPT` block with its `{type, name}` identity, full `attributes`, and author-asserted `metadata` (via `WITH METADATA`).
     *   Each exported proposition appears as a `PROPOSITION` block with its full `attributes` / `metadata`. Endpoints inside the export set are referenced by local handles; endpoints **outside** the export set are referenced as `{type: "<Type>", name: "<name>"}` — importing then requires those targets to exist (`KIP_3002` otherwise), consistent with §4.1.
-    *   Reserved `_` metadata (`_version`, `_access_count`, ...) is **never exported** — it is the source engine's bookkeeping, not knowledge.
+    *   Reserved `_` metadata (`_version`, `_updated_at`, ...) is **never exported** — it is the source engine's bookkeeping, not knowledge.
     *   Schema definitions are not implied: if the export uses types/predicates the destination may lack, export those `$ConceptType` / `$PropositionType` nodes too (they are ordinary concepts and match the same statement).
 *   Engines MAY cap export size (`KIP_4002`); use `LIMIT` and multiple scoped exports for large subgraphs.
 
@@ -1332,8 +1332,6 @@ These fields are written only by the engine and are **read-only to KML** (writes
 
 *   `_version`: `Number` (**REQUIRED**), monotonic mutation counter; the target of `EXPECT VERSION` guards.
 *   `_updated_at`: `String` ISO 8601 (RECOMMENDED), engine-recorded time of last mutation.
-*   `_accessed_at`: `String` ISO 8601 (OPTIONAL), last time the element was returned as a top-level `FIND`/`SEARCH` result.
-*   `_access_count`: `Number` (OPTIONAL), number of times the element was returned as a top-level result. **These two are the engine-measured "memory activation" signal**: maintenance processes should prefer them over author-maintained proxies when deciding decay, archival, and landmark promotion.
 *   `_score`: `Number` (OPTIONAL, transient), normalized `SEARCH` relevance; never persisted.
 *   `_merged_from`: `Array<String>` (OPTIONAL), provenance trail of `MERGE` operations (`"<Type>:<name>"` entries).
 

@@ -397,10 +397,10 @@ LIMIT 500
 ```
 
 **Strength-aware (asymmetric) decay** — "use it or lose it": decay is not uniform. Reinforced memories resist it; neglected ones fade faster. Run **two passes with different factors and disjoint filters** instead of one uniform pass:
-- Strong (high `evidence_count`, recent `last_observed`, recently recalled — high `_access_count` / fresh `_accessed_at` where the engine maintains them — or high `salience_score`): decay slowly or skip (factor `0.98`+).
-- Never-reinforced, never-recalled, low-salience facts: decay faster (factor `0.90`) so the graph self-prunes stale clutter.
+- Strong (high `evidence_count`, recent `last_observed`, or high `salience_score`): decay slowly or skip (factor `0.98`+).
+- Never-reinforced, low-salience facts: decay faster (factor `0.90`) so the graph self-prunes stale clutter.
 
-Where available, prefer the engine-maintained `_accessed_at` / `_access_count` over author-side proxies — they measure what Recall *actually used*, which is the truest activation signal.
+KIP keeps no engine-side access statistics (reads stay reads): "recently recalled" is visible only as reinforcement — re-confirmed facts get `evidence_count` / `last_observed` refreshed. Low recall frequency alone is not evidence of low importance.
 
 **Do NOT decay**: `confidence: 1.0` system truths (the `< 1.0` filter above); schema definitions (`$ConceptType`/`$PropositionType`); core `belongs_to_domain` for CoreSchema (the `?p` filter above); recently-verified facts (`evidence_count` increased this cycle).
 

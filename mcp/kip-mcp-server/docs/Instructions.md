@@ -361,7 +361,7 @@ When writing important knowledge, include as many as available:
 | `observed_at` / `created_at` | string | ISO-8601 timestamp                                     |
 | `status`                     | string | `"draft"` \| `"reviewed"` \| `"deprecated"`            |
 
-Metadata keys starting with `_` are **reserved and engine-maintained** (read-only to KML; writes → `KIP_2002`): `_version` (mutation counter, target of `EXPECT VERSION`), `_updated_at`, `_accessed_at` / `_access_count` (retrieval stats), `_score` (transient SEARCH relevance), `_merged_from` (MERGE provenance).
+Metadata keys starting with `_` are **reserved and engine-maintained** (read-only to KML; writes → `KIP_2002`): `_version` (mutation counter, target of `EXPECT VERSION`), `_updated_at`, `_score` (transient SEARCH relevance), `_merged_from` (MERGE provenance). The protocol keeps no access statistics — reads stay reads.
 
 #### 6.3. Error Codes
 | Series   | Category | Example                                                         |
