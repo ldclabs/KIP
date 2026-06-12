@@ -101,6 +101,8 @@ The pattern/filter clauses in `WHERE` are by default connected using the **AND**
 ##### 2.2.3. Logic & Control Flow
 *   **`FILTER( expression )`**: Boolean logic.
     *   Operators: `==`, `!=`, `>`, `<`, `>=`, `<=`, `&&`, `||`, `!`.
+    *   Membership: `IN(?expr, [v1, v2, ...])`.
+    *   Null Checks: `IS_NULL(?expr)`, `IS_NOT_NULL(?expr)`.
     *   String Functions: `CONTAINS`, `STARTS_WITH`, `ENDS_WITH`, `REGEX`.
 *   **`OPTIONAL { ... }`**: Left-join logic. Retains solution even if inner pattern fails. Scope: bound variables visible outside.
 *   **`NOT { ... }`**: Exclusion filter. Discards solution if inner pattern matches. Scope: variables inside are private.
@@ -108,7 +110,7 @@ The pattern/filter clauses in `WHERE` are by default connected using the **AND**
 
 #### 2.3. Examples
 ```prolog
-FIND(?drug.name, ?risk)
+FIND(?drug.name, ?effect.name)
 WHERE {
     ?drug {type: "Drug"}
     OPTIONAL { (?drug, "has_side_effect", ?effect) }
@@ -142,6 +144,7 @@ UPSERT {
   // Independent Proposition Definition
   PROPOSITION ?prop_handle {
     (?subject, "<predicate>", ?object)
+    EXPECT VERSION <n> // Optional CAS guard against metadata._version
     SET ATTRIBUTES { ... }
   }
   WITH METADATA { ... } // Optional, proposition's local metadata if any
@@ -346,6 +349,9 @@ These must exist for the graph to be valid (Bootstrapping).
 | `{type: "Domain", name: "Archived"}`                    | Storage for deprecated or obsolete items        |
 | `{type: "$ConceptType", name: "Person"}`                | Actors (AI, Human, Organization, System)        |
 | `{type: "$ConceptType", name: "Event"}`                 | Episodic memory (e.g., Conversation)            |
+| `{type: "$ConceptType", name: "Preference"}`            | First-class stable preference facts             |
+| `{type: "$ConceptType", name: "Insight"}`               | Self-reflective lessons of the agent            |
+| `{type: "$ConceptType", name: "Commitment"}`            | Prospective promises & deadlines                |
 | `{type: "$ConceptType", name: "SleepTask"}`             | Maintenance tasks for background processing     |
 | `{type: "Person", name: "$self"}`                       | The waking mind (conversational agent)          |
 | `{type: "Person", name: "$system"}`                     | The sleeping mind (maintenance agent)           |
@@ -511,7 +517,7 @@ During conversation, perform only **low-cost, obvious** maintenance:
 
 #### Sleeping Mode ($system): Deep Memory Metabolism
 
-> **Note**: This section describes `$system`'s responsibilities. See [SystemInstructions.md](./SystemInstructions.md) for the full `$system` operational guide.
+> **Note**: This section describes `$system`'s responsibilities. See [SystemInstructions.md](https://raw.githubusercontent.com/ldclabs/KIP/refs/heads/main/SystemInstructions.md) for the full `$system` operational guide.
 
 During sleep cycles, `$system` performs comprehensive memory hygiene:
 

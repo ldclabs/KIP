@@ -86,7 +86,7 @@ Metadata keys starting with `_` are **engine-maintained and read-only to KML** (
 ```prolog
 FIND( <variables_or_aggregations> )
 WHERE { <patterns_and_filters> }
-ORDER BY <expr> [ASC|DESC]
+ORDER BY <expr> [ASC|DESC], <expr> [ASC|DESC], ...
 LIMIT <integer>
 CURSOR "<token>"
 ```
@@ -261,6 +261,7 @@ UPSERT {
   PROPOSITION ?prop_handle {            // ?prop_handle is optional
     (?subject, "<predicate>", ?object)  // endpoints: ?handle, {...}, or (...)
     // OR  (id: "<id>")                 // match-only
+    EXPECT VERSION <n>                  // optional CAS guard (see §1.8)
     SET ATTRIBUTES { ... }
   }
   WITH METADATA { ... }                 // local metadata (proposition block)

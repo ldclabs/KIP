@@ -276,13 +276,20 @@ WHERE {
 
 ### Phase 10 — Finalization
 
+`maintenance_log` is an array attribute — KIP overwrites it whole at the key (§2.10). Read the current log **and** `$system`'s `metadata._version` first, append this cycle's entry in memory, then write the full array back under `EXPECT VERSION` (on `KIP_3005`, re-read and retry). Never write a single-entry array, or the history is lost.
+
 ```prolog
+FIND(?system.attributes.maintenance_log, ?system.metadata._version)
+WHERE { ?system {type: "Person", name: "$system"} }
+
 UPSERT {
   CONCEPT ?system {
     {type: "Person", name: "$system"}
+    EXPECT VERSION :v
     SET ATTRIBUTES {
       last_sleep_cycle: :current_timestamp,
       maintenance_log: [
+        // ...previously read entries, plus this cycle's entry appended:
         {
           "timestamp": :current_timestamp,
           "trigger": :trigger_type,
@@ -375,7 +382,8 @@ WHERE {
 | ------------------------------ | ----------------------------------------- | --------------------------------- |
 | `supersedes` / `superseded_by` | State-evolution chain pointers (link IDs) | new link `supersedes: "<old_id>"` |
 | `superseded` / `superseded_at` | Marks the old fact as historical          | `superseded: true`                |
-| `merged_into`                  | Casualty → Survivor pointer (dedup)       | "JS" merged_into "JavaScript"     |
+
+Merge provenance needs no author-set field: `MERGE` (Phase 6) deletes the duplicate and the engine records `_merged_from` on the survivor (read-only to KML).
 
 ---
 
