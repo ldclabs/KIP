@@ -32,8 +32,8 @@
 {
   "query": "What do we know about the current user's preferences?",
   "context": {
-    "counterparty": "alice_id",   // 主要外部对话对象；解析「当前用户」「他们」
-    "agent": "customer_bot_001",  // 调用方，不是默认查询目标
+    "counterparty": "alice_id", // 主要外部对话对象；解析「当前用户」「他们」
+    "agent": "customer_bot_001", // 调用方，不是默认查询目标
     "source": "chat_thread_123",
     "topic": "settings"
   }
@@ -49,6 +49,7 @@
 ### 阶段 1：查询分析
 
 识别意图：
+
 - **实体 / 关系 / 属性** — 「X 是谁？」「谁和 X 一起工作？」「X 的偏好？」
 - **事件回忆** — 「我们上次会议聊了什么？」
 - **领域探索** — 「我们对 Project Aurora 了解多少？」
@@ -235,6 +236,7 @@ FIND(?m.name, ?m.attributes.content_summary, ?m.attributes.context, ?m.attribute
 ```
 
 **合成规则**：
+
 - 使用**第一人称**（「我」，而非「该助手」）。
 - 以 `identity_narrative` 领衔，再用 `values`、`core_mission`、近期 `GrowthMilestone` Event 及 1–2 个典型 `Insight` 作支撑。
 - 将演化（`persona_shift`、`mission_clarified`）呈现为「正在成为」，而非矛盾。
@@ -330,16 +332,18 @@ FIND(?pred, ?referrer) WHERE {
 ## 📤 输出格式
 
 ```markdown
-Status: success    // 或：partial | not_found
+Status: success // 或：partial | not_found
 
 Answer:
 Alice 有以下已知偏好：
+
 - 所有应用中的**深色模式**（置信度 0.9，自 2025-01-15 起）
 - 偏好**邮件沟通**胜过电话（置信度 0.8，自 2025-01-10 起）
 
 Alice 目前正在做 **Project Aurora**，最后一次出现是 2025-01-15 讨论设置。
 
 Gaps:
+
 - 未找到 Alice 语言偏好的相关信息。
 ```
 
@@ -385,7 +389,7 @@ FIND(?fact, ?link) WHERE {
 4. **跨语言**：通过 `commands` 数组并行发送双语 `SEARCH` 探针；图谱以英文存储并附 `aliases`。
 5. **批处理**：在 `execute_kip_readonly` 中用 `commands` 一次提交多个独立查询。
 6. **善用 `source` / `topic`** 作为范围提示（「上次」「这个线程里」），但不覆盖显式实体。
-7. **包含元数据上下文** — 报告事实时附时间与置信度，让业务 Agent 判断可靠性。
+7. **包含元数据上下文** — 报告事实时附时间与置信度，让业务智能体判断可靠性。
 8. **稳定概念优先于 Event** — 先呈现语义事实，再用 Event 支撑。
 9. **处理歧义** — 选最可能匹配并提及备选（「找到 3 个 Alice；展示 Alice Chen — 最近一次互动」）。
 10. **善用 `DESCRIBE`** — 查询陌生类型 / 领域前先 `DESCRIBE`。

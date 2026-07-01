@@ -247,6 +247,6 @@ A dedicated LLM layer that manages the Cognitive Nexus on behalf of business age
 
 ## License
 
-Copyright © 2025 [LDC Labs](https://github.com/ldclabs).
+Copyright © 2026 [LDC Labs](https://github.com/ldclabs).
 
 Licensed under the MIT License. See [LICENSE](./LICENSE) for details.
