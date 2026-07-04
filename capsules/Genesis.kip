@@ -26,7 +26,7 @@ UPSERT {
                 "instance_schema": {
                     "type": "object",
                     "is_required": false,
-                    "description": "A recommended schema defining the common and core attributes for instances of this concept type. It serves as a 'best practice' guideline for knowledge creation, not a rigid constraint. Keys are attribute names, values are objects defining 'type', 'is_required', and 'description'. Instances SHOULD include required attributes but MAY also include any other attribute not defined in this schema, allowing for knowledge to emerge and evolve freely."
+                    "description": "A recommended schema defining the common and core attributes for instances of this concept type. It serves as a 'best practice' guideline for knowledge creation, not a rigid constraint. Keys are attribute names, values are objects defining 'type', 'is_required', and 'description' (optionally 'item_type' for arrays, 'enum', and 'default_value'). Instances SHOULD include required attributes but MAY also include any other attribute not defined in this schema, allowing for knowledge to emerge and evolve freely."
                 },
                 "key_instances": {
                     "type": "array",
@@ -43,6 +43,7 @@ UPSERT {
                 "Person",
                 "Preference",
                 "Insight",
+                "Commitment",
                 "SleepTask"
             ]
         }
@@ -84,6 +85,8 @@ UPSERT {
                 "derived_from",
                 "prefers",
                 "learned",
+                "committed_to",
+                "owed_to",
                 "assigned_to"
             ]
         }
@@ -126,7 +129,7 @@ UPSERT {
                     "description": "The name of the 'Person' (human or AI) primarily responsible for curating and maintaining the quality of knowledge within this domain."
                 }
             },
-            key_instances: ["CoreSchema"]
+            key_instances: ["CoreSchema", "Unsorted", "Archived", "System"]
         }
     }
 
@@ -147,6 +150,24 @@ UPSERT {
     CONCEPT ?core_domain {
         {type: "Domain", name: "CoreSchema"}
         SET ATTRIBUTES { description: "The foundational domain containing the meta-definitions of the KIP system itself.", display_hint: "🧩" }
+    }
+
+    // 3d. Create the operational domains every nexus needs from day one:
+    // an inbox for unclassified knowledge, an audit-preserving graveyard,
+    // and a home for the memory system's own working nodes (e.g., SleepTask).
+    CONCEPT ?unsorted_domain {
+        {type: "Domain", name: "Unsorted"}
+        SET ATTRIBUTES { description: "Temporary inbox for items awaiting topic classification." }
+    }
+
+    CONCEPT ?archived_domain {
+        {type: "Domain", name: "Archived"}
+        SET ATTRIBUTES { description: "Storage for deprecated, obsolete, or consolidated items preserved for audit trail." }
+    }
+
+    CONCEPT ?system_domain {
+        {type: "Domain", name: "System"}
+        SET ATTRIBUTES { description: "Operational home for the memory system's own working nodes (e.g., SleepTask instances); not user knowledge." }
     }
 }
 WITH METADATA {
@@ -187,6 +208,27 @@ UPSERT {
 
     CONCEPT ?belongs_to_domain_prop {
         {type: "$PropositionType", name: "belongs_to_domain"}
+        SET PROPOSITIONS {
+            ("belongs_to_domain", ?core_domain)
+        }
+    }
+
+    CONCEPT ?unsorted_domain {
+        {type: "Domain", name: "Unsorted"}
+        SET PROPOSITIONS {
+            ("belongs_to_domain", ?core_domain)
+        }
+    }
+
+    CONCEPT ?archived_domain {
+        {type: "Domain", name: "Archived"}
+        SET PROPOSITIONS {
+            ("belongs_to_domain", ?core_domain)
+        }
+    }
+
+    CONCEPT ?system_domain {
+        {type: "Domain", name: "System"}
         SET PROPOSITIONS {
             ("belongs_to_domain", ?core_domain)
         }

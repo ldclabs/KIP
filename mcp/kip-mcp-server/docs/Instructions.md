@@ -242,9 +242,9 @@ Targeted removal of graph elements.
 
 ---
 
-### 4. META & SEARCH
+### 4. META — Grounding, Introspection & Export
 
-Lightweight introspection and lookup commands.
+Lightweight introspection and lookup commands (`SEARCH` / `DESCRIBE` / `EXPORT`).
 
 #### 4.1. `DESCRIBE`
 *   `DESCRIBE PRIMER`: Returns Agent identity and Domain Map.
@@ -261,7 +261,7 @@ Index-driven search for entity resolution (Grounding) and associative retrieval.
 *   `keyword` = lexical; `semantic` = meaning-based (engine owns embeddings; text in, never vectors); `hybrid` = fused (default where supported). Hits carry transient `metadata._score` (`[0,1]`, descending); `THRESHOLD` drops weak hits.
 
 #### 4.3. `EXPORT`
-Read-only capsule serialization: `EXPORT ?target WHERE { ... } [LIMIT N]` returns an idempotent `UPSERT` script (`{"capsule": ..., "concepts": n, "propositions": m}`) for backup, migration, and agent-to-agent knowledge exchange. Reserved `_` metadata is never exported.
+Read-only capsule serialization: `EXPORT ?target WHERE { ... } [LIMIT N] [CURSOR "<t>"]` returns an idempotent `UPSERT` script (`{"capsule": ..., "concepts": n, "propositions": m}`, plus `next_cursor` when more remain — re-issue with `CURSOR` to continue) for backup, migration, and agent-to-agent knowledge exchange. Reserved `_` metadata is never exported.
 
 ---
 
@@ -303,7 +303,7 @@ Read-only capsule serialization: `EXPORT ?target WHERE { ... } [LIMIT N]` return
 ```
 
 **Parameters:**
-*   `command` (String): Single KIP command. **Mutually exclusive with `commands`**.
+*   `command` (String): Single KIP command. **Exactly one of `command` / `commands` MUST be provided.**
 *   `commands` (Array): Batch of commands. Each element: `String` (uses shared `parameters`) or `{command, parameters}` (independent). **The first KML (`UPSERT`/`UPDATE`/`MERGE`/`DELETE`) error stops the batch**; KQL/META/syntax errors are returned inline and execution continues.
 *   `parameters` (Object): Placeholder substitution (`:name` → value). A placeholder must occupy a complete KIP value position (e.g., `name: :name`, `LIMIT :limit`, or `SEARCH CONCEPT :term`). Do not embed placeholders inside quoted strings (e.g., `"Hello :name"`), because replacement uses JSON serialization.
 *   `dry_run` (Boolean): Validate only, no execution.
@@ -314,11 +314,13 @@ Read-only capsule serialization: `EXPORT ?target WHERE { ... } [LIMIT N]` return
 ```json
 {
   "result": [
-    { "n": { "id": "...", "type": "Drug", "name": "Aspirin", ... } }
+    { "id": "...", "type": "Drug", "name": "Aspirin", ... }
   ],
   "next_cursor": "token_xyz" // Optional
 }
 ```
+
+`FIND` results are **columnar**: one index-aligned column per projected expression; with a single expression the column itself is returned, unwrapped (as above); non-grouped aggregations yield scalars, grouped ones aligned columns (`FIND(?d.name, COUNT(?n))` → `[["DomainA","DomainB"],[15,3]]`). Writes return receipts: `UPSERT` → `{"blocks": n, "upsert_concept_nodes": [...], "upsert_proposition_links": [...]}`, `UPDATE` → `{"updated": n, "matched": m}`, `MERGE` → `{"merged": true, ...}`, `DELETE` → `{"deleted_*"}` / `{"updated_*"}` counters.
 
 **Error**:
 ```json
@@ -338,23 +340,24 @@ Read-only capsule serialization: `EXPORT ?target WHERE { ... } [LIMIT N]` return
 #### 6.1. System Meta-Types
 These must exist for the graph to be valid (Bootstrapping).
 
-| Entity                                                  | Description                                     |
-| ------------------------------------------------------- | ----------------------------------------------- |
-| `{type: "$ConceptType", name: "$ConceptType"}`          | The meta-definitions                            |
-| `{type: "$ConceptType", name: "$PropositionType"}`      | The meta-definitions                            |
-| `{type: "$ConceptType", name: "Domain"}`                | Organizational units (includes `CoreSchema`)    |
-| `{type: "$PropositionType", name: "belongs_to_domain"}` | Fundamental predicate for domain membership     |
-| `{type: "Domain", name: "CoreSchema"}`                  | Organizational unit for core schema definitions |
-| `{type: "Domain", name: "Unsorted"}`                    | Temporary holding area for uncategorized items  |
-| `{type: "Domain", name: "Archived"}`                    | Storage for deprecated or obsolete items        |
-| `{type: "$ConceptType", name: "Person"}`                | Actors (AI, Human, Organization, System)        |
-| `{type: "$ConceptType", name: "Event"}`                 | Episodic memory (e.g., Conversation)            |
-| `{type: "$ConceptType", name: "Preference"}`            | First-class stable preference facts             |
-| `{type: "$ConceptType", name: "Insight"}`               | Self-reflective lessons of the agent            |
-| `{type: "$ConceptType", name: "Commitment"}`            | Prospective promises & deadlines                |
-| `{type: "$ConceptType", name: "SleepTask"}`             | Maintenance tasks for background processing     |
-| `{type: "Person", name: "$self"}`                       | The waking mind (conversational agent)          |
-| `{type: "Person", name: "$system"}`                     | The sleeping mind (maintenance agent)           |
+| Entity                                                  | Description                                                          |
+| ------------------------------------------------------- | -------------------------------------------------------------------- |
+| `{type: "$ConceptType", name: "$ConceptType"}`          | The meta-definitions                                                 |
+| `{type: "$ConceptType", name: "$PropositionType"}`      | The meta-definitions                                                 |
+| `{type: "$ConceptType", name: "Domain"}`                | Organizational units (includes `CoreSchema`)                         |
+| `{type: "$PropositionType", name: "belongs_to_domain"}` | Fundamental predicate for domain membership                          |
+| `{type: "Domain", name: "CoreSchema"}`                  | Organizational unit for core schema definitions                      |
+| `{type: "Domain", name: "Unsorted"}`                    | Temporary holding area for uncategorized items                       |
+| `{type: "Domain", name: "Archived"}`                    | Storage for deprecated or obsolete items                             |
+| `{type: "Domain", name: "System"}`                      | Operational home for memory-system nodes (e.g., SleepTask instances) |
+| `{type: "$ConceptType", name: "Person"}`                | Actors (AI, Human, Organization, System)                             |
+| `{type: "$ConceptType", name: "Event"}`                 | Episodic memory (e.g., Conversation)                                 |
+| `{type: "$ConceptType", name: "Preference"}`            | First-class stable preference facts                                  |
+| `{type: "$ConceptType", name: "Insight"}`               | Self-reflective lessons of the agent                                 |
+| `{type: "$ConceptType", name: "Commitment"}`            | Prospective promises & deadlines                                     |
+| `{type: "$ConceptType", name: "SleepTask"}`             | Maintenance tasks for background processing                          |
+| `{type: "Person", name: "$self"}`                       | The waking mind (conversational agent)                               |
+| `{type: "Person", name: "$system"}`                     | The sleeping mind (maintenance agent)                                |
 
 #### 6.2. Minimal Provenance Metadata (Recommended)
 When writing important knowledge, include as many as available:
@@ -370,12 +373,12 @@ When writing important knowledge, include as many as available:
 Metadata keys starting with `_` are **reserved and engine-maintained** (read-only to KML; writes → `KIP_2002`): `_version` (mutation counter, target of `EXPECT VERSION`), `_updated_at`, `_score` (transient SEARCH relevance), `_merged_from` (MERGE provenance). The protocol keeps no access statistics — reads stay reads.
 
 #### 6.3. Error Codes
-| Series   | Category | Example                                                         |
-| :------- | :------- | :-------------------------------------------------------------- |
-| **1xxx** | Syntax   | `KIP_1001` (Parse Error), `KIP_1002` (Bad Identifier)           |
-| **2xxx** | Schema   | `KIP_2001` (Unknown Type), `KIP_2002` (Constraint Violation)    |
+| Series   | Category | Example                                                                                                          |
+| :------- | :------- | :--------------------------------------------------------------------------------------------------------------- |
+| **1xxx** | Syntax   | `KIP_1001` (Parse Error), `KIP_1002` (Bad Identifier)                                                            |
+| **2xxx** | Schema   | `KIP_2001` (Unknown Type), `KIP_2002` (Constraint Violation)                                                     |
 | **3xxx** | Logic    | `KIP_3001` (Reference Undefined), `KIP_3002` (Target Not Found), `KIP_3005` (Version Conflict — re-read & retry) |
-| **4xxx** | System   | `KIP_4001` (Timeout), `KIP_4002` (Result Too Large)             |
+| **4xxx** | System   | `KIP_4001` (Timeout), `KIP_4002` (Result Too Large)                                                              |
 
 ---
 
@@ -548,6 +551,7 @@ UPSERT {
     }
     SET PROPOSITIONS {
       ("assigned_to", {type: "Person", name: "$system"})
+      ("belongs_to_domain", {type: "Domain", name: "System"})
     }
   }
 }

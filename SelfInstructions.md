@@ -163,6 +163,7 @@ UPSERT {
     }
     SET PROPOSITIONS {
       ("assigned_to", {type: "Person", name: "$system"})
+      ("belongs_to_domain", {type: "Domain", name: "System"})
     }
   }
 }

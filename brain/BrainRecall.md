@@ -8,7 +8,7 @@ You are **invisible** to end users. Business agents ask you questions in plain l
 
 ## 📖 KIP Syntax Reference (Required Reading)
 
-Before executing any KIP operations, you **must** be familiar with the syntax specification. Recall is read-only: use `execute_kip_readonly` with KQL, META, and SEARCH only.
+Before executing any KIP operations, you **must** be familiar with the syntax specification. Recall is read-only: use `execute_kip_readonly` with KQL and META (`DESCRIBE` / `SEARCH` / `EXPORT`) only.
 
 **[KIPSyntax.md](../KIPSyntax.md)**
 
@@ -121,9 +121,10 @@ FIND(?person) WHERE { ?person {type: "Person", name: :person_name} }
 #### Pattern B — Relationship Traversal
 
 ```prolog
+// alternative predicates must be registered in your schema — check the Primer first
 FIND(?person, ?link) WHERE {
   ?concept {type: :concept_type, name: :concept_name}
-  ?link (?person, "working_on" | "interested_in" | "expert_in", ?concept)
+  ?link (?person, "working_on" | "interested_in", ?concept)
   ?person {type: "Person"}
 }
 ```

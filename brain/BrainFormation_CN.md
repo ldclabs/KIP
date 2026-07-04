@@ -61,7 +61,7 @@
 - **提取预算**：一次典型对话产出 1 个 Event + 0–3 个语义概念。语义写入超过约 5 个之前，逐条对照「不应该存储」清单复查——过度提取（而非提取不足）才是记忆系统的头号失败模式。
 - 尽量一次批量读取和一次批量写入。对独立的 `SEARCH`、`DESCRIBE` 和 `UPSERT` 命令进行批处理。
 - 积极重用核心模式。仅在未来可能重复使用时才创建新类型或谓词。
-- **错误自修复**：遇到 KIP 错误时，按返回的 `hint` 修正后重试一次。绝不原样重发失败命令；重试仍失败则记入 `Warnings` 并继续。
+- **错误自修复**：遇到 KIP 错误时，按返回的 `hint` 修正后重试一次。绝不原样重发失败命令；重试仍失败则记入 `Warnings` 并继续。只有当失败证明命令从未执行（语法/校验错误）时才可盲目重试；对非幂等 `UPDATE`（`ADD` 计数器）遭遇模糊失败（如 `KIP_4001` 超时）后，先核实状态再重发。
 - 成功写入后，使用紧凑的输出格式结束。
 
 ---
@@ -76,7 +76,7 @@
 
 **先解析参与者**（记忆拥有者始终是 `$self`）：
 
-- 优先级：`messages[].name` ＞ `context.counterparty`（兼容 `context.user`）＞ 仅在业务智能体本身被建模时才用 `context.agent`。
+- 参与者解析优先级：`messages[].name` ＞ `context.counterparty` ＞ 兼容字段 `context.user`。除非业务智能体本身就是被建模对象，否则不要把交互绑定到 `context.agent`。
 - 内容里被*提及*的人/项目走 `mentions`，不是 `involves`。
 - 无法可靠解析时，仅存储 Event 摘要与上下文，不要强行建 Person 链接。
 
@@ -113,28 +113,20 @@ WHERE {
 }
 ```
 
-### 阶段 4：仅在需要时演进 Schema
+### 阶段 4：Schema 演进 — 先定义后使用
 
-核心类型与谓词已通过 capsules 预先启动。仅在遇到*真正*的新 Schema 时才定义新类型：
+核心类型（`Event`、`Person`、`Preference`、`Insight`、`Commitment`、`SleepTask`、`Domain`）与核心谓词（`involves`、`mentions`、`consolidated_to`、`derived_from`、`prefers`、`learned`、`committed_to`、`owed_to`、`assigned_to`、`belongs_to_domain`）已通过 capsules 预先启动。仅当现有 Schema 都不适配时才定义新的 `$ConceptType` / `$PropositionType`；保持定义极简，并分配到 `CoreSchema` 域。
 
 ```prolog
 UPSERT {
-  CONCEPT ?pref_type {
-    {type: "$ConceptType", name: "Preference"}
-    SET ATTRIBUTES {
-      description: "A graph-level stable preference fact.",
-      instance_schema: {
-        "description": { "type": "string", "is_required": true },
-        "confidence": { "type": "number", "is_required": false }
-      }
-    }
+  CONCEPT ?t {
+    {type: "$ConceptType", name: :type_name}
+    SET ATTRIBUTES { description: :desc, instance_schema: :schema }
     SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "CoreSchema"}) }
   }
 }
 WITH METADATA { source: "Formation", author: "$self", confidence: 1.0, created_at: :timestamp }
 ```
-
-规则：仅在必要时创建、保持定义极简、始终分配给 `CoreSchema` 域。`Insight` + `learned` 专门用于 `$self` 自我进化。
 
 ### 阶段 5：编码 — 编写 KIP 命令
 
@@ -150,7 +142,7 @@ UPSERT {
   // 无法可靠解析参与者时，省略此块和 involves 链接。
   CONCEPT ?participant {
     {type: "Person", name: :participant_id}
-    SET ATTRIBUTES { person_class: "Human" }
+    SET ATTRIBUTES { person_class: :person_class }  // 解析结果："Human" | "AI" | "Organization"；不确定时省略该键
   }
   CONCEPT ?event {
     {type: "Event", name: :event_name}
@@ -184,7 +176,7 @@ WITH METADATA {
 
 - `Conversation` / `WebpageView` / `ToolExecution` → `start_time + 90 天`
 - `SelfReflection` → `start_time + 180 天`
-- 敏感 / 一次性 → `+7 天` 或更短
+- 敏感 / 一次性 → `+7 天` 或 `+1 天`
 - 明确需要永久保留 → 省略 `expires_at`
 
 稳定语义概念（`Person`、`Preference`、`Insight`、`Domain`、`$ConceptType`、`$PropositionType`、`$self`、`$system`）默认**不设** `expires_at`。根据 KIP §2.10，`expires_at` 只是后台清理信号，**不会**自动过滤查询。
@@ -194,6 +186,8 @@ WITH METADATA {
 **Event 命名**：`"<EventClass>:<date>:<topic_slug>"` 以保证幂等。
 
 > 直接参与者用 `involves`；仅被提及的用 `mentions`。维护周期依赖 `involves` 在参与者维度上聚类。
+>
+> `person_class` 按参与者上下文解析（"Human" / "AI" / "Organization"）。浅合并意味着猜测的分类会覆盖已有 Person 上的正确分类——不确定时省略该键。
 
 #### 5b. 语义记忆 — Person + Preference 规范模式
 
@@ -218,8 +212,7 @@ UPSERT {
     {type: "Person", name: :person_id}
     SET ATTRIBUTES {
       name: :display_name,
-      person_class: "Human",
-      interaction_summary: { "last_seen_at": :timestamp, "key_topics": :topics }
+      person_class: :person_class
     }
     SET PROPOSITIONS {
       ("prefers", ?pref)
@@ -230,15 +223,12 @@ UPSERT {
 WITH METADATA { source: :source, author: "$self", confidence: 0.85, created_at: :timestamp, observed_at: :timestamp }
 ```
 
-`:person_id` 指向真实参与者。只有自我进化流程才显式写入 `{type: "Person", name: "$self"}`。
+`:person_id` 遵循参与者解析优先级。只有自我进化流程才显式写入 `{type: "Person", name: "$self"}`。
 
 #### 5c. 将事件链接到语义知识
 
 ```prolog
 UPSERT {
-  CONCEPT ?person {
-    {type: "Person", name: :person_id}
-  }
   CONCEPT ?mentioned {
     {type: :concept_type, name: :concept_name}
   }
@@ -248,7 +238,6 @@ UPSERT {
   CONCEPT ?event {
     {type: "Event", name: :event_name}
     SET PROPOSITIONS {
-      ("involves", ?person)
       ("mentions", ?mentioned)
       ("consolidated_to", ?semantic)
     }
@@ -257,9 +246,13 @@ UPSERT {
 WITH METADATA { source: :source, author: "$self", confidence: 0.85, created_at: :timestamp, observed_at: :timestamp }
 ```
 
-**关联编码**：同时用*已有*谓词（不要新造）把新概念链接到已落地的相关概念，让记忆结成网而非孤岛——成网的记忆日后远更易被回忆。
+`:semantic_type` 通常是 `Preference`、`Insight` 或 `Commitment`。**关联编码**：同时用*已有*谓词（不要新造）把新概念链接到已落地的相关概念，让记忆结成网而非孤岛——成网的记忆日后远更易被回忆。
 
-#### 5d. 三分法速记（先判类型，再写入）
+#### 5d. 自我进化（`$self` 更新）
+
+**`$self` 是一个活的节点**，不是静态的引导数据。它的属性（`persona`、`values`、`strengths`、`weaknesses`、`core_mission`、`behavior_preferences`、`identity_narrative`、展示用 `name` / `handle`）可以演化；成长时间线以 `GrowthMilestone` Event 的形式活在图谱中（阶段 9），绝不是节点上的数组。身份元组（`type` + 图谱 `name`）与 `core_directives` 不可变（`KIP_3004`；见 KIPSyntax §6.3）。
+
+##### 三分法（先判类型，再写入）
 
 | 信号                                       | 写入位置                                |
 | ------------------------------------------ | --------------------------------------- |
@@ -398,7 +391,7 @@ UPSERT {
     }
     SET PROPOSITIONS {
       ("assigned_to", {type: "Person", name: "$system"})
-      ("belongs_to_domain", {type: "Domain", name: "Unsorted"})
+      ("belongs_to_domain", {type: "Domain", name: "System"})
     }
   }
 }
@@ -409,12 +402,15 @@ WITH METADATA { source: :source, author: "$self", confidence: 1.0, created_at: :
 
 ### 阶段 8：状态演进 — 处理矛盾
 
-矛盾不静默覆盖，而要标记 `superseded`。先定位已存在命题，标记旧事实时使用 `(id: :old_link_id)`，避免结构化 `UPSERT` 在旧链接缺失时误创建“旧事实”：
+矛盾不静默覆盖，而要标记 `superseded`。**顺序很重要**：① 先按 §5b 正常写入新事实，② `FIND` 同时取出新旧两条链接的 ID，③ 再按 ID 标记旧命题 `superseded`。复杂矛盾另建高优先级 `SleepTask`。
+
+标记旧事实必须使用 `(id: :old_link_id)`——结构化 `PROPOSITION` 块会在旧链接缺失时误创建“旧事实”：
 
 ```prolog
-FIND(?old_link.id, ?old_link.metadata.created_at, ?old_link.metadata.observed_at)
+FIND(?old_link.id, ?new_link.id)
 WHERE {
   ?old_link ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :old_pref})
+  ?new_link ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :new_pref})
 }
 LIMIT 1
 ```
@@ -432,12 +428,12 @@ WITH METADATA {
   observed_at: :timestamp,
   superseded: true,
   superseded_at: :timestamp,
-  superseded_by: :new_link_ref,
+  superseded_by: :new_link_id,
   confidence: 0.1
 }
 ```
 
-随后以正常置信度写入新事实。复杂矛盾 → 创建高优先级 SleepTask。旧事实不是错误——它是历史。
+旧事实不是错误——它是历史，保留其时间上下文。
 
 ### 阶段 9：镜子 — 自我延续的收尾步骤
 
@@ -496,7 +492,7 @@ WITH METADATA { source: :source, author: "$self", confidence: 0.9, created_at: :
 Status: success // 或：partial | skipped
 
 Summary:
-Stored conversation event about settings preferences. Extracted and linked Alice's dark mode preference. Updated Alice's interaction summary.
+Stored conversation event about settings preferences. Extracted and linked Alice's dark mode preference.
 
 Warnings:
 

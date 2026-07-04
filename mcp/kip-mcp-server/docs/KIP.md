@@ -169,7 +169,7 @@ To effectively organize and isolate knowledge, KIP introduces the concept of `Do
 
 *   **`Domain`**: It is itself a concept type, defined via `{type: "$ConceptType", name: "Domain"}`.
 *   **Domain Node**: For example, `{type: "Domain", name: "Medical"}` creates a cognitive domain named "Medical".
-*   **Membership**: Concept nodes may not belong to any domain upon creation to maintain system flexibility and authenticity. In subsequent reasoning, they should be assigned to corresponding domains via `belongs_to_domain` proposition links, ensuring knowledge can be efficiently utilized by the LLM.
+*   **Membership**: Concept nodes may be created without belonging to any domain, maintaining system flexibility and authenticity. In subsequent reasoning, they should be assigned to corresponding domains via `belongs_to_domain` proposition links, ensuring knowledge can be efficiently utilized by the LLM.
 
 ### 2.10. Data Consistency & Conflict Resolution Principles
 
@@ -270,10 +270,11 @@ WHERE {
 **Syntax**: `FIND( ... )`
 
 *   **Multi-variable Return**: Can specify one or more variables, e.g., `FIND(?drug, ?symptom)`.
-*   **Aggregation Return**: Can use aggregation functions on variables, e.g., `FIND(?var1, ?agg_func(?var2))`.
+*   **Aggregation Return**: Can use aggregation functions on variables, e.g., `FIND(?var1, <agg_func>(?var2))`.
     *   **Aggregation Functions**: `COUNT(?var)`, `COUNT(DISTINCT ?var)`, `SUM(?var)`, `AVG(?var)`, `MIN(?var)`, `MAX(?var)`.
     *   **Implicit Grouping**: When `FIND` mixes plain variables (or dot-notation expressions) with aggregation functions, all non-aggregated expressions form an **implicit `GROUP BY`** key. Each distinct combination of grouping values produces one result row, and aggregation functions are computed within each group. If `FIND` contains *only* aggregation functions, the entire result set is treated as a single group.
     *   **Null Handling**: Aggregation functions ignore `null` (unbound) values. In particular, `COUNT(?var)` over a group whose only rows carry a `null` binding (e.g., an `OPTIONAL` miss) returns `0`.
+*   **Solution Deduplication**: Duplicate solutions — identical bindings across all projected variables — collapse (set semantics) before projection, `ORDER BY`, and `LIMIT`, so `LIMIT N` returns up to `N` distinct solutions. Distinct solutions that happen to project equal values are preserved.
 
 ### 3.4. `WHERE` Clause
 
@@ -336,7 +337,7 @@ WHERE {
 ```
 
 ```prolog
-// Find parent concepts within 5 hops
+// Find ancestors within 5 hops ({0,…} also yields the zero-hop match: ?parent_concept == ?concept)
 (?concept, "is_subclass_of"{0,5}, ?parent_concept)
 ```
 
@@ -510,6 +511,7 @@ The design philosophy of `UNION` is **"Implement logical 'OR' for multiple indep
 *   **External Variable Invisibility**: Inside `UNION`, external variables bound before it are **not visible**. It is a **completely independent scope**.
 *   **Internal Variable Conditional Visibility**: New variables bound inside `UNION` (internal variables) have their scope **extended** outside the `UNION` clause.
 *   **Same-Named Variables**: If the main block and `UNION` block each bind a variable with the **same name** (e.g., both use `?drug`), they are treated as **independent bindings**. The final result set is the **row-wise union** of both blocks, with variables not present in a given branch set to `null`.
+*   **Deduplication**: The merged result follows the solution-deduplication rule of §3.3 — when both branches bind the same element, it yields one solution.
 
 **Execution Flow Example 1**: Find items via two completely independent paths.
 ```prolog
@@ -556,7 +558,7 @@ WHERE {
 
 These clauses process the result set after the `WHERE` logic execution is complete.
 
-*   `ORDER BY <expr> [ASC|DESC] [, <expr> [ASC|DESC]]...`: Sorts results by **one or more comma-separated sort keys**, evaluated left to right; each key defaults to `ASC` (Ascending). Each expression may be a bound variable (`?var`), a dot-notation path (`?var.attributes.<key>`), or an aggregation expression that also appears in `FIND` (e.g., `ORDER BY COUNT(?n) ASC` together with implicit grouping). **`null` values always sort last**, regardless of direction — so ranking by an optional signal (e.g., `salience_score`) naturally pushes unscored rows to the end.
+*   `ORDER BY <expr> [ASC|DESC] [, <expr> [ASC|DESC]]...`: Sorts results by **one or more comma-separated sort keys**, evaluated left to right; each key defaults to `ASC` (Ascending). Each expression may be a bound variable (`?var`), a dot-notation path (`?var.attributes.<key>`), or an aggregation expression that also appears in `FIND` (e.g., `ORDER BY COUNT(?n) ASC` together with implicit grouping). **`null` values always sort last**, regardless of direction — so ranking by an optional signal (e.g., `salience_score`) naturally pushes unscored rows to the end. A bare `?var` sort key is meaningful when the variable binds a comparable primitive (e.g., a predicate variable binding a string); ordering by a variable bound to a whole node or link is implementation-defined — sort by a dot-notation path instead.
     *   Example: `ORDER BY ?event.attributes.salience_score DESC, ?event.attributes.start_time DESC` — most memorable first, recency as the tie-breaker.
 *   `LIMIT N`: Limits the number of returned results. Accepts a parameter placeholder (`LIMIT :limit`).
 *   `CURSOR "<token>"`: Specifies a token as a cursor position for pagination. Accepts a parameter placeholder (`CURSOR :cursor`).
@@ -657,7 +659,7 @@ KML is the part of KIP responsible for knowledge evolution, serving as the core 
 
 ### 4.1. `UPSERT` Statement
 
-**Function**: Creates or updates knowledge, carrying "Knowledge Capsules." Operations must guarantee **Idempotency**, meaning repeating the same instruction yields the exact same result as executing it once, without creating duplicate data or unexpected side effects.
+**Function**: Creates or updates knowledge, carrying "Knowledge Capsules." Operations must guarantee **Idempotency**, meaning repeating the same instruction yields the exact same result as executing it once, without creating duplicate data or unexpected side effects. The one deliberate exception is the optional `EXPECT VERSION` guard, which trades idempotent retry for lost-update protection: replaying a guarded write that already succeeded fails with `KIP_3005` (see §2.11.2).
 
 **Syntax**:
 
@@ -773,6 +775,8 @@ WITH METADATA {
 }
 ```
 
+**Response**: `{"blocks": <n>, "upsert_concept_nodes": ["<id>", ...], "upsert_proposition_links": ["<id>", ...]}` — `blocks` counts the executed `UPSERT { ... }` statements (one command text may carry several, e.g. a capsule); the two arrays list the ID of every top-level `CONCEPT` / `PROPOSITION` block in execution order (see §6.2.2). Links written via `SET PROPOSITIONS` are not itemized; `FIND` them when their IDs are needed. Under `dry_run` the ID arrays are empty.
+
 ### 4.2. `DELETE` Statement
 
 **Function**: The unified interface for targeted removal of knowledge (attributes, propositions, or entire concepts) from the Cognitive Nexus.
@@ -849,7 +853,7 @@ WHERE {
 **Syntax**: `DELETE CONCEPT ?target_node DETACH WHERE { ... }`
 
 *   `DETACH` keyword is mandatory as a safety confirmation, indicating the intent to delete the node and all its relations.
-*   **Cascade Behavior**: All proposition links where the target node appears as `subject` or `object` are removed. If any of those propositions are themselves referenced (as subject/object) by **higher-order propositions**, those higher-order propositions are also removed transitively. This guarantees no dangling references after a `DETACH`. Implementations SHOULD report the cascade count in the response so the Agent can audit the impact.
+*   **Cascade Behavior**: All proposition links where the target node appears as `subject` or `object` are removed. If any of those propositions are themselves referenced (as subject/object) by **higher-order propositions**, those higher-order propositions are also removed transitively. This guarantees no dangling references after a `DETACH`. The response's `deleted_propositions` count lets the Agent audit the cascade impact (see §6.2.2).
 *   **Protected Targets**: Attempting to delete or modify protected system structures returns `KIP_3004`. Protected structures include meta-types (`$ConceptType`/`$PropositionType`), the foundational `Domain` type and `belongs_to_domain` predicate definitions, core domains such as `CoreSchema`, the identity tuple (`type` + `name`) of system actors (`$self`/`$system`), and their `core_directives`. Ordinary evolvable attributes of `$self` are not protected by this rule.
 
 **Example**:
@@ -861,6 +865,8 @@ WHERE {
   ?drug {type: "Drug", name: "OutdatedDrug"}
 }
 ```
+
+**Response**: `DELETE ATTRIBUTES` / `DELETE METADATA` return `{"updated_concepts": <n>, "updated_propositions": <m>}` — removing keys mutates elements, it deletes none; `DELETE PROPOSITIONS` returns `{"deleted_propositions": <n>}`; `DELETE CONCEPT` returns `{"deleted_concepts": <n>, "deleted_propositions": <m>}`, the proposition count being the cascade audit (see §6.2.2).
 
 ### 4.3. `UPDATE` Statement
 
@@ -889,12 +895,12 @@ LIMIT N
 
 A value position inside `SET ATTRIBUTES` / `SET METADATA` may be a JSON value (as in `UPSERT`) **or a numeric update expression** computed per element from the element's *own* current state:
 
-| Function                  | Semantics                                                                  |
-| :------------------------ | :-------------------------------------------------------------------------- |
-| `ADD(<a>, <b>)`           | `a + b` (use a negative `b` to subtract)                                     |
-| `MUL(<a>, <b>)`           | `a × b`                                                                      |
-| `CLAMP(<x>, <lo>, <hi>)`  | Constrains `x` into `[lo, hi]`                                               |
-| `COALESCE(<x>, <default>)`| `x` if non-`null`, else `default` — initializes missing counters in one pass |
+| Function                   | Semantics                                                                    |
+| :------------------------- | :--------------------------------------------------------------------------- |
+| `ADD(<a>, <b>)`            | `a + b` (use a negative `b` to subtract)                                     |
+| `MUL(<a>, <b>)`            | `a × b`                                                                      |
+| `CLAMP(<x>, <lo>, <hi>)`   | Constrains `x` into `[lo, hi]`                                               |
+| `COALESCE(<x>, <default>)` | `x` if non-`null`, else `default` — initializes missing counters in one pass |
 
 *   Operands may be number literals, parameter placeholders, nested update expressions, or dot-notation paths **on `?target` itself** (e.g., `?target.metadata.confidence`). Paths on other variables are not allowed — each element's new value must be computable from its own state, keeping bulk updates deterministic and order-independent.
 *   If a path operand resolves to `null` (and is not wrapped in `COALESCE`) or to a non-number, the expression yields `null` and **that key is skipped** for that element (the element's other keys still update).
@@ -904,7 +910,7 @@ A value position inside `SET ATTRIBUTES` / `SET METADATA` may be a JSON value (a
 
 ```prolog
 // Sleep-cycle confidence decay across ALL predicates in one command
-// (predicate variable + bulk update)
+// (predicate variable + bulk update; spare structural links and axiomatic 1.0 truths)
 UPDATE ?link
 SET METADATA {
   confidence: CLAMP(MUL(?link.metadata.confidence, :decay_factor), 0.0, 1.0),
@@ -912,8 +918,10 @@ SET METADATA {
 }
 WHERE {
   ?link (?s, ?p, ?o)
+  FILTER(?p != "belongs_to_domain")
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
-  FILTER(?link.metadata.created_at < :decay_threshold && ?link.metadata.confidence > 0.3)
+  FILTER(?link.metadata.created_at < :decay_threshold)
+  FILTER(?link.metadata.confidence > 0.3 && ?link.metadata.confidence < 1.0)
 }
 LIMIT 500
 ```
@@ -931,7 +939,7 @@ WHERE {
 }
 ```
 
-**Response**: `{"updated": <count>}` — the number of elements actually mutated. Implementations SHOULD also report `{"matched": <count>}` when the two differ (e.g., keys skipped by `null` expressions).
+**Response**: `{"updated": <count>, "matched": <count>}` — `matched` counts the elements the `WHERE` pattern selected (after the `LIMIT` cap); `updated` counts those actually mutated. They differ when `null`-yielding expressions skip every key of an element.
 
 ### 4.4. `MERGE` Statement
 
@@ -950,9 +958,9 @@ WHERE {
 *   **Semantics (executed atomically)**:
     1.  **Repoint links**: Every proposition link in which `?source` appears as subject or object is repointed to `?target`, **preserving the link's `id`** (higher-order references remain valid). If repointing would collide with an existing `?target` link under the (Subject, Predicate, Object) uniqueness constraint (§2.10), the target's link survives: missing attribute/metadata keys are filled from the source's link (existing keys win), higher-order references to the dropped link are repointed to the surviving link, and the duplicate is removed.
     2.  **Fill attributes**: Attribute keys present on `?source` but absent on `?target` are copied over; on conflict, `?target`'s value wins. As the one special case, `aliases` arrays are **unioned**, and `?source`'s `name` is appended to `?target.attributes.aliases` (creating the array if needed) — old grounding paths must survive the merge.
-    3.  **Delete source**: `?source` is removed. Engines SHOULD append `"<Type>:<name>"` of the source to the reserved `?target.metadata._merged_from` array for provenance.
+    3.  **Delete source**: `?source` is removed. Engines SHOULD append `"<Type>:<name>"` of the source to the reserved `?target.metadata._merged_from` array for provenance; any `_merged_from` entries already on `?source` are carried over first (duplicates dropped), so provenance survives chained merges.
 *   **Protected targets**: If either node is protected (see `KIP_3004`), the statement fails.
-*   **Retry semantics**: After a successful merge, re-running the same statement returns `KIP_3002` (the source no longer exists) — treat that as "already merged."
+*   **Retry semantics**: After a successful merge, re-running the same statement returns `KIP_3002` (the source no longer exists) — treat that as "already merged." Engines SHOULD make this self-diagnosing: when the source is missing but the target exists with the source listed in `_merged_from`, the error `hint` SHOULD state that the merge already happened.
 
 **Example**:
 
@@ -1087,13 +1095,15 @@ SEARCH CONCEPT|PROPOSITION "<term>"|:term
   [LIMIT N|:limit]
 ```
 
+`WITH TYPE` narrows the scope: for `SEARCH CONCEPT` it takes a **concept type** name; for `SEARCH PROPOSITION` it takes a **predicate** name.
+
 #### 5.2.1. Retrieval Modes
 
-| Mode        | Semantics                                                                                                                                     |
-| :---------- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
-| `"keyword"` | Lexical match over the grounding fields (text index). Today's baseline behavior; always available.                                              |
-| `"semantic"`| Meaning-based similarity over the grounding fields. The engine owns embedding generation and storage; **embeddings never cross the protocol boundary** — the Agent sends text, the engine resolves meaning. |
-| `"hybrid"`  | Fused lexical + semantic ranking (fusion strategy is engine-defined, e.g., RRF). **RECOMMENDED default** where semantic capability exists.       |
+| Mode         | Semantics                                                                                                                                                                                                   |
+| :----------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `"keyword"`  | Lexical match over the grounding fields (text index). Today's baseline behavior; always available.                                                                                                          |
+| `"semantic"` | Meaning-based similarity over the grounding fields. The engine owns embedding generation and storage; **embeddings never cross the protocol boundary** — the Agent sends text, the engine resolves meaning. |
+| `"hybrid"`   | Fused lexical + semantic ranking (fusion strategy is engine-defined, e.g., RRF). **RECOMMENDED default** where semantic capability exists.                                                                  |
 
 *   If `MODE` is omitted, the engine uses `"hybrid"` when it supports semantic retrieval, otherwise `"keyword"`.
 *   An engine without semantic capability MUST treat `"semantic"` / `"hybrid"` as `"keyword"` rather than failing — degraded recall beats no recall — and SHOULD advertise actual capability out of band (e.g., in its `DESCRIBE PRIMER` identity layer).
@@ -1136,16 +1146,18 @@ WHERE {
   ...
 }
 LIMIT N
+CURSOR "<token>"
 ```
 
 *   `?target`: A variable bound in the `WHERE` clause; may bind concept nodes and/or proposition links.
 *   **Read-only**: `EXPORT` performs no mutation and is available on `execute_kip_readonly`.
 *   **Capsule contents**:
     *   Each exported concept appears as a `CONCEPT` block with its `{type, name}` identity, full `attributes`, and author-asserted `metadata` (via `WITH METADATA`).
-    *   Each exported proposition appears as a `PROPOSITION` block with its full `attributes` / `metadata`. Endpoints inside the export set are referenced by local handles; endpoints **outside** the export set are referenced as `{type: "<Type>", name: "<name>"}` — importing then requires those targets to exist (`KIP_3002` otherwise), consistent with §4.1.
+    *   Each exported proposition appears as a `PROPOSITION` block with its full `attributes` / `metadata`. Endpoints inside the export set are referenced by local handles; endpoints **outside** the export set are referenced as `{type: "<Type>", name: "<name>"}` — importing then requires those targets to exist (`KIP_3002` otherwise), consistent with §4.1. If an outside endpoint is itself a **proposition**, it is referenced by a nested structural clause `(<subject>, "<predicate>", <object>)` — link IDs are not portable — and importing likewise requires that proposition to exist.
     *   Reserved `_` metadata (`_version`, `_updated_at`, ...) is **never exported** — it is the source engine's bookkeeping, not knowledge.
     *   Schema definitions are not implied: if the export uses types/predicates the destination may lack, export those `$ConceptType` / `$PropositionType` nodes too (they are ordinary concepts and match the same statement).
-*   Engines MAY cap export size (`KIP_4002`); use `LIMIT` and multiple scoped exports for large subgraphs.
+*   **Pagination**: when more matched elements remain beyond `LIMIT` (or an engine cap), the response carries `next_cursor`; re-issuing the same `EXPORT` with `CURSOR "<token>"` continues where the previous page ended. Each page is an independently valid, idempotent capsule; applying the pages in order reproduces the full subgraph (endpoints already exported on an earlier page are referenced as `{type: "<Type>", name: "<name>"}`).
+*   Engines MAY cap export size (`KIP_4002`); use `LIMIT` with `CURSOR` pagination for large subgraphs.
 
 **Example**:
 
@@ -1158,7 +1170,7 @@ WHERE {
 LIMIT 500
 ```
 
-**Response**: `{"capsule": "<KIP UPSERT script>", "concepts": <n>, "propositions": <m>}`.
+**Response**: `{"capsule": "<KIP UPSERT script>", "concepts": <n>, "propositions": <m>}`, plus `next_cursor` when more elements remain.
 
 ## 6. Request & Response Structure
 
@@ -1208,12 +1220,12 @@ There are two function callings provided:
 }
 ```
 
-**Function Parameters** (arguments are the same for `execute_kip` and `execute_kip_readonly`):
+**Function Parameters** (arguments are the same for `execute_kip` and `execute_kip_readonly`; exactly **one** of `command` / `commands` MUST be provided):
 
 | Parameter        | Type    | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | :--------------- | :------ | :------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`command`**    | String  | No       | A complete KIP command text. **Mutually exclusive with `commands`**.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| **`commands`**   | Array   | No       | An array of KIP commands for batch execution. **Mutually exclusive with `command`**. Each element can be a `String` (uses shared `parameters`) or an `Object` with `{command, parameters}` (independent parameters override shared). Commands execute sequentially. **Stop-on-error rule:** any execution error from a KML command (`UPSERT`/`UPDATE`/`MERGE`/`DELETE`) halts the batch immediately so that subsequent commands cannot operate on a partially-written graph; KQL (`FIND`/`SEARCH`) and META (`DESCRIBE`/`EXPORT`) errors are isolated read failures, and syntax errors mean the command never executed — both are returned inline while execution continues. |
+| **`commands`**   | Array   | No       | An array of KIP commands for batch execution. **Mutually exclusive with `command`**. Each element can be a `String` (uses shared `parameters`) or an `Object` with `{command, parameters}` (independent parameters override shared). Commands execute sequentially. **Stop-on-error rule:** any execution error from a KML command (`UPSERT`/`UPDATE`/`MERGE`/`DELETE`) halts the batch immediately so that subsequent commands cannot operate on a partially-written graph; KQL (`FIND`) and META (`DESCRIBE`/`SEARCH`/`EXPORT`) errors are isolated read failures, and syntax errors mean the command never executed — both are returned inline while execution continues. |
 | **`parameters`** | Object  | No       | An optional key-value object for placeholder substitution. Placeholders (like `:symptom_name`) are safely replaced before execution. Placeholders must occupy a full KIP value position (e.g., `name: :symptom_name`, `LIMIT :limit`, or `SEARCH CONCEPT :term`), and must not be embedded inside quoted strings (e.g., `"Hello :name"`), because replacement uses JSON serialization.                                                                                                                                                                                                                                                                                       |
 | **`dry_run`**    | Boolean | No       | If `true`, only validates the syntax and logic of the command(s) without executing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
@@ -1223,13 +1235,28 @@ There are two function callings provided:
 
 #### 6.2.1. Single Command Response
 
-| Key               | Type   | Required | Description                                                                                                                        |
-| :---------------- | :----- | :------- | :--------------------------------------------------------------------------------------------------------------------------------- |
-| **`result`**      | Object | No       | **Must** exist when the request succeeds, containing the successful result of the request, structure defined by the KIP command.   |
-| **`error`**       | Object | No       | **Must** exist when the request fails, containing structured error details.                                                        |
-| **`next_cursor`** | String | No       | An opaque identifier indicating the pagination position after the last returned result. If present, more results may be available. |
+| Key               | Type   | Required | Description                                                                                                                            |
+| :---------------- | :----- | :------- | :------------------------------------------------------------------------------------------------------------------------------------- |
+| **`result`**      | Any    | No       | **Must** exist when the request succeeds, containing the successful result of the request; its shape is defined per command in §6.2.2. |
+| **`error`**       | Object | No       | **Must** exist when the request fails, containing structured error details.                                                            |
+| **`next_cursor`** | String | No       | An opaque identifier indicating the pagination position after the last returned result. If present, more results may be available.     |
 
-#### 6.2.2. Batch Command Response
+#### 6.2.2. Result Shapes by Command
+
+The `result` of a successful command is shaped by the command:
+
+| Command    | `result` shape                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| :--------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `FIND`     | **Columnar**: one column per `FIND` expression, index-aligned across solutions — `result` is `[column_1, ..., column_k]`, each column an array with one value per solution (a bare `?var` projects the full node/link object). With exactly **one** expression, `result` is that column itself, unwrapped (e.g., an array of node objects for `FIND(?n)`). A non-grouped aggregation contributes a scalar instead of a column; under implicit grouping, aggregation columns align with the grouping columns (`FIND(?d.name, COUNT(?n))` → `[["DomainA", "DomainB"], [15, 3]]`). |
+| `UPSERT`   | `{"blocks": <n>, "upsert_concept_nodes": ["<id>", ...], "upsert_proposition_links": ["<id>", ...]}` — `blocks` counts the executed `UPSERT` statements; the arrays list every top-level `CONCEPT` / `PROPOSITION` block's element ID in execution order (`SET PROPOSITIONS` links are not itemized; `dry_run` leaves the arrays empty).                                                                                                                                                                                                                                         |
+| `UPDATE`   | `{"updated": <count>, "matched": <count>}` (§4.3).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `MERGE`    | `{"merged": true, "links_repointed": <n>, "links_deduplicated": <m>, "attributes_filled": <k>}` (§4.4).                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `DELETE`   | `DELETE ATTRIBUTES` / `METADATA` → `{"updated_concepts": <n>, "updated_propositions": <m>}`; `DELETE PROPOSITIONS` → `{"deleted_propositions": <n>}`; `DELETE CONCEPT` → `{"deleted_concepts": <n>, "deleted_propositions": <m>}` (§4.2.4).                                                                                                                                                                                                                                                                                                                                     |
+| `DESCRIBE` | `PRIMER` → `{"identity": <$self summary>, "domain_map": [<domain summaries>], "total_domains": <n>}`; `DOMAINS` → array of domain summaries; `CONCEPT TYPES` / `PROPOSITION TYPES` → array of type names (paginated via `next_cursor`); `CONCEPT TYPE "X"` / `PROPOSITION TYPE "X"` → the single definition-node object.                                                                                                                                                                                                                                                        |
+| `SEARCH`   | Array of matched concept nodes / proposition links in descending `metadata._score` order, each carrying the transient `_score` (§5.2).                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `EXPORT`   | `{"capsule": "<KIP UPSERT script>", "concepts": <n>, "propositions": <m>}`, plus `next_cursor` when paginated (§5.3).                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+
+#### 6.2.3. Batch Command Response
 
 When using `commands` (batch execution), the response contains a `result` array corresponding to each command in order. **Execution stops on the first KML (`UPSERT`/`UPDATE`/`MERGE`/`DELETE`) execution error**, so the array length may be less than the number of commands submitted. KQL, META, and syntax errors are included inline and do not stop later commands.
 
@@ -1316,7 +1343,7 @@ Well-designed metadata is key to building a self-evolving, traceable, and audita
 *   `created_at` / `observed_at`: `String` (ISO 8601), timestamp of creation or observation.
 *   `expires_at`: `String` (ISO 8601), expiration timestamp of the memory. **This field is key to implementing the automatic "forgetting" mechanism.** It is a *signal* for background `$system` cleanup tasks, not an automatic query-time filter (see §2.10 “Memory Lifecycle”): expired knowledge remains queryable until physically removed or archived. Usually populated by the system based on knowledge type (e.g., `Event`).
 *   `valid_from` / `valid_until`: `String` (ISO 8601), valid start/end time of the knowledge assertion.
-*   `status`: `String`, e.g., `"active"`, `"deprecated"`, `"retracted"`.
+*   `status`: `String`, e.g., `"active"`, `"deprecated"`, `"retracted"`. Describes the **assertion's** lifecycle; distinct from any `attributes.status` a concept type defines for the entity's own lifecycle (e.g., `Commitment.status`).
 *   `memory_tier`: `String`, **automatically tagged by the system**, e.g., `"short-term"`, `"long-term"`, used for internal maintenance and query optimization.
 *   `superseded`: `Boolean`, `true` when this fact is retained as historical state after a newer fact supersedes it.
 *   `superseded_by` / `supersedes`: `String`, pointers across the state-evolution chain.
@@ -1373,7 +1400,7 @@ UPSERT {
                 "instance_schema": {
                     "type": "object",
                     "is_required": false,
-                    "description": "A recommended schema defining the common and core attributes for instances of this concept type. It serves as a 'best practice' guideline for knowledge creation, not a rigid constraint. Keys are attribute names, values are objects defining 'type', 'is_required', and 'description'. Instances SHOULD include required attributes but MAY also include any other attribute not defined in this schema, allowing for knowledge to emerge and evolve freely."
+                    "description": "A recommended schema defining the common and core attributes for instances of this concept type. It serves as a 'best practice' guideline for knowledge creation, not a rigid constraint. Keys are attribute names, values are objects defining 'type', 'is_required', and 'description' (optionally 'item_type' for arrays, 'enum', and 'default_value'). Instances SHOULD include required attributes but MAY also include any other attribute not defined in this schema, allowing for knowledge to emerge and evolve freely."
                 },
                 "key_instances": {
                     "type": "array",
@@ -1457,7 +1484,7 @@ UPSERT {
                 }
 
             },
-            key_instances: ["CoreSchema"]
+            key_instances: ["CoreSchema", "Unsorted", "Archived", "System"]
         }
     }
 
@@ -1479,6 +1506,24 @@ UPSERT {
             description: "The foundational domain containing the meta-definitions of the KIP system itself.",
             display_hint: "🧩"
         }
+    }
+
+    // 3d. Create the operational domains every nexus needs from day one:
+    // an inbox for unclassified knowledge, an audit-preserving graveyard,
+    // and a home for the memory system's own working nodes (e.g., SleepTask).
+    CONCEPT ?unsorted_domain {
+        {type: "Domain", name: "Unsorted"}
+        SET ATTRIBUTES { description: "Temporary inbox for items awaiting topic classification." }
+    }
+
+    CONCEPT ?archived_domain {
+        {type: "Domain", name: "Archived"}
+        SET ATTRIBUTES { description: "Storage for deprecated, obsolete, or consolidated items preserved for audit trail." }
+    }
+
+    CONCEPT ?system_domain {
+        {type: "Domain", name: "System"}
+        SET ATTRIBUTES { description: "Operational home for the memory system's own working nodes (e.g., SleepTask instances); not user knowledge." }
     }
 }
 WITH METADATA {
@@ -1509,6 +1554,18 @@ UPSERT {
     }
     CONCEPT ?belongs_to_domain_prop {
         {type: "$PropositionType", name: "belongs_to_domain"}
+        SET PROPOSITIONS { ("belongs_to_domain", ?core_domain) }
+    }
+    CONCEPT ?unsorted_domain {
+        {type: "Domain", name: "Unsorted"}
+        SET PROPOSITIONS { ("belongs_to_domain", ?core_domain) }
+    }
+    CONCEPT ?archived_domain {
+        {type: "Domain", name: "Archived"}
+        SET PROPOSITIONS { ("belongs_to_domain", ?core_domain) }
+    }
+    CONCEPT ?system_domain {
+        {type: "Domain", name: "System"}
         SET PROPOSITIONS { ("belongs_to_domain", ?core_domain) }
     }
 }
@@ -1548,6 +1605,30 @@ This node represents the "Superego" of the system. It is an emotionless, persona
 
 **[system.kip](./capsules/persons/system.kip)**
 
+### A3.3. `Preference` Concept Type
+
+A first-class stable preference fact — some subject reliably prefers something — connected to its subject via the `prefers` predicate and reinforced across Events (`evidence_count`, `first_observed` / `last_observed`).
+
+**[Preference.kip](./capsules/Preference.kip)**
+
+### A3.4. `Insight` Concept Type
+
+A self-reflective lesson learned by the agent (mistakes, knowledge gaps, operational discoveries, reasoning patterns), connected to its learner via the `learned` predicate. Insights are the primary vehicle for `$self` evolution.
+
+**[Insight.kip](./capsules/Insight.kip)**
+
+### A3.5. `Commitment` Concept Type
+
+Prospective memory: promises, reminders, follow-ups, and deadlines with a `pending → fulfilled / cancelled / expired` lifecycle, connected via `committed_to` (maker) and `owed_to` (beneficiary).
+
+**[Commitment.kip](./capsules/Commitment.kip)**
+
+### A3.6. `SleepTask` Concept Type
+
+Background maintenance tasks flagged for `$system` and swept during sleep cycles, connected via `assigned_to`. Task instances live in the `System` domain; the `Unsorted` / `Archived` / `System` operational domains themselves are created by the Genesis Capsule (Appendix 2).
+
+**[SleepTask.kip](./capsules/SleepTask.kip)**
+
 ## Appendix 4. KIP Standard Error Codes
 
 To support the **Self-Correction** capability of AI Agents, the Cognitive Nexus must return standardized error objects upon execution failure. Error codes are divided into 4 categories:
@@ -1569,22 +1650,22 @@ To support the **Self-Correction** capability of AI Agents, the Cognitive Nexus 
 
 ### Error Code Reference
 
-| Error Code | Error Name             | Description                                                                                                                                                                                                                                             | Recovery Hint for Agent                                                                                                                                                                                                |
-| :--------- | :--------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1xxx**   | **Syntax & Parsing**   |                                                                                                                                                                                                                                                         |                                                                                                                                                                                                                        |
-| `KIP_1001` | `InvalidSyntax`        | KQL/KML code cannot be parsed due to spelling or structural errors.                                                                                                                                                                                     | Check parenthesis matching, keyword spelling, and statement structure. Ensure JSON data format is valid.                                                                                                               |
-| `KIP_1002` | `InvalidIdentifier`    | Used illegal identifier format (e.g., starting with a number).                                                                                                                                                                                          | Identifiers must match regex `[a-zA-Z_][a-zA-Z0-9_]*`.                                                                                                                                                                 |
-| **2xxx**   | **Schema & Type**      |                                                                                                                                                                                                                                                         |                                                                                                                                                                                                                        |
-| `KIP_2001` | `TypeMismatch`         | Attempted to use a Concept Type or Proposition Predicate undefined in Schema.                                                                                                                                                                           | **Most common error.** Execute `DESCRIBE` to confirm type names. Remember types are case-sensitive (`Drug` vs `drug`).                                                                                                 |
-| `KIP_2002` | `ConstraintViolation`  | Violated data constraints (e.g., missing required field `is_required: true`; writing a reserved `_` metadata key; `MERGE` across differing concept types).                                                                                              | Supply the missing required attributes. Never write `_`-prefixed metadata — it is engine-maintained.                                                                                                                   |
-| `KIP_2003` | `InvalidValueType`     | JSON type of attribute value mismatches Schema definition.                                                                                                                                                                                              | Correct the JSON value type.                                                                                                                                                                                           |
-| **3xxx**   | **Logic & Data**       |                                                                                                                                                                                                                                                         |                                                                                                                                                                                                                        |
-| `KIP_3001` | `ReferenceError`       | Referenced an undefined variable or Handle.                                                                                                                                                                                                             | Ensure the `CONCEPT` block defining the handle is placed before subsequent clauses referencing it in `UPSERT`.                                                                                                         |
-| `KIP_3002` | `NotFound`             | Node/Link with specified ID or name does not exist (for `DELETE`, or when referencing existing targets in `UPSERT`/`SET PROPOSITIONS`).                                                                                                                 | Target may have been deleted or never created. Try `SEARCH` or `FIND` to confirm existence first.                                                                                                                      |
-| `KIP_3003` | `DuplicateExists`      | Violated uniqueness constraint (e.g., re-creating existing unique node), or a `MERGE` variable matched more than one node.                                                                                                                              | If intent is update, check if `UPSERT` should be used instead of creation logic. For `MERGE`, narrow the `WHERE` pattern until each variable matches exactly one node.                                                 |
+| Error Code | Error Name             | Description                                                                                                                                                                                                                                                                                                                           | Recovery Hint for Agent                                                                                                                                                                                                |
+| :--------- | :--------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1xxx**   | **Syntax & Parsing**   |                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                                                        |
+| `KIP_1001` | `InvalidSyntax`        | KQL/KML code cannot be parsed due to spelling or structural errors.                                                                                                                                                                                                                                                                   | Check parenthesis matching, keyword spelling, and statement structure. Ensure JSON data format is valid.                                                                                                               |
+| `KIP_1002` | `InvalidIdentifier`    | Used illegal identifier format (e.g., starting with a number).                                                                                                                                                                                                                                                                        | Identifiers must match regex `[a-zA-Z_][a-zA-Z0-9_]*`.                                                                                                                                                                 |
+| **2xxx**   | **Schema & Type**      |                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                                                        |
+| `KIP_2001` | `TypeMismatch`         | Attempted to use a Concept Type or Proposition Predicate undefined in Schema.                                                                                                                                                                                                                                                         | **Most common error.** Execute `DESCRIBE` to confirm type names. Remember types are case-sensitive (`Drug` vs `drug`).                                                                                                 |
+| `KIP_2002` | `ConstraintViolation`  | Violated data constraints (e.g., missing required field `is_required: true`; writing a reserved `_` metadata key; `MERGE` across differing concept types).                                                                                                                                                                            | Supply the missing required attributes. Never write `_`-prefixed metadata — it is engine-maintained.                                                                                                                   |
+| `KIP_2003` | `InvalidValueType`     | JSON type of attribute value mismatches Schema definition (e.g., expected a number but received a string).                                                                                                                                                                                                                            | Correct the JSON value type.                                                                                                                                                                                           |
+| **3xxx**   | **Logic & Data**       |                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                                                        |
+| `KIP_3001` | `ReferenceError`       | Referenced an undefined variable or Handle.                                                                                                                                                                                                                                                                                           | Ensure the `CONCEPT` block defining the handle is placed before subsequent clauses referencing it in `UPSERT`.                                                                                                         |
+| `KIP_3002` | `NotFound`             | Node/Link with specified ID or name does not exist (for `DELETE`, or when referencing existing targets in `UPSERT`/`SET PROPOSITIONS`).                                                                                                                                                                                               | Target may have been deleted or never created. Try `SEARCH` or `FIND` to confirm existence first.                                                                                                                      |
+| `KIP_3003` | `DuplicateExists`      | Violated uniqueness constraint (e.g., re-creating an existing unique node where update is not permitted), or a `MERGE` variable matched more than one node.                                                                                                                                                                           | If intent is update, check if `UPSERT` should be used instead of creation logic. For `MERGE`, narrow the `WHERE` pattern until each variable matches exactly one node.                                                 |
 | `KIP_3004` | `ImmutableTarget`      | Attempted to modify/delete protected system structures: meta-types (`$ConceptType`, `$PropositionType`), the foundational `Domain` type and `belongs_to_domain` predicate definitions, core domains (e.g., `CoreSchema`), the **identity tuple** (`type` + `name`) of system actors (`$self`, `$system`), or their `core_directives`. | **Operation Prohibited.** Note: ordinary attributes of `$self` (e.g., `persona`, `strengths`, `behavior_preferences`, `identity_narrative`) are explicitly designed to evolve and are NOT covered by this restriction. |
-| `KIP_3005` | `VersionConflict`      | An `EXPECT VERSION` guard did not match the element's current `_version` (a concurrent writer modified it, or `EXPECT VERSION 0` was used on an existing element). The entire `UPSERT` was aborted; nothing was written.                                | Re-read the element to get its fresh `_version` and current value, re-apply your merge in memory, then retry the guarded write. Never blindly retry with the stale version.                                            |
-| **4xxx**   | **System & Execution** |                                                                                                                                                                                                                                                         |                                                                                                                                                                                                                        |
-| `KIP_4001` | `ExecutionTimeout`     | Query too complex, execution time exceeded system limit.                                                                                                                                                                                                | Optimize query. Reduce `UNION` usage, lower `LIMIT`, or reduce regex/hops.                                                                                                                                             |
-| `KIP_4002` | `ResourceExhausted`    | Result set too large or insufficient memory.                                                                                                                                                                                                            | Must use `LIMIT` and `CURSOR` for pagination.                                                                                                                                                                          |
-| `KIP_4003` | `InternalError`        | Unknown internal database error.                                                                                                                                                                                                                        | Contact system administrator or retry later.                                                                                                                                                                           |
+| `KIP_3005` | `VersionConflict`      | An `EXPECT VERSION` guard did not match the element's current `_version` (a concurrent writer modified it, or `EXPECT VERSION 0` was used on an existing element). The entire `UPSERT` was aborted; nothing was written.                                                                                                              | Re-read the element to get its fresh `_version` and current value, re-apply your merge in memory, then retry the guarded write. Never blindly retry with the stale version.                                            |
+| **4xxx**   | **System & Execution** |                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                                                        |
+| `KIP_4001` | `ExecutionTimeout`     | Query too complex, execution time exceeded system limit.                                                                                                                                                                                                                                                                              | Optimize query. Reduce `UNION` usage, lower `LIMIT`, or reduce regex/hops.                                                                                                                                             |
+| `KIP_4002` | `ResourceExhausted`    | Result set too large or insufficient memory.                                                                                                                                                                                                                                                                                          | Must use `LIMIT` and `CURSOR` for pagination.                                                                                                                                                                          |
+| `KIP_4003` | `InternalError`        | Unknown internal database error.                                                                                                                                                                                                                                                                                                      | Contact system administrator or retry later.                                                                                                                                                                           |

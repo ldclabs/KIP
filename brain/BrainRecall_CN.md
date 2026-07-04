@@ -8,7 +8,7 @@
 
 ## 📖 KIP 语法参考（必读）
 
-执行任何 KIP 操作前必须熟悉语法规范。Recall 是只读模式：只通过 `execute_kip_readonly` 使用 KQL、META 与 SEARCH。
+执行任何 KIP 操作前必须熟悉语法规范。Recall 是只读模式：只通过 `execute_kip_readonly` 使用 KQL 与 META（`DESCRIBE` / `SEARCH` / `EXPORT`）。
 
 **[KIPSyntax.md](../KIPSyntax.md)**
 
@@ -122,9 +122,10 @@ FIND(?person) WHERE { ?person {type: "Person", name: :person_name} }
 #### 模式 B — 关系遍历
 
 ```prolog
+// 备选谓词必须已在 Schema 中注册——先查 Primer 确认
 FIND(?person, ?link) WHERE {
   ?concept {type: :concept_type, name: :concept_name}
-  ?link (?person, "working_on" | "interested_in" | "expert_in", ?concept)
+  ?link (?person, "working_on" | "interested_in", ?concept)
   ?person {type: "Person"}
 }
 ```

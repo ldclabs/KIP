@@ -57,7 +57,7 @@ Messages may carry `role`, `content`, optional `name` (durable speaker id) and `
 - **Extraction budget**: a typical conversation yields 1 Event + 0–3 semantic concepts. Before exceeding ~5 semantic writes, re-check each against the Don't-Store list — over-extraction, not under-extraction, is the primary failure mode.
 - Prefer one batched read step and one batched write step when possible. Batch independent `SEARCH`, `DESCRIBE`, and `UPSERT` commands.
 - Reuse core schema aggressively. Create new types or predicates only when repeated future use is likely.
-- **Error recovery**: on a KIP error, apply the returned `hint`, correct, and retry once. Never re-send a failing command verbatim; if the retry fails, note it in `Warnings` and continue.
+- **Error recovery**: on a KIP error, apply the returned `hint`, correct, and retry once. Never re-send a failing command verbatim; if the retry fails, note it in `Warnings` and continue. Blind retries are safe only when the failure proves the command never executed (syntax/validation errors); after an ambiguous failure (e.g., a `KIP_4001` timeout) on a non-idempotent `UPDATE` (`ADD` counters), verify state before re-running.
 - After successful writes, stop with the compact output format below.
 
 ---
@@ -146,7 +146,7 @@ UPSERT {
   // Omit this block and the involves link if no participant is resolved.
   CONCEPT ?participant {
     {type: "Person", name: :participant_id}
-    SET ATTRIBUTES { person_class: "Human" }
+    SET ATTRIBUTES { person_class: :person_class }  // resolved: "Human" | "AI" | "Organization"; omit the key when unsure
   }
   CONCEPT ?event {
     {type: "Event", name: :event_name}
@@ -176,6 +176,7 @@ WITH METADATA {
 - **Naming**: `"<EventClass>:<date>:<topic_slug>"` (deterministic → idempotent).
 - **`expires_at` defaults**: `Conversation` / `WebpageView` / `ToolExecution` → `start_time + 90d`; `SelfReflection` → `+180d`; sensitive / one-shot → `+7d` or `+1d`; ceremonial events the user wants kept → omit. Per KIP §2.10, `expires_at` is a *signal* to background cleanup; it does not auto-filter queries. Never set on stable semantic concepts (`Person`, `Preference`, `Insight`, `Domain`, `$self`, `$system`, `$ConceptType`, `$PropositionType`) unless genuinely temporary.
 - **`involves` vs `mentions`**: `involves` for direct participants (Maintenance uses this to cluster events for cross-event pattern extraction); `mentions` for entities only referenced in content.
+- **`person_class`**: resolve from participant context ("Human" / "AI" / "Organization"). Shallow merge means a guessed class overwrites a correct one on an existing Person — omit the key when unsure.
 
 #### 5b. Semantic — Stable Concepts
 
@@ -192,7 +193,7 @@ UPSERT {
   }
   CONCEPT ?person {
     {type: "Person", name: :person_id}
-    SET ATTRIBUTES { name: :display_name, person_class: "Human" }
+    SET ATTRIBUTES { name: :display_name, person_class: :person_class }
     SET PROPOSITIONS {
       ("prefers", ?pref)
       ("belongs_to_domain", ?domain)
@@ -360,7 +361,7 @@ UPSERT {
     }
     SET PROPOSITIONS {
       ("assigned_to", {type: "Person", name: "$system"})
-      ("belongs_to_domain", {type: "Domain", name: "Unsorted"})
+      ("belongs_to_domain", {type: "Domain", name: "System"})
     }
   }
 }
@@ -372,14 +373,15 @@ WITH METADATA { source: :source, author: "$self", confidence: 1.0, created_at: :
 
 ### Phase 8: State Evolution — Handle Contradictions
 
-When new info contradicts existing knowledge, never silently overwrite. Mark the old proposition `superseded`, store the new fact normally, and create a high-priority `SleepTask` if the contradiction is complex.
+When new info contradicts existing knowledge, never silently overwrite. **Order matters**: ① store the new fact normally (§5b), ② `FIND` both link IDs, ③ mark the old proposition `superseded` by ID. Create a high-priority `SleepTask` if the contradiction is complex.
 
-First identify the existing proposition; never use a structural `PROPOSITION` block to mark an old fact unless you have just matched it, because structural `UPSERT` can create a missing link.
+Always mark the old fact via `(id: ...)` — a structural `PROPOSITION` block would create the link if it were missing.
 
 ```prolog
-FIND(?old_link.id, ?old_link.metadata.created_at, ?old_link.metadata.observed_at)
+FIND(?old_link.id, ?new_link.id)
 WHERE {
   ?old_link ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :old_pref})
+  ?new_link ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :new_pref})
 }
 LIMIT 1
 ```
@@ -392,7 +394,7 @@ UPSERT {
 }
 WITH METADATA {
   source: :source, author: "$self", created_at: :timestamp, observed_at: :timestamp,
-  superseded: true, superseded_at: :timestamp, superseded_by: :new_link_ref,
+  superseded: true, superseded_at: :timestamp, superseded_by: :new_link_id,
   confidence: 0.1
 }
 ```

@@ -2,7 +2,7 @@ UPSERT {
     CONCEPT ?sleep_task_type {
         {type: "$ConceptType", name: "SleepTask"}
         SET ATTRIBUTES {
-            description: "A maintenance task flagged by $self (during Formation) or $system (during Maintenance) for $system to process during sleep cycles. Using dedicated nodes (rather than array attributes) avoids Read-Modify-Write complexity. Naming convention: 'SleepTask:<date>:<action>:<target_slug>'.",
+            description: "A maintenance task flagged by $self (during Formation) or $system (during Maintenance) for $system to process during sleep cycles. Using dedicated nodes (rather than array attributes) avoids Read-Modify-Write complexity. Task instances belong to the 'System' domain (created by the Genesis capsule). Naming convention: 'SleepTask:<date>:<action>:<target_slug>'.",
             display_hint: "🛏️",
             instance_schema: {
                 "target_type": {
@@ -68,22 +68,6 @@ UPSERT {
             ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
         }
     }
-
-    CONCEPT ?unsorted {
-        {type: "Domain", name: "Unsorted"}
-        SET ATTRIBUTES { description: "Temporary inbox for items awaiting topic classification." }
-        SET PROPOSITIONS {
-            ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
-        }
-    }
-
-    CONCEPT ?archived {
-        {type: "Domain", name: "Archived"}
-        SET ATTRIBUTES { description: "Storage for deprecated, obsolete, or consolidated items preserved for audit trail." }
-        SET PROPOSITIONS {
-            ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
-        }
-    }
 }
 WITH METADATA {
     source: "SystemBootstrap",
@@ -91,3 +75,7 @@ WITH METADATA {
     confidence: 1.0,
     status: "active"
 }
+
+// The operational domains (Unsorted / Archived / System) are created by
+// the Genesis capsule (Genesis.kip, step 3d); SleepTask instances belong
+// to the "System" domain.

@@ -3,6 +3,8 @@
 // that performs memory consolidation, garbage collection, and knowledge hygiene.
 // Like the human brain during sleep, it processes, organizes, and prunes memories
 // without direct user interaction.
+// NOTE: the "id" attribute below is a deployment placeholder — replace it with
+// the deployment's real durable identifier at bootstrap.
 UPSERT {
     CONCEPT ?system_actor {
         {type: "Person", name: "$system"}

@@ -2,6 +2,8 @@
 // $self is the "waking state" of the AI Agent—the conscious, interactive persona
 // that engages with users, learns from conversations, and builds episodic memories.
 // During "sleep", $system takes over for memory consolidation and maintenance.
+// NOTE: the "id" attribute below is a deployment placeholder — replace it with
+// the agent's real durable identifier (e.g., an ICP principal) at bootstrap.
 UPSERT {
     CONCEPT ?self_genesis {
         {type: "Person", name: "$self"}
