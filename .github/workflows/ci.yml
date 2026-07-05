@@ -1,0 +1,87 @@
+name: CI
+
+# Unit tests and checks for both workspace packages. Runs on every push to main
+# and every pull request that touches a package or the shared workspace files.
+# Publishing lives in the separate kip-lang.yml / vscode-kip.yml workflows.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kip-lang:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [22, 24]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # `pretest` compiles TypeScript to dist/ before the node:test suite runs.
+      - name: Test @ldclabs/kip-lang
+        run: pnpm --filter @ldclabs/kip-lang test
+
+  vscode-kip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The extension bundles @ldclabs/kip-lang, so it must be built first.
+      - name: Build kip-lang (bundled dependency)
+        run: pnpm --filter @ldclabs/kip-lang build
+
+      - name: Type-check
+        run: pnpm --filter vscode-kip lint
+
+      - name: Bundle
+        run: pnpm --filter vscode-kip build
+
+      - name: Package (.vsix)
+        run: pnpm --filter vscode-kip package
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-kip-vsix
+          path: packages/vscode-kip/*.vsix
+          if-no-files-found: error

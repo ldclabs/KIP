@@ -1,0 +1,51 @@
+name: publish-kip-lang
+
+# Publishes @ldclabs/kip-lang to npm via Trusted Publishing (OIDC) when a GitHub
+# Release whose tag starts with `kip-lang-v` is published (e.g. `kip-lang-v0.3.1`).
+# Unit tests run separately in ci.yml.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-kip-lang-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: startsWith(github.event.release.tag_name, 'kip-lang-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for npm Trusted Publishing (OIDC)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: "https://registry.npmjs.org"
+          cache: pnpm
+
+      # Trusted Publishing (OIDC, tokenless) requires npm >= 11.5.1.
+      - name: Ensure npm supports trusted publishing
+        run: npm install -g npm@latest
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm --filter @ldclabs/kip-lang build
+
+      # No NODE_AUTH_TOKEN: npm exchanges the GitHub OIDC token for a short-lived
+      # publish token via the trusted publisher configured on npmjs.com, and
+      # attaches provenance automatically.
+      - name: Publish to npm (Trusted Publisher)
+        working-directory: packages/kip-lang
+        run: npm publish --access public

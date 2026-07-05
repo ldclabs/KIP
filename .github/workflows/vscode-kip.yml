@@ -1,0 +1,57 @@
+name: publish-vscode-kip
+
+# Publishes the extension to the VS Code Marketplace (and Open VSX, if OVSX_PAT
+# is set) when a GitHub Release whose tag starts with `vscode-kip-v` is
+# published. Unit tests / packaging checks run separately in ci.yml.
+#
+# Required repository secrets:
+#   VSCE_PAT  - Azure DevOps PAT with Marketplace "Manage" scope for publisher `ldclabs`.
+#   OVSX_PAT  - Open VSX access token (optional; the Open VSX step is skipped if unset).
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-vscode-kip-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: startsWith(github.event.release.tag_name, 'vscode-kip-v')
+    runs-on: ubuntu-latest
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build kip-lang (bundled dependency)
+        run: pnpm --filter @ldclabs/kip-lang build
+
+      # Package to a deterministic filename (vscode:prepublish bundles first).
+      - name: Package (.vsix)
+        working-directory: packages/vscode-kip
+        run: pnpm exec vsce package --no-dependencies --out vscode-kip.vsix
+
+      - name: Publish to VS Code Marketplace
+        working-directory: packages/vscode-kip
+        run: pnpm exec vsce publish --packagePath vscode-kip.vsix --pat "$VSCE_PAT"
+
+      - name: Publish to Open VSX
+        if: env.OVSX_PAT != ''
+        working-directory: packages/vscode-kip
+        run: pnpm dlx ovsx publish vscode-kip.vsix --pat "$OVSX_PAT"

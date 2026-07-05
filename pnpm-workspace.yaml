@@ -1,7 +1,16 @@
 packages:
   - 'packages/*'
   - 'mcp/*'
+
+# Approve (true) or deny (false) dependency build scripts. pnpm 11 requires an
+# explicit decision for every package that ships an install/build script;
+# leaving one undecided makes `pnpm install` fail the pre-run deps check.
+# - esbuild bundles the VS Code extension.
+# - @vscode/vsce-sign signs the .vsix during packaging.
+#   Both ship prebuilt platform binaries.
+# - keytar is an optional dep of @vscode/vsce; it needs libsecret to compile and
+#   is not required for token-based publishing, so it is denied.
 allowBuilds:
-  '@vscode/vsce-sign': set this to true or false
-  esbuild: set this to true or false
-  keytar: set this to true or false
+  esbuild: true
+  '@vscode/vsce-sign': true
+  keytar: false

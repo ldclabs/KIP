@@ -19,7 +19,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
-    "test": "node --test test/**/*.test.mjs"
+    "pretest": "tsc -p tsconfig.json",
+    "test": "node --test",
+    "prepublishOnly": "tsc -p tsconfig.json"
   },
   "keywords": [
     "kip",
@@ -33,5 +35,8 @@
     "type": "git",
     "url": "https://github.com/ldclabs/KIP",
     "directory": "packages/kip-lang"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
   }
 }
