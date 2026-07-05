@@ -87,7 +87,8 @@
     },
     "parameter": {
       "name": "variable.parameter.kip",
-      "match": ":[a-zA-Z_][a-zA-Z0-9_]*"
+      "comment": "A placeholder occupies a full value position, so it never directly follows an identifier/quote/closing bracket (that colon is a key separator).",
+      "match": "(?<![A-Za-z0-9_\"'\\]\\})]):[a-zA-Z_][a-zA-Z0-9_]*"
     },
     "system-ident": {
       "name": "constant.other.system.kip",

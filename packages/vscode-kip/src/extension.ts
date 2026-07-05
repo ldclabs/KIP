@@ -8,9 +8,12 @@ const KIP_SELECTOR: vscode.DocumentSelector = {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+  const output = vscode.window.createOutputChannel('KIP')
+
   // Formatting
-  const formattingProvider = new KipFormattingProvider()
+  const formattingProvider = new KipFormattingProvider(output)
   context.subscriptions.push(
+    output,
     vscode.languages.registerDocumentFormattingEditProvider(
       KIP_SELECTOR,
       formattingProvider

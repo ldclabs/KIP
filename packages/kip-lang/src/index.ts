@@ -1,10 +1,11 @@
 export { tokenize } from './lexer.js'
 export { parse } from './parser.js'
 export type { ParseResult } from './parser.js'
-export { format, formatPreservingComments } from './formatter.js'
+export { format } from './formatter.js'
 export type { FormatOptions } from './formatter.js'
 export { diagnose } from './diagnostics.js'
 export type { Diagnostic } from './diagnostics.js'
+export { analyzeSemantics } from './semantics.js'
 
 export {
   TokenType,

@@ -4,6 +4,8 @@ import { format } from '@ldclabs/kip-lang'
 export class KipFormattingProvider
   implements vscode.DocumentFormattingEditProvider
 {
+  constructor(private readonly output?: vscode.OutputChannel) {}
+
   provideDocumentFormattingEdits(
     document: vscode.TextDocument,
     options: vscode.FormattingOptions
@@ -11,8 +13,7 @@ export class KipFormattingProvider
     const source = document.getText()
     try {
       const formatted = format(source, {
-        indentSize: options.tabSize,
-        sortAttributes: true
+        indentSize: options.tabSize
       })
       if (formatted === source) return []
 
@@ -21,7 +22,11 @@ export class KipFormattingProvider
         document.positionAt(source.length)
       )
       return [vscode.TextEdit.replace(fullRange, formatted)]
-    } catch {
+    } catch (err) {
+      // `format` throws on invalid KIP (surfaced separately by diagnostics);
+      // log the reason so genuine formatter failures are not silent.
+      const message = err instanceof Error ? err.message : String(err)
+      this.output?.appendLine(`[format] ${document.uri.fsPath}: ${message}`)
       return []
     }
   }

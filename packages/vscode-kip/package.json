@@ -2,7 +2,7 @@
   "name": "vscode-kip",
   "displayName": "KIP Language",
   "description": "Language support for KIP (Knowledge Interaction Protocol): syntax highlighting, formatting, diagnostics, and code folding for .kip files",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "ldclabs",
   "license": "MIT",
   "repository": {

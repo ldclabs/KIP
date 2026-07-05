@@ -6,9 +6,15 @@ import path from 'node:path'
 import { z } from 'zod'
 import {
   ExecuteKipInputSchema,
-  ListLogsInputSchema
+  ListLogsInputSchema,
+  type ExecuteKipInput
 } from './schemas/executeKip.js'
-import { executeKipOverHttp, listLogs } from './services/kipClient.js'
+import {
+  executeKipOverHttp,
+  executeKipReadonlyOverHttp,
+  listLogs,
+  type KipClientOptions
+} from './services/kipClient.js'
 
 function requiredEnv(name: string): string {
   const v = process.env[name]
@@ -21,10 +27,47 @@ function requiredEnv(name: string): string {
   return v
 }
 
+async function readServerVersion(): Promise<string> {
+  try {
+    const pkgUrl = new URL('../package.json', import.meta.url)
+    const pkg = JSON.parse(await readFile(pkgUrl, 'utf-8')) as {
+      version?: string
+    }
+    return pkg.version ?? '0.0.0'
+  } catch {
+    return '0.0.0'
+  }
+}
+
 const server = new McpServer({
   name: 'kip-mcp-server',
-  version: '0.1.0'
+  version: await readServerVersion()
 })
+
+/** Build backend client options from the environment. */
+function clientOptions(): KipClientOptions {
+  return {
+    baseUrl: requiredEnv('KIP_BACKEND_URL'),
+    apiKey: process.env.KIP_API_KEY,
+    authHeader: process.env.KIP_AUTH_HEADER,
+    timeoutMs: process.env.KIP_TIMEOUT_MS
+      ? Number(process.env.KIP_TIMEOUT_MS)
+      : undefined
+  }
+}
+
+/** Shape a backend response into MCP tool output (text + structured content). */
+function toToolResult(output: unknown) {
+  const structuredContent: Record<string, unknown> =
+    typeof output === 'object' && output !== null && !Array.isArray(output)
+      ? (output as Record<string, unknown>)
+      : { result: output }
+
+  return {
+    content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+    structuredContent
+  }
+}
 
 function getRepoRoot(): string {
   // If KIP_REPO_ROOT is set, allow loading docs from a checked-out KIP repo.
@@ -133,7 +176,9 @@ Do one of the following first:
 
 Input shape:
 - Provide exactly one of: 'command' (single multi-line string) OR 'commands' (batch).
+- In a batch, each 'commands' element is either a string (using shared 'parameters') or an object { command, parameters } whose parameters override the shared ones.
 - Use 'dry_run: true' to validate without executing.
+- If you only need to read (KQL FIND, META DESCRIBE/SEARCH/EXPORT) and will not modify the graph, prefer the 'execute_kip_readonly' tool.
 
 Schema grounding (do not guess):
 - Types are UpperCamelCase; predicates/attributes are snake_case (case-sensitive).
@@ -157,32 +202,34 @@ Safety:
       openWorldHint: true
     }
   },
-  async (input, _extra) => {
-    const baseUrl = requiredEnv('KIP_BACKEND_URL')
+  async (input: ExecuteKipInput, _extra) => {
+    const output = await executeKipOverHttp(input, clientOptions())
+    return toToolResult(output)
+  }
+)
 
-    const output = await executeKipOverHttp(input, {
-      baseUrl,
-      apiKey: process.env.KIP_API_KEY,
-      authHeader: process.env.KIP_AUTH_HEADER,
-      timeoutMs: process.env.KIP_TIMEOUT_MS
-        ? Number(process.env.KIP_TIMEOUT_MS)
-        : undefined
-    })
+server.registerTool(
+  'execute_kip_readonly',
+  {
+    title: 'Execute KIP Commands (read-only)',
+    description: `Execute safe, read-only KIP commands against a Cognitive Nexus backend.
 
-    const structuredContent: Record<string, unknown> =
-      typeof output === 'object' && output !== null && !Array.isArray(output)
-        ? (output as Record<string, unknown>)
-        : { result: output }
+Prefer this tool over 'execute_kip' whenever you only need to retrieve knowledge and will not modify the graph. Only read-only commands are valid here: KQL FIND and META DESCRIBE / SEARCH / EXPORT. Any KML write (UPSERT / UPDATE / MERGE / DELETE) will be rejected by the backend.
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(output, null, 2)
-        }
-      ],
-      structuredContent
+The input shape and parameterization rules are identical to 'execute_kip' (provide exactly one of 'command' or 'commands'; use 'parameters' for safe placeholder substitution).
+
+If you are unsure about schema/types/predicates, discover first via META: DESCRIBE / SEARCH.`,
+    inputSchema: ExecuteKipInputSchema,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true
     }
+  },
+  async (input: ExecuteKipInput, _extra) => {
+    const output = await executeKipReadonlyOverHttp(input, clientOptions())
+    return toToolResult(output)
   }
 )
 
@@ -201,31 +248,8 @@ server.registerTool(
     }
   },
   async (input, _extra) => {
-    const baseUrl = requiredEnv('KIP_BACKEND_URL')
-
-    const output = await listLogs(input, {
-      baseUrl,
-      apiKey: process.env.KIP_API_KEY,
-      authHeader: process.env.KIP_AUTH_HEADER,
-      timeoutMs: process.env.KIP_TIMEOUT_MS
-        ? Number(process.env.KIP_TIMEOUT_MS)
-        : undefined
-    })
-
-    const structuredContent: Record<string, unknown> =
-      typeof output === 'object' && output !== null && !Array.isArray(output)
-        ? (output as Record<string, unknown>)
-        : { result: output }
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(output, null, 2)
-        }
-      ],
-      structuredContent
-    }
+    const output = await listLogs(input, clientOptions())
+    return toToolResult(output)
   }
 )
 

@@ -1,14 +1,21 @@
 import { z } from 'zod'
 
-// const CommandObjectSchema = z
-//   .object({
-//     command: z.string().min(1).describe('A single KIP command string.'),
-//     parameters: z
-//       .record(z.string(), z.unknown())
-//       .optional()
-//       .describe('Optional per-command parameters.')
-//   })
-//   .strict()
+/**
+ * A single batch entry may be either a bare command string (which shares the
+ * top-level `parameters`) or an object carrying its own `parameters` that
+ * override the shared ones (spec §6.1).
+ */
+const CommandObjectSchema = z
+  .object({
+    command: z.string().min(1).describe('A single KIP command string.'),
+    parameters: z
+      .record(z.string(), z.unknown())
+      .optional()
+      .describe('Per-command parameters (override the shared parameters).')
+  })
+  .strict()
+
+const CommandEntrySchema = z.union([z.string().min(1), CommandObjectSchema])
 
 export const ExecuteKipInputSchema = z
   .object({
@@ -20,10 +27,10 @@ export const ExecuteKipInputSchema = z
         "A complete, multi-line KIP command (KQL, KML or META) string to be executed. Mutually exclusive with 'commands'."
       ),
     commands: z
-      .array(z.string().min(1))
+      .array(CommandEntrySchema)
       .optional()
       .describe(
-        "Batch execution: array of KIP commands. Mutually exclusive with 'command'."
+        "Batch execution: array of KIP commands. Each element is either a command string (using the shared 'parameters') or an object { command, parameters } whose parameters override the shared ones. Mutually exclusive with 'command'."
       ),
     parameters: z
       .record(z.string(), z.unknown())
@@ -69,15 +76,12 @@ export const ListLogsInputSchema = z
   })
   .strict()
 
-// Backwards compatible alias (typo kept)
-export const ListLogsInputSchmema = ListLogsInputSchema
-
-export type ListLogsInput = z.infer<typeof ListLogsInputSchmema>
+export type ListLogsInput = z.infer<typeof ListLogsInputSchema>
 
 export const RPCRequestSchema = z
   .object({
-    method: z.literal(['execute_kip', 'list_logs']),
-    params: z.union([ExecuteKipInputSchema, ListLogsInputSchmema])
+    method: z.literal(['execute_kip', 'execute_kip_readonly', 'list_logs']),
+    params: z.union([ExecuteKipInputSchema, ListLogsInputSchema])
   })
   .strict()
 

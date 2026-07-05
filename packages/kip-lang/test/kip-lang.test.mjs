@@ -29,7 +29,7 @@ WHERE {
   })
 
   test('tokenizes all capsule .kip files', () => {
-    const files = ['Genesis.kip', 'Event.kip', 'Person.kip', 'Preference.kip', 'SleepTask.kip']
+    const files = ['Genesis.kip', 'Event.kip', 'Person.kip', 'Preference.kip', 'SleepTask.kip', 'Commitment.kip', 'Insight.kip']
     for (const f of files) {
       const source = readFileSync(join(capsDir, f), 'utf-8')
       const tokens = tokenize(source)
@@ -75,7 +75,7 @@ describe('parse', () => {
   })
 
   test('parses all capsule .kip files', () => {
-    const files = ['Genesis.kip', 'Event.kip', 'Person.kip', 'Preference.kip', 'SleepTask.kip']
+    const files = ['Genesis.kip', 'Event.kip', 'Person.kip', 'Preference.kip', 'SleepTask.kip', 'Commitment.kip', 'Insight.kip']
     for (const f of files) {
       const source = readFileSync(join(capsDir, f), 'utf-8')
       const { ast, diagnostics } = parse(source)
@@ -337,8 +337,8 @@ WHERE {
     }
   })
 
-  test('parses parameterized DESCRIBE type names and cursors', () => {
-    const source = `DESCRIBE CONCEPT TYPE :type_name LIMIT :limit CURSOR :cursor`
+  test('parses parameterized DESCRIBE type names', () => {
+    const source = `DESCRIBE CONCEPT TYPE :type_name`
     const { ast, diagnostics } = parse(source)
     assert.equal(ast.statements.length, 1)
     const stmt = ast.statements[0]
@@ -347,10 +347,32 @@ WHERE {
     assert.equal(stmt.typeName, ':type_name')
     assert.equal(stmt.typeNameValue.kind, 'ParameterRef')
     assert.equal(stmt.typeNameValue.name, ':type_name')
-    assert.equal(stmt.limit.value.kind, 'ParameterRef')
-    assert.equal(stmt.cursor.value.kind, 'ParameterRef')
     const errors = diagnostics.filter((d) => d.severity === 'error')
     assert.equal(errors.length, 0, `Parse errors: ${JSON.stringify(errors)}`)
+  })
+
+  test('paginates only the plural DESCRIBE ... TYPES forms', () => {
+    const paginated = parse(`DESCRIBE CONCEPT TYPES LIMIT :limit CURSOR :cursor`)
+    assert.equal(
+      paginated.diagnostics.filter((d) => d.severity === 'error').length,
+      0
+    )
+    assert.equal(paginated.ast.statements[0].limit.value.kind, 'ParameterRef')
+    assert.equal(paginated.ast.statements[0].cursor.value.kind, 'ParameterRef')
+
+    // Singular TYPE returns exactly one node — LIMIT/CURSOR are meaningless (§5.1.4).
+    for (const bad of [
+      `DESCRIBE CONCEPT TYPE "Drug" LIMIT 5`,
+      `DESCRIBE PROPOSITION TYPE "treats" CURSOR "x"`,
+      `DESCRIBE PRIMER LIMIT 5`,
+      `DESCRIBE DOMAINS CURSOR "x"`
+    ]) {
+      const { diagnostics } = parse(bad)
+      assert.ok(
+        diagnostics.some((d) => /only valid on DESCRIBE CONCEPT TYPES/.test(d.message)),
+        `Expected pagination diagnostic for "${bad}": ${JSON.stringify(diagnostics)}`
+      )
+    }
   })
 
   test('reports missing commas between object entries', () => {
@@ -555,11 +577,13 @@ confidence: 0.9
   })
 
   test('formats parameterized DESCRIBE statements', () => {
-    const source = `DESCRIBE PROPOSITION TYPE :predicate LIMIT :limit CURSOR :cursor`
-    const result = format(source)
     assert.equal(
-      result.trim(),
-      'DESCRIBE PROPOSITION TYPE :predicate LIMIT :limit CURSOR :cursor'
+      format(`DESCRIBE PROPOSITION TYPE :predicate`).trim(),
+      'DESCRIBE PROPOSITION TYPE :predicate'
+    )
+    assert.equal(
+      format(`DESCRIBE CONCEPT TYPES LIMIT :limit CURSOR :cursor`).trim(),
+      'DESCRIBE CONCEPT TYPES LIMIT :limit CURSOR :cursor'
     )
   })
 
@@ -572,6 +596,58 @@ confidence: 0.9
   test('does not format invalid KIP', () => {
     const source = `UPSERT { CONCEPT ?x { {type: "Drug"} }`
     assert.throws(() => format(source), /Cannot format invalid KIP/)
+  })
+
+  test('preserves comments at their position inside blocks', () => {
+    const source = `FIND(?d)
+WHERE {
+  // inside where
+  ?d {type: "Drug"}
+}`
+    const lines = format(source).split('\n')
+    const whereIdx = lines.findIndex((l) => l.includes('WHERE {'))
+    const commentIdx = lines.findIndex((l) => l.includes('// inside where'))
+    const patternIdx = lines.findIndex((l) => l.includes('?d {type: "Drug"}'))
+    assert.ok(
+      whereIdx < commentIdx && commentIdx < patternIdx,
+      `Comment should stay inside WHERE before the pattern:\n${lines.join('\n')}`
+    )
+  })
+
+  test('preserves comments inside SET ATTRIBUTES', () => {
+    const source = `UPSERT {
+  CONCEPT ?d {
+    {type: "Drug", name: "A"}
+    SET ATTRIBUTES {
+      // note about risk
+      risk_level: 2,
+      description: "x"
+    }
+  }
+}`
+    const out = format(source)
+    const lines = out.split('\n')
+    const commentIdx = lines.findIndex((l) => l.includes('// note about risk'))
+    const riskIdx = lines.findIndex((l) => l.includes('risk_level: 2'))
+    assert.ok(
+      commentIdx !== -1 && commentIdx < riskIdx,
+      `Comment should precede risk_level inside SET ATTRIBUTES:\n${out}`
+    )
+  })
+
+  test('formatting is idempotent for all capsules', () => {
+    const files = ['Genesis.kip', 'Event.kip', 'Person.kip', 'Preference.kip', 'SleepTask.kip', 'Commitment.kip', 'Insight.kip']
+    for (const f of files) {
+      const source = readFileSync(join(capsDir, f), 'utf-8')
+      const once = format(source)
+      const twice = format(once)
+      assert.equal(twice, once, `${f}: format should be idempotent`)
+      assert.equal(
+        parse(once).diagnostics.filter((d) => d.severity === 'error').length,
+        0,
+        `${f}: formatted output should re-parse cleanly`
+      )
+    }
   })
 })
 
@@ -609,5 +685,91 @@ WHERE {
       diags.some((d) => d.code === 'KIP_LEX_INVALID_NUMBER'),
       `Expected invalid number diagnostic: ${JSON.stringify(diags)}`
     )
+  })
+
+  test('uses KIP_1001 for parser syntax errors', () => {
+    const diags = diagnose(`FIND(?x) WHERE { ?x }`)
+    assert.ok(
+      diags.some((d) => d.code === 'KIP_1001'),
+      `Expected KIP_1001 syntax code: ${JSON.stringify(diags)}`
+    )
+  })
+
+  test('flags an empty FIND projection list', () => {
+    const diags = diagnose(`FIND() WHERE { ?n {type: "Drug"} }`)
+    assert.ok(
+      diags.some((d) => /at least one output/.test(d.message)),
+      `Expected empty-FIND diagnostic: ${JSON.stringify(diags)}`
+    )
+  })
+
+  test('gives a targeted hint for the compact `key:value` colon', () => {
+    const diags = diagnose(`FIND(?n) WHERE { ?n {status:active} }`)
+    assert.ok(
+      diags.some((d) => /read as a parameter placeholder/.test(d.message)),
+      `Expected compact-colon hint: ${JSON.stringify(diags)}`
+    )
+  })
+})
+
+describe('semantics', () => {
+  test('rejects writes to the reserved `_` metadata namespace', () => {
+    for (const source of [
+      `UPSERT { CONCEPT ?x { {type: "Drug", name: "A"} } } WITH METADATA { _version: 5 }`,
+      `UPDATE ?x SET METADATA { _updated_at: "now" } WHERE { ?x {type: "Drug"} }`
+    ]) {
+      const diags = diagnose(source)
+      assert.ok(
+        diags.some((d) => d.code === 'KIP_2002' && d.severity === 'error'),
+        `Expected KIP_2002 for "${source}": ${JSON.stringify(diags)}`
+      )
+    }
+  })
+
+  test('warns on concept-type and predicate casing violations', () => {
+    const typeDiags = diagnose(`FIND(?d) WHERE { ?d {type: "drug"} }`)
+    assert.ok(
+      typeDiags.some((d) => d.code === 'KIP_2001' && /UpperCamelCase/.test(d.message)),
+      `Expected type-casing warning: ${JSON.stringify(typeDiags)}`
+    )
+    const predDiags = diagnose(`FIND(?o) WHERE { (?s, "Treats", ?o) }`)
+    assert.ok(
+      predDiags.some((d) => d.code === 'KIP_2001' && /snake_case/.test(d.message)),
+      `Expected predicate-casing warning: ${JSON.stringify(predDiags)}`
+    )
+  })
+
+  test('warns on unbounded exploration without a LIMIT', () => {
+    const unbounded = diagnose(`FIND(?s, ?p, ?o) WHERE { ?link (?s, ?p, ?o) }`)
+    assert.ok(
+      unbounded.some((d) => d.code === 'KIP_4002'),
+      `Expected KIP_4002 warning: ${JSON.stringify(unbounded)}`
+    )
+    // A constrained endpoint or a LIMIT clears the warning.
+    const bounded = diagnose(
+      `FIND(?p, ?n) WHERE { ?a {type: "Person", name: "Alice"} ?l (?a, ?p, ?n) } LIMIT 50`
+    )
+    assert.ok(
+      !bounded.some((d) => d.code === 'KIP_4002'),
+      `Did not expect KIP_4002: ${JSON.stringify(bounded)}`
+    )
+    const withLimit = diagnose(`FIND(?s, ?p, ?o) WHERE { ?link (?s, ?p, ?o) } LIMIT 100`)
+    assert.ok(
+      !withLimit.some((d) => d.code === 'KIP_4002'),
+      `LIMIT should clear KIP_4002: ${JSON.stringify(withLimit)}`
+    )
+  })
+
+  test('keeps all bundled capsules free of semantic diagnostics', () => {
+    const files = ['Genesis.kip', 'Event.kip', 'Person.kip', 'Preference.kip', 'SleepTask.kip', 'Commitment.kip', 'Insight.kip', 'persons/self.kip', 'persons/system.kip']
+    for (const f of files) {
+      const source = readFileSync(join(capsDir, f), 'utf-8')
+      const diags = diagnose(source)
+      assert.equal(
+        diags.length,
+        0,
+        `${f}: expected no diagnostics, got ${JSON.stringify(diags, null, 2)}`
+      )
+    }
   })
 })

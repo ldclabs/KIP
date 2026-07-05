@@ -192,18 +192,16 @@ export const FUNCTIONS: ReadonlyMap<string, TokenType> = new Map([
   ['COALESCE', TokenType.Coalesce]
 ])
 
+/** Reverse lookup sets, built once, so membership tests are O(1). */
+const KEYWORD_TYPES: ReadonlySet<TokenType> = new Set(KEYWORDS.values())
+const FUNCTION_TYPES: ReadonlySet<TokenType> = new Set(FUNCTIONS.values())
+
 export function isKeyword(type: TokenType): boolean {
-  for (const v of KEYWORDS.values()) {
-    if (v === type) return true
-  }
-  return false
+  return KEYWORD_TYPES.has(type)
 }
 
 export function isFunction(type: TokenType): boolean {
-  for (const v of FUNCTIONS.values()) {
-    if (v === type) return true
-  }
-  return false
+  return FUNCTION_TYPES.has(type)
 }
 
 export function isLiteral(type: TokenType): boolean {

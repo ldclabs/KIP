@@ -1,6 +1,7 @@
 import type { Range } from './token.js'
 import { tokenize } from './lexer.js'
 import { parse } from './parser.js'
+import { analyzeSemantics } from './semantics.js'
 import { TokenType } from './token.js'
 
 export interface Diagnostic {
@@ -135,8 +136,14 @@ export function diagnose(source: string): Diagnostic[] {
   }
 
   // Phase 3: Parser diagnostics
-  const { diagnostics: parseDiags } = parse(source)
+  const { ast, diagnostics: parseDiags } = parse(source)
   diagnostics.push(...parseDiags)
+
+  // Phase 4: Semantic checks (only when the AST parsed cleanly, to avoid
+  // cascading false positives from error-recovery placeholders).
+  if (!parseDiags.some((d) => d.severity === 'error')) {
+    diagnostics.push(...analyzeSemantics(ast))
+  }
 
   return diagnostics
 }

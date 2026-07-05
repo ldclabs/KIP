@@ -47,14 +47,18 @@ import type {
 export interface FormatOptions {
   /** Number of spaces per indentation level (default: 4) */
   indentSize?: number
-  /** Sort keys inside SET ATTRIBUTES (default: true) */
+  /**
+   * Alphabetically sort keys inside `SET ATTRIBUTES` (default: false).
+   * Author key order is preserved by default; sorting is skipped for any block
+   * that contains comments, since reordering would detach a comment from its key.
+   */
   sortAttributes?: boolean
 }
 
 export function format(source: string, options?: FormatOptions): string {
   const opts: Required<FormatOptions> = {
     indentSize: options?.indentSize ?? 4,
-    sortAttributes: options?.sortAttributes ?? true
+    sortAttributes: options?.sortAttributes ?? false
   }
 
   const firstError = diagnose(source).find((d) => d.severity === 'error')
@@ -112,18 +116,35 @@ class Formatter {
     }
   }
 
+  /**
+   * True if an un-emitted comment lies within a node spanning
+   * [startLine, endLine]. Used to keep a block multi-line so interior
+   * comments can be preserved at their position rather than relocated.
+   */
+  private hasPendingCommentInRange(
+    startLine: number,
+    endLine: number
+  ): boolean {
+    for (let i = this.commentIdx; i < this.comments.length; i++) {
+      const line = this.comments[i]!.line
+      if (line > endLine) break
+      if (line >= startLine) return true
+    }
+    return false
+  }
+
   formatProgram(program: Program): string {
     this.output = ''
 
     for (let i = 0; i < program.statements.length; i++) {
       const stmt = program.statements[i]!
+      // Separate statements with exactly one blank line.
       if (i > 0) this.newline()
 
       // Emit comments that appear before this statement
       this.emitCommentsBefore(stmt.range.start.line)
 
       this.formatStatement(stmt)
-      this.newline()
     }
 
     // Trailing comments after last statement
@@ -242,6 +263,7 @@ class Formatter {
     this.indentLevel++
 
     // Matcher: {type: "...", name: "..."}
+    this.emitCommentsBefore(block.matcher.range.start.line)
     this.writeIndent()
     this.write('{')
     this.write(
@@ -253,12 +275,15 @@ class Formatter {
     this.newline()
 
     if (block.expectVersion) {
+      this.emitCommentsBefore(block.expectVersion.range.start.line)
       this.formatExpectVersion(block.expectVersion)
     }
     if (block.setAttributes) {
+      this.emitCommentsBefore(block.setAttributes.range.start.line)
       this.formatSetAttributes(block.setAttributes)
     }
     if (block.setPropositions) {
+      this.emitCommentsBefore(block.setPropositions.range.start.line)
       this.formatSetPropositions(block.setPropositions)
     }
 
@@ -285,9 +310,11 @@ class Formatter {
     this.newline()
 
     if (block.expectVersion) {
+      this.emitCommentsBefore(block.expectVersion.range.start.line)
       this.formatExpectVersion(block.expectVersion)
     }
     if (block.setAttributes) {
+      this.emitCommentsBefore(block.setAttributes.range.start.line)
       this.formatSetAttributes(block.setAttributes)
     }
 
@@ -302,12 +329,34 @@ class Formatter {
   }
 
   private formatSetAttributes(sa: SetAttributes): void {
-    this.writeIndent()
-    this.write('SET ATTRIBUTES {')
+    this.formatEntryBlock('SET ATTRIBUTES', sa.entries, sa.range, {
+      inlineMax: 3,
+      sort: this.opts.sortAttributes
+    })
+  }
 
-    const entries = this.opts.sortAttributes
-      ? this.sortObjectEntries(sa.entries)
-      : sa.entries
+  private formatSetMetadata(sm: SetMetadata): void {
+    this.formatEntryBlock('SET METADATA', sm.entries, sm.range, {
+      inlineMax: 3,
+      sort: false
+    })
+  }
+
+  /**
+   * Render a `HEADER { ... }` key/value block. Collapses to a single line when
+   * all values are primitive, there are few of them, and no comment sits inside
+   * the block; otherwise emits one entry per line, preserving interior comments
+   * at their source position. Sorting is skipped whenever interior comments are
+   * present, since reordering would detach comments from their keys.
+   */
+  private formatEntryBlock(
+    header: string,
+    entries: ObjectEntry[],
+    range: { start: { line: number }; end: { line: number } },
+    opts: { inlineMax: number; sort: boolean }
+  ): void {
+    this.writeIndent()
+    this.write(`${header} {`)
 
     if (entries.length === 0) {
       this.write('}')
@@ -315,14 +364,18 @@ class Formatter {
       return
     }
 
-    // Check if all values are simple (single-line)
-    const allSimple = entries.every((e) => this.isSimpleValue(e.value))
+    const hasComments = this.hasPendingCommentInRange(
+      range.start.line,
+      range.end.line
+    )
+    const ordered =
+      opts.sort && !hasComments ? this.sortObjectEntries(entries) : entries
+    const allSimple = ordered.every((e) => this.isSimpleValue(e.value))
 
-    if (allSimple && entries.length <= 3) {
-      // Inline format for very simple cases
+    if (allSimple && ordered.length <= opts.inlineMax && !hasComments) {
       this.write(' ')
       this.write(
-        entries
+        ordered
           .map(
             (e) => `${this.keyToString(e)}: ${this.exprToString(e.value, 0)}`
           )
@@ -335,54 +388,15 @@ class Formatter {
 
     this.newline()
     this.indentLevel++
-    for (let i = 0; i < entries.length; i++) {
-      this.formatObjectEntry(entries[i]!)
-      if (i < entries.length - 1) {
+    for (let i = 0; i < ordered.length; i++) {
+      this.emitCommentsBefore(ordered[i]!.range.start.line)
+      this.formatObjectEntry(ordered[i]!)
+      if (i < ordered.length - 1) {
         this.write(',')
       }
       this.newline()
     }
-    this.indentLevel--
-    this.writeIndent()
-    this.write('}')
-    this.newline()
-  }
-
-  private formatSetMetadata(sm: SetMetadata): void {
-    this.writeIndent()
-    this.write('SET METADATA {')
-
-    if (sm.entries.length === 0) {
-      this.write('}')
-      this.newline()
-      return
-    }
-
-    const allSimple = sm.entries.every((e) => this.isSimpleValue(e.value))
-
-    if (allSimple && sm.entries.length <= 3) {
-      this.write(' ')
-      this.write(
-        sm.entries
-          .map(
-            (e) => `${this.keyToString(e)}: ${this.exprToString(e.value, 0)}`
-          )
-          .join(', ')
-      )
-      this.write(' }')
-      this.newline()
-      return
-    }
-
-    this.newline()
-    this.indentLevel++
-    for (let i = 0; i < sm.entries.length; i++) {
-      this.formatObjectEntry(sm.entries[i]!)
-      if (i < sm.entries.length - 1) {
-        this.write(',')
-      }
-      this.newline()
-    }
+    this.emitCommentsBefore(range.end.line)
     this.indentLevel--
     this.writeIndent()
     this.write('}')
@@ -402,8 +416,10 @@ class Formatter {
     this.indentLevel++
 
     for (const item of sp.items) {
+      this.emitCommentsBefore(item.range.start.line)
       this.formatPropositionItem(item)
     }
+    this.emitCommentsBefore(sp.range.end.line)
 
     this.indentLevel--
     this.writeIndent()
@@ -441,38 +457,18 @@ class Formatter {
       return
     }
 
-    const allSimple = wm.entries.every((e) => this.isSimpleValue(e.value))
-
-    if (allSimple && wm.entries.length <= 5) {
-      // Inline
-      this.newline()
-      this.indentLevel++
-      for (let i = 0; i < wm.entries.length; i++) {
-        this.writeIndent()
-        this.write(
-          `${this.keyToString(wm.entries[i]!)}: ${this.exprToString(wm.entries[i]!.value, 0)}`
-        )
-        if (i < wm.entries.length - 1) {
-          this.write(',')
-        }
-        this.newline()
-      }
-      this.indentLevel--
-      this.writeIndent()
-      this.write('}')
-      this.newline()
-      return
-    }
-
+    // Metadata blocks are conventionally one entry per line.
     this.newline()
     this.indentLevel++
     for (let i = 0; i < wm.entries.length; i++) {
+      this.emitCommentsBefore(wm.entries[i]!.range.start.line)
       this.formatObjectEntry(wm.entries[i]!)
       if (i < wm.entries.length - 1) {
         this.write(',')
       }
       this.newline()
     }
+    this.emitCommentsBefore(wm.range.end.line)
     this.indentLevel--
     this.writeIndent()
     this.write('}')
@@ -613,6 +609,7 @@ class Formatter {
     for (const p of where.patterns) {
       this.formatWherePattern(p)
     }
+    this.emitCommentsBefore(where.range.end.line)
 
     this.indentLevel--
     this.writeIndent()
@@ -621,6 +618,7 @@ class Formatter {
   }
 
   private formatWherePattern(p: WherePattern): void {
+    this.emitCommentsBefore(p.range.start.line)
     switch (p.kind) {
       case 'ConceptPattern':
         return this.formatConceptPattern(p)
@@ -664,43 +662,31 @@ class Formatter {
   }
 
   private formatNotClause(n: NotClause): void {
-    this.writeIndent()
-    this.write('NOT {')
-    this.newline()
-    this.indentLevel++
-    for (const p of n.patterns) {
-      this.formatWherePattern(p)
-    }
-    this.indentLevel--
-    this.writeIndent()
-    this.write('}')
-    this.newline()
+    this.formatBlockClause('NOT', n.patterns, n.range.end.line)
   }
 
   private formatOptionalClause(o: OptionalClause): void {
-    this.newline()
-    this.writeIndent()
-    this.write('OPTIONAL {')
-    this.newline()
-    this.indentLevel++
-    for (const p of o.patterns) {
-      this.formatWherePattern(p)
-    }
-    this.indentLevel--
-    this.writeIndent()
-    this.write('}')
-    this.newline()
+    this.formatBlockClause('OPTIONAL', o.patterns, o.range.end.line)
   }
 
   private formatUnionClause(u: UnionClause): void {
-    this.newline()
+    this.formatBlockClause('UNION', u.patterns, u.range.end.line)
+  }
+
+  /** Shared rendering for NOT / OPTIONAL / UNION blocks (consistent styling). */
+  private formatBlockClause(
+    keyword: string,
+    patterns: WherePattern[],
+    endLine: number
+  ): void {
     this.writeIndent()
-    this.write('UNION {')
+    this.write(`${keyword} {`)
     this.newline()
     this.indentLevel++
-    for (const p of u.patterns) {
+    for (const p of patterns) {
       this.formatWherePattern(p)
     }
+    this.emitCommentsBefore(endLine)
     this.indentLevel--
     this.writeIndent()
     this.write('}')
@@ -907,7 +893,7 @@ class Formatter {
   }
 
   private sortObjectEntries(entries: ObjectEntry[]): ObjectEntry[] {
-    // Sort: required-looking fields first, then alphabetical
+    // Alphabetical by key (attributes are an unordered map in KIP).
     return [...entries].sort((a, b) => a.key.localeCompare(b.key))
   }
 
@@ -929,15 +915,6 @@ class Formatter {
         e.kind === 'DotExpression' ||
         e.kind === 'FunctionCallExpr'
     )
-  }
-
-  private formatLeadingComments(comments?: string[]): void {
-    if (!comments) return
-    for (const c of comments) {
-      this.writeIndent()
-      this.write(c)
-      this.newline()
-    }
   }
 
   private escapeString(s: string): string {
@@ -968,56 +945,4 @@ class Formatter {
   private newline(): void {
     this.output += '\n'
   }
-}
-
-/**
- * A simpler comment-preserving formatter that works at the token level.
- * It re-parses the source and reconstructs it line by line, preserving
- * all comments in their relative positions while normalizing indentation.
- */
-export function formatPreservingComments(
-  source: string,
-  options?: FormatOptions
-): string {
-  const opts: Required<FormatOptions> = {
-    indentSize: options?.indentSize ?? 4,
-    sortAttributes: options?.sortAttributes ?? true
-  }
-
-  const tokens = tokenize(source)
-  const lines = source.split('\n')
-  const result: string[] = []
-  let indent = 0
-  const indentStr = ' '.repeat(opts.indentSize)
-
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i]!.trim()
-    if (trimmed === '') {
-      result.push('')
-      continue
-    }
-
-    // Decrease indent before closing braces/parens
-    if (/^\s*[}\])]+/.test(trimmed)) {
-      const closers = trimmed.match(/^[}\])]+/)
-      if (closers) {
-        indent = Math.max(0, indent - closers[0].length)
-      }
-    }
-
-    result.push(indentStr.repeat(indent) + trimmed)
-
-    // Increase indent after opening braces
-    const opens = (trimmed.match(/[{([\[]/g) || []).length
-    const closes = (trimmed.match(/[})\]]/g) || []).length
-    indent = Math.max(0, indent + opens - closes)
-  }
-
-  // Remove trailing blank lines, ensure single trailing newline
-  while (result.length > 0 && result[result.length - 1]!.trim() === '') {
-    result.pop()
-  }
-  result.push('')
-
-  return result.join('\n')
 }

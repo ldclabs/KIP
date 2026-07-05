@@ -1,5 +1,7 @@
 # 🧬 KIP (Knowledge Interaction Protocol) Specification (Release Candidate)
 
+> **Bundled mirror — v1.0-RC10.** This document vendors the KIP specification body for offline use by the MCP server; the version-history table is omitted. The authoritative source (with full change log) is [`SPECIFICATION.md`](https://github.com/ldclabs/KIP/blob/main/SPECIFICATION.md). Keep this copy in sync on every protocol edit.
+
 ## 0. Preface
 
 Large Language Models (LLMs) have demonstrated remarkable capabilities in general reasoning and generation. However, their **"Stateless"** essence results in a lack of long-term memory, while their probability-based generation mechanism often leads to uncontrollable "hallucinations" and knowledge obsolescence.

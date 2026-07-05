@@ -145,6 +145,7 @@ class Parser {
     const start = this.currentPos()
     const comments = this.collectLeadingComments()
     this.expect(TokenType.Find)
+    const lparen = this.current()
     this.expect(TokenType.LParen)
 
     const projections: Expression[] = []
@@ -153,6 +154,12 @@ class Parser {
       while (this.match(TokenType.Comma)) {
         projections.push(this.parseExpression())
       }
+    }
+    if (projections.length === 0) {
+      this.error(
+        `FIND must declare at least one output expression, e.g. FIND(?var)`,
+        lparen
+      )
     }
     this.expect(TokenType.RParen)
 
@@ -605,10 +612,25 @@ class Parser {
       describeType = 'PRIMER'
     }
 
+    // Only the plural `... TYPES` forms are paginated (§5.1.3 / §5.1.5).
+    const paginable =
+      describeType === 'CONCEPT_TYPES' || describeType === 'PROPOSITION_TYPES'
     if (this.check(TokenType.Limit)) {
+      if (!paginable) {
+        this.error(
+          `LIMIT is only valid on DESCRIBE CONCEPT TYPES / PROPOSITION TYPES`,
+          this.current()
+        )
+      }
       limit = this.parseLimitClause()
     }
     if (this.check(TokenType.Cursor)) {
+      if (!paginable) {
+        this.error(
+          `CURSOR is only valid on DESCRIBE CONCEPT TYPES / PROPOSITION TYPES`,
+          this.current()
+        )
+      }
       cursor = this.parseCursorClause()
     }
 
@@ -1667,7 +1689,7 @@ class Parser {
 
       const entryStart = this.currentPos()
       const { key, isQuoted } = this.expectKeyWithQuoting()
-      this.expect(TokenType.Colon)
+      this.expectObjectColon(key)
       const value = this.parseExpression()
       entries.push({
         kind: 'ObjectEntry',
@@ -1773,25 +1795,6 @@ class Parser {
     return this.unescapeString(tok.value)
   }
 
-  private expectKey(): string {
-    const tok = this.current()
-    // Keys can be identifiers, strings, or even some keywords used as keys
-    if (tok.type === TokenType.String) {
-      this.advance()
-      return this.unescapeString(tok.value)
-    }
-    if (
-      tok.type === TokenType.Identifier ||
-      this.isNonAmbiguousKeyword(tok.type)
-    ) {
-      this.advance()
-      return tok.value
-    }
-    this.error(`Expected object key but got '${tok.value}'`, tok)
-    this.advance()
-    return tok.value
-  }
-
   private expectKeyWithQuoting(): { key: string; isQuoted: boolean } {
     const tok = this.current()
     if (tok.type === TokenType.String) {
@@ -1828,6 +1831,29 @@ class Parser {
       i--
     }
     return comments
+  }
+
+  /**
+   * Consume the `:` separating an object key from its value. A colon written
+   * with no space before an identifier value (e.g. `status:active`) is lexed as
+   * a single parameter placeholder token (`:active`), so surface a targeted hint
+   * instead of the generic "Expected ':'" message.
+   */
+  private expectObjectColon(key: string): void {
+    if (this.check(TokenType.Colon)) {
+      this.advance()
+      return
+    }
+    const tok = this.current()
+    if (tok.type === TokenType.Parameter) {
+      this.error(
+        `Missing space after ':' — '${key}${tok.value}' was read as a parameter placeholder. ` +
+          `Write '${key}: ${tok.value.slice(1)}' (or quote the value).`,
+        tok
+      )
+      return
+    }
+    this.expect(TokenType.Colon)
   }
 
   private isFunctionToken(type: TokenType): boolean {
@@ -1906,7 +1932,7 @@ class Parser {
     })
   }
 
-  private error(message: string, token: Token): void {
+  private error(message: string, token: Token, code = 'KIP_1001'): void {
     this.diagnostics.push({
       range: {
         start: { line: token.line, column: token.column },
@@ -1914,7 +1940,7 @@ class Parser {
       },
       severity: 'error',
       message,
-      code: 'KIP_PARSE'
+      code
     })
   }
 
