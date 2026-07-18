@@ -91,14 +91,24 @@ WITH METADATA { source: "SleepCycle", author: "$system" }
 ```
 
 ```prolog
-// Step 2: execute requested action — e.g., consolidate Event → Preference
+// Step 2: execute requested action — e.g., consolidate Event → Preference.
+// The "prefers" link is the trust home (its metadata.confidence is what
+// reinforcement raises and Phase 7 decay lowers) — without it the new
+// Preference never enters the homeostatic loop. :holder_name = the source
+// Event's primary `involves` participant.
 UPSERT {
   CONCEPT ?preference {
     {type: "Preference", name: :preference_name}
-    SET ATTRIBUTES { description: :extracted_preference, confidence: 0.8 }
+    SET ATTRIBUTES { description: :extracted_preference }
     SET PROPOSITIONS {
       ("belongs_to_domain", {type: "Domain", name: "UserPreferences"})
       ("derived_from", {type: "Event", name: :event_name})
+    }
+  }
+  CONCEPT ?holder {
+    {type: "Person", name: :holder_name}
+    SET PROPOSITIONS {
+      ("prefers", ?preference)
     }
   }
 }
@@ -216,7 +226,7 @@ WHERE {
 
 ### Phase 7 — Confidence Decay
 
-Apply formula `new_confidence = old_confidence * decay_factor` (e.g., 0.95 per week) as **one bulk `UPDATE`** — a predicate variable sweeps all predicates, and the arithmetic runs per element:
+Apply formula `new_confidence = old_confidence * decay_factor` (e.g., 0.95 per week) as **one bulk `UPDATE` per predicate shard** — iterate `:predicate` over the Primer's registered predicates, skipping `belongs_to_domain` (on small graphs a predicate variable `(?s, ?p, ?o)` covers all predicates in one statement, but past the engine's scan cap that is rejected with `KIP_4002`):
 
 ```prolog
 UPDATE ?link
@@ -225,17 +235,20 @@ SET METADATA {
   decay_applied_at: :timestamp
 }
 WHERE {
-  ?link (?s, ?p, ?o)
-  FILTER(?p != "belongs_to_domain")
+  ?link (?s, :predicate, ?o)
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
   FILTER(IS_NOT_NULL(?link.metadata.created_at))
   FILTER(?link.metadata.created_at < :decay_threshold)
   FILTER(?link.metadata.confidence > 0.3 && ?link.metadata.confidence < 1.0)
+  // Idempotency guard: at most one decay per link per cycle
+  FILTER(IS_NULL(?link.metadata.decay_applied_at) || ?link.metadata.decay_applied_at < :cycle_start)
+  // Reinforcement exemption: reinforcement stamps observed_at on the link itself
+  FILTER(IS_NULL(?link.metadata.observed_at) || ?link.metadata.observed_at < :stale_cutoff)
 }
 LIMIT 500
 ```
 
-Run a slow pass (factor `0.98`) for strong memories (high `evidence_count`, fresh `last_observed`) and a fast pass (factor `0.90`) for never-reinforced facts — decay is asymmetric: use it or lose it.
+Re-run each shard until `updated < LIMIT` — the `decay_applied_at` guard makes iteration safe (without it, a re-run double-decays the same links). Bind `:cycle_start` **once** at the start of the sweep and reuse it across re-runs and crash-retries; `:stale_cutoff` ≈ cycle start − 14d. Asymmetric factors per shard: for **assertion predicates** (`prefers`, `learned`) run a slow pass (factor `0.98`) for strong memories (`?o.attributes.evidence_count >= 3`) and a fast pass (factor `0.90`) for never-reinforced facts (`IS_NULL(?o.attributes.evidence_count) || ?o.attributes.evidence_count < 3`) — disjoint filters, both keeping the guard. For **provenance/participation predicates** (`derived_from`, `involves`, ...) whose objects never carry `evidence_count`, use only the slow factor or skip — eroding provenance severs evidence chains. Decay is asymmetric: use it or lose it.
 
 ### Phase 8 — Domain Health
 
@@ -248,7 +261,7 @@ This is the **only place** in the entire Cognitive Nexus where hard deletion is 
 
 **Eligibility (ALL must hold)**:
 1. `metadata.expires_at` is non-null and `< now`.
-2. Node is an archived `Event`, completed/archived `SleepTask`, or other explicitly TTL'd node.
+2. Node type is on the **TTL-deletable whitelist**: `Event`; terminal-status `SleepTask` (`completed` / `failed`) or `Commitment` (`fulfilled` / `cancelled` / `expired`); or a node whose own `metadata.memory_tier` is `"short-term"` (intentionally temporary). `attributes.status: "archived"` alone does **not** qualify. A TTL on any other node (e.g., a `Person`) is likely metadata pollution from a statement-level default — log it, create a review SleepTask, and never auto-delete.
 3. **Not** a protected entity (see Safety Rules).
 4. For Events: `consolidation_status` is `completed` or `archived` (never delete pending; instead extend `expires_at` and warn).
 5. No active concept depends on it as the sole evidence source (otherwise extend `expires_at`).
@@ -272,7 +285,27 @@ WHERE {
 }
 ```
 
-**Hard cap**: max 500 nodes per cycle. Always log to `maintenance_log` before deleting.
+Expired **proposition links** are reclaimed here too (no other phase removes them; the `superseded` filter protects evolution history). `DELETE PROPOSITIONS` has no `LIMIT` clause and an unconstrained `(?s, ?p, ?o)` scan is rejectable (`KIP_4002`) — never issue a blanket delete. Audit one predicate shard at a time (the `FIND`'s `LIMIT` enforces the cap), then delete only the audited candidates; if a link's subject is an `Event` whose consolidation is still pending, extend the link's `expires_at` instead of deleting:
+
+```prolog
+// Audit a predicate shard (iterate :predicate over the Primer's list)
+FIND(?s.type, ?s.name, ?o.type, ?o.name, ?link.metadata.expires_at) WHERE {
+  ?link (?s, :predicate, ?o)
+  FILTER(IS_NOT_NULL(?link.metadata.expires_at))
+  FILTER(?link.metadata.expires_at < :now)
+  FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
+} LIMIT 200
+
+// Delete each audited candidate individually (skip exempt rows)
+DELETE PROPOSITIONS ?link
+WHERE {
+  ?link ({type: :s_type, name: :s_name}, :predicate, {type: :o_type, name: :o_name})
+  FILTER(IS_NOT_NULL(?link.metadata.expires_at))
+  FILTER(?link.metadata.expires_at < :now)
+}
+```
+
+**Hard cap**: max 500 elements (nodes + links) per cycle. Always log to `maintenance_log` before deleting.
 
 ### Phase 10 — Finalization
 

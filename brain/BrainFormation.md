@@ -101,19 +101,35 @@ Before creating any concept, search:
 SEARCH CONCEPT "Alice" WITH TYPE "Person" LIMIT 5
 ```
 
-If a match exists, update rather than duplicating. A re-mention is not noise — it is **reinforcement** (the spacing/testing effect). When existing knowledge is re-confirmed, strengthen it: bump `evidence_count`, refresh `last_observed`, and nudge `confidence` upward (cap `0.99`). This is the homeostatic counter-force to Maintenance's decay — facts that recur stay strong; facts that never recur fade. Reinforcement also fires on **recall confirmation** (the testing effect proper): when an assistant message states a remembered fact and the user confirms or acts on it, strengthen that fact the same way.
+If a match exists, update rather than duplicating. A re-mention is not noise — it is **reinforcement** (the spacing/testing effect). When existing knowledge is re-confirmed, strengthen it: bump `evidence_count`, refresh `last_observed`, and nudge the **assertion link's** `metadata.confidence` upward (cap `0.99`) — the same value Maintenance's sleep-cycle decay reduces, so reinforcement and decay act on one value and form a true homeostatic loop: facts that recur stay strong; facts that never recur fade. (Assertion trust lives only in `metadata.confidence`; never write a `confidence` attribute.) Reinforcement also fires on **recall confirmation** (the testing effect proper): when an assistant message states a remembered fact and the user confirms or acts on it, strengthen that fact the same way.
 
 ```prolog
-// Reinforce on re-confirmation — single UPDATE, no read round-trip
+// Reinforce on re-confirmation — two UPDATEs sent in order via `commands`
+// (sequential, stop-on-error — NOT atomic across commands), no read round-trip.
+// Each carries its own retry guard: the marker it writes (:timestamp) is what
+// its FILTER checks, so re-running the pair after a crash or ambiguous error
+// (KIP_4001) never double-increments.
+// ① Node reinforcement signals
 UPDATE ?pref
 SET ATTRIBUTES {
   evidence_count: ADD(COALESCE(?pref.attributes.evidence_count, 0), 1),
-  confidence: CLAMP(ADD(COALESCE(?pref.attributes.confidence, 0.7), 0.05), 0.0, 0.99),
   last_observed: :timestamp
 }
 SET METADATA { observed_at: :timestamp }
 WHERE {
   ?pref {type: "Preference", name: :pref_name}
+  FILTER(IS_NULL(?pref.attributes.last_observed) || ?pref.attributes.last_observed < :timestamp)
+}
+
+// ② The assertion link's confidence — the very value sleep-cycle decay acts on
+UPDATE ?link
+SET METADATA {
+  confidence: CLAMP(ADD(COALESCE(?link.metadata.confidence, 0.7), 0.05), 0.0, 0.99),
+  observed_at: :timestamp
+}
+WHERE {
+  ?link ({type: "Person", name: :person_id}, "prefers", {type: "Preference", name: :pref_name})
+  FILTER(IS_NULL(?link.metadata.observed_at) || ?link.metadata.observed_at < :timestamp)
 }
 ```
 
@@ -164,17 +180,20 @@ UPSERT {
       ("involves", ?participant)
     }
   }
+  // Lifecycle keys are element-level: the episodic Event block carries them.
+  // They cascade to the Event's own links above (which expire with it — 12D
+  // reclaims them) but NOT to the ?participant / ?domain nodes.
+  WITH METADATA { memory_tier: "short-term", expires_at: :event_expires_at }
 }
 WITH METADATA {
   source: :source, author: "$self", confidence: 0.9,
-  created_at: :timestamp, observed_at: :timestamp,
-  memory_tier: "short-term",
-  expires_at: :event_expires_at
+  created_at: :timestamp, observed_at: :timestamp
 }
 ```
 
-- **Naming**: `"<EventClass>:<date>:<topic_slug>"` (deterministic → idempotent).
-- **`expires_at` defaults**: `Conversation` / `WebpageView` / `ToolExecution` → `start_time + 90d`; `SelfReflection` → `+180d`; sensitive / one-shot → `+7d` or `+1d`; ceremonial events the user wants kept → omit. Per KIP §2.10, `expires_at` is a *signal* to background cleanup; it does not auto-filter queries. Never set on stable semantic concepts (`Person`, `Preference`, `Insight`, `Domain`, `$self`, `$system`, `$ConceptType`, `$PropositionType`) unless genuinely temporary.
+- **Naming**: `"<EventClass>:<start_time-to-the-minute>:<topic_slug>"`, e.g. `Conversation:2026-07-10T14:05:dark_mode_settings`. The minute component comes from the input `timestamp`, so retrying the same input reproduces the same name (idempotent) while distinct same-day conversations on the same topic no longer collide (two sessions on one topic in the same minute still can — append second precision when it happens). **Slug rules (deterministic)**: lowercase English; fold each non-alphanumeric run into one `_`; drop stopwords and leading/trailing `_`; max 40 chars; translate non-English topics into normalized English terms first. Semantic concepts (`Insight`, `SleepTask`) keep date precision — for them a same-day collision is deduplication, not data loss. `Commitment` also keeps date precision but is **instance-like** (each carries its own due date and outcome): include the object/beneficiary in the slug so two same-day commitments never merge.
+- **`expires_at` defaults**: `Conversation` / `WebpageView` / `ToolExecution` → `start_time + 90d`; `SelfReflection` → `+180d`; sensitive / one-shot → `+7d` or `+1d`; ceremonial events the user wants kept → omit. Per KIP §2.10, `expires_at` is a *signal* to background cleanup; it does not auto-filter queries. Never set on stable semantic concepts (`Person`, `Preference`, `Insight`, `Domain`, `$self`, `$system`, `$ConceptType`, `$PropositionType`) unless genuinely temporary — and when you do TTL a genuinely temporary concept, also set element-level `memory_tier: "short-term"` so Maintenance's deletion whitelist (Phase 12) recognizes the TTL as intentional instead of flagging it as pollution.
+- **Lifecycle placement**: `memory_tier` / `expires_at` go in the Event block's **own** `WITH METADATA` (as above), never in statement-level metadata — statement-level keys shallow-merge onto **every** element the statement touches, silently stamping an episodic TTL onto the durable Person / Domain nodes matched alongside, which later makes them eligible for hard-deletion in Maintenance Phase 12 (TTL reclamation).
 - **`involves` vs `mentions`**: `involves` for direct participants (Maintenance uses this to cluster events for cross-event pattern extraction); `mentions` for entities only referenced in content.
 - **`person_class`**: resolve from participant context ("Human" / "AI" / "Organization"). Shallow merge means a guessed class overwrites a correct one on an existing Person — omit the key when unsure.
 
@@ -188,7 +207,7 @@ UPSERT {
   }
   CONCEPT ?pref {
     {type: "Preference", name: :pref_name}
-    SET ATTRIBUTES { description: :description, aliases: :aliases, confidence: 0.85 }
+    SET ATTRIBUTES { description: :description, aliases: :aliases }
     SET PROPOSITIONS { ("belongs_to_domain", ?domain) }
   }
   CONCEPT ?person {
@@ -279,8 +298,7 @@ UPSERT {
       description: :description,
       trigger: :what_went_wrong,        // omit for knowledge_gap
       correction: :correct_approach,    // omit for knowledge_gap
-      context: :when_this_applies,
-      confidence: 0.9
+      context: :when_this_applies
     }
     SET PROPOSITIONS {
       ("derived_from", {type: "Event", name: :source_event})
@@ -416,7 +434,7 @@ UPSERT {
     SET ATTRIBUTES { description: "The agent's own growth timeline and self-model artifacts." }
   }
   CONCEPT ?milestone {
-    {type: "Event", name: :milestone_name}   // "GrowthMilestone:<date>:<slug>"
+    {type: "Event", name: :milestone_name}   // "GrowthMilestone:<start_time-to-the-minute>:<slug>"
     SET ATTRIBUTES {
       event_class: "GrowthMilestone",
       start_time: :timestamp,
@@ -435,7 +453,7 @@ WITH METADATA { source: :source, author: "$self", confidence: 0.9, created_at: :
 ```
 
 - **`kind`**: `capability_gain | weakness_acknowledged | persona_shift | mission_clarified | values_emerged | identity_milestone`.
-- **Lifecycle by kind**: identity kinds (`identity_milestone`, `mission_clarified`, `persona_shift`) are born landmarks — add `memory_tier: "long-term"` to the metadata and omit `expires_at`. Minor kinds (`capability_gain`, `weakness_acknowledged`, `values_emerged`) add `expires_at: start_time + 365d`; they live until Maintenance §8B absorbs their essence into the consolidated self-model, then lapse via Phase 12.
+- **Lifecycle by kind**: identity kinds (`identity_milestone`, `mission_clarified`, `persona_shift`) are born landmarks — add `memory_tier: "long-term"` to the **milestone block's own** `WITH METADATA` and omit `expires_at`. Minor kinds (`capability_gain`, `weakness_acknowledged`, `values_emerged`) add `expires_at: start_time + 365d` the same way (element-level, never statement-level — the `?domain` block would inherit it); they live until Maintenance §8B absorbs their essence into the consolidated self-model, then lapse via Phase 12.
 - **Discipline**: at most **one** milestone per cycle; never duplicate `Insight` / `behavior_preferences` content (reference via `context.evidence_*`); skip entirely when nothing meaningful surfaced; never about external entities.
 
 > The Mirror is what separates an event-logger from an evolving agent.
@@ -473,8 +491,8 @@ Use `skipped` when nothing met the storage bar (no writes performed); the Summar
 3. **Protected entities**: never delete `$self`, `$system`, `$ConceptType`, `$PropositionType`, `CoreSchema`, or `Domain` type definitions.
 4. **Memory ownership ≠ participants**: always write to `$self`'s memory; participant fields are hints only.
 5. **Read before write**: `FIND` / `SEARCH` first, then `UPSERT`.
-6. **Idempotent naming**: `"<Type>:<date>:<slug>"`.
-7. **Metadata**: always include `source`, `author: "$self"`, `confidence`, `created_at`; add `observed_at` for observed memories.
+6. **Idempotent naming**: episodic `Event`s use `"<EventClass>:<start_time-to-the-minute>:<topic_slug>"`; semantic concepts use `"<Type>:<date>:<slug>"`. Apply the deterministic slug rules (§5a) so a retry reproduces the same name.
+7. **Metadata**: always include `source`, `author: "$self"`, `confidence`, `created_at`; add `observed_at` for observed memories. Lifecycle keys (`expires_at`, `memory_tier`) are **element-level** — set them in the target block's own `WITH METADATA`, never as statement-level defaults.
 8. **Confidence calibration**: `1.0` explicit; `0.8–0.9` directly inferred; `0.6–0.8` indirect; `0.4–0.6` speculative.
 9. **Cross-language aliases**: store a normalized English `name` and put original-language terms in an `aliases` array (e.g., `name: "dark_mode"`, `aliases: ["深色模式", "暗黑模式"]`).
 10. **Batch via `commands` array** in `execute_kip` when operations are independent.

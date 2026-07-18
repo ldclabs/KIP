@@ -16,15 +16,10 @@ UPSERT {
                     "is_required": false,
                     "description": "The domain or class of the preference (e.g., 'UI', 'food', 'communication_style', 'programming_language'). Used to detect mutually exclusive preferences within the same category."
                 },
-                "confidence": {
-                    "type": "number",
-                    "is_required": false,
-                    "description": "How confident the agent is in this preference, on a scale of [0, 1]. Higher evidence_count should generally correlate with higher confidence."
-                },
                 "evidence_count": {
                     "type": "number",
                     "is_required": false,
-                    "description": "The number of independent Events supporting this preference. Updated during sleep-cycle consolidation."
+                    "description": "The number of independent Events supporting this preference. Updated during sleep-cycle consolidation. Assertion trust is NOT an attribute — it lives in metadata.confidence on the 'prefers' assertion link, where reinforcement raises it and sleep-cycle decay lowers it. The node's own metadata.confidence records creation-time provenance only and is not the maintained value."
                 },
                 "first_observed": {
                     "type": "string",

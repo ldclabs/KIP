@@ -58,7 +58,7 @@ FIND(?e) WHERE { ?e {type: "Event"} (?e, "belongs_to_domain", {type: "Domain", n
 ```prolog
 UPSERT {
   CONCEPT ?e {
-    {type: "Event", name: "conv:2025-01-09:topic"}
+    {type: "Event", name: "conv:2025-01-09T10:00:topic"}  // minute-precision: distinct same-day sessions never merge
     SET ATTRIBUTES { event_class: "Conversation", content_summary: "..." }
     SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "Projects"}) }
   }

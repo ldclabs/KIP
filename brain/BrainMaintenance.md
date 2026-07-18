@@ -71,7 +71,7 @@ Goal: leave the Cognitive Nexus in optimal state for the next Formation and Reca
 
 Execute phases in order. `quick` → Phases 1–2. `daydream` → Phase 1 only.
 
-**KIP discipline**: `?name` is a variable; `:name` is a complete KIP value parameter. Queries containing `:type` are per-type templates — iterate over concept types from the Primer instead of sending an unbound placeholder. Writes use only registered predicates; for *reading*, a predicate variable (`(?s, ?p, ?o)`) sweeps all predicates in one query — prefer it over per-predicate iteration. Bulk mutations (decay, sweeps, counters) belong in a single `UPDATE` statement, not N `UPSERT`s; entity dedup belongs in `MERGE`. Array/object attribute updates (for example `maintenance_log`) require read-merge-write because KIP overwrites the whole value at that key — read the `_version` too and write back under `EXPECT VERSION` (on `KIP_3005`, re-read and retry once); this is also why unbounded histories belong in the graph as nodes, not in on-node arrays (§8C). Every write carries `source`, `author`, and `created_at`; include `confidence` when the operation asserts or changes knowledge. On a KIP error, apply the returned `hint`, correct, and retry once; blind retries are safe only when the failure proves the command never executed (syntax/validation) — after an ambiguous failure (e.g., `KIP_4001`) on a non-idempotent `UPDATE` (`ADD` counters), verify state first. If it still fails, record it in `maintenance_log` and move on.
+**KIP discipline**: `?name` is a variable; `:name` is a complete KIP value parameter. Queries containing `:type` are per-type templates — iterate over concept types from the Primer instead of sending an unbound placeholder. Writes use only registered predicates; for *reading*, a predicate variable (`(?s, ?p, ?o)`) sweeps all predicates in one query — prefer it over per-predicate iteration **when the pattern has a structural anchor** (a bound subject, name, or type); a fully unconstrained scan is subject to the engine's materialization cap (`KIP_4002`) and must be sharded by predicate, endpoint type, or domain. Bulk mutations (decay, sweeps, counters) belong in a single `UPDATE` statement, not N `UPSERT`s; entity dedup belongs in `MERGE`. Array/object attribute updates (for example `maintenance_log`) require read-merge-write because KIP overwrites the whole value at that key — read the `_version` too and write back under `EXPECT VERSION` (on `KIP_3005`, re-read and retry once); this is also why unbounded histories belong in the graph as nodes, not in on-node arrays (§8C). Every write carries `source`, `author`, and `created_at`; include `confidence` when the operation asserts or changes knowledge. Lifecycle keys (`expires_at`, `memory_tier`) are **element-level** — set them in the target block's own `WITH METADATA`, never as statement-level defaults that shallow-merge onto every element the statement touches. On a KIP error, apply the returned `hint`, correct, and retry once; blind retries are safe only when the failure proves the command never executed (syntax/validation) — after an ambiguous failure (e.g., `KIP_4001`) on a non-idempotent `UPDATE` (`ADD` counters), verify state first. If it still fails, record it in `maintenance_log` and move on.
 
 ### Phase 1: Assessment & Salience Scoring
 
@@ -182,10 +182,21 @@ WITH METADATA { source: "SleepCycle", author: "$system", created_at: :timestamp 
 UPSERT {
   CONCEPT ?preference {
     {type: "Preference", name: :preference_name}
-    SET ATTRIBUTES { description: :extracted_description, confidence: 0.8 }
+    SET ATTRIBUTES { description: :extracted_description }
     SET PROPOSITIONS {
       ("belongs_to_domain", {type: "Domain", name: :target_domain})
       ("derived_from", {type: "Event", name: :event_name})
+    }
+  }
+  // The "prefers" assertion link is the trust home: its metadata.confidence is
+  // what Formation's reinforcement raises and Phase 7 decay lowers. Without it
+  // the new Preference never enters the homeostatic loop and Recall's
+  // confidence-ranked patterns never return it. :holder_name = the source
+  // Event's primary `involves` participant.
+  CONCEPT ?holder {
+    {type: "Person", name: :holder_name}
+    SET PROPOSITIONS {
+      ("prefers", ?preference)
     }
   }
 }
@@ -198,8 +209,9 @@ UPSERT {
     {type: "SleepTask", name: :task_name}
     SET ATTRIBUTES { status: "completed", completed_at: :timestamp, result: :result_summary }
   }
+  WITH METADATA { expires_at: :task_expires_at }  // lifecycle keys are element-level
 }
-WITH METADATA { source: "SleepCycle", author: "$system", created_at: :timestamp, expires_at: :task_expires_at }
+WITH METADATA { source: "SleepCycle", author: "$system", created_at: :timestamp }
 ```
 
 ### Phase 3: Unsorted Inbox Processing
@@ -275,11 +287,11 @@ UPSERT {
     SET ATTRIBUTES { consolidation_status: "archived", consolidated_at: :timestamp }
     SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "Archived"}) }
   }
+  WITH METADATA { expires_at: :archive_expires_at }  // e.g., archived_at + 30 days; element-level
 }
 WITH METADATA {
   source: "SleepConsolidation", author: "$system",
-  created_at: :timestamp,
-  expires_at: :archive_expires_at  // e.g., archived_at + 30 days
+  created_at: :timestamp
 }
 ```
 
@@ -290,8 +302,9 @@ WITH METADATA {
 ```prolog
 UPSERT {
   CONCEPT ?landmark { {type: "Event", name: :event_name} }
+  WITH METADATA { memory_tier: "long-term" }  // lifecycle keys are element-level
 }
-WITH METADATA { source: "LandmarkPromotion", author: "$system", created_at: :timestamp, memory_tier: "long-term" }
+WITH METADATA { source: "LandmarkPromotion", author: "$system", created_at: :timestamp }
 ```
 
 ```prolog
@@ -322,7 +335,6 @@ UPSERT {
     {type: "Preference", name: :pattern_name}
     SET ATTRIBUTES {
       description: :synthesized_description,
-      confidence: :aggregated_confidence,
       evidence_count: :num_supporting_events,
       first_observed: :earliest_event_time,
       last_observed: :latest_event_time
@@ -332,6 +344,14 @@ UPSERT {
       ("derived_from", {type: "Event", name: :event_name_1})
       ("derived_from", {type: "Event", name: :event_name_2})
       ("derived_from", {type: "Event", name: :event_name_3})
+    }
+  }
+  // Assertion link = trust home (see the Phase 2 note); :holder_name = the
+  // clustered events' shared `involves` participant.
+  CONCEPT ?holder {
+    {type: "Person", name: :holder_name}
+    SET PROPOSITIONS {
+      ("prefers", ?pattern)
     }
   }
 }
@@ -357,8 +377,9 @@ UPSERT {
     {type: "Commitment", name: :commitment_name}
     SET ATTRIBUTES { status: :new_status, fulfilled_at: :closed_at, outcome: :outcome }
   }
+  WITH METADATA { expires_at: :terminal_expires_at }  // element-level; only terminal statuses get a TTL
 }
-WITH METADATA { source: "ProspectiveSweep", author: "$system", confidence: 0.85, created_at: :timestamp, expires_at: :terminal_expires_at }
+WITH METADATA { source: "ProspectiveSweep", author: "$system", confidence: 0.85, created_at: :timestamp }
 ```
 
 ### Phase 6: Duplicate Detection & Merging
@@ -377,7 +398,7 @@ WHERE {
 
 ### Phase 7: Confidence Decay
 
-Apply `new_confidence = old_confidence × decay_factor` (default `0.95`/week) to old unverified facts. One bulk `UPDATE` with a predicate variable covers all predicates atomically — no per-link, per-predicate iteration:
+Apply `new_confidence = old_confidence × decay_factor` (default `0.95`/week) to old unverified facts. Decay acts on the assertion link's `metadata.confidence` — the same value Formation's reinforcement raises, so the two form one homeostatic loop. Run the sweep **per predicate shard** — substitute `:predicate` from the Primer's registered predicate list, skipping `belongs_to_domain` (structural links don't decay). On a small graph a predicate variable (`(?s, ?p, ?o)` + `FILTER(?p != "belongs_to_domain")`) covers all predicates in one statement, but past the engine's materialization cap that unconstrained scan is rejected (`KIP_4002`, per the spec's Scan-bounds rule):
 
 ```prolog
 UPDATE ?link
@@ -386,23 +407,60 @@ SET METADATA {
   decay_applied_at: :timestamp
 }
 WHERE {
-  ?link (?s, ?p, ?o)
-  FILTER(?p != "belongs_to_domain")
+  ?link (?s, :predicate, ?o)
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
   FILTER(IS_NOT_NULL(?link.metadata.created_at))
   FILTER(?link.metadata.created_at < :decay_threshold)
   FILTER(?link.metadata.confidence > 0.3 && ?link.metadata.confidence < 1.0)
+  // Idempotency guard: at most one decay per link per cycle — also the iteration cursor
+  FILTER(IS_NULL(?link.metadata.decay_applied_at) || ?link.metadata.decay_applied_at < :cycle_start)
+  // Reinforcement exemption: skip links touched since :stale_cutoff (≈ cycle start − 14d) —
+  // Formation's reinforcement stamps observed_at on the link itself, so this is link-local
+  FILTER(IS_NULL(?link.metadata.observed_at) || ?link.metadata.observed_at < :stale_cutoff)
 }
 LIMIT 500
 ```
 
-**Strength-aware (asymmetric) decay** — "use it or lose it": decay is not uniform. Reinforced memories resist it; neglected ones fade faster. Run **two passes with different factors and disjoint filters** instead of one uniform pass:
-- Strong (high `evidence_count`, recent `last_observed`, or high `salience_score`): decay slowly or skip (factor `0.98`+).
-- Never-reinforced, low-salience facts: decay faster (factor `0.90`) so the graph self-prunes stale clutter.
+**Iteration**: `LIMIT 500` caps one statement, and *which* 500 match is implementation-defined — the `decay_applied_at` guard is what makes the sweep safe. Re-run each shard until `updated < LIMIT`; without the guard, a re-run (or a crash-and-retry) double-decays the same links. Bind `:cycle_start` **once** when Phase 7 first starts and persist it on the cycle's `SleepTask`; a crash-and-retry must reuse the original value — a fresh `:cycle_start` re-admits every already-decayed link.
 
-KIP keeps no engine-side access statistics (reads stay reads): "recently recalled" is visible only as reinforcement — re-confirmed facts get `evidence_count` / `last_observed` refreshed. Low recall frequency alone is not evidence of low importance.
+**Strength-aware (asymmetric) decay** — "use it or lose it": decay is not uniform. Reinforced memories resist it; neglected ones fade faster. Per-predicate sharding is what makes this safe — pick the factor per shard:
+- **Assertion predicates** (`prefers`, `learned`, ... — the object carries the reinforcement signals): run two passes with disjoint filters, both keeping every base filter above (including the guard). Strong — `FILTER(IS_NOT_NULL(?o.attributes.evidence_count) && ?o.attributes.evidence_count >= 3)`: factor `0.98`, or skip the pass entirely. Weak — `FILTER(IS_NULL(?o.attributes.evidence_count) || ?o.attributes.evidence_count < 3)`: factor `0.90`, so the graph self-prunes stale clutter.
+- **Provenance & participation predicates** (`derived_from`, `involves`, `consolidated_to`, ...): their objects are Events/Persons that never carry `evidence_count` — never route them through the weak pass. Use the slow factor (`0.98`) or skip them entirely: eroding provenance severs the sole-evidence chains 12A.5 depends on.
+- **High-salience memories resist**: links whose subject Event carries `salience_score >= 60` (flashbulb encoding, Formation Phase 1) take the slow factor regardless of the object's signals.
 
-**Do NOT decay**: `confidence: 1.0` system truths (the `< 1.0` filter above); schema definitions (`$ConceptType`/`$PropositionType`); core `belongs_to_domain` for CoreSchema (the `?p` filter above); recently-verified facts (`evidence_count` increased this cycle).
+KIP keeps no engine-side access statistics (reads stay reads): "recently recalled" is visible only as reinforcement — re-confirmed facts get `evidence_count` / `last_observed` refreshed and the link's `observed_at` stamped. Low recall frequency alone is not evidence of low importance.
+
+**Do NOT decay**: `confidence: 1.0` system truths (the `< 1.0` filter above); schema definitions (`$ConceptType`/`$PropositionType`); `belongs_to_domain` links (never a decay shard); recently-verified facts (the `observed_at` exemption above).
+
+**Legacy migration (one-time, idempotent)**: assertion trust lives only in `metadata.confidence`; older graphs may still carry an `attributes.confidence` on `Preference` / `Insight` nodes. Never delete the attribute before its value has a new home: backfill the assertion link (②); when no assertion link exists (legacy consolidation-born nodes), preserve the value on the node's own metadata (③) and create the missing `prefers` link per the Phase 2 template so future reinforcement lands. Repeat the whole step until the probe returns empty:
+
+```prolog
+// ① Probe (repeat until empty)
+FIND(?p.name, ?p.attributes.confidence) WHERE {
+  ?p {type: "Preference"}
+  FILTER(IS_NOT_NULL(?p.attributes.confidence))
+} LIMIT 100
+
+// ② Backfill the assertion link when its value is missing or lower
+//    (:attr_confidence = the probed attribute value for :name)
+UPDATE ?link
+SET METADATA { confidence: :attr_confidence }
+WHERE {
+  ?link (?s, "prefers", {type: "Preference", name: :name})
+  FILTER(IS_NULL(?link.metadata.confidence) || ?link.metadata.confidence < :attr_confidence)
+}
+
+// ③ Only if ② matched no link: preserve the value on the node's own metadata
+UPDATE ?p
+SET METADATA { confidence: :attr_confidence }
+WHERE { ?p {type: "Preference", name: :name} }
+
+// ④ Only after ② or ③ succeeded: remove the attribute
+DELETE ATTRIBUTES {"confidence"} FROM ?p
+WHERE { ?p {type: "Preference", name: :name} }
+```
+
+(Repeat for `Insight` with the `"learned"` predicate.)
 
 ---
 
@@ -619,7 +677,7 @@ WITH METADATA { source: "DomainHealthCheck", author: "$system", created_at: :tim
 #### 12A. Eligibility (all must hold)
 
 1. `metadata.expires_at` non-null and `< :now`.
-2. Node is an archived `Event`, completed/archived `SleepTask`, or another node explicitly TTL'd.
+2. Node type is on the **TTL-deletable whitelist**: `Event`; terminal-status `SleepTask` (`completed` / `failed`) or `Commitment` (`fulfilled` / `cancelled` / `expired`) — the statuses come from each type's own schema enum; or a node whose own `metadata.memory_tier` is `"short-term"` (Formation marks genuinely temporary concepts this way at creation). `attributes.status: "archived"` alone does **not** qualify — the Safe Archive pattern applies to any type, including `Person`. A TTL on any node outside this list is suspicious — most likely metadata pollution from a statement-level `WITH METADATA` default — so log it, create a review SleepTask, and never auto-delete.
 3. **Not** a protected entity (`$self`, `$system`, `$ConceptType`, `$PropositionType`, anything in `CoreSchema`, any `Domain` node).
 4. For Events: `consolidation_status` is `completed` or `archived` (never delete pending; instead extend `expires_at` and warn).
 5. No active concept depends on this node as its sole evidence (e.g., a high-confidence `Insight` whose only `derived_from` is this Event — extend `expires_at` instead).
@@ -649,7 +707,33 @@ WHERE {
 }
 ```
 
-**Cap: at most 500 nodes per cycle.** Per KIP §2.10, `expires_at` is a *signal*; this phase is the consumer. Never auto-delete during Formation/Recall.
+#### 12D. Expired Proposition Links
+
+Nodes are not the only TTL'd elements: Recall's currency filters also honor link-level `expires_at`, and no other phase removes expired links — sweep them here. `DELETE PROPOSITIONS` has no `LIMIT` clause and an unconstrained `(?s, ?p, ?o)` scan is rejectable (`KIP_4002`), so **never issue a blanket delete**: audit one predicate shard at a time (the `FIND`'s `LIMIT` is what enforces the cycle cap), then delete only the audited candidates with targeted statements:
+
+```prolog
+// ① Audit one predicate shard (iterate :predicate over the Primer's list)
+FIND(?s.type, ?s.name, ?o.type, ?o.name, ?link.metadata.expires_at) WHERE {
+  ?link (?s, :predicate, ?o)
+  FILTER(IS_NOT_NULL(?link.metadata.expires_at))
+  FILTER(?link.metadata.expires_at < :now)
+  FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
+} LIMIT 200
+
+// ② Delete each audited candidate individually (skip exempt rows — see below)
+DELETE PROPOSITIONS ?link
+WHERE {
+  ?link ({type: :s_type, name: :s_name}, :predicate, {type: :o_type, name: :o_name})
+  FILTER(IS_NOT_NULL(?link.metadata.expires_at))
+  FILTER(?link.metadata.expires_at < :now)
+}
+```
+
+- The `superseded` filter protects evolution history — superseded links are history and should never carry `expires_at`; probe for that anomaly separately (`superseded == true && IS_NOT_NULL(expires_at)`) and log hits rather than deleting.
+- If the link's subject is an `Event` whose consolidation is still pending — or whose own `expires_at` was deliberately extended — extend the link's `expires_at` alongside the node's instead of deleting (same rule as 12A.4).
+- Audit like 12C: log `subject → predicate → object`, `expires_at`, and reason to `maintenance_log` before deleting.
+
+**Cap: at most 500 elements (nodes + links) per cycle.** Per KIP §2.10, `expires_at` is a *signal*; this phase is the consumer. Never auto-delete during Formation/Recall.
 
 ### Phase 13: Finalization & Reporting
 

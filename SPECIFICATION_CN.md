@@ -211,7 +211,7 @@ graph TD
 ### 2.10. 数据一致性与冲突处理原则
 
 - **属性更新策略**：在 `UPSERT` 操作中，`SET ATTRIBUTES` 采用**浅合并（Shallow Merge）策略**：仅对指令中出现的 Key 进行更新（覆盖），未出现的 Key 保持不变。对于某个 Key 的值为 `Array` 或 `Object` 时，更新语义仍是**按该 Key 整体覆盖**（不会递归深合并），因此智能体若要更新数组内容，必须提供完整的数组。
-- **元数据优先级**：当 `WITH METADATA` 在一个 `UPSERT` 块的多个层级同时出现（外层 `UPSERT` 块与内层 `CONCEPT`/`PROPOSITION` 块，或 `SET PROPOSITIONS` 中单条命题上的 `WITH METADATA`）时，**内层的元数据按 Key 浅合并并覆盖外层**：内层未出现的 Key 继承自外层；内层出现的 Key（包括其值为 `null` 的情况）以内层为准。
+- **元数据优先级**：当 `WITH METADATA` 在一个 `UPSERT` 块的多个层级同时出现（外层 `UPSERT` 块与内层 `CONCEPT`/`PROPOSITION` 块，或 `SET PROPOSITIONS` 中单条命题上的 `WITH METADATA`）时，**内层的元数据按 Key 浅合并并覆盖外层**：内层未出现的 Key 继承自外层；内层出现的 Key（包括其值为 `null` 的情况）以内层为准。由于外层块是该语句触及的**每一个**元素的默认值，生命周期键（`expires_at`、`memory_tier`）**应当**（SHOULD）声明在目标块**自己的** `WITH METADATA` 中，绝不放语句级——语句级 TTL 会无声地盖到每个被匹配的元素上，包括持久节点（例如与情景 `Event` 同语句更新的 `Person`）。另注意 `CONCEPT` 块的元数据同样是其 `SET PROPOSITIONS` 各条目的默认值：情景块的 TTL 会级联到它自己的链接上（通常正是所需——链接随之过期），但不会级联到被引用的端点节点。
 - **命题唯一性**：KIP 强制实施 **(Subject, Predicate, Object) 唯一性约束**。对于相同的主语 ID 和宾语 ID（无论端点是概念节点还是命题链接），同一谓词只能存在一条命题。重复的 `UPSERT` 操作将被视为对现有命题的元数据或属性更新。
 - **记忆生命周期（`expires_at`）**：非空的 `metadata.expires_at` 声明的是知识**何时**成为遗忘的候选，并**不会**自动把该条知识从查询结果中过滤掉——已过期的知识在被后台系统进程（通常由 `$system` 在睡眠周期中执行）真正清理或归档之前，仍然可被查询到。需要忽略已过期记忆的智能体应显式添加 `FILTER(IS_NULL(?x.metadata.expires_at) || ?x.metadata.expires_at > <now>)`。
 
@@ -940,6 +940,8 @@ LIMIT N
 - `SET ATTRIBUTES` / `SET METADATA`：至少需要其一，两者可同时出现。均遵循 §2.10 的**浅合并**语义。`SET METADATA` 写入的是作者自述元数据——写入保留的 `_` 前缀键会被以 `KIP_2002` 拒绝。
 - `WHERE`：标准 KQL 模式匹配（包括 `FILTER`、`NOT`、`OPTIONAL`、谓词变量）。
 - `LIMIT N`（可选）：单条语句更新元素数量的安全上限。支持占位符（`LIMIT :limit`）。由于没有 `ORDER BY` 语义，被截断时选中哪些元素由实现决定——`LIMIT` 用作爆炸半径防护，而非排序选择。
+- **大规模扫描的迭代**：正因截断选中集由实现决定，直接重跑一条带上限的 `UPDATE` 可能对同一批元素二次变更。要遍历超过上限的匹配集，应在同一条语句中写入单调标记（如 `decay_applied_at: :timestamp`），并在 `WHERE` 中排除已打标元素（`FILTER(IS_NULL(?t.metadata.decay_applied_at) || ?t.metadata.decay_applied_at < :cycle_start)`），然后重复执行直到 `updated < LIMIT`。周期标记（`:cycle_start`）在清扫首次启动时绑定**一次**，重跑与崩溃重试都必须复用原值——换一个新值会让所有已打标元素重新入选。该标记是普通作者元数据：会随 `EXPORT` 胶囊导出，且每次写入都会推进 `_version`。不要用 `CURSOR` 做批量变更。
+- **扫描边界**：`LIMIT` 限制的是被*更新*的元素数，不是 `WHERE` 模式*扫描*的元素数。完全无约束的模式（如仅靠 metadata `FILTER` 收窄的 `?link (?s, ?p, ?o)`）就是全图扫描，一旦候选集超出实现的物化上限，引擎**可以**（MAY）拒绝执行（`KIP_4002`）——在大图上这类清扫会整体失效。要让代谢清扫可扩展，应通过结构性约束对匹配集分片——按谓词（`?link (?s, "prefers", ?o)`）、按端点类型或按域——再配合上文的标记模式逐片遍历。
 - **原子性**：整条 `UPDATE` 是一个事务；要么更新全部匹配（截断后的）元素，要么全不更新。
 - **受保护目标**：匹配到受保护的系统结构（见 `KIP_3004`）会导致语句失败；请收窄 `WHERE` 模式。
 
@@ -963,6 +965,9 @@ LIMIT N
 ```prolog
 // 睡眠周期置信度衰减：一条命令覆盖所有谓词
 //（谓词变量 + 批量更新；豁免结构性链接与 1.0 公理性真值）
+// 仅适用于小图：候选集超出引擎物化上限后，这种无约束扫描会被拒绝
+//（KIP_4002）——应按谓词（?link (?s, :predicate, ?o)）、端点类型或域分片，
+// 配合同一标记护栏逐片遍历（见「扫描边界」）。
 UPDATE ?link
 SET METADATA {
   confidence: CLAMP(MUL(?link.metadata.confidence, :decay_factor), 0.0, 1.0),
@@ -974,6 +979,8 @@ WHERE {
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
   FILTER(?link.metadata.created_at < :decay_threshold)
   FILTER(?link.metadata.confidence > 0.3 && ?link.metadata.confidence < 1.0)
+  // 幂等护栏：每条链接每周期至多衰减一次；重复执行直到 updated < LIMIT
+  FILTER(IS_NULL(?link.metadata.decay_applied_at) || ?link.metadata.decay_applied_at < :cycle_start)
 }
 LIMIT 500
 ```
@@ -1220,10 +1227,30 @@ CURSOR "<token>"
 **示例**：
 
 ```prolog
-// 把 "Medical" 领域中的全部知识导出为一份可移植胶囊
-EXPORT ?n
+// 把 "Medical" 领域中的全部知识导出为一份可移植胶囊：
+// 成员概念、成员之间的命题、领域归属链接、以及 Domain 节点
+// 本身。每个 UNION 分支独立绑定 ?x（§3.4.7.3）。缺少第二个分支，
+// 胶囊里只有互不相连的概念；缺少第三个分支，导入后全部概念都会
+// 变成领域孤儿；缺少第四个分支，导入到全新图谱会因归属链接引用
+// 不存在的 Domain 端点而失败（KIP_3002）。
+EXPORT ?x
 WHERE {
-  (?n, "belongs_to_domain", {type: "Domain", name: "Medical"})
+  (?x, "belongs_to_domain", {type: "Domain", name: "Medical"})
+
+  UNION {
+    // 归属子句在前：?s/?o 先于谓词变量子句被绑定（有界探索，§3.4.2）
+    (?s, "belongs_to_domain", {type: "Domain", name: "Medical"})
+    (?o, "belongs_to_domain", {type: "Domain", name: "Medical"})
+    ?x (?s, ?p, ?o)
+  }
+
+  UNION {
+    ?x (?m, "belongs_to_domain", {type: "Domain", name: "Medical"})
+  }
+
+  UNION {
+    ?x {type: "Domain", name: "Medical"}
+  }
 }
 LIMIT 500
 ```
@@ -1401,16 +1428,16 @@ graph TD
 
 - `source` (来源): `String` | `Array<String>`, 知识的直接来源标识。
 - `author` (作者/创建者): `String`, 断言或创建该记录的实体。
-- `confidence` (可信度): `Number`, 对知识为真的信心分数 (0.0-1.0)。
+- `confidence` (可信度): `Number`, 对知识为真的信心分数 (0.0-1.0)。断言的信任度**只**存放于此（做出该断言的节点或链接的 metadata）；不要在 attributes 中重复存放一份——否则强化与衰减会各自作用在不同副本上。属于知识内容本身的强化信号（`evidence_count`、`first_observed` / `last_observed`）则放在 attributes 中。
 - `evidence` (证据): `Array<String>`, 指向支持断言的具体证据。
 
 ### A1.2. 时效性与生命周期 (Temporality & Lifecycle)
 
 - `created_at` / `observed_at`: `String` (ISO 8601), 创建或观测时间戳。
-- `expires_at`: `String` (ISO 8601), 记忆的过期时间戳。**此字段是实现记忆自动“遗忘”机制的关键。** 它是供 `$system` 后台清理任务使用的*信号*，而非查询时的自动过滤器（参见 §2.10 “记忆生命周期”）：已过期的知识在被真正清理或归档之前仍可被查询。通常由系统根据知识类型（如 `Event`）自动填充。
+- `expires_at`: `String` (ISO 8601), 记忆的过期时间戳。**此字段是实现记忆自动“遗忘”机制的关键。** 它是供 `$system` 后台清理任务使用的*信号*，而非查询时的自动过滤器（参见 §2.10 “记忆生命周期”）：已过期的知识在被真正清理或归档之前仍可被查询。通常由系统根据知识类型（如 `Event`）自动填充。务必按元素级设置，绝不作为语句级 `UPSERT` 默认值（§2.10）；清理消费者**应当**（SHOULD）把硬删除限定在明确的情景型或终态类型上，对其他任何类型（如 `Person`）携带的 TTL 应视为可疑而非可删。
 - `valid_from` / `valid_until`: `String` (ISO 8601), 知识断言的有效起止时间。
 - `status` (状态): `String`, 如 `"active"`, `"deprecated"`, `"retracted"`。描述的是**断言**的生命周期；与概念类型自行定义的实体生命周期属性 `attributes.status`（如 `Commitment.status`）相区别。
-- `memory_tier` (记忆层级): `String`, **由系统自动标记**，如 `"short-term"`, `"long-term"`, 用于内部的维护和查询优化。
+- `memory_tier` (记忆层级): `String`, **作者可写的生命周期提示**（通常由 `$self` 在编码时或 `$system` 的地标晋升等流程写入），如 `"short-term"`, `"long-term"`, 用于内部的维护和查询优化。与 `expires_at` 一样按元素级设置（§2.10）。
 - `superseded` (已被取代): `Boolean`, 当较新的事实取代当前事实、而当前事实作为历史状态保留时为 `true`。
 - `superseded_by` / `supersedes` (取代链): `String`, 指向状态演进链中的相关事实。
 - `superseded_at` (取代时间): `String` (ISO 8601), 该断言被取代的时间。
@@ -1737,5 +1764,5 @@ WITH METADATA {
 | `KIP_3005` | `VersionConflict`     | `EXPECT VERSION` 守卫与元素当前的 `_version` 不匹配（有并发写入者修改了它，或对已存在的元素使用了 `EXPECT VERSION 0`）。整个 `UPSERT` 已中止；未写入任何内容。                                                                                          | 重新读取元素以获得最新的 `_version` 与当前值，在内存中重新合并后再重试守卫写入。绝不要拿着过期版本号盲目重试。                                               |
 | **4xxx**   | **系统与执行错误**    |                                                                                                                                                                                                                                                         |                                                                                                                                                              |
 | `KIP_4001` | `ExecutionTimeout`    | 查询过于复杂，执行时间超过系统限制。                                                                                                                                                                                                                    | 优化查询。减少 `UNION` 的使用，降低 `LIMIT`，或减少正则匹配/跳数。                                                                                           |
-| `KIP_4002` | `ResourceExhausted`   | 结果集过大或内存不足。                                                                                                                                                                                                                                  | 必须使用 `LIMIT` 和 `CURSOR` 进行分页获取。                                                                                                                  |
+| `KIP_4002` | `ResourceExhausted`   | 结果集过大或内存不足。                                                                                                                                                                                                                                  | 读取/`EXPORT`：用 `LIMIT` 配合 `CURSOR` 分页。批量 `UPDATE`/`DELETE` 清扫：增加结构性约束（按谓词、端点类型或域分片——§4.3）并配合标记护栏迭代；`LIMIT` 只限制更新数、不限制扫描数，`CURSOR` 不适用于变更。 |
 | `KIP_4003` | `InternalError`       | 数据库内部未知错误。                                                                                                                                                                                                                                    | 请联系系统管理员或稍后重试。                                                                                                                                 |

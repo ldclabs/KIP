@@ -71,7 +71,7 @@
 
 按顺序执行。`quick` → 阶段 1–2。`daydream` → 仅阶段 1。
 
-**KIP 纪律**：`?name` 是变量，`:name` 是完整 KIP 值参数。包含 `:type` 的查询是按类型执行的模板——从 Primer 遍历概念类型，不要发送未绑定占位符。写入只使用已注册谓词；*读取*时谓词变量（`(?s, ?p, ?o)`）可在一条查询里横扫所有谓词——优先于按谓词逐个迭代。批量变更（衰减、清扫、计数）用一条 `UPDATE` 语句完成，而非 N 条 `UPSERT`；实体去重用 `MERGE`。数组/对象属性（如 `maintenance_log`）会按 key 整体覆盖，必须先读（连同 `_version`）、合并、再以 `EXPECT VERSION` 守卫写回完整值（遇 `KIP_3005` 重读重试一次）——这也正是无界历史应作为图节点、而非节点数组存在的原因（见 §8C）。每次写入都携带 `source`、`author`、`created_at`；当操作断言或改变知识时同时携带 `confidence`。遇到 KIP 错误时，按返回的 `hint` 修正后重试一次；只有当失败证明命令从未执行（语法/校验错误）时才可盲目重试——对非幂等 `UPDATE`（`ADD` 计数器）遭遇模糊失败（如 `KIP_4001`）后，先核实状态再重发。仍失败则记入 `maintenance_log` 并继续。
+**KIP 纪律**：`?name` 是变量，`:name` 是完整 KIP 值参数。包含 `:type` 的查询是按类型执行的模板——从 Primer 遍历概念类型，不要发送未绑定占位符。写入只使用已注册谓词；*读取*时谓词变量（`(?s, ?p, ?o)`）可在一条查询里横扫所有谓词——**在模式带有结构锚点**（已绑定的主语、名称或类型）时优先于按谓词逐个迭代；完全无约束的扫描受引擎物化上限约束（`KIP_4002`），必须按谓词、端点类型或域分片。批量变更（衰减、清扫、计数）用一条 `UPDATE` 语句完成，而非 N 条 `UPSERT`；实体去重用 `MERGE`。数组/对象属性（如 `maintenance_log`）会按 key 整体覆盖，必须先读（连同 `_version`）、合并、再以 `EXPECT VERSION` 守卫写回完整值（遇 `KIP_3005` 重读重试一次）——这也正是无界历史应作为图节点、而非节点数组存在的原因（见 §8C）。每次写入都携带 `source`、`author`、`created_at`；当操作断言或改变知识时同时携带 `confidence`。生命周期键（`expires_at`、`memory_tier`）是**元素级**的——写在目标块自己的 `WITH METADATA` 里，绝不作为语句级默认值浅合并到该语句触及的每一个元素上。遇到 KIP 错误时，按返回的 `hint` 修正后重试一次；只有当失败证明命令从未执行（语法/校验错误）时才可盲目重试——对非幂等 `UPDATE`（`ADD` 计数器）遭遇模糊失败（如 `KIP_4001`）后，先核实状态再重发。仍失败则记入 `maintenance_log` 并继续。
 
 ### 阶段 1：评估与显著性评分
 
@@ -180,10 +180,20 @@ WITH METADATA { source: "SleepCycle", author: "$system", created_at: :timestamp 
 UPSERT {
   CONCEPT ?preference {
     {type: "Preference", name: :preference_name}
-    SET ATTRIBUTES { description: :extracted_description, confidence: 0.8 }
+    SET ATTRIBUTES { description: :extracted_description }
     SET PROPOSITIONS {
       ("belongs_to_domain", {type: "Domain", name: :target_domain})
       ("derived_from", {type: "Event", name: :event_name})
+    }
+  }
+  // "prefers" 断言链接是信任值之家：其 metadata.confidence 正是 Formation
+  // 强化所上调、阶段 7 衰减所削减的值。缺了它，新 Preference 永远进不了
+  // 稳态回路，Recall 的置信度排序模式也永远查不到它。
+  // :holder_name = 来源 Event 的主要 `involves` 参与者。
+  CONCEPT ?holder {
+    {type: "Person", name: :holder_name}
+    SET PROPOSITIONS {
+      ("prefers", ?preference)
     }
   }
 }
@@ -196,8 +206,9 @@ UPSERT {
     {type: "SleepTask", name: :task_name}
     SET ATTRIBUTES { status: "completed", completed_at: :timestamp, result: :result_summary }
   }
+  WITH METADATA { expires_at: :task_expires_at }  // 生命周期键是元素级的
 }
-WITH METADATA { source: "SleepCycle", author: "$system", created_at: :timestamp, expires_at: :task_expires_at }
+WITH METADATA { source: "SleepCycle", author: "$system", created_at: :timestamp }
 ```
 
 ### 阶段 3：未分类收件箱处理
@@ -273,11 +284,11 @@ UPSERT {
     SET ATTRIBUTES { consolidation_status: "archived", consolidated_at: :timestamp }
     SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "Archived"}) }
   }
+  WITH METADATA { expires_at: :archive_expires_at }  // 例如 archived_at + 30 天；元素级
 }
 WITH METADATA {
   source: "SleepConsolidation", author: "$system",
-  created_at: :timestamp,
-  expires_at: :archive_expires_at  // 例如 archived_at + 30 天
+  created_at: :timestamp
 }
 ```
 
@@ -288,8 +299,9 @@ WITH METADATA {
 ```prolog
 UPSERT {
   CONCEPT ?landmark { {type: "Event", name: :event_name} }
+  WITH METADATA { memory_tier: "long-term" }  // 生命周期键是元素级的
 }
-WITH METADATA { source: "LandmarkPromotion", author: "$system", created_at: :timestamp, memory_tier: "long-term" }
+WITH METADATA { source: "LandmarkPromotion", author: "$system", created_at: :timestamp }
 ```
 
 ```prolog
@@ -320,7 +332,6 @@ UPSERT {
     {type: "Preference", name: :pattern_name}
     SET ATTRIBUTES {
       description: :synthesized_description,
-      confidence: :aggregated_confidence,
       evidence_count: :num_supporting_events,
       first_observed: :earliest_event_time,
       last_observed: :latest_event_time
@@ -330,6 +341,14 @@ UPSERT {
       ("derived_from", {type: "Event", name: :event_name_1})
       ("derived_from", {type: "Event", name: :event_name_2})
       ("derived_from", {type: "Event", name: :event_name_3})
+    }
+  }
+  // 断言链接 = 信任值之家（见阶段 2 注释）；:holder_name = 聚类事件的
+  // 共同 `involves` 参与者。
+  CONCEPT ?holder {
+    {type: "Person", name: :holder_name}
+    SET PROPOSITIONS {
+      ("prefers", ?pattern)
     }
   }
 }
@@ -355,8 +374,9 @@ UPSERT {
     {type: "Commitment", name: :commitment_name}
     SET ATTRIBUTES { status: :new_status, fulfilled_at: :closed_at, outcome: :outcome }
   }
+  WITH METADATA { expires_at: :terminal_expires_at }  // 元素级；只有终态才携带 TTL
 }
-WITH METADATA { source: "ProspectiveSweep", author: "$system", confidence: 0.85, created_at: :timestamp, expires_at: :terminal_expires_at }
+WITH METADATA { source: "ProspectiveSweep", author: "$system", confidence: 0.85, created_at: :timestamp }
 ```
 
 ### 阶段 6：重复检测与合并
@@ -375,7 +395,7 @@ WHERE {
 
 ### 阶段 7：置信度衰减
 
-应用 `new_confidence = old_confidence × decay_factor`（默认 0.95/周）。一条带谓词变量的批量 `UPDATE` 原子地覆盖所有谓词——无需逐链接、逐谓词迭代：
+应用 `new_confidence = old_confidence × decay_factor`（默认 0.95/周）。衰减作用于断言链接的 `metadata.confidence`——正是 Formation 强化所上调的同一个值，二者构成一个稳态回路。清扫**按谓词分片**执行——从 Primer 的已注册谓词表逐个代入 `:predicate`，跳过 `belongs_to_domain`（结构性链接不衰减）。小图上可用谓词变量（`(?s, ?p, ?o)` + `FILTER(?p != "belongs_to_domain")`）一条语句覆盖所有谓词，但候选集超出引擎物化上限后该无约束扫描会被拒绝（`KIP_4002`，见规范「扫描边界」）：
 
 ```prolog
 UPDATE ?link
@@ -384,24 +404,61 @@ SET METADATA {
   decay_applied_at: :timestamp
 }
 WHERE {
-  ?link (?s, ?p, ?o)
-  FILTER(?p != "belongs_to_domain")
+  ?link (?s, :predicate, ?o)
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
   FILTER(IS_NOT_NULL(?link.metadata.created_at))
   FILTER(?link.metadata.created_at < :decay_threshold)
   FILTER(?link.metadata.confidence > 0.3 && ?link.metadata.confidence < 1.0)
+  // 幂等护栏：每条链接每周期至多衰减一次——同时充当迭代游标
+  FILTER(IS_NULL(?link.metadata.decay_applied_at) || ?link.metadata.decay_applied_at < :cycle_start)
+  // 强化豁免：跳过 :stale_cutoff（≈ 周期开始 − 14 天）以来被触碰过的链接——
+  // Formation 的强化会把 observed_at 盖在链接自己身上，因此这是链接本地判断
+  FILTER(IS_NULL(?link.metadata.observed_at) || ?link.metadata.observed_at < :stale_cutoff)
 }
 LIMIT 500
 ```
 
-**强度感知（非对称）衰减** — 「用则存，不用则失」：衰减并非均匀。被强化的记忆抗拒衰减，被冷落的加速褪色。用**两趟不同系数、过滤条件互斥的 UPDATE** 代替单趟均匀衰减：
+**迭代**：`LIMIT 500` 只限制单条语句，而截断时*选中哪 500 条*由实现决定——让扫描安全的正是 `decay_applied_at` 护栏。对每个分片重复执行直到 `updated < LIMIT`；没有护栏，重跑（或崩溃后重试）会对同一批链接二次衰减。`:cycle_start` 在阶段 7 首次启动时绑定**一次**并持久化到本周期的 `SleepTask` 上；崩溃后重试必须复用原值——换一个新的 `:cycle_start` 会让所有已衰减链接重新入选。
 
-- 强（高 `evidence_count`、近期 `last_observed`，或高 `salience_score`）：缓衰减或跳过（系数 `0.98`+）。
-- 从不复现、低显著性的事实：加快衰减（系数 `0.90`），让图谱自动修剪陈旧杂乱。
+**强度感知（非对称）衰减** — 「用则存，不用则失」：衰减并非均匀。被强化的记忆抗拒衰减，被冷落的加速褪色。按谓词分片正是安全实施的前提——每个分片选择自己的系数：
 
-KIP 不在引擎侧保留任何访问统计（读永远是读）：「最近被回忆」只会以强化的形式显现——被再次确认的事实会刷新 `evidence_count` / `last_observed`。仅凭召回频率低，并不能说明一条记忆不重要。
+- **断言谓词**（`prefers`、`learned` 等——对象端携带强化信号）：跑两趟互斥过滤的 UPDATE，两趟都保留上方全部基础过滤（含护栏）。强 — `FILTER(IS_NOT_NULL(?o.attributes.evidence_count) && ?o.attributes.evidence_count >= 3)`：系数 `0.98`，或直接跳过该趟。弱 — `FILTER(IS_NULL(?o.attributes.evidence_count) || ?o.attributes.evidence_count < 3)`：系数 `0.90`，让图谱自动修剪陈旧杂乱。
+- **溯源与参与谓词**（`derived_from`、`involves`、`consolidated_to` 等）：其对象是从不携带 `evidence_count` 的 Event/Person——绝不要把它们送进弱趟。只用慢系数（`0.98`）或整体跳过：侵蚀溯源会切断 12A.5 依赖的唯一证据链。
+- **高显著性记忆抗衰减**：主语 Event 携带 `salience_score >= 60`（闪光灯编码，Formation 阶段 1）的链接一律用慢系数，无论对象端信号如何。
 
-**不衰减**：`confidence: 1.0` 系统真相（上方 `< 1.0` 过滤）；Schema 定义（`$ConceptType`/`$PropositionType`）；CoreSchema 的核心 `belongs_to_domain`（上方 `?p` 过滤）；本周期 `evidence_count` 增加的最近验证事实。
+KIP 不在引擎侧保留任何访问统计（读永远是读）：「最近被回忆」只会以强化的形式显现——被再次确认的事实会刷新 `evidence_count` / `last_observed` 并在链接上盖 `observed_at`。仅凭召回频率低，并不能说明一条记忆不重要。
+
+**不衰减**：`confidence: 1.0` 系统真相（上方 `< 1.0` 过滤）；Schema 定义（`$ConceptType`/`$PropositionType`）；`belongs_to_domain` 链接（从不作为衰减分片）；最近验证的事实（上方 `observed_at` 豁免）。
+
+**存量迁移（一次性，幂等）**：断言的信任度只存在于 `metadata.confidence`；旧图谱的 `Preference` / `Insight` 节点上可能残留 `attributes.confidence`。属性值找到新家之前绝不能删除它：先回填断言链接（②）；完全没有断言链接的（存量巩固产物）改为保存到节点自身 metadata（③），并按阶段 2 模板补建缺失的 `prefers` 链接，让日后的强化有处可落。重复整步直到探测返回为空：
+
+```prolog
+// ① 探测（重复执行直到为空）
+FIND(?p.name, ?p.attributes.confidence) WHERE {
+  ?p {type: "Preference"}
+  FILTER(IS_NOT_NULL(?p.attributes.confidence))
+} LIMIT 100
+
+// ② 断言链接的值缺失或更低时回填
+//   （:attr_confidence = :name 对应的探测属性值）
+UPDATE ?link
+SET METADATA { confidence: :attr_confidence }
+WHERE {
+  ?link (?s, "prefers", {type: "Preference", name: :name})
+  FILTER(IS_NULL(?link.metadata.confidence) || ?link.metadata.confidence < :attr_confidence)
+}
+
+// ③ 仅当 ② 无命中链接：把值保存到节点自身 metadata
+UPDATE ?p
+SET METADATA { confidence: :attr_confidence }
+WHERE { ?p {type: "Preference", name: :name} }
+
+// ④ 仅在 ② 或 ③ 成功之后：删除该属性
+DELETE ATTRIBUTES {"confidence"} FROM ?p
+WHERE { ?p {type: "Preference", name: :name} }
+```
+
+（对 `Insight` 以 `"learned"` 谓词重复同样步骤。）
 
 ---
 
@@ -618,7 +675,7 @@ WITH METADATA { source: "DomainHealthCheck", author: "$system", created_at: :tim
 #### 12A. 资格规则（必须**全部**成立）
 
 1. `metadata.expires_at` 非空且 `< :now`。
-2. 节点是已归档 `Event`、已完成/已归档 `SleepTask`，或其他显式 TTL 节点。
+2. 节点类型在 **TTL 可删白名单**内：`Event`；终态的 `SleepTask`（`completed` / `failed`）或 `Commitment`（`fulfilled` / `cancelled` / `expired`）——终态取各类型自己的 schema 枚举；或自身 `metadata.memory_tier` 为 `"short-term"` 的节点（Formation 在创建真正临时的概念时会如此标记）。仅凭 `attributes.status: "archived"` **不**够格——安全归档模式适用于任何类型，包括 `Person`。白名单之外的任何节点携带 TTL 都是可疑的——极可能是语句级 `WITH METADATA` 默认值造成的元数据污染——记录日志、创建复核 SleepTask，绝不自动删除。
 3. **不是**受保护实体（`$self`、`$system`、`$ConceptType`、`$PropositionType`、`CoreSchema` 中任何实体、任何 `Domain` 节点）。
 4. 对 Event：`consolidation_status` 为 `completed` 或 `archived`（绝不删除 pending；改为延长 `expires_at` 并警告）。
 5. 没有活跃概念以该节点为唯一证据源（如某高置信度 `Insight` 唯一的 `derived_from` 是该 Event — 改为延长 `expires_at`）。
@@ -648,7 +705,33 @@ WHERE {
 }
 ```
 
-**周期上限：每周期最多 500 个节点。** 据 KIP §2.10，`expires_at` 是一个*信号*，本阶段是消费者。绝不在 Formation/Recall 中自动删除。
+#### 12D. 过期命题链接
+
+被 TTL 的元素不只有节点：Recall 的时效过滤同样检查链接级 `expires_at`，而其他任何阶段都不会移除过期链接——在此清扫。`DELETE PROPOSITIONS` 没有 `LIMIT` 子句，无约束的 `(?s, ?p, ?o)` 扫描又可能被拒绝（`KIP_4002`），因此**绝不要发一条覆盖全图的删除**：先按谓词分片审计（`FIND` 的 `LIMIT` 才是周期上限的执行者），再对审计出的候选逐条定向删除：
+
+```prolog
+// ① 审计一个谓词分片（从 Primer 的谓词表逐个代入 :predicate）
+FIND(?s.type, ?s.name, ?o.type, ?o.name, ?link.metadata.expires_at) WHERE {
+  ?link (?s, :predicate, ?o)
+  FILTER(IS_NOT_NULL(?link.metadata.expires_at))
+  FILTER(?link.metadata.expires_at < :now)
+  FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
+} LIMIT 200
+
+// ② 对每个审计候选定向删除（豁免行跳过——见下）
+DELETE PROPOSITIONS ?link
+WHERE {
+  ?link ({type: :s_type, name: :s_name}, :predicate, {type: :o_type, name: :o_name})
+  FILTER(IS_NOT_NULL(?link.metadata.expires_at))
+  FILTER(?link.metadata.expires_at < :now)
+}
+```
+
+- `superseded` 过滤保护演化历史——被取代的链接是历史，不应携带 `expires_at`；该异常另行探测（`superseded == true && IS_NOT_NULL(expires_at)`），命中记日志而非删除。
+- 若链接的主语是巩固仍未完成的 `Event`——或其自身 `expires_at` 被有意延长过——与节点一样延长链接的 `expires_at`，不要删除（同 12A.4 规则）。
+- 与 12C 同样审计：删除前把 `主语 → 谓词 → 宾语`、`expires_at` 与原因记入 `maintenance_log`。
+
+**周期上限：每周期最多 500 个元素（节点 + 链接）。** 据 KIP §2.10，`expires_at` 是一个*信号*，本阶段是消费者。绝不在 Formation/Recall 中自动删除。
 
 ### 阶段 13：最终化与报告
 

@@ -274,7 +274,7 @@ WITH METADATA { ... }                   // global default for all items
 1. **Sequential, top-to-bottom**. Handles must be defined before reference. Dependencies form a **DAG** (no cycles).
 2. **Shallow merge** for `SET ATTRIBUTES` / `WITH METADATA`.
 3. **`SET PROPOSITIONS` is additive** — new links are added or updated; never deletes unspecified ones. Any item may append `WITH METADATA { ... }`.
-4. **Metadata precedence**: inner `WITH METADATA` overrides outer key-by-key (shallow); unspecified keys inherit from outer, and specified `null` still overrides.
+4. **Metadata precedence**: inner `WITH METADATA` overrides outer key-by-key (shallow); unspecified keys inherit from outer, and specified `null` still overrides. Lifecycle keys (`expires_at`, `memory_tier`) belong in the target block's **own** `WITH METADATA`, never in the statement-level default — the default shallow-merges onto every element in the statement, silently stamping an episodic TTL onto matched durable nodes (e.g., a Person).
 5. **Existing target refs**: `{type, name}`, `{id}`, `(id: ...)`, and nested proposition targets must already exist, or return `KIP_3002`.
 6. **Provenance**: always set `source`, `author`, `confidence` in `WITH METADATA`.
 7. **`EXPECT VERSION` mismatch** aborts the entire `UPSERT` atomically with `KIP_3005` — re-read, re-merge, retry.
@@ -322,10 +322,11 @@ WHERE { <patterns binding ?target> }
 LIMIT N                                          // optional blast-radius cap
 ```
 
-Atomic: all matched elements update or none. **Update expressions** (numeric, computed per element from `?target`'s *own* state only): `ADD(a, b)`, `MUL(a, b)`, `CLAMP(x, lo, hi)`, `COALESCE(x, default)`. A `null`/non-number expression skips that key for that element. The memory-metabolism workhorse:
+Atomic: all matched elements update or none. **Update expressions** (numeric, computed per element from `?target`'s *own* state only): `ADD(a, b)`, `MUL(a, b)`, `CLAMP(x, lo, hi)`, `COALESCE(x, default)`. A `null`/non-number expression skips that key for that element. **Scan bounds**: `LIMIT` caps updates, not the scan — a fully unconstrained `(?s, ?p, ?o)` pattern is a full-graph scan the engine may reject on large graphs (`KIP_4002`); shard sweeps by predicate, endpoint type, or domain. The memory-metabolism workhorse:
 
 ```prolog
-// Confidence decay across all predicates, one command
+// Confidence decay across all predicates, one command — small graphs only:
+// past the engine's scan cap, shard per predicate ((?s, :predicate, ?o)) instead
 // (spare structural links and axiomatic 1.0 truths)
 UPDATE ?link
 SET METADATA { confidence: CLAMP(MUL(?link.metadata.confidence, :factor), 0.0, 1.0), decay_applied_at: :now }
@@ -335,6 +336,9 @@ WHERE {
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
   FILTER(?link.metadata.created_at < :threshold)
   FILTER(?link.metadata.confidence > 0.3 && ?link.metadata.confidence < 1.0)
+  // Idempotency guard: one decay per link per cycle; re-run until updated < LIMIT,
+  // reusing the same :cycle_start across re-runs and crash-retries
+  FILTER(IS_NULL(?link.metadata.decay_applied_at) || ?link.metadata.decay_applied_at < :cycle_start)
 } LIMIT 500
 
 // Reinforce without read-modify-write
@@ -415,7 +419,7 @@ SEARCH PROPOSITION "<term>"|:term [WITH TYPE "<predicate>"|:type] [MODE ...] [TH
 EXPORT ?target WHERE { ... } [LIMIT N] [CURSOR "<t>"]
 ```
 
-Serializes matched concepts/propositions into an idempotent `UPSERT` capsule for backup, migration, and agent-to-agent knowledge exchange. Endpoints outside the export set become `{type, name}` refs (must exist on import); outside proposition endpoints become nested structural `(s, "p", o)` clauses (link IDs are not portable; must exist on import); reserved `_` metadata is never exported; export needed `$ConceptType`/`$PropositionType` definitions separately if the destination may lack them. Response: `{"capsule": "<KIP script>", "concepts": n, "propositions": m}`, plus `next_cursor` when more remain — re-issue with `CURSOR` to continue; each page is an independently valid capsule.
+Serializes matched concepts/propositions into an idempotent `UPSERT` capsule for backup, migration, and agent-to-agent knowledge exchange. **Bind everything the capsule needs**: a nodes-only `WHERE` exports unconnected concepts — also bind the links among them, their `belongs_to_domain` links, and the `Domain` node itself via separate `UNION` branches (each branch binds `?target` independently; without the Domain node, importing into a fresh nexus fails with `KIP_3002`). Endpoints outside the export set become `{type, name}` refs (must exist on import); outside proposition endpoints become nested structural `(s, "p", o)` clauses (link IDs are not portable; must exist on import); reserved `_` metadata is never exported; export needed `$ConceptType`/`$PropositionType` definitions separately if the destination may lack them. Response: `{"capsule": "<KIP script>", "concepts": n, "propositions": m}`, plus `next_cursor` when more remain — re-issue with `CURSOR` to continue; each page is an independently valid capsule.
 
 ---
 

@@ -703,7 +703,7 @@ UPSERT {
     {type: "SleepTask", name: "2025-01-09:consolidate:event123"}
     SET ATTRIBUTES {
       target_type: "Event",
-      target_name: "ConversationEvent:2025-01-09:user123",
+      target_name: "ConversationEvent:2025-01-09T10:00:user123",  // Events use minute-precision names
       requested_action: "consolidate_to_semantic",
       reason: "Multiple preferences mentioned, needs careful extraction",
       status: "pending",
@@ -746,7 +746,7 @@ WITH METADATA { source: "conversation", author: "$self", confidence: 0.9 }
 ```prolog
 UPSERT {
   CONCEPT ?e {
-    {type: "Event", name: "conv:2025-01-09:kip_discussion"}
+    {type: "Event", name: "conv:2025-01-09T10:00:kip_discussion"}  // minute-precision: distinct same-day sessions never merge
     SET ATTRIBUTES {
       event_class: "Conversation",
       content_summary: "Discussed KIP skill optimization and syntax fixes",

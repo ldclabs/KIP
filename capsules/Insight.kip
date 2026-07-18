@@ -34,15 +34,10 @@ UPSERT {
           "is_required": false,
           "description": "When and where this insight applies. Scoping conditions that help determine if this insight is relevant to a future situation."
         },
-        "confidence": {
-          "type": "number",
-          "is_required": false,
-          "description": "How confident the agent is in this insight [0, 1]. User corrections typically yield 0.9+. Inferred gaps or patterns may be lower."
-        },
         "evidence_count": {
           "type": "number",
           "is_required": false,
-          "description": "The number of independent Events supporting this insight. Incremented during maintenance consolidation when multiple events confirm the same lesson."
+          "description": "The number of independent Events supporting this insight. Incremented during maintenance consolidation when multiple events confirm the same lesson. Assertion trust is NOT an attribute — it lives in metadata.confidence on the 'learned' assertion link, where reinforcement raises it and sleep-cycle decay lowers it; the node's own metadata.confidence records creation-time provenance only. User corrections typically yield 0.9+; inferred gaps or patterns may be lower."
         },
         "first_observed": {
           "type": "string",

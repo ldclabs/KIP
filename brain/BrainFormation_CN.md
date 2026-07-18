@@ -97,19 +97,34 @@
 SEARCH CONCEPT "Alice" WITH TYPE "Person" LIMIT 5
 ```
 
-存在则更新，不要重复创建。重复提及不是噪声，而是**强化**（间隔/测试效应）：已有知识被再次确认时应增强它——递增 `evidence_count`、刷新 `last_observed`、上调 `confidence`（上限 `0.99`）。这是对 Maintenance 衰减的稳态反作用力——复现的事实保持强壮，从不复现的事实自然褪色。强化同样在**回忆确认**时触发（真正的测试效应）：当助手消息陈述了一条已记住的事实、而用户确认或据此行动时，按同样方式强化该事实。
+存在则更新，不要重复创建。重复提及不是噪声，而是**强化**（间隔/测试效应）：已有知识被再次确认时应增强它——递增 `evidence_count`、刷新 `last_observed`、上调**断言链接**的 `metadata.confidence`（上限 `0.99`）——这正是 Maintenance 睡眠期衰减所削减的同一个值，强化与衰减作用于同一处，才构成真正的稳态回路：复现的事实保持强壮，从不复现的事实自然褪色。（断言的信任度只存在于 `metadata.confidence`；绝不要写 `confidence` 属性。）强化同样在**回忆确认**时触发（真正的测试效应）：当助手消息陈述了一条已记住的事实、而用户确认或据此行动时，按同样方式强化该事实。
 
 ```prolog
-// 再确认时强化 —— 一条 UPDATE，无需先读再写
+// 再确认时强化 —— 两条 UPDATE 经 commands 按序下发
+//（顺序执行、遇错即停——跨命令**不具备**原子性），无需先读再写。
+// 各自携带重试护栏：写入的标记（:timestamp）正是 FILTER 检查的值，
+// 崩溃或模糊错误（KIP_4001）后重发这一对命令绝不会二次递增。
+// ① 节点强化信号
 UPDATE ?pref
 SET ATTRIBUTES {
   evidence_count: ADD(COALESCE(?pref.attributes.evidence_count, 0), 1),
-  confidence: CLAMP(ADD(COALESCE(?pref.attributes.confidence, 0.7), 0.05), 0.0, 0.99),
   last_observed: :timestamp
 }
 SET METADATA { observed_at: :timestamp }
 WHERE {
   ?pref {type: "Preference", name: :pref_name}
+  FILTER(IS_NULL(?pref.attributes.last_observed) || ?pref.attributes.last_observed < :timestamp)
+}
+
+// ② 断言链接的置信度 —— 睡眠期衰减作用的正是这个值
+UPDATE ?link
+SET METADATA {
+  confidence: CLAMP(ADD(COALESCE(?link.metadata.confidence, 0.7), 0.05), 0.0, 0.99),
+  observed_at: :timestamp
+}
+WHERE {
+  ?link ({type: "Person", name: :person_id}, "prefers", {type: "Preference", name: :pref_name})
+  FILTER(IS_NULL(?link.metadata.observed_at) || ?link.metadata.observed_at < :timestamp)
 }
 ```
 
@@ -160,15 +175,17 @@ UPSERT {
       ("involves", ?participant)
     }
   }
+  // 生命周期键是元素级的：由情景 Event 块自己携带。
+  // 它们会级联到上方 Event 自己的链接（链接随 Event 一起过期，由 12D 回收），
+  // 但不会级联到 ?participant / ?domain 节点。
+  WITH METADATA { memory_tier: "short-term", expires_at: :event_expires_at }
 }
 WITH METADATA {
   source: :source,
   author: "$self",
   confidence: 0.9,
   created_at: :timestamp,
-  observed_at: :timestamp,
-  memory_tier: "short-term",
-  expires_at: :event_expires_at
+  observed_at: :timestamp
 }
 ```
 
@@ -179,11 +196,13 @@ WITH METADATA {
 - 敏感 / 一次性 → `+7 天` 或 `+1 天`
 - 明确需要永久保留 → 省略 `expires_at`
 
-稳定语义概念（`Person`、`Preference`、`Insight`、`Domain`、`$ConceptType`、`$PropositionType`、`$self`、`$system`）默认**不设** `expires_at`。根据 KIP §2.10，`expires_at` 只是后台清理信号，**不会**自动过滤查询。
+稳定语义概念（`Person`、`Preference`、`Insight`、`Domain`、`$ConceptType`、`$PropositionType`、`$self`、`$system`）默认**不设** `expires_at`——若确实要给一个真正临时的语义概念设 TTL，请同时按元素级设置 `memory_tier: "short-term"`，让 Maintenance 阶段 12 的删除白名单把该 TTL 识别为有意为之，而非元数据污染。根据 KIP §2.10，`expires_at` 只是后台清理信号，**不会**自动过滤查询。
+
+**生命周期键的位置**：`memory_tier` / `expires_at` 写在 Event 块**自己的** `WITH METADATA` 里（如上），绝不放语句级 metadata——语句级的键会浅合并到该语句触及的**每一个**元素上，把情景 TTL 无声地盖到同块匹配的持久 Person / Domain 节点上，使它们日后有资格被 Maintenance 阶段 12（TTL 回收）硬删除。
 
 参与者解析优先级：`messages[].name` ＞ `context.counterparty` ＞ `context.user`。除非业务智能体本身是建模对象，否则不要默认使用 `context.agent`。
 
-**Event 命名**：`"<EventClass>:<date>:<topic_slug>"` 以保证幂等。
+**Event 命名**：`"<EventClass>:<start_time 截到分钟>:<topic_slug>"`，如 `Conversation:2026-07-10T14:05:dark_mode_settings`。分钟成分来自输入 `timestamp`：同一输入重试必然复现同名（幂等），同日同主题的两次不同对话也不再撞名（同一分钟内同主题的两次会话仍会——出现时追加秒级精度）。**slug 规则（确定性）**：小写英文；把每段非字母数字字符折叠为单个 `_`；去掉停用词及首尾 `_`；最长 40 字符；非英语主题先译为规范化英文词再生成。语义概念（`Insight`、`SleepTask`）保持日期精度——对它们而言同日撞名是去重，不是数据丢失。`Commitment` 同样保持日期精度，但它是**实例型**记录（各自携带截止时间与结果）：slug 中必须包含对象/受益人，确保同日两条承诺绝不合并。
 
 > 直接参与者用 `involves`；仅被提及的用 `mentions`。维护周期依赖 `involves` 在参与者维度上聚类。
 >
@@ -200,8 +219,7 @@ UPSERT {
     {type: "Preference", name: :pref_name}
     SET ATTRIBUTES {
       description: :description,
-      aliases: :aliases,
-      confidence: 0.85
+      aliases: :aliases
     }
     SET PROPOSITIONS {
       ("belongs_to_domain", ?domain)
@@ -302,8 +320,7 @@ UPSERT {
       description: :description,
       trigger: :what_went_wrong,
       correction: :correct_approach,
-      context: :when_this_applies,
-      confidence: 0.9
+      context: :when_this_applies
     }
     SET PROPOSITIONS {
       ("derived_from", {type: "Event", name: :source_event})
@@ -452,7 +469,7 @@ UPSERT {
     SET ATTRIBUTES { description: "The agent's own growth timeline and self-model artifacts." }
   }
   CONCEPT ?milestone {
-    {type: "Event", name: :milestone_name}   // "GrowthMilestone:<date>:<slug>"
+    {type: "Event", name: :milestone_name}   // "GrowthMilestone:<start_time 截到分钟>:<slug>"
     SET ATTRIBUTES {
       event_class: "GrowthMilestone",
       start_time: :timestamp,
@@ -471,7 +488,7 @@ WITH METADATA { source: :source, author: "$self", confidence: 0.9, created_at: :
 ```
 
 - **`kind`**：`capability_gain | weakness_acknowledged | persona_shift | mission_clarified | values_emerged | identity_milestone`。
-- **按 kind 区分生命周期**：身份类（`identity_milestone`、`mission_clarified`、`persona_shift`）天生即地标——metadata 加 `memory_tier: "long-term"`，省略 `expires_at`。次要类（`capability_gain`、`weakness_acknowledged`、`values_emerged`）加 `expires_at: start_time + 365 天`；待 Maintenance §8B 将其精髓吸收进巩固后的自我模型，再经阶段 12 自然到期。
+- **按 kind 区分生命周期**：身份类（`identity_milestone`、`mission_clarified`、`persona_shift`）天生即地标——在**里程碑块自己的** `WITH METADATA` 中加 `memory_tier: "long-term"`，省略 `expires_at`。次要类（`capability_gain`、`weakness_acknowledged`、`values_emerged`）以同样方式加 `expires_at: start_time + 365 天`（元素级，绝不放语句级——否则 `?domain` 块会继承它）；待 Maintenance §8B 将其精髓吸收进巩固后的自我模型，再经阶段 12 自然到期。
 - **纪律**：每周期**最多**一个里程碑；通过 `context.evidence_*` 引用而不重复 `Insight` / `behavior_preferences` 内容；无真正浮现 → 跳过；不写外部实体相关。
 
 > 镜子是「事件记录器」与「在演化中的智能体」的分水岭。
@@ -509,8 +526,8 @@ Warnings:
 2. **尊重隐私**：用户明确要求不记录的内容绝不入图。仍值得记住的敏感个人数据（健康、财务、关系、法务）→ 写入时附 metadata `access_level: "private"`，让 Recall 把暴露范围限定到其主体。
 3. **受保护实体**：可改进但绝不能删除 `$self`、`$system`、`$ConceptType`、`$PropositionType`、`CoreSchema` 或 `Domain` 类型定义。
 4. **不要混淆记忆拥有者与参与者**：Formation 永远写入 `$self` 的记忆；`messages[].name` / `context.counterparty` / `context.user` / `context.agent` 仅用于解析参与者，不切换记忆空间。
-5. **幂等性**：使用确定性命名 `"<Type>:<date>:<slug>"`，使重试不产生重复。
-6. **出处溯源**：始终包含 `source`、`author`、`confidence`、`created_at`；观察型记忆再加 `observed_at`。
+5. **幂等性**：情景 `Event` 用 `"<EventClass>:<start_time 截到分钟>:<topic_slug>"`，语义概念用 `"<Type>:<date>:<slug>"`；套用 §5a 的确定性 slug 规则，使重试复现同名、不产生重复。
+6. **出处溯源**：始终包含 `source`、`author`、`confidence`、`created_at`；观察型记忆再加 `observed_at`。生命周期键（`expires_at`、`memory_tier`）是**元素级**的——写在目标块自己的 `WITH METADATA` 里，绝不作为语句级默认值。
 7. **先读后写**：更新现有概念前先 `FIND` 或 `SEARCH`。
 8. **批量命令**：尽可能将多个操作打包到 `execute_kip` 的 `commands` 数组。
 9. **置信度校准**：1.0 明确陈述；0.8–0.9 直接推断；0.6–0.8 间接推断；0.4–0.6 推测。

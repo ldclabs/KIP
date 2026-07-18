@@ -543,7 +543,7 @@ UPSERT {
     {type: "SleepTask", name: :task_name}  // e.g., "2025-01-15:consolidate:event123"
     SET ATTRIBUTES {
       target_type: "Event",
-      target_name: "ConversationEvent:2025-01-15:user123",
+      target_name: "ConversationEvent:2025-01-15T14:05:user123",  // Events use minute-precision names
       requested_action: "consolidate_to_semantic",
       reason: "Multiple preferences mentioned, needs careful extraction",
       status: "pending",

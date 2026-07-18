@@ -176,7 +176,7 @@ To effectively organize and isolate knowledge, KIP introduces the concept of `Do
 ### 2.10. Data Consistency & Conflict Resolution Principles
 
 *   **Attribute Update Strategy**: In `UPSERT` operations, `SET ATTRIBUTES` adopts a **Shallow Merge Strategy**: only Keys present in the command are updated (overwritten), and Keys not present remain unchanged. If a Key's value is an `Array` or `Object`, the update is still an **overwrite at that Key** (no recursive deep merge). Therefore, when updating an array attribute, the Agent must provide the full array content.
-*   **Metadata Precedence**: When `WITH METADATA` is specified at multiple levels of an `UPSERT` block (the outer `UPSERT` block and an inner `CONCEPT`/`PROPOSITION` block, or on a single proposition inside `SET PROPOSITIONS`), the **inner block overrides the outer block via key-by-key shallow merge**. Keys absent in the inner block are inherited from the outer block; keys present in the inner block (including those whose value is `null`) take precedence.
+*   **Metadata Precedence**: When `WITH METADATA` is specified at multiple levels of an `UPSERT` block (the outer `UPSERT` block and an inner `CONCEPT`/`PROPOSITION` block, or on a single proposition inside `SET PROPOSITIONS`), the **inner block overrides the outer block via key-by-key shallow merge**. Keys absent in the inner block are inherited from the outer block; keys present in the inner block (including those whose value is `null`) take precedence. Because the outer block is a default for **every** element the statement touches, lifecycle keys (`expires_at`, `memory_tier`) SHOULD be declared on the target block's **own** `WITH METADATA`, never statement-level — a statement-level TTL silently stamps every matched element, including durable nodes (e.g., a `Person` updated alongside an episodic `Event`). Note a `CONCEPT` block's metadata is likewise the default for the entries in its `SET PROPOSITIONS`: an episodic block's TTL cascades to its own links (usually desirable — they expire with it), not to the referenced endpoint nodes.
 *   **Proposition Uniqueness**: KIP enforces a **(Subject, Predicate, Object) Uniqueness Constraint**. Only one proposition with the same predicate can exist for the same subject and object IDs, whether those endpoints are concept nodes or proposition links. Duplicate `UPSERT` operations will be treated as updates to the metadata or attributes of the existing proposition.
 *   **Memory Lifecycle (`expires_at`)**: A non-null `metadata.expires_at` declares **when** a piece of knowledge becomes a candidate for forgetting. It does **not** automatically filter the knowledge out of query results — expired knowledge remains queryable until a background system process (typically run by `$system` during sleep cycles) physically removes or archives it. Agents that need to ignore expired memories must add an explicit `FILTER(IS_NULL(?x.metadata.expires_at) || ?x.metadata.expires_at > <now>)`.
 
@@ -890,6 +890,8 @@ LIMIT N
 *   `SET ATTRIBUTES` / `SET METADATA`: At least one block is required; both may appear. Each follows the **shallow merge** semantics of §2.10. `SET METADATA` writes author-asserted metadata — reserved `_` keys are rejected with `KIP_2002`.
 *   `WHERE`: Standard KQL pattern matching (including `FILTER`, `NOT`, `OPTIONAL`, predicate variables).
 *   `LIMIT N` (optional): Safety cap on the number of elements updated in one statement. Accepts a placeholder (`LIMIT :limit`). Without `ORDER BY` semantics, the selection of capped elements is implementation-defined — use `LIMIT` as a blast-radius guard, not for ranking.
+*   **Iterating large sweeps**: because the capped selection is implementation-defined, a bare re-run of a capped `UPDATE` may mutate the same elements twice. To traverse a match set larger than the cap, write a monotonic marker in the same statement (e.g., `decay_applied_at: :timestamp`) and exclude already-marked elements in `WHERE` (`FILTER(IS_NULL(?t.metadata.decay_applied_at) || ?t.metadata.decay_applied_at < :cycle_start)`), then repeat until `updated < LIMIT`. Bind the cycle marker (`:cycle_start`) **once** when the sweep first starts and reuse it across re-runs and crash-retries — a fresh value re-admits every already-marked element. The marker is ordinary author metadata: it travels in `EXPORT` capsules and each write bumps `_version`. Do not use `CURSOR` for bulk mutation.
+*   **Scan bounds**: `LIMIT` caps how many elements are *updated*, not how many the `WHERE` pattern *scans*. A fully unconstrained pattern (e.g., `?link (?s, ?p, ?o)` narrowed only by metadata `FILTER`s) is a full-graph scan, and engines MAY reject it once the candidate set exceeds their materialization cap (`KIP_4002`) — on a large graph such a sweep stops working entirely. Keep metabolic sweeps scalable by sharding the match set with a structural constraint — per predicate (`?link (?s, "prefers", ?o)`), per endpoint type, or per domain — and iterating the shards with the marker pattern above.
 *   **Atomicity**: The whole `UPDATE` is one transaction; it either updates all matched (capped) elements or none.
 *   **Protected targets**: Matching a protected system structure (see `KIP_3004`) causes the statement to fail; narrow the `WHERE` pattern.
 
@@ -913,6 +915,9 @@ A value position inside `SET ATTRIBUTES` / `SET METADATA` may be a JSON value (a
 ```prolog
 // Sleep-cycle confidence decay across ALL predicates in one command
 // (predicate variable + bulk update; spare structural links and axiomatic 1.0 truths)
+// Small graphs only: past the engine's materialization cap this unconstrained scan
+// is rejected (KIP_4002) — shard per predicate (?link (?s, :predicate, ?o)), endpoint
+// type, or domain, iterating the shards with the same marker guard (see Scan bounds).
 UPDATE ?link
 SET METADATA {
   confidence: CLAMP(MUL(?link.metadata.confidence, :decay_factor), 0.0, 1.0),
@@ -924,6 +929,8 @@ WHERE {
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
   FILTER(?link.metadata.created_at < :decay_threshold)
   FILTER(?link.metadata.confidence > 0.3 && ?link.metadata.confidence < 1.0)
+  // Idempotency guard: at most one decay per link per cycle; re-run until updated < LIMIT
+  FILTER(IS_NULL(?link.metadata.decay_applied_at) || ?link.metadata.decay_applied_at < :cycle_start)
 }
 LIMIT 500
 ```
@@ -1164,10 +1171,33 @@ CURSOR "<token>"
 **Example**:
 
 ```prolog
-// Export everything in the "Medical" domain as a portable capsule
-EXPORT ?n
+// Export everything in the "Medical" domain as a portable capsule:
+// the member concepts, the propositions among them, the
+// domain-membership links, and the Domain node itself. Each UNION
+// branch binds ?x independently (§3.4.7.3). Without the second branch
+// the capsule contains unconnected concepts; without the third, the
+// import arrives as domain orphans; without the fourth, importing into
+// a fresh nexus fails with KIP_3002 (the membership links would
+// reference a Domain endpoint that does not exist there).
+EXPORT ?x
 WHERE {
-  (?n, "belongs_to_domain", {type: "Domain", name: "Medical"})
+  (?x, "belongs_to_domain", {type: "Domain", name: "Medical"})
+
+  UNION {
+    // Membership clauses first: ?s/?o are bound before the
+    // predicate-variable clause (bounded exploration, §3.4.2)
+    (?s, "belongs_to_domain", {type: "Domain", name: "Medical"})
+    (?o, "belongs_to_domain", {type: "Domain", name: "Medical"})
+    ?x (?s, ?p, ?o)
+  }
+
+  UNION {
+    ?x (?m, "belongs_to_domain", {type: "Domain", name: "Medical"})
+  }
+
+  UNION {
+    ?x {type: "Domain", name: "Medical"}
+  }
 }
 LIMIT 500
 ```
@@ -1338,15 +1368,15 @@ Well-designed metadata is key to building a self-evolving, traceable, and audita
 ### A1.1. Provenance & Trustworthiness
 *   `source`: `String` | `Array<String>`, direct source identifier of the knowledge.
 *   `author`: `String`, entity asserting or creating the record.
-*   `confidence`: `Number`, confidence score for the truth of the knowledge (0.0-1.0).
+*   `confidence`: `Number`, confidence score for the truth of the knowledge (0.0-1.0). Assertion trust lives **only** here in metadata (of the node or link making the assertion); do not duplicate it as an attribute — otherwise reinforcement and decay end up acting on different copies. Reinforcement signals that are part of the knowledge itself (`evidence_count`, `first_observed` / `last_observed`) belong in attributes.
 *   `evidence`: `Array<String>`, points to specific evidence supporting the assertion.
 
 ### A1.2. Temporality & Lifecycle
 *   `created_at` / `observed_at`: `String` (ISO 8601), timestamp of creation or observation.
-*   `expires_at`: `String` (ISO 8601), expiration timestamp of the memory. **This field is key to implementing the automatic "forgetting" mechanism.** It is a *signal* for background `$system` cleanup tasks, not an automatic query-time filter (see §2.10 “Memory Lifecycle”): expired knowledge remains queryable until physically removed or archived. Usually populated by the system based on knowledge type (e.g., `Event`).
+*   `expires_at`: `String` (ISO 8601), expiration timestamp of the memory. **This field is key to implementing the automatic "forgetting" mechanism.** It is a *signal* for background `$system` cleanup tasks, not an automatic query-time filter (see §2.10 “Memory Lifecycle”): expired knowledge remains queryable until physically removed or archived. Usually populated by the system based on knowledge type (e.g., `Event`). Always set it element-level, never as a statement-level `UPSERT` default (§2.10); cleanup consumers SHOULD restrict hard deletion to explicitly episodic or terminal-status types and treat a TTL on any other type (e.g., a `Person`) as suspect rather than deletable.
 *   `valid_from` / `valid_until`: `String` (ISO 8601), valid start/end time of the knowledge assertion.
 *   `status`: `String`, e.g., `"active"`, `"deprecated"`, `"retracted"`. Describes the **assertion's** lifecycle; distinct from any `attributes.status` a concept type defines for the entity's own lifecycle (e.g., `Commitment.status`).
-*   `memory_tier`: `String`, **automatically tagged by the system**, e.g., `"short-term"`, `"long-term"`, used for internal maintenance and query optimization.
+*   `memory_tier`: `String`, an **author-writable lifecycle hint** (typically set by `$self` at encoding time or by `$system` flows such as landmark promotion), e.g., `"short-term"`, `"long-term"`, used for internal maintenance and query optimization. Like `expires_at`, set it element-level (§2.10).
 *   `superseded`: `Boolean`, `true` when this fact is retained as historical state after a newer fact supersedes it.
 *   `superseded_by` / `supersedes`: `String`, pointers across the state-evolution chain.
 *   `superseded_at`: `String` (ISO 8601), timestamp when the assertion was superseded.
@@ -1669,5 +1699,5 @@ To support the **Self-Correction** capability of AI Agents, the Cognitive Nexus 
 | `KIP_3005` | `VersionConflict`      | An `EXPECT VERSION` guard did not match the element's current `_version` (a concurrent writer modified it, or `EXPECT VERSION 0` was used on an existing element). The entire `UPSERT` was aborted; nothing was written.                                                                                                              | Re-read the element to get its fresh `_version` and current value, re-apply your merge in memory, then retry the guarded write. Never blindly retry with the stale version.                                            |
 | **4xxx**   | **System & Execution** |                                                                                                                                                                                                                                                                                                                                       |                                                                                                                                                                                                                        |
 | `KIP_4001` | `ExecutionTimeout`     | Query too complex, execution time exceeded system limit.                                                                                                                                                                                                                                                                              | Optimize query. Reduce `UNION` usage, lower `LIMIT`, or reduce regex/hops.                                                                                                                                             |
-| `KIP_4002` | `ResourceExhausted`    | Result set too large or insufficient memory.                                                                                                                                                                                                                                                                                          | Must use `LIMIT` and `CURSOR` for pagination.                                                                                                                                                                          |
+| `KIP_4002` | `ResourceExhausted`    | Result set too large or insufficient memory.                                                                                                                                                                                                                                                                                          | Reads/`EXPORT`: use `LIMIT` with `CURSOR` pagination. Bulk `UPDATE`/`DELETE` sweeps: add a structural constraint (shard per predicate, endpoint type, or domain — §4.3) and iterate with a marker guard; `LIMIT` caps updates, not the scan, and `CURSOR` does not apply to mutations. |
 | `KIP_4003` | `InternalError`        | Unknown internal database error.                                                                                                                                                                                                                                                                                                      | Contact system administrator or retry later.                                                                                                                                                                           |
