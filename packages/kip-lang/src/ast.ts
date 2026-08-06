@@ -162,7 +162,8 @@ export type UpsertBlock = ConceptBlock | PropositionBlock
 
 export interface ConceptBlock extends BaseNode {
   kind: 'ConceptBlock'
-  handle: string // ?local_handle
+  /** `?local_handle`, absent when the block is not referenced elsewhere. */
+  handle?: string
   matcher: ConceptMatcher
   expectVersion?: ExpectVersion
   setAttributes?: SetAttributes
@@ -298,6 +299,7 @@ export interface ExportStatement extends BaseNode {
   target: string
   where: WhereClause
   limit?: LimitClause
+  cursor?: CursorClause
 }
 
 // ─── Expressions ─────────────────────────────────────────────────────
@@ -375,11 +377,18 @@ export interface NullLiteral extends BaseNode {
 export interface ArrayLiteral extends BaseNode {
   kind: 'ArrayLiteral'
   elements: Expression[]
+  /**
+   * Whether a comma preceded the closing bracket. JSON-value position tolerates
+   * it; a FILTER list does not, and only the source says which was written.
+   */
+  trailingComma?: boolean
 }
 
 export interface ObjectLiteral extends BaseNode {
   kind: 'ObjectLiteral'
   entries: ObjectEntry[]
+  /** See {@link ArrayLiteral.trailingComma}. */
+  trailingComma?: boolean
 }
 
 export interface ObjectEntry extends BaseNode {

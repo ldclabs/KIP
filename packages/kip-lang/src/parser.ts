@@ -87,6 +87,7 @@ class Parser {
     const start = this.currentPos()
     this.skipComments()
     while (!this.isAtEnd()) {
+      const before = this.pos
       this.skipComments()
       if (this.isAtEnd()) break
       try {
@@ -96,6 +97,10 @@ class Parser {
         // Error recovery: skip to next statement-level keyword
         this.recoverToNextStatement()
       }
+      // A sub-parser that rejects its first token reports and returns
+      // without consuming it, so a loop keyed on that token would spin
+      // forever building diagnostics. Stop as soon as nothing moved.
+      if (this.pos === before) break
     }
     const end = this.currentPos()
     return {
@@ -200,12 +205,13 @@ class Parser {
   private parseUpsertStatement(): UpsertStatement {
     const start = this.currentPos()
     const comments = this.collectLeadingComments()
-    this.expect(TokenType.Upsert)
+    this.expectKeywordWithSpace(TokenType.Upsert)
     this.expect(TokenType.LBrace)
 
     const blocks: UpsertBlock[] = []
     this.skipComments()
     while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
+      const before = this.pos
       this.skipComments()
       if (this.check(TokenType.Concept)) {
         blocks.push(this.parseConceptBlock())
@@ -221,6 +227,10 @@ class Parser {
         this.advance()
       }
       this.skipComments()
+      // A sub-parser that rejects its first token reports and returns
+      // without consuming it, so a loop keyed on that token would spin
+      // forever building diagnostics. Stop as soon as nothing moved.
+      if (this.pos === before) break
     }
     this.expect(TokenType.RBrace)
 
@@ -241,9 +251,13 @@ class Parser {
   private parseConceptBlock(): ConceptBlock {
     const start = this.currentPos()
     const comments = this.collectLeadingComments()
-    this.expect(TokenType.Concept)
+    this.expectKeywordWithSpace(TokenType.Concept)
 
-    const handle = this.expectVariable()
+    // The handle is optional: a block nothing else refers to needs no name.
+    let handle: string | undefined
+    if (this.check(TokenType.Variable)) {
+      handle = this.expectVariable()
+    }
     this.expect(TokenType.LBrace)
 
     const matcher = this.parseConceptMatcher()
@@ -258,15 +272,16 @@ class Parser {
 
     this.skipComments()
     while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
+      const before = this.pos
       this.skipComments()
       if (this.check(TokenType.Set)) {
         const setStart = this.currentPos()
-        this.advance() // skip SET
+        const setTok = this.advance() // skip SET
         if (this.check(TokenType.Attributes)) {
-          this.advance()
+          this.expectSecondWord(TokenType.Attributes, setTok)
           setAttributes = this.parseSetAttributesBody(setStart)
         } else if (this.check(TokenType.Propositions)) {
-          this.advance()
+          this.expectSecondWord(TokenType.Propositions, setTok)
           setPropositions = this.parseSetPropositionsBody(setStart)
         } else {
           this.error(
@@ -289,6 +304,10 @@ class Parser {
         this.advance()
       }
       this.skipComments()
+      // A sub-parser that rejects its first token reports and returns
+      // without consuming it, so a loop keyed on that token would spin
+      // forever building diagnostics. Stop as soon as nothing moved.
+      if (this.pos === before) break
     }
 
     this.expect(TokenType.RBrace)
@@ -314,7 +333,7 @@ class Parser {
   private parsePropositionBlock(): PropositionBlock {
     const start = this.currentPos()
     const comments = this.collectLeadingComments()
-    this.expect(TokenType.Proposition)
+    this.expectKeywordWithSpace(TokenType.Proposition)
 
     let handle: string | undefined
     if (this.check(TokenType.Variable)) {
@@ -333,12 +352,13 @@ class Parser {
 
     this.skipComments()
     while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
+      const before = this.pos
       this.skipComments()
       if (this.check(TokenType.Set)) {
         const setStart = this.currentPos()
-        this.advance()
+        const setTok = this.advance()
         if (this.check(TokenType.Attributes)) {
-          this.advance()
+          this.expectSecondWord(TokenType.Attributes, setTok)
           setAttributes = this.parseSetAttributesBody(setStart)
         } else {
           this.error(
@@ -350,9 +370,17 @@ class Parser {
       } else if (this.check(TokenType.RBrace)) {
         break
       } else {
+        this.error(
+          `Unexpected token '${this.current().value}' in PROPOSITION block`,
+          this.current()
+        )
         this.advance()
       }
       this.skipComments()
+      // A sub-parser that rejects its first token reports and returns
+      // without consuming it, so a loop keyed on that token would spin
+      // forever building diagnostics. Stop as soon as nothing moved.
+      if (this.pos === before) break
     }
 
     this.expect(TokenType.RBrace)
@@ -383,7 +411,7 @@ class Parser {
   private parseUpdateStatement(): UpdateStatement {
     const start = this.currentPos()
     const comments = this.collectLeadingComments()
-    this.expect(TokenType.Update)
+    this.expectKeywordWithSpace(TokenType.Update)
 
     const target = this.expectVariable()
     let setAttributes: SetAttributes | undefined
@@ -391,13 +419,14 @@ class Parser {
 
     this.skipComments()
     while (this.check(TokenType.Set) && !this.isAtEnd()) {
+      const before = this.pos
       const setStart = this.currentPos()
-      this.advance()
+      const setTok = this.advance()
       if (this.check(TokenType.Attributes)) {
-        this.advance()
+        this.expectSecondWord(TokenType.Attributes, setTok)
         setAttributes = this.parseSetAttributesBody(setStart)
       } else if (this.check(TokenType.Metadata)) {
-        this.advance()
+        this.expectSecondWord(TokenType.Metadata, setTok)
         setMetadata = this.parseSetMetadataBody(setStart)
       } else {
         this.error(
@@ -407,6 +436,10 @@ class Parser {
         this.advance()
       }
       this.skipComments()
+      // A sub-parser that rejects its first token reports and returns
+      // without consuming it, so a loop keyed on that token would spin
+      // forever building diagnostics. Stop as soon as nothing moved.
+      if (this.pos === before) break
     }
 
     if (!setAttributes && !setMetadata) {
@@ -442,8 +475,8 @@ class Parser {
   private parseMergeStatement(): MergeStatement {
     const start = this.currentPos()
     const comments = this.collectLeadingComments()
-    this.expect(TokenType.Merge)
-    this.expect(TokenType.Concept)
+    const mergeTok = this.expect(TokenType.Merge)
+    this.expectSecondWord(TokenType.Concept, mergeTok)
     const source = this.expectVariable()
     this.expect(TokenType.Into)
     const target = this.expectVariable()
@@ -466,7 +499,7 @@ class Parser {
   private parseDeleteStatement(): DeleteStatement {
     const start = this.currentPos()
     const comments = this.collectLeadingComments()
-    this.expect(TokenType.Delete)
+    this.expectKeywordWithSpace(TokenType.Delete)
 
     let deleteType: DeleteStatement['deleteType']
     let keys: string[] | undefined
@@ -546,7 +579,7 @@ class Parser {
   private parseDescribeStatement(): DescribeStatement {
     const start = this.currentPos()
     const comments = this.collectLeadingComments()
-    this.expect(TokenType.Describe)
+    this.expectKeywordWithSpace(TokenType.Describe)
 
     let describeType: DescribeStatement['describeType']
     let typeName: string | undefined
@@ -561,13 +594,13 @@ class Parser {
       describeType = 'DOMAINS'
       this.advance()
     } else if (this.check(TokenType.Concept)) {
-      this.advance()
+      const headTok = this.advance()
       if (this.check(TokenType.Types)) {
         describeType = 'CONCEPT_TYPES'
-        this.advance()
+        this.expectSecondWord(TokenType.Types, headTok)
       } else if (this.check(TokenType.Type)) {
         describeType = 'CONCEPT_TYPE'
-        this.advance()
+        this.expectSecondWord(TokenType.Type, headTok)
         typeNameValue = this.parseStringOrParameterValue(
           'DESCRIBE CONCEPT TYPE'
         )
@@ -583,13 +616,13 @@ class Parser {
         describeType = 'CONCEPT_TYPES'
       }
     } else if (this.check(TokenType.Proposition)) {
-      this.advance()
+      const headTok = this.advance()
       if (this.check(TokenType.Types)) {
         describeType = 'PROPOSITION_TYPES'
-        this.advance()
+        this.expectSecondWord(TokenType.Types, headTok)
       } else if (this.check(TokenType.Type)) {
         describeType = 'PROPOSITION_TYPE'
-        this.advance()
+        this.expectSecondWord(TokenType.Type, headTok)
         typeNameValue = this.parseStringOrParameterValue(
           'DESCRIBE PROPOSITION TYPE'
         )
@@ -653,15 +686,15 @@ class Parser {
   private parseSearchStatement(): SearchStatement {
     const start = this.currentPos()
     const comments = this.collectLeadingComments()
-    this.expect(TokenType.Search)
+    this.expectKeywordWithSpace(TokenType.Search)
 
     let searchTarget: 'CONCEPT' | 'PROPOSITION'
     if (this.check(TokenType.Concept)) {
       searchTarget = 'CONCEPT'
-      this.advance()
+      this.expectKeywordWithSpace(TokenType.Concept)
     } else if (this.check(TokenType.Proposition)) {
       searchTarget = 'PROPOSITION'
-      this.advance()
+      this.expectKeywordWithSpace(TokenType.Proposition)
     } else {
       this.error(`Expected CONCEPT or PROPOSITION after SEARCH`, this.current())
       searchTarget = 'CONCEPT'
@@ -678,27 +711,39 @@ class Parser {
     let threshold: ThresholdClause | undefined
     let limit: LimitClause | undefined
 
+    // Clauses may appear in any order but each at most once — a second
+    // `LIMIT` is trailing input, not an override.
     while (!this.isAtEnd()) {
+      const before = this.pos
+      const clause = this.current()
       if (this.check(TokenType.With)) {
-        this.advance()
-        this.expect(TokenType.Type)
+        this.rejectRepeat(withTypeValue, 'WITH TYPE', clause)
+        const withTok = this.advance()
+        this.expectSecondWord(TokenType.Type, withTok)
         withTypeValue = this.parseStringOrParameterValue('SEARCH WITH TYPE')
         withType =
           withTypeValue.kind === 'StringLiteral'
             ? withTypeValue.parsed
             : withTypeValue.name
       } else if (this.check(TokenType.Mode)) {
+        this.rejectRepeat(modeValue, 'MODE', clause)
         this.advance()
         modeValue = this.parseStringOrParameterValue('SEARCH MODE')
         mode =
           modeValue.kind === 'StringLiteral' ? modeValue.parsed : modeValue.name
       } else if (this.check(TokenType.Threshold)) {
+        this.rejectRepeat(threshold, 'THRESHOLD', clause)
         threshold = this.parseThresholdClause()
       } else if (this.check(TokenType.Limit)) {
+        this.rejectRepeat(limit, 'LIMIT', clause)
         limit = this.parseLimitClause()
       } else {
         break
       }
+      // A sub-parser that rejects its first token reports and returns
+      // without consuming it, so a loop keyed on that token would spin
+      // forever building diagnostics. Stop as soon as nothing moved.
+      if (this.pos === before) break
     }
 
     return {
@@ -724,13 +769,17 @@ class Parser {
   private parseExportStatement(): ExportStatement {
     const start = this.currentPos()
     const comments = this.collectLeadingComments()
-    this.expect(TokenType.Export)
+    this.expectKeywordWithSpace(TokenType.Export)
     const target = this.expectVariable()
     const where = this.parseWhereClause()
 
     let limit: LimitClause | undefined
+    let cursor: CursorClause | undefined
     if (this.check(TokenType.Limit)) {
       limit = this.parseLimitClause()
+    }
+    if (this.check(TokenType.Cursor)) {
+      cursor = this.parseCursorClause()
     }
 
     return {
@@ -738,6 +787,7 @@ class Parser {
       target,
       where,
       limit,
+      cursor,
       range: { start, end: this.currentPos() },
       leadingComments: comments.length > 0 ? comments : undefined
     }
@@ -766,12 +816,17 @@ class Parser {
     const patterns: WherePattern[] = []
     this.skipComments()
     while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
+      const before = this.pos
       this.skipComments()
       if (this.check(TokenType.RBrace)) break
 
       const pattern = this.parseWherePattern()
       if (pattern) patterns.push(pattern)
       this.skipComments()
+      // A sub-parser that rejects its first token reports and returns
+      // without consuming it, so a loop keyed on that token would spin
+      // forever building diagnostics. Stop as soon as nothing moved.
+      if (this.pos === before) break
     }
     return patterns
   }
@@ -853,8 +908,12 @@ class Parser {
 
   private parseConceptMatcher(): ConceptMatcher {
     const start = this.currentPos()
-    this.expect(TokenType.LBrace)
-    const entries = this.parseObjectEntries()
+    const brace = this.expect(TokenType.LBrace)
+    const seen = { trailingComma: false }
+    const entries = this.parseObjectEntries(seen)
+    if (seen.trailingComma) {
+      this.error(`A concept matcher takes no trailing comma`, brace)
+    }
     this.expect(TokenType.RBrace)
     return {
       kind: 'ConceptMatcher',
@@ -1021,18 +1080,12 @@ class Parser {
     const start = this.currentPos()
     this.expect(TokenType.LBrace)
 
-    const minTok = this.current()
-    if (minTok.type !== TokenType.Number) {
-      this.error(`Expected number in hop range`, minTok)
-    }
-    const min = Number(minTok.value)
-    this.advance()
+    const min = this.expectHopCount()
 
     let max: number | undefined
     if (this.match(TokenType.Comma)) {
       if (this.check(TokenType.Number)) {
-        max = Number(this.current().value)
-        this.advance()
+        max = this.expectHopCount()
       }
       // else: {m,} means unbounded
     } else {
@@ -1046,6 +1099,28 @@ class Parser {
       max,
       range: { start, end: this.currentPos() }
     }
+  }
+
+  /**
+   * Reads one bound of a `{m,n}` hop quantifier.
+   *
+   * A hop count is a plain 16-bit integer — no sign, no decimal point, no
+   * exponent. `"p"{1e9,}` is not an enormous traversal, it is a typo, and
+   * accepting it would hand the engine a bound it cannot honour.
+   */
+  private expectHopCount(): number {
+    const tok = this.current()
+    if (tok.type !== TokenType.Number || !/^[0-9]+$/.test(tok.value)) {
+      this.error(`Expected a whole number in a hop range`, tok)
+      this.advance()
+      return 0
+    }
+    const value = Number(tok.value)
+    if (value > 0xffff) {
+      this.error(`Hop count ${tok.value} exceeds the maximum of 65535`, tok)
+    }
+    this.advance()
+    return value
   }
 
   private parseFilterClause(): FilterClause {
@@ -1131,10 +1206,20 @@ class Parser {
     const items: PropositionItem[] = []
     this.skipComments()
     while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
+      const before = this.pos
       this.skipComments()
       if (this.check(TokenType.RBrace)) break
       items.push(this.parsePropositionItem())
       this.skipComments()
+      // Items are juxtaposed, but a separating comma — including a trailing
+      // one — is tolerated. Generated KML reaches for it constantly, and the
+      // reference grammar accepts it.
+      this.match(TokenType.Comma)
+      this.skipComments()
+      // A sub-parser that rejects its first token reports and returns
+      // without consuming it, so a loop keyed on that token would spin
+      // forever building diagnostics. Stop as soon as nothing moved.
+      if (this.pos === before) break
     }
     this.expect(TokenType.RBrace)
     return {
@@ -1167,8 +1252,20 @@ class Parser {
   }
 
   private isIdMatcherStart(): boolean {
-    const next = this.tokens[this.pos + 1]
-    return this.isIdKeyToken(this.current()) && next?.type === TokenType.Colon
+    if (!this.isIdKeyToken(this.current())) return false
+    const next = this.peekPast(this.pos + 1)
+    // `(id: "...")` may be written with a comment between the key and the
+    // colon; comments are trivia everywhere else, so they are here too.
+    return (
+      next?.type === TokenType.Colon ||
+      (next?.type === TokenType.Parameter && next.value.startsWith(':'))
+    )
+  }
+
+  /** The first non-comment token at or after `i`. */
+  private peekPast(i: number): Token | undefined {
+    while (this.tokens[i]?.type === TokenType.Comment) i++
+    return this.tokens[i]
   }
 
   private parseIdMatcherValue(): StringLiteral | ParameterRef {
@@ -1192,7 +1289,7 @@ class Parser {
       return {
         kind: 'StringLiteral',
         value: tok.value,
-        parsed: this.unescapeString(tok.value),
+        parsed: this.unescapeString(tok.value, tok),
         range: { start, end: this.currentPos() }
       }
     }
@@ -1224,8 +1321,8 @@ class Parser {
 
   private parseWithMetadata(): WithMetadata {
     const start = this.currentPos()
-    this.expect(TokenType.With)
-    this.expect(TokenType.Metadata)
+    const withTok = this.expect(TokenType.With)
+    this.expectSecondWord(TokenType.Metadata, withTok)
     this.expect(TokenType.LBrace)
     const entries = this.parseObjectEntries()
     this.expect(TokenType.RBrace)
@@ -1238,8 +1335,8 @@ class Parser {
 
   private parseExpectVersion(): ExpectVersion {
     const start = this.currentPos()
-    this.expect(TokenType.Expect)
-    this.expect(TokenType.Version)
+    const expectTok = this.expect(TokenType.Expect)
+    this.expectSecondWord(TokenType.Version, expectTok)
     const value = this.parseNumberOrParameterValue('EXPECT VERSION')
     return {
       kind: 'ExpectVersion',
@@ -1254,8 +1351,8 @@ class Parser {
 
   private parseOrderBy(): OrderByClause {
     const start = this.currentPos()
-    this.expect(TokenType.Order)
-    this.expect(TokenType.By)
+    const orderTok = this.expect(TokenType.Order)
+    this.expectSecondWord(TokenType.By, orderTok)
     const keys: OrderByKey[] = []
 
     keys.push(this.parseOrderByKey())
@@ -1294,7 +1391,7 @@ class Parser {
 
   private parseThresholdClause(): ThresholdClause {
     const start = this.currentPos()
-    this.expect(TokenType.Threshold)
+    this.expectKeywordWithSpace(TokenType.Threshold)
     const value = this.parseNumberOrParameterValue('THRESHOLD')
     return {
       kind: 'ThresholdClause',
@@ -1344,7 +1441,7 @@ class Parser {
 
   private parseLimitClause(): LimitClause {
     const start = this.currentPos()
-    this.expect(TokenType.Limit)
+    this.expectKeywordWithSpace(TokenType.Limit)
     const value = this.parseNumberOrParameterValue('LIMIT')
     return {
       kind: 'LimitClause',
@@ -1355,14 +1452,14 @@ class Parser {
 
   private parseCursorClause(): CursorClause {
     const start = this.currentPos()
-    this.expect(TokenType.Cursor)
+    this.expectKeywordWithSpace(TokenType.Cursor)
     const tok = this.current()
     let value: StringLiteral | ParameterRef
     if (tok.type === TokenType.String) {
       value = {
         kind: 'StringLiteral',
         value: tok.value,
-        parsed: this.unescapeString(tok.value),
+        parsed: this.unescapeString(tok.value, tok),
         range: { start: this.currentPos(), end: this.currentPos() }
       }
       this.advance()
@@ -1492,15 +1589,29 @@ class Parser {
         name,
         range: { start, end: this.currentPos() }
       }
-      // Dot access chain
+      // Dot access chain. A dot path is written with no whitespace anywhere
+      // inside it: `?x.name` is a path, but `?x. name` is a path followed by
+      // stray input, and reading them alike would let `ORDER BY ?x.name. ASC`
+      // silently sort by a field named `ASC` with no direction.
+      let prevEnd = tok.offset + tok.value.length
       while (this.check(TokenType.Dot)) {
+        const dotTok = this.current()
+        if (dotTok.offset !== prevEnd) {
+          this.error(`Unexpected whitespace before '.' in a dot path`, dotTok)
+          break
+        }
         this.advance()
         const propTok = this.current()
+        if (propTok.offset !== dotTok.offset + 1) {
+          this.error(`Expected property name after '.'`, propTok)
+          break
+        }
         if (
           propTok.type === TokenType.Identifier ||
           this.isNonAmbiguousKeyword(propTok.type)
         ) {
           const prop = propTok.value
+          prevEnd = propTok.offset + propTok.value.length
           this.advance()
           expr = {
             kind: 'DotExpression',
@@ -1532,7 +1643,7 @@ class Parser {
       return {
         kind: 'StringLiteral',
         value: tok.value,
-        parsed: this.unescapeString(tok.value),
+        parsed: this.unescapeString(tok.value, tok),
         range: { start, end: this.currentPos() }
       }
     }
@@ -1584,6 +1695,10 @@ class Parser {
 
     // System identifier as literal
     if (tok.type === TokenType.SystemIdent) {
+      this.error(
+        `Unquoted value '${tok.value}': KIP values are JSON values, so write "${tok.value}"`,
+        tok
+      )
       this.advance()
       return {
         kind: 'StringLiteral',
@@ -1593,8 +1708,15 @@ class Parser {
       }
     }
 
-    // Identifier (bare word — could be used as a key value)
+    // A bare word is not a KIP value — only object *keys* may go unquoted, and
+    // those never reach here. Recover as a string so the tree stays usable in
+    // an editor, and report it: `lower` sees only the tree, so it is the
+    // caller's error-diagnostic check that keeps this reading off the wire.
     if (tok.type === TokenType.Identifier) {
+      this.error(
+        `Unquoted value '${tok.value}': KIP values are JSON values, so write "${tok.value}"`,
+        tok
+      )
       this.advance()
       return {
         kind: 'StringLiteral',
@@ -1650,12 +1772,16 @@ class Parser {
     const start = this.currentPos()
     this.expect(TokenType.LBracket)
     const elements: Expression[] = []
+    let trailingComma = false
     this.skipComments()
     if (!this.check(TokenType.RBracket)) {
       elements.push(this.parseExpression())
       while (this.match(TokenType.Comma)) {
         this.skipComments()
-        if (this.check(TokenType.RBracket)) break
+        if (this.check(TokenType.RBracket)) {
+          trailingComma = true
+          break
+        }
         elements.push(this.parseExpression())
       }
     }
@@ -1664,6 +1790,7 @@ class Parser {
     return {
       kind: 'ArrayLiteral',
       elements,
+      trailingComma,
       range: { start, end: this.currentPos() }
     }
   }
@@ -1671,19 +1798,22 @@ class Parser {
   private parseObjectLiteral(): ObjectLiteral {
     const start = this.currentPos()
     this.expect(TokenType.LBrace)
-    const entries = this.parseObjectEntries()
+    const seen = { trailingComma: false }
+    const entries = this.parseObjectEntries(seen)
     this.expect(TokenType.RBrace)
     return {
       kind: 'ObjectLiteral',
       entries,
+      trailingComma: seen.trailingComma,
       range: { start, end: this.currentPos() }
     }
   }
 
-  private parseObjectEntries(): ObjectEntry[] {
+  private parseObjectEntries(seen?: { trailingComma: boolean }): ObjectEntry[] {
     const entries: ObjectEntry[] = []
     this.skipComments()
     while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
+      const before = this.pos
       this.skipComments()
       if (this.check(TokenType.RBrace)) break
 
@@ -1703,9 +1833,14 @@ class Parser {
       if (this.check(TokenType.RBrace)) break
       if (this.match(TokenType.Comma)) {
         this.skipComments()
+        if (seen && this.check(TokenType.RBrace)) seen.trailingComma = true
         continue
       }
       this.error(`Expected ',' or '}' after object entry`, this.current())
+      // A sub-parser that rejects its first token reports and returns
+      // without consuming it, so a loop keyed on that token would spin
+      // forever building diagnostics. Stop as soon as nothing moved.
+      if (this.pos === before) break
     }
     return entries
   }
@@ -1765,6 +1900,33 @@ class Parser {
     return this.advance()
   }
 
+  /**
+   * Consumes a keyword that the grammar requires to be followed by whitespace.
+   *
+   * Most KIP keywords only need a word boundary, so `WHERE{...}` is legal.
+   * A handful — the statement introducers and the clause keywords whose
+   * operand may itself start with a brace or a quote — require real
+   * whitespace, which is what keeps `UPSERT{` from reading as a statement.
+   * The distinction is per-keyword-position, not per-keyword, so it lives at
+   * the call site rather than in the lexer.
+   */
+  private expectKeywordWithSpace(type: TokenType): Token {
+    const tok = this.current()
+    if (tok.type !== type) {
+      this.error(`Expected '${type}' but got '${tok.value}'`, tok)
+      return tok
+    }
+    const after = this.source[tok.offset + tok.value.length] ?? ''
+    if (after !== ' ' && after !== '\t' && after !== '\r' && after !== '\n') {
+      this.error(
+        `'${tok.value}' must be followed by whitespace`,
+        tok,
+        'KIP_1001'
+      )
+    }
+    return this.advance()
+  }
+
   private expectVariable(): string {
     const tok = this.current()
     if (tok.type !== TokenType.Variable) {
@@ -1782,7 +1944,7 @@ class Parser {
       return ''
     }
     this.advance()
-    return this.unescapeString(tok.value)
+    return this.unescapeString(tok.value, tok)
   }
 
   private expectStringValue(): string {
@@ -1792,14 +1954,14 @@ class Parser {
       return ''
     }
     this.advance()
-    return this.unescapeString(tok.value)
+    return this.unescapeString(tok.value, tok)
   }
 
   private expectKeyWithQuoting(): { key: string; isQuoted: boolean } {
     const tok = this.current()
     if (tok.type === TokenType.String) {
       this.advance()
-      return { key: this.unescapeString(tok.value), isQuoted: true }
+      return { key: this.unescapeString(tok.value, tok), isQuoted: true }
     }
     if (
       tok.type === TokenType.Identifier ||
@@ -1811,6 +1973,13 @@ class Parser {
     this.error(`Expected object key but got '${tok.value}'`, tok)
     this.advance()
     return { key: tok.value, isQuoted: false }
+  }
+
+  /** Reports a clause written twice in a statement that allows it once. */
+  private rejectRepeat(seen: unknown, name: string, tok: Token): void {
+    if (seen !== undefined) {
+      this.error(`Duplicate ${name} clause`, tok)
+    }
   }
 
   private skipComments(): void {
@@ -1839,21 +2008,60 @@ class Parser {
    * a single parameter placeholder token (`:active`), so surface a targeted hint
    * instead of the generic "Expected ':'" message.
    */
-  private expectObjectColon(key: string): void {
+  /**
+   * Consumes the second word of a two-word keyword (`SET ATTRIBUTES`,
+   * `ORDER BY`, `EXPECT VERSION`, ...).
+   *
+   * The grammar joins these with whitespace only. A comment between the words
+   * is not a smaller gap, it is a different token sequence, and reading
+   * `SET//c\nMETADATA` as `SET METADATA` would accept text the reference
+   * grammar rejects.
+   */
+  private expectSecondWord(type: TokenType, first: Token): Token {
+    const tok = this.current()
+    const gap = this.source.slice(first.offset + first.value.length, tok.offset)
+    if (tok.type === type && !/^\s+$/.test(gap)) {
+      this.error(
+        `'${first.value} ${tok.value}' must be separated by whitespace only`,
+        tok
+      )
+    }
+    return this.expect(type)
+  }
+
+  private expectObjectColon(_key: string): void {
     if (this.check(TokenType.Colon)) {
       this.advance()
       return
     }
+    // `{"a":true}` lexes as a key followed by the parameter `:true`, because
+    // `:name` is the placeholder syntax and the lexer cannot see that this
+    // colon separates a key from its value. In key position the separator
+    // reading is the only valid one, so split the token back apart and re-lex
+    // the tail as the value.
     const tok = this.current()
     if (tok.type === TokenType.Parameter) {
-      this.error(
-        `Missing space after ':' — '${key}${tok.value}' was read as a parameter placeholder. ` +
-          `Write '${key}: ${tok.value.slice(1)}' (or quote the value).`,
-        tok
-      )
+      this.splitParameterAfterColon(tok)
       return
     }
     this.expect(TokenType.Colon)
+  }
+
+  /**
+   * Rewrites a `:value` parameter token in separator position into the value
+   * tokens it spells, so the parser sees `: value`.
+   */
+  private splitParameterAfterColon(tok: Token): void {
+    const tail = tok.value.slice(1)
+    const retoken = tokenize(tail)
+      .filter((t) => !isTrivia(t.type) && t.type !== TokenType.EOF)
+      .map((t) => ({
+        ...t,
+        offset: tok.offset + 1 + t.offset,
+        line: tok.line,
+        column: tok.column + 1 + t.column
+      }))
+    this.tokens.splice(this.pos, 1, ...retoken)
   }
 
   private isFunctionToken(type: TokenType): boolean {
@@ -1904,13 +2112,31 @@ class Parser {
     )
   }
 
-  private unescapeString(raw: string): string {
-    if (raw.startsWith('"') && raw.endsWith('"')) {
+  /**
+   * Reads the value of a string token.
+   *
+   * KIP strings are JSON strings, so `"a\xb"` and an unterminated literal are
+   * both errors — but an editor still wants a tree, so the malformed value is
+   * recovered leniently *and* reported. The lenient reading survives into the
+   * tree: `lower` is handed a `Program` and never sees a diagnostic, so a
+   * caller must reject on `severity === 'error'` before lowering, or `"a\xb"`
+   * reaches the engine as `axb`.
+   */
+  private unescapeString(raw: string, tok?: Token): string {
+    if (raw.startsWith('"') && raw.endsWith('"') && raw.length >= 2) {
       try {
         return JSON.parse(raw) as string
       } catch {
+        if (tok) {
+          this.error(
+            `Invalid string literal ${raw}: KIP strings are JSON strings`,
+            tok
+          )
+        }
         raw = raw.slice(1, -1)
       }
+    } else if (tok) {
+      this.error(`Unterminated string literal ${raw}`, tok)
     }
     return raw.replace(/\\(.)/g, (_, ch) => {
       switch (ch) {

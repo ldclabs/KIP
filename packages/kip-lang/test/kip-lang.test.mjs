@@ -704,11 +704,35 @@ WHERE {
   })
 
   test('gives a targeted hint for the compact `key:value` colon', () => {
+    // `:active` lexes as a parameter placeholder, but in key position the
+    // separator reading is the only valid one — so the reported problem is
+    // the unquoted value, not the colon.
     const diags = diagnose(`FIND(?n) WHERE { ?n {status:active} }`)
     assert.ok(
-      diags.some((d) => /read as a parameter placeholder/.test(d.message)),
+      diags.some((d) => /Unquoted value 'active'/.test(d.message)),
       `Expected compact-colon hint: ${JSON.stringify(diags)}`
     )
+  })
+
+  test('reads a compact `key:value` whose value is a JSON literal', () => {
+    for (const [source, expected] of [
+      [`UPSERT { CONCEPT ?c { {type:"T",name:"n"} SET ATTRIBUTES {a:true} } }`, true],
+      [`UPSERT { CONCEPT ?c { {type:"T",name:"n"} SET ATTRIBUTES {a:false} } }`, false],
+      [`UPSERT { CONCEPT ?c { {type:"T",name:"n"} SET ATTRIBUTES {a:null} } }`, null]
+    ]) {
+      const { ast, diagnostics } = parse(source)
+      assert.deepEqual(
+        diagnostics.filter((d) => d.severity === 'error'),
+        [],
+        `Expected no errors for ${source}`
+      )
+      const value = ast.statements[0].blocks[0].setAttributes.entries[0].value
+      assert.equal(
+        value.kind === 'NullLiteral' ? null : value.value,
+        expected,
+        `Expected ${expected} for ${source}`
+      )
+    }
   })
 })
 

@@ -2,11 +2,11 @@
 
 VS Code extension providing full language support for **KIP** (Knowledge Interaction Protocol) `.kip` files.
 
-The extension uses `@ldclabs/kip-lang` for KIP v1.0-RC9 command-text parsing,
+The extension uses `@ldclabs/kip-lang` for KIP v1.0-RC10 command-text parsing,
 formatting, and diagnostics, including `:parameter` placeholders in full value
 positions, predicate variables, multi-key `ORDER BY`, `SEARCH` retrieval modes,
-`EXPECT VERSION`, `UPDATE`, `MERGE`, `EXPORT`, and JSON-compatible object
-literals with unquoted identifier keys.
+`EXPECT VERSION`, `UPDATE`, `MERGE`, `EXPORT`, `EXPORT ... CURSOR`, and
+JSON-compatible object literals with unquoted identifier keys.
 
 ## Features
 
@@ -31,7 +31,7 @@ Format on save or via `Shift+Alt+F`:
 - Alphabetical sorting of `SET ATTRIBUTES` keys
 - Comment preservation with correct placement
 - Quoted/unquoted key style preservation
-- Parameter placeholders such as `LIMIT :limit`, `SEARCH CONCEPT :term`, `MODE :mode`, `THRESHOLD :threshold`, and `DESCRIBE CONCEPT TYPE :type`
+- Parameter placeholders such as `LIMIT :limit`, `CURSOR :cursor`, `SEARCH CONCEPT :term`, `MODE :mode`, `THRESHOLD :threshold`, and `DESCRIBE CONCEPT TYPE :type`
 
 ### Real-time Diagnostics
 
@@ -68,13 +68,13 @@ Automatic matching and closing for `{}`, `()`, `[]`, and `""`.
 cd packages/vscode-kip
 pnpm install
 pnpm build
-pnpm package   # produces vscode-kip-0.2.3.vsix
+pnpm package   # produces vscode-kip-0.4.0.vsix
 ```
 
 Then install the `.vsix`:
 
 ```
-code --install-extension vscode-kip-0.2.3.vsix
+code --install-extension vscode-kip-0.4.0.vsix
 ```
 
 ### Development

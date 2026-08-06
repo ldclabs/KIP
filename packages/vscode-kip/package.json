@@ -1,10 +1,17 @@
 {
   "name": "vscode-kip",
   "displayName": "KIP Language",
-  "description": "Language support for KIP (Knowledge Interaction Protocol): syntax highlighting, formatting, diagnostics, and code folding for .kip files",
-  "version": "0.3.1",
+  "description": "Language support for KIP (Knowledge Interaction Protocol) v1.0-RC10: syntax highlighting, formatting, diagnostics, and code folding for .kip files",
+  "version": "0.4.0",
   "publisher": "ldclabs",
   "license": "MIT",
+  "keywords": [
+    "kip",
+    "knowledge-graph",
+    "kql",
+    "kml",
+    "formatter"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/ldclabs/KIP",

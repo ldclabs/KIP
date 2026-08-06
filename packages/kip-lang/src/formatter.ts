@@ -258,7 +258,7 @@ class Formatter {
 
   private formatConceptBlock(block: ConceptBlock): void {
     this.writeIndent()
-    this.write(`CONCEPT ${block.handle} {`)
+    this.write(block.handle ? `CONCEPT ${block.handle} {` : 'CONCEPT {')
     this.newline()
     this.indentLevel++
 

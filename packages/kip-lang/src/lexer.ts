@@ -1,5 +1,12 @@
 import { Token, TokenType, KEYWORDS, FUNCTIONS } from './token.js'
 
+/**
+ * Characters that continue a word for boundary purposes. Unicode-aware on
+ * purpose: `FROMé` is one word to the grammar even though `é` cannot start a
+ * KIP identifier, so `FROM` must not be lifted out of it as a keyword.
+ */
+const WORD_CHAR = /[\p{Alphabetic}\p{N}]/u
+
 export function tokenize(source: string): Token[] {
   const lexer = new Lexer(source)
   return lexer.tokenizeAll()
@@ -398,18 +405,25 @@ class Lexer {
       return
     }
 
-    // Check keywords (case-sensitive — KIP keywords are uppercase)
-    const kwType = KEYWORDS.get(upper)
-    if (kwType && value === upper) {
-      this.pushToken(kwType, value, start, startLine, startCol)
-      return
-    }
+    // A keyword only counts as one at a word boundary. Letters, digits and `_`
+    // are already absorbed above, so what remains to exclude is `?` and `"`:
+    // `FROM?x` and `TYPE"Drug"` are not `FROM ?x` and `TYPE "Drug"` written
+    // tersely, they are unparseable — and accepting them here would let a
+    // command run on this parser that a spec-conformant engine rejects.
+    if (this.atWordBoundary()) {
+      // Check keywords (case-sensitive — KIP keywords are uppercase)
+      const kwType = KEYWORDS.get(upper)
+      if (kwType && value === upper) {
+        this.pushToken(kwType, value, start, startLine, startCol)
+        return
+      }
 
-    // Check functions
-    const fnType = FUNCTIONS.get(upper)
-    if (fnType && value === upper) {
-      this.pushToken(fnType, value, start, startLine, startCol)
-      return
+      // Check functions
+      const fnType = FUNCTIONS.get(upper)
+      if (fnType && value === upper) {
+        this.pushToken(fnType, value, start, startLine, startCol)
+        return
+      }
     }
 
     this.pushToken(TokenType.Identifier, value, start, startLine, startCol)
@@ -439,6 +453,23 @@ class Lexer {
     column: number
   ): void {
     this.tokens.push({ type, value, offset, line, column })
+  }
+
+  /**
+   * True when the character at the cursor ends a keyword.
+   *
+   * Mirrors the grammar's word boundary: a keyword may butt directly against
+   * punctuation (`WHERE{`, `FIND(`) but not against something that could have
+   * been part of an identifier, a variable, or a string.
+   */
+  private atWordBoundary(): boolean {
+    if (this.pos >= this.source.length) return true
+    // Read a whole code point: a surrogate pair tested one unit at a time is
+    // alphabetic in neither half, which would read `FROM𝔸` as `FROM` + junk
+    // while a `char`-based engine reads it as one word.
+    const cp = String.fromCodePoint(this.source.codePointAt(this.pos)!)
+    if (cp === '?' || cp === '"' || cp === '_') return false
+    return !WORD_CHAR.test(cp)
   }
 
   private isDigit(ch: string): boolean {

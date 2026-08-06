@@ -1,7 +1,7 @@
 {
   "name": "@ldclabs/kip-lang",
-  "version": "0.3.1",
-  "description": "KIP (Knowledge Interaction Protocol) language toolkit: lexer, parser, formatter, and diagnostics",
+  "version": "0.4.0",
+  "description": "KIP (Knowledge Interaction Protocol) language toolkit: lexer, parser, formatter, diagnostics, and lowering to the executable AST",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
