@@ -3,7 +3,7 @@ UPSERT {
     CONCEPT ?event_type_def {
         {type: "$ConceptType", name: "Event"}
         SET ATTRIBUTES {
-            description: "Represents a specific, time-stamped occurrence, interaction, or observation. It is the primary vehicle for capturing the agent's situational (short-term) memory. Events are encoded during Formation and consolidated into semantic knowledge during Maintenance sleep cycles.",
+            description: "Represents a specific, time-stamped occurrence, interaction, or observation: what happened in the world or interaction history. An Event is objective and summary-oriented; use Experience for a subject-relative, goal-directed state/action/feedback trajectory. Events are encoded during Formation and may be consolidated into semantic knowledge during Maintenance sleep cycles.",
             display_hint: "⏱️",
             instance_schema: {
                 "event_class": {
@@ -63,7 +63,7 @@ UPSERT {
                 "salience_score": {
                     "type": "number",
                     "is_required": false,
-                    "description": "A priority score [0–100]. May be set at encoding time by Formation for flashbulb (high-arousal) moments, then refined during Maintenance's salience scoring phase. Higher scores indicate greater importance for consolidation and resist decay. Factors: emotional significance, novel information, user corrections, explicit preferences."
+                    "description": "A priority score [0–100]. May be set at encoding time by Formation, then refined during Maintenance. Higher scores indicate greater consolidation priority and may increase retention. Factors include goal relevance, prediction error, outcome magnitude, novelty, emotion, reusability, user corrections, and explicit preferences. Salience is distinct from metadata.confidence and metadata.memory_strength."
                 },
                 "salience_scored_at": {
                     "type": "string",
@@ -78,13 +78,13 @@ UPSERT {
     }
 
     // --- DEFINE Event-centric predicates ---
-    // "involves": Links an Event to a Person who directly participated.
+    // "involves": Links an Event or Experience to a Person who directly participated.
     CONCEPT ?involves_prop_def {
         {type: "$PropositionType", name: "involves"}
         SET ATTRIBUTES {
-            description: "Links an Event to a Person who directly participated in it. Distinct from 'mentions', which is for referenced but non-participant entities. Created during Formation when encoding Event propositions.",
+            description: "Links an Event or Experience to a Person who directly participated in it. Distinct from 'mentions', which is for referenced but non-participant entities. For an Experience, include the subject who pursued the goal.",
             object_types: ["Person"],
-            subject_types: ["Event"]
+            subject_types: ["Event", "Experience"]
         }
         SET PROPOSITIONS {
             ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
@@ -104,25 +104,25 @@ UPSERT {
         }
     }
 
-    // "consolidated_to": Links an Event to the semantic concept extracted from it.
+    // "consolidated_to": Links an Event or Experience to semantic knowledge extracted from it.
     CONCEPT ?consolidated_to_prop_def {
         {type: "$PropositionType", name: "consolidated_to"}
         SET ATTRIBUTES {
-            description: "Links an episodic Event to a durable semantic concept (e.g., Preference, Fact) that was extracted from it during Formation or Maintenance consolidation. The reverse link is 'derived_from'.",
+            description: "Links an Event or Experience to a durable semantic concept (e.g., Preference or domain fact) extracted during Formation or Maintenance. Use the more specific 'derived_insight' for Experience -> Insight and 'compiled_to' for Experience -> Skill. The reverse provenance link is 'derived_from'.",
             object_types: ["*"],
-            subject_types: ["Event"]
+            subject_types: ["Event", "Experience"]
         }
         SET PROPOSITIONS {
             ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
         }
     }
 
-    // "derived_from": Links a semantic concept back to the Event(s) that produced it.
+    // "derived_from": Links consolidated knowledge or skill back to source evidence.
     CONCEPT ?derived_from_prop_def {
         {type: "$PropositionType", name: "derived_from"}
         SET ATTRIBUTES {
-            description: "Links a durable semantic concept back to the episodic Event(s) from which it was derived. This is the inverse of 'consolidated_to' and provides provenance tracking for consolidated knowledge.",
-            object_types: ["Event"],
+            description: "Links a durable semantic concept, Insight, or Skill back to the Event(s) or Experience(s) from which it was derived. It is the inverse provenance relation for 'consolidated_to', 'derived_insight', and 'compiled_to'.",
+            object_types: ["Event", "Experience"],
             subject_types: ["*"]
         }
         SET PROPOSITIONS {

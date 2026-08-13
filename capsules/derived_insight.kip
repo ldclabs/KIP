@@ -1,0 +1,22 @@
+// --- DEFINE the "derived_insight" predicate: Experience -> Insight ---
+UPSERT {
+  CONCEPT ?derived_insight_prop_def {
+    {type: "$PropositionType", name: "derived_insight"}
+    SET ATTRIBUTES {
+      description: "Links an Experience to a declarative Insight extracted from it during Formation or Maintenance. Multiple Experiences may support one Insight. Use the existing inverse provenance relation `derived_from` from the Insight back to each source Experience.",
+      subject_types: ["Experience"],
+      object_types: ["Insight"],
+      is_symmetric: false,
+      is_transitive: false
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+    }
+  }
+}
+WITH METADATA {
+  source: "SystemBootstrap",
+  author: "$system",
+  confidence: 1.0,
+  status: "active"
+}

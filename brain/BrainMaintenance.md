@@ -30,12 +30,17 @@ Goal: leave the Cognitive Nexus in optimal state for the next Formation and Reca
 
 ## 🎯 Core Principles
 
-1. **Serve the waking self** — every action must improve future Formation/Recall quality.
-2. **Reconstruction over replay** — consolidate fragments into higher-order schemas, not just compress them.
-3. **State evolution over deletion** — contradictions → mark old fact `superseded` with temporal context, never silently overwrite.
-4. **Non-destruction by default** — archive before delete; soft-decay `confidence` over hard removal; preserve provenance when merging.
-5. **Minimal intervention** — prefer incremental fixes; if unsure, log and skip.
-6. **Transparency** — log significant operations to `$system.attributes.maintenance_log`.
+1. **Serve the waking self** — every action must improve future Formation/Recall quality or future task behavior.
+2. **Reconstruction over replay** — consolidate fragments into higher-order schemas instead of preserving raw detail indefinitely.
+3. **Two consolidation targets** — semantic consolidation answers "what is true?"; procedural consolidation answers "what works?"
+4. **Contrast before compilation** — compare successful and failed Experiences when possible before promoting a Skill.
+5. **State evolution over deletion** — contradictions mark older assertions `superseded` with temporal context.
+6. **Failure is evidence** — failed trajectories may teach boundary conditions, diagnostic steps, and recovery branches.
+7. **Confidence ≠ memory strength** — epistemic truth support and mnemonic accessibility are independent; generic disuse acts on `memory_strength`, not `confidence`.
+8. **Non-destruction by default** — archive before delete; preserve provenance when merging or consolidating.
+9. **Minimal intervention** — prefer incremental fixes; if unsure, log and skip.
+10. **Transparency** — log significant operations to `$system.attributes.maintenance_log`.
+---
 
 ---
 
@@ -48,7 +53,7 @@ Goal: leave the Cognitive Nexus in optimal state for the next Formation and Reca
   "timestamp": "2026-01-16T03:00:00Z",
   "parameters": {
     "stale_event_threshold_days": 7,
-    "confidence_decay_factor": 0.95,
+    "memory_strength_decay_factor": 0.95,
     "unsorted_max_backlog": 20,
     "orphan_max_count": 20
   }
@@ -63,15 +68,15 @@ Goal: leave the Cognitive Nexus in optimal state for the next Formation and Reca
 
 ## 🔄 Sleep Cycle Workflow
 
-| Stage                 | Phases | Biological Analog                                       | Purpose                                                              |
-| --------------------- | ------ | ------------------------------------------------------- | -------------------------------------------------------------------- |
-| **NREM (Deep Sleep)** | 1–7    | Slow-wave sleep: synaptic pruning, memory compaction    | Organize, compress, and consolidate fragments into durable knowledge |
-| **REM (Dream State)** | 8–10   | Rapid Eye Movement: self-modeling, contradiction repair | Refine the self-narrative, evolve state, stress-test the graph       |
-| **Pre-Wake**          | 11–13  | Transition to wakefulness                               | Optimize domains, reclaim TTL'd storage, finalize, report            |
+| Stage                 | Phases | Biological Analog                                       | Purpose                                                        |
+| --------------------- | ------ | ------------------------------------------------------- | -------------------------------------------------------------- |
+| **NREM (Deep Sleep)** | 1–7    | Slow-wave sleep: pruning, consolidation, compilation    | Organize fragments into durable knowledge and reusable Skills  |
+| **REM (Dream State)** | 8–10   | Rapid Eye Movement: self-modeling, contradiction repair | Refine the self-narrative, evolve state, stress-test the graph |
+| **Pre-Wake**          | 11–13  | Transition to wakefulness                               | Optimize domains, reclaim TTL'd storage, finalize, report      |
 
 Execute phases in order. `quick` → Phases 1–2. `daydream` → Phase 1 only.
 
-**KIP discipline**: `?name` is a variable; `:name` is a complete KIP value parameter. Queries containing `:type` are per-type templates — iterate over concept types from the Primer instead of sending an unbound placeholder. Writes use only registered predicates; for *reading*, a predicate variable (`(?s, ?p, ?o)`) sweeps all predicates in one query — prefer it over per-predicate iteration **when the pattern has a structural anchor** (a bound subject, name, or type); a fully unconstrained scan is subject to the engine's materialization cap (`KIP_4002`) and must be sharded by predicate, endpoint type, or domain. Bulk mutations (decay, sweeps, counters) belong in a single `UPDATE` statement, not N `UPSERT`s; entity dedup belongs in `MERGE`. Array/object attribute updates (for example `maintenance_log`) require read-merge-write because KIP overwrites the whole value at that key — read the `_version` too and write back under `EXPECT VERSION` (on `KIP_3005`, re-read and retry once); this is also why unbounded histories belong in the graph as nodes, not in on-node arrays (§8C). Every write carries `source`, `author`, and `created_at`; include `confidence` when the operation asserts or changes knowledge. Lifecycle keys (`expires_at`, `memory_tier`) are **element-level** — set them in the target block's own `WITH METADATA`, never as statement-level defaults that shallow-merge onto every element the statement touches. On a KIP error, apply the returned `hint`, correct, and retry once; blind retries are safe only when the failure proves the command never executed (syntax/validation) — after an ambiguous failure (e.g., `KIP_4001`) on a non-idempotent `UPDATE` (`ADD` counters), verify state first. If it still fails, record it in `maintenance_log` and move on.
+**KIP discipline**: `?name` is a variable; `:name` is a complete KIP value parameter. Queries containing `:type` are per-type templates — iterate over concept types from the Primer instead of sending an unbound placeholder. Writes use only registered predicates; for *reading*, a predicate variable (`(?s, ?p, ?o)`) sweeps all predicates in one query — prefer it over per-predicate iteration **when the pattern has a structural anchor** (a bound subject, name, or type); a fully unconstrained scan is subject to the engine's materialization cap (`KIP_4002`) and must be sharded by predicate, endpoint type, or domain. Bulk mutations (memory-strength decay, sweeps, counters) belong in a single `UPDATE` statement, not N `UPSERT`s; entity dedup belongs in `MERGE`. Array/object attribute updates (for example `maintenance_log`) require read-merge-write because KIP overwrites the whole value at that key — read the `_version` too and write back under `EXPECT VERSION` (on `KIP_3005`, re-read and retry once); this is also why unbounded histories belong in the graph as nodes, not in on-node arrays (§8C). Every write carries `source`, `author`, and `created_at`; include `confidence` when the operation asserts or changes knowledge. Lifecycle keys (`expires_at`, `memory_tier`) are **element-level** — set them in the target block's own `WITH METADATA`, never as statement-level defaults that shallow-merge onto every element the statement touches. On a KIP error, apply the returned `hint`, correct, and retry once; blind retries are safe only when the failure proves the command never executed (syntax/validation) — after an ambiguous failure (e.g., `KIP_4001`) on a non-idempotent `UPDATE` (`ADD` counters), verify state first. If it still fails, record it in `maintenance_log` and move on.
 
 ### Phase 1: Assessment & Salience Scoring
 
@@ -105,6 +110,19 @@ FIND(?e.name, ?e.attributes.start_time, ?e.attributes.content_summary) WHERE {
   NOT { (?e, "consolidated_to", ?semantic) }
 } LIMIT 100
 
+// Unconsolidated high-learning-value Experiences
+FIND(?x.name, ?x.attributes.goal, ?x.attributes.success, ?x.attributes.learning_value) WHERE {
+  ?x {type: "Experience"}
+  FILTER(?x.attributes.consolidation_status == "pending" ||
+         ?x.attributes.consolidation_status == "partially_consolidated")
+} ORDER BY ?x.attributes.learning_value DESC LIMIT 50
+
+// Skills needing review
+FIND(?s.name, ?s.attributes.maturity, ?s.attributes.utility, ?s.attributes.last_validated_at) WHERE {
+  ?s {type: "Skill"}
+  FILTER(?s.attributes.maturity == "needs_review")
+} ORDER BY ?s.attributes.last_validated_at ASC LIMIT 50
+
 // Domain health
 FIND(?d.name, COUNT(?n)) WHERE {
   ?d {type: "Domain"}
@@ -118,24 +136,46 @@ FIND(?c.name, ?c.attributes.due_at, ?c.attributes.beneficiary) WHERE {
 } LIMIT 50
 ```
 
-#### 1B. Salience Scoring
+#### 1B. Salience & Learning-Value Scoring
 
-Score recent unconsolidated Events on a 1–100 scale:
+Score **Events** and **Experiences** on different axes.
 
-- **80–100**: user corrections, frustrations, explicit preferences.
-- **60–80**: decisions, commitments, plans.
-- **40–60**: novel info, first mention of a topic.
-- **1–20**: routine / greetings / status updates.
+##### Event salience
 
-> If Formation already set an initial `salience_score` (flashbulb encoding), refine it with the full cross-event picture rather than blindly overwriting — never lower a flashbulb score without cause.
+`salience_score` answers: *how memorable / autobiographically important is this Event?*
+
+- **80–100**: explicit correction, major frustration, strong commitment, breakthrough, identity milestone.
+- **60–80**: meaningful decision, plan, relationship change.
+- **40–60**: novel information, first mention of an important topic.
+- **1–20**: routine status / greeting / low-value chatter.
+
+##### Experience learning value
+
+`learning_value` estimates the trajectory's future reuse value: how much it may improve later decisions or actions if recalled and consolidated.
+
+Evaluate:
+- goal relevance;
+- expectation violation / `surprise_score`;
+- outcome magnitude;
+- human feedback;
+- novelty;
+- reusability;
+- presence of a failure/recovery branch.
+
+A quiet tool failure can have low autobiographical salience and high learning value.
 
 ```prolog
-FIND(?e.name, ?e.attributes.content_summary, ?e.attributes.key_concepts) WHERE {
-  ?e {type: "Event"}
-  FILTER(?e.attributes.start_time >= :recent_cutoff)
-  NOT { (?e, "consolidated_to", ?s) }
-} ORDER BY ?e.attributes.start_time DESC LIMIT 50
+FIND(?x.name, ?x.attributes.goal, ?x.attributes.success,
+     ?x.attributes.surprise_score, ?x.attributes.learning_value)
+WHERE {
+  ?x {type: "Experience"}
+  FILTER(?x.attributes.started_at >= :recent_cutoff)
+} ORDER BY ?x.attributes.learning_value DESC LIMIT 50
 ```
+
+If Formation already set `salience_score` or `learning_value`, refine it with cross-memory context rather than blindly overwriting.
+
+Write the two scores to their corresponding memory products:
 
 ```prolog
 UPSERT {
@@ -143,11 +183,23 @@ UPSERT {
     {type: "Event", name: :event_name}
     SET ATTRIBUTES { salience_score: :score, salience_scored_at: :timestamp }
   }
+  WITH METADATA { source: "SalienceScoring", author: "$system" }
 }
-WITH METADATA { source: "SalienceScoring", author: "$system", created_at: :timestamp, confidence: 0.8 }
+
+UPSERT {
+  CONCEPT ?experience {
+    {type: "Experience", name: :experience_name}
+    SET ATTRIBUTES {
+      learning_value: :learning_value,
+      learning_value_scored_at: :timestamp
+    }
+  }
+  WITH METADATA { source: "LearningValueScoring", author: "$system" }
+}
 ```
 
-> **`scope: "daydream"`**: stop here. Flag Events scoring 80+ for next full cycle; mark Events scoring <10 for archival.
+> **`scope: "daydream"`**: score recent Events / Experiences and flag high-learning-value Experiences for the next full procedural consolidation cycle.
+---
 
 ---
 
@@ -159,14 +211,16 @@ WITH METADATA { source: "SalienceScoring", author: "$system", created_at: :times
 
 For each pending task: mark `in_progress` → execute `requested_action` → mark `completed` with `result`.
 
-| Action                    | Description                                                                        |
-| ------------------------- | ---------------------------------------------------------------------------------- |
-| `consolidate_to_semantic` | Extract stable knowledge from an Event                                             |
-| `archive`                 | Move a concept to the Archived domain                                              |
-| `merge_duplicates`        | Merge two similar concepts                                                         |
-| `reclassify`              | Move a concept to a better domain                                                  |
-| `review`                  | Assess and log findings without changing                                           |
-| `resolve_contradiction`   | Reconcile conflicting facts: supersede the older, strengthen the current (Phase 9) |
+| Action                      | Description                                                        |
+| --------------------------- | ------------------------------------------------------------------ |
+| `consolidate_to_semantic`   | Extract stable knowledge from an Event or Experience               |
+| `compile_to_skill`          | Compare one or more Experiences and create/update a Skill          |
+| `review`                    | Re-evaluate a Skill's scope, failure signals, utility, or maturity |
+| `archive`                   | Move a concept to the Archived domain                              |
+| `merge_duplicates`          | Merge two similar concepts                                         |
+| `reclassify`                | Move a concept to a better domain                                  |
+| `review`                    | Assess and log findings without changing                           |
+| `resolve_contradiction`     | Reconcile conflicting facts while preserving history               |
 
 ```prolog
 // State transitions
@@ -259,9 +313,9 @@ UPSERT {
 WITH METADATA { source: "OrphanResolution", author: "$system", confidence: :confidence, created_at: :timestamp }
 ```
 
-### Phase 5: Gist Extraction & Schema Formation
+### Phase 5: Semantic Consolidation & Experience Learning
 
-The core of deep sleep — the leap from **fragments to schemas**.
+The core of deep sleep — two parallel transformations: **fragments → knowledge** and **experience → reusable procedure**.
 
 #### 5A. Single-Event Consolidation
 
@@ -382,6 +436,144 @@ UPSERT {
 WITH METADATA { source: "ProspectiveSweep", author: "$system", confidence: 0.85, created_at: :timestamp }
 ```
 
+#### 5D. Procedural Consolidation — Experience → Skill
+
+Procedural consolidation answers:
+
+> **What tends to work, under which conditions?**
+
+Do not simply summarize an Experience into prose. Extract an actionable Skill with:
+- `goal`;
+- `trigger_conditions` and `applicability_context`;
+- `preconditions`;
+- `procedure`;
+- `decision_rules`;
+- `expected_outcome`;
+- `success_criteria`;
+- `failure_signals`;
+- `recovery_strategy`;
+- validation state.
+
+Candidate Experiences:
+
+```prolog
+FIND(?x.name, ?x.attributes.goal, ?x.attributes.initial_state,
+     ?x.attributes.success, ?x.attributes.learning_value)
+WHERE {
+  ?x {type: "Experience"}
+  FILTER(?x.attributes.consolidation_status == "pending" ||
+         ?x.attributes.consolidation_status == "partially_consolidated")
+  FILTER(?x.attributes.learning_value >= :min_learning_value)
+} ORDER BY ?x.attributes.learning_value DESC LIMIT 50
+```
+
+Before compiling:
+1. search for an existing semantically similar Skill;
+2. inspect its trigger conditions, applicability context, and provenance;
+3. prefer refining it over creating a near-duplicate.
+
+Example Skill write:
+
+```prolog
+UPSERT {
+  CONCEPT ?skill {
+    {type: "Skill", name: :skill_name}
+    SET ATTRIBUTES {
+      skill_class: :skill_class,
+      description: :description,
+      goal: :goal,
+      trigger_conditions: :trigger_conditions,
+      applicability_context: :applicability_context,
+      preconditions: :preconditions,
+      procedure: :procedure,
+      decision_rules: :decision_rules,
+      expected_outcome: :expected_outcome,
+      success_criteria: :success_criteria,
+      failure_signals: :failure_signals,
+      recovery_strategy: :recovery_strategy,
+      execution_mode: :execution_mode,
+      implementation_ref: :implementation_ref,
+      maturity: :maturity,
+      evidence_count: :evidence_count,
+      success_count: :success_count,
+      failure_count: :failure_count,
+      last_validated_at: :last_validated_at,
+      utility: :utility
+    }
+    SET PROPOSITIONS {
+      ("derived_from", {type: "Experience", name: :experience_name})
+      ("belongs_to_domain", {type: "Domain", name: :domain})
+    }
+  }
+}
+WITH METADATA {
+  source: "ProceduralConsolidation",
+  author: "$system",
+  confidence: :confidence,
+  memory_strength: :memory_strength,
+  created_at: :timestamp
+}
+```
+
+Record the source-side state and inverse link separately so Skill metadata is not applied to the Experience:
+
+```prolog
+UPDATE ?experience
+SET ATTRIBUTES { consolidation_status: "partially_consolidated" }
+WHERE {
+  ?experience {type: "Experience", name: :experience_name}
+}
+
+UPSERT {
+  PROPOSITION ?compilation {
+    ({type: "Experience", name: :experience_name}, "compiled_to", {type: "Skill", name: :skill_name})
+  }
+}
+WITH METADATA {
+  source: "ProceduralConsolidation", author: "$system",
+  confidence: :confidence, memory_strength: :memory_strength,
+  created_at: :timestamp
+}
+```
+
+Repeat both evidence links (`Skill ─derived_from→ Experience` and `Experience ─compiled_to→ Skill`) for every source Experience. Use `partially_consolidated` while another semantic or procedural pass is still required; set `completed` only after every queued consolidation product and provenance link has been written. Use `archived` only after an explicit decision that no further extraction is required.
+
+**One trajectory is usually a candidate, not universal proof.** A Skill created from a single Experience SHOULD normally begin as `candidate` unless the procedure was explicitly authored/validated by a trusted source.
+
+#### 5E. Contrastive Experience Consolidation
+
+When possible, compare Experiences with similar goals and initial states but different outcomes.
+
+Retrieve a cluster:
+
+```prolog
+SEARCH CONCEPT :goal MODE "semantic" WITH TYPE "Experience" THRESHOLD 0.70 LIMIT 20
+```
+
+Then inspect:
+- successful vs. failed outcomes;
+- differing actions;
+- missing/satisfied preconditions;
+- expectation violations;
+- diagnostic observations;
+- human feedback.
+
+Ask:
+
+1. Which state/action difference best predicts the outcome difference?
+2. Did the failure expose a useful diagnostic branch?
+3. Does a counterexample narrow the Skill's trigger conditions or applicability context?
+4. Is the apparent relationship causal or only correlated?
+5. What uncertainty should remain explicit?
+
+Update the Skill:
+- matching-condition success → `evidence_count + 1`, `success_count + 1`, utility may rise, maturity may become `validated`;
+- matching-condition failure → `evidence_count + 1`, `failure_count + 1`, add/refine a failure signal, utility may fall, possibly `maturity: "needs_review"`;
+- non-matching failure → refine `trigger_conditions` / `applicability_context` / `preconditions` rather than penalizing the in-domain Skill.
+
+**Never treat repeated failure as reinforcement of the procedure merely because the same action occurred many times.**
+
+
 ### Phase 6: Duplicate Detection & Merging
 
 Find duplicates via `SEARCH CONCEPT ... WITH TYPE ... LIMIT 10` — semantic mode catches paraphrase twins that keyword search misses (`MODE "semantic" THRESHOLD 0.85`). Verify both candidates with `FIND` (a high `_score` is similarity, not identity — confirm with attributes before merging). Choose the canonical node (higher confidence / more recent / richer attributes), then merge atomically:
@@ -396,73 +588,93 @@ WHERE {
 
 `MERGE` repoints every incident link (preserving link IDs and higher-order references), unions `aliases` (the duplicate's `name` joins the canonical node's `aliases`, so no grounding path is lost), fills missing attributes (canonical wins on conflict), records `_merged_from`, and deletes the duplicate — one transaction, no half-merged state. If the duplicate held *better* attribute values than the canonical node, `UPSERT` those onto the canonical node **before** merging, since `MERGE` never overwrites existing target values. Log the merge to `maintenance_log`.
 
-### Phase 7: Confidence Decay
+### Phase 7: Memory Strength Decay & Epistemic Maintenance
 
-Apply `new_confidence = old_confidence × decay_factor` (default `0.95`/week) to old unverified facts. Decay acts on the assertion link's `metadata.confidence` — the same value Formation's reinforcement raises, so the two form one homeostatic loop. Run the sweep **per predicate shard** — substitute `:predicate` from the Primer's registered predicate list, skipping `belongs_to_domain` (structural links don't decay). On a small graph a predicate variable (`(?s, ?p, ?o)` + `FILTER(?p != "belongs_to_domain")`) covers all predicates in one statement, but past the engine's materialization cap that unconstrained scan is rejected (`KIP_4002`, per the spec's Scan-bounds rule):
+`confidence` and `memory_strength` have different semantics:
+
+```text
+confidence      = epistemic support for truth / faithful recording
+memory_strength = mnemonic accessibility / activation
+```
+
+The old generic rule `confidence × decay_factor` conflated truth with accessibility. In this version, **disuse primarily decays `memory_strength`**.
+
+#### 7A. Memory-strength decay
+
+Run per predicate shard when the graph is large. Replace the quoted predicate literal below with each registered predicate from the Primer; predicate positions do not accept value parameters:
 
 ```prolog
 UPDATE ?link
 SET METADATA {
-  confidence: CLAMP(MUL(?link.metadata.confidence, :decay_factor), 0.0, 1.0),
-  decay_applied_at: :timestamp
+  memory_strength: CLAMP(
+    MUL(COALESCE(?link.metadata.memory_strength, 0.7), :decay_factor),
+    0.0, 1.0
+  ),
+  strength_decay_applied_at: :timestamp
 }
 WHERE {
-  ?link (?s, :predicate, ?o)
+  ?link (?s, "prefers", ?o)
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
-  FILTER(IS_NOT_NULL(?link.metadata.created_at))
-  FILTER(?link.metadata.created_at < :decay_threshold)
-  FILTER(?link.metadata.confidence > 0.3 && ?link.metadata.confidence < 1.0)
-  // Idempotency guard: at most one decay per link per cycle — also the iteration cursor
-  FILTER(IS_NULL(?link.metadata.decay_applied_at) || ?link.metadata.decay_applied_at < :cycle_start)
-  // Reinforcement exemption: skip links touched since :stale_cutoff (≈ cycle start − 14d) —
-  // Formation's reinforcement stamps observed_at on the link itself, so this is link-local
   FILTER(IS_NULL(?link.metadata.observed_at) || ?link.metadata.observed_at < :stale_cutoff)
+  FILTER(IS_NULL(?link.metadata.strength_decay_applied_at) ||
+         ?link.metadata.strength_decay_applied_at < :cycle_start)
 }
 LIMIT 500
 ```
 
-**Iteration**: `LIMIT 500` caps one statement, and *which* 500 match is implementation-defined — the `decay_applied_at` guard is what makes the sweep safe. Re-run each shard until `updated < LIMIT`; without the guard, a re-run (or a crash-and-retry) double-decays the same links. Bind `:cycle_start` **once** when Phase 7 first starts and persist it on the cycle's `SleepTask`; a crash-and-retry must reuse the original value — a fresh `:cycle_start` re-admits every already-decayed link.
+Bind `:cycle_start` once per cycle. Repeat a shard until `updated < LIMIT`.
 
-**Strength-aware (asymmetric) decay** — "use it or lose it": decay is not uniform. Reinforced memories resist it; neglected ones fade faster. Per-predicate sharding is what makes this safe — pick the factor per shard:
-- **Assertion predicates** (`prefers`, `learned`, ... — the object carries the reinforcement signals): run two passes with disjoint filters, both keeping every base filter above (including the guard). Strong — `FILTER(IS_NOT_NULL(?o.attributes.evidence_count) && ?o.attributes.evidence_count >= 3)`: factor `0.98`, or skip the pass entirely. Weak — `FILTER(IS_NULL(?o.attributes.evidence_count) || ?o.attributes.evidence_count < 3)`: factor `0.90`, so the graph self-prunes stale clutter.
-- **Provenance & participation predicates** (`derived_from`, `involves`, `consolidated_to`, ...): their objects are Events/Persons that never carry `evidence_count` — never route them through the weak pass. Use the slow factor (`0.98`) or skip them entirely: eroding provenance severs the sole-evidence chains 12A.5 depends on.
-- **High-salience memories resist**: links whose subject Event carries `salience_score >= 60` (flashbulb encoding, Formation Phase 1) take the slow factor regardless of the object's signals.
+#### 7B. Strength-aware asymmetry
 
-KIP keeps no engine-side access statistics (reads stay reads): "recently recalled" is visible only as reinforcement — re-confirmed facts get `evidence_count` / `last_observed` refreshed and the link's `observed_at` stamped. Low recall frequency alone is not evidence of low importance.
+- frequently reinforced memories decay slowly;
+- low-value clutter decays faster;
+- high-salience Events and high-learning-value Experiences decay slowly;
+- commitments, identity facts, and schema truths are not made unimportant merely because they have not been recalled.
 
-**Do NOT decay**: `confidence: 1.0` system truths (the `< 1.0` filter above); schema definitions (`$ConceptType`/`$PropositionType`); `belongs_to_domain` links (never a decay shard); recently-verified facts (the `observed_at` exemption above).
+Do not use recall frequency as a truth signal.
 
-**Legacy migration (one-time, idempotent)**: assertion trust lives only in `metadata.confidence`; older graphs may still carry an `attributes.confidence` on `Preference` / `Insight` nodes. Never delete the attribute before its value has a new home: backfill the assertion link (②); when no assertion link exists (legacy consolidation-born nodes), preserve the value on the node's own metadata (③) and create the missing `prefers` link per the Phase 2 template so future reinforcement lands. Repeat the whole step until the probe returns empty:
+#### 7C. Epistemic confidence maintenance
 
-```prolog
-// ① Probe (repeat until empty)
-FIND(?p.name, ?p.attributes.confidence) WHERE {
-  ?p {type: "Preference"}
-  FILTER(IS_NOT_NULL(?p.attributes.confidence))
-} LIMIT 100
+Update `confidence` only for epistemic reasons:
+- new independent evidence;
+- explicit verification;
+- contradiction;
+- source-quality reassessment;
+- retraction;
+- temporal invalidation handled through validity / supersession.
 
-// ② Backfill the assertion link when its value is missing or lower
-//    (:attr_confidence = the probed attribute value for :name)
-UPDATE ?link
-SET METADATA { confidence: :attr_confidence }
-WHERE {
-  ?link (?s, "prefers", {type: "Preference", name: :name})
-  FILTER(IS_NULL(?link.metadata.confidence) || ?link.metadata.confidence < :attr_confidence)
-}
+Mere passage of time does **not** make a timeless fact less true.
 
-// ③ Only if ② matched no link: preserve the value on the node's own metadata
-UPDATE ?p
-SET METADATA { confidence: :attr_confidence }
-WHERE { ?p {type: "Preference", name: :name} }
+For inherently time-sensitive assertions, prefer:
+- `valid_until`;
+- `superseded`;
+- explicit source freshness;
+over generic confidence decay.
 
-// ④ Only after ② or ③ succeeded: remove the attribute
-DELETE ATTRIBUTES {"confidence"} FROM ?p
-WHERE { ?p {type: "Preference", name: :name} }
+#### 7D. Skill validation is separate
+
+Skills use procedural evidence:
+
+```text
+success_count
+failure_count
+utility
+last_validated_at
+trigger_conditions / applicability_context
 ```
 
-(Repeat for `Insight` with the `"learned"` predicate.)
+A Skill may have high confidence that its description is accurate while low utility in practice, or vice versa. Do not collapse these dimensions. `maturity` records the procedural lifecycle separately.
 
----
+#### 7E. Migration from legacy confidence-decay graphs
+
+For older graphs where `confidence` also acted as memory strength:
+
+1. initialize missing `memory_strength` from the current confidence or a neutral profile default;
+2. stop generic time-based confidence decay;
+3. preserve `confidence` as epistemic support;
+4. apply future "use it or lose it" behavior to `memory_strength`.
+
+Do not try to reconstruct already-lost epistemic confidence mechanically; provenance and future evidence should recalibrate it.
 
 ### 💭 Stage II: REM — Memory Evolution
 
@@ -677,10 +889,10 @@ WITH METADATA { source: "DomainHealthCheck", author: "$system", created_at: :tim
 #### 12A. Eligibility (all must hold)
 
 1. `metadata.expires_at` non-null and `< :now`.
-2. Node type is on the **TTL-deletable whitelist**: `Event`; terminal-status `SleepTask` (`completed` / `failed`) or `Commitment` (`fulfilled` / `cancelled` / `expired`) — the statuses come from each type's own schema enum; or a node whose own `metadata.memory_tier` is `"short-term"` (Formation marks genuinely temporary concepts this way at creation). `attributes.status: "archived"` alone does **not** qualify — the Safe Archive pattern applies to any type, including `Person`. A TTL on any node outside this list is suspicious — most likely metadata pollution from a statement-level `WITH METADATA` default — so log it, create a review SleepTask, and never auto-delete.
+2. Node type is on the **TTL-deletable whitelist**: `Event`, `Experience`, `ExperienceStep`; terminal-status `SleepTask` (`completed` / `failed`) or `Commitment` (`fulfilled` / `cancelled` / `expired`) — the statuses come from each type's own schema enum; or a node whose own `metadata.memory_tier` is `"short-term"` (Formation marks genuinely temporary concepts this way at creation). `attributes.status: "archived"` alone does **not** qualify — the Safe Archive pattern applies to any type, including `Person`. A TTL on any node outside this list is suspicious — most likely metadata pollution from a statement-level `WITH METADATA` default — so log it, create a review SleepTask, and never auto-delete.
 3. **Not** a protected entity (`$self`, `$system`, `$ConceptType`, `$PropositionType`, anything in `CoreSchema`, any `Domain` node).
-4. For Events: `consolidation_status` is `completed` or `archived` (never delete pending; instead extend `expires_at` and warn).
-5. No active concept depends on this node as its sole evidence (e.g., a high-confidence `Insight` whose only `derived_from` is this Event — extend `expires_at` instead).
+4. For Events: `consolidation_status` is `completed` or `archived`. For Experiences: semantic/procedural consolidation is complete or explicitly archived. For ExperienceSteps: the parent Experience is itself eligible for reclamation or already archived. Never delete pending learning traces; extend `expires_at` and warn.
+5. No active concept depends on this node as its sole evidence (for example an `Insight` or `Skill` whose only `derived_from` is this Event / Experience).
 
 #### 12B. Find candidates
 
@@ -712,9 +924,9 @@ WHERE {
 Nodes are not the only TTL'd elements: Recall's currency filters also honor link-level `expires_at`, and no other phase removes expired links — sweep them here. `DELETE PROPOSITIONS` has no `LIMIT` clause and an unconstrained `(?s, ?p, ?o)` scan is rejectable (`KIP_4002`), so **never issue a blanket delete**: audit one predicate shard at a time (the `FIND`'s `LIMIT` is what enforces the cycle cap), then delete only the audited candidates with targeted statements:
 
 ```prolog
-// ① Audit one predicate shard (iterate :predicate over the Primer's list)
+// ① Audit one predicate shard (replace "prefers" with each Primer predicate)
 FIND(?s.type, ?s.name, ?o.type, ?o.name, ?link.metadata.expires_at) WHERE {
-  ?link (?s, :predicate, ?o)
+  ?link (?s, "prefers", ?o)
   FILTER(IS_NOT_NULL(?link.metadata.expires_at))
   FILTER(?link.metadata.expires_at < :now)
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
@@ -723,7 +935,7 @@ FIND(?s.type, ?s.name, ?o.type, ?o.name, ?link.metadata.expires_at) WHERE {
 // ② Delete each audited candidate individually (skip exempt rows — see below)
 DELETE PROPOSITIONS ?link
 WHERE {
-  ?link ({type: :s_type, name: :s_name}, :predicate, {type: :o_type, name: :o_name})
+  ?link ({type: :s_type, name: :s_name}, "prefers", {type: :o_type, name: :o_name})
   FILTER(IS_NOT_NULL(?link.metadata.expires_at))
   FILTER(?link.metadata.expires_at < :now)
 }
@@ -787,7 +999,7 @@ Trigger: scheduled
 - Reclassified 8 items from Unsorted; resolved 3 orphans
 - Extracted 2 cross-event patterns: "Prefers Japanese food" (4 Events / 3 weeks); "Prefers dark mode" (3 Events)
 - Prospective sweep: 2 commitments fulfilled; 1 overdue surfaced ("Q3 report" → alice, due 2026-01-14)
-- Merged 1 duplicate: "JS" → "JavaScript"; applied confidence decay to 12 propositions
+- Merged 1 duplicate: "JS" → "JavaScript"; decayed memory strength on 12 stale propositions; validated 2 Skills
 
 ## REM (Memory Evolution)
 - Self-model refined: +1 value ("clarity over completeness"), +1 weakness ("tends to over-explain"), refreshed identity_narrative
@@ -846,20 +1058,22 @@ Completed SleepTasks: archive (preserves audit trail) or delete (cleaner) per sy
 
 ### Health Targets
 
-| Metric                  | Target | Action if Exceeded                          |
-| ----------------------- | ------ | ------------------------------------------- |
-| Orphan count            | < 10   | Classify or archive                         |
-| Unsorted backlog        | < 20   | Reclassify to topic domains                 |
-| Stale Events (>7d)      | < 30   | Consolidate or archive                      |
-| Average confidence      | > 0.6  | Investigate low-confidence areas            |
-| Domain utilization      | 5–100  | Merge small, split large                    |
-| Pending SleepTasks      | < 10   | Process all pending tasks                   |
-| Unscored recent Events  | < 10   | Run daydream cycle for salience scoring     |
-| Overdue commitments     | 0      | Sweep in Phase 5C; surface in briefing      |
-| Minor growth milestones | < 50   | Collapse crowds; let absorbed ones lapse    |
-| Superseded propositions | audit  | Verify temporal context preserved           |
-| Cross-event patterns    | audit  | Surface recurring themes still as fragments |
-| Domain descriptions     | fresh  | Refresh in Phase 11 (primer accuracy)       |
+| Metric                         | Target  | Action if Exceeded                                                 |
+| ------------------------------ | ------- | ------------------------------------------------------------------ |
+| Orphan count                   | < 10    | Classify or archive                                                |
+| Unsorted backlog               | < 20    | Reclassify to topic domains                                        |
+| Stale Events (>7d)             | < 30    | Consolidate or archive                                             |
+| Pending high-value Experiences | < 20    | Run semantic/procedural consolidation                              |
+| Skills needing review          | < 10    | Validate, refine scope, or deprecate                               |
+| Average memory strength        | observe | Investigate inaccessible clutter; do not infer truth from strength |
+| Domain utilization             | 5–100   | Merge small, split large                                           |
+| Pending SleepTasks             | < 10    | Process all pending tasks                                          |
+| Unscored recent Events         | < 10    | Run daydream cycle for salience scoring                            |
+| Overdue commitments            | 0       | Sweep in Phase 5C; surface in briefing                             |
+| Minor growth milestones        | < 50    | Collapse crowds; let absorbed ones lapse                           |
+| Superseded propositions        | audit   | Verify temporal context preserved                                  |
+| Cross-event patterns           | audit   | Surface recurring themes still as fragments                        |
+| Domain descriptions            | fresh   | Refresh in Phase 11 (primer accuracy)                              |
 
 ---
 
@@ -867,7 +1081,7 @@ Completed SleepTasks: archive (preserves audit trail) or delete (cleaner) per sy
 
 - **Daydream** (`scope: "daydream"` — Phase 1 only): idle 30–60 min; conversation session end; 5+ new Events since last scoring.
 - **Quick** (`scope: "quick"` — Phases 1–2): Unsorted > 20, orphans > 10, or stale Events > 30; post-burst.
-- **Full** (`scope: "full"` — all 13 phases): scheduled every 12–24h; on-demand; or when daydream cycles have flagged many high-salience Events.
+- **Full** (`scope: "full"` — all 13 phases): scheduled every 12–24h; on-demand; or when daydream cycles have flagged many high-salience Events or high-learning-value Experiences.
 
 ---
 

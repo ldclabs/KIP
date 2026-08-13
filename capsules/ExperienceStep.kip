@@ -1,0 +1,86 @@
+// --- DEFINE the "ExperienceStep" concept type ---
+//
+// ExperienceStep preserves trajectory dynamics without treating a transcript or
+// private chain-of-thought as memory. `index` gives temporal order. The optional
+// `caused_by` proposition records only explicitly supported causal relations.
+UPSERT {
+  CONCEPT ?experience_step_type_def {
+    {type: "$ConceptType", name: "ExperienceStep"}
+    SET ATTRIBUTES {
+      description: "Represents one ordered observation, decision, action, or feedback record within an Experience. It preserves the trajectory needed for replay, comparison, and credit assignment while keeping temporal order distinct from causality.",
+      display_hint: "👣",
+      instance_schema: {
+        "index": {
+          "type": "number",
+          "is_required": true,
+          "description": "Zero-based, non-negative position within the parent Experience. Indices must be unique within one Experience and must not be interpreted as proof of causality."
+        },
+        "kind": {
+          "type": "string",
+          "is_required": true,
+          "enum": ["observation", "decision", "action", "feedback"],
+          "description": "The cognitive or interaction role of this step. 'feedback' is an evaluation or environment response; 'observation' is newly perceived state."
+        },
+        "summary": {
+          "type": "string",
+          "is_required": true,
+          "description": "A concise, externally supportable account of what was observed, decided, done, or returned. Do not store hidden chain-of-thought."
+        },
+        "timestamp": {
+          "type": "string",
+          "is_required": false,
+          "description": "ISO 8601 timestamp for the step when available. The parent-local index remains authoritative for order."
+        },
+        "state": {
+          "type": "object",
+          "is_required": false,
+          "description": "A compact structured snapshot of state relevant to this step. Include only state needed for replay, comparison, or action selection."
+        },
+        "decision_rationale": {
+          "type": "string",
+          "is_required": false,
+          "description": "A brief decision basis supported by the trace, such as the constraint or observation that selected an action. This is not a private reasoning transcript."
+        },
+        "tool": {
+          "type": "string",
+          "is_required": false,
+          "description": "Canonical tool or capability name used by an action step."
+        },
+        "expected_observation": {
+          "type": "string",
+          "is_required": false,
+          "description": "What the subject expected to observe after the decision or action."
+        },
+        "actual_observation": {
+          "type": "string",
+          "is_required": false,
+          "description": "What was actually observed. Store on the same step when comparison matters; otherwise use a following observation or feedback step."
+        },
+        "prediction_error": {
+          "type": "string",
+          "is_required": false,
+          "description": "A concise description of the mismatch between expected_observation and actual_observation and why it mattered."
+        },
+        "success": {
+          "type": "boolean",
+          "is_required": false,
+          "description": "Whether this local action or decision achieved its immediate purpose. This may differ from the parent Experience's overall success."
+        },
+        "raw_data_ref": {
+          "type": "string",
+          "is_required": false,
+          "description": "URI or internal identifier for large tool inputs, outputs, logs, or artifacts stored outside the graph."
+        }
+      }
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+    }
+  }
+}
+WITH METADATA {
+  source: "SystemBootstrap",
+  author: "$system",
+  confidence: 1.0,
+  status: "active"
+}

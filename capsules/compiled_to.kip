@@ -1,0 +1,22 @@
+// --- DEFINE the "compiled_to" predicate: Experience -> Skill ---
+UPSERT {
+  CONCEPT ?compiled_to_prop_def {
+    {type: "$PropositionType", name: "compiled_to"}
+    SET ATTRIBUTES {
+      description: "Links an Experience to a Skill that was created or materially revised through procedural consolidation. Multiple successful and failed Experiences should converge on the same Skill when they refine one policy. Use `derived_from` from the Skill back to its source Experiences.",
+      subject_types: ["Experience"],
+      object_types: ["Skill"],
+      is_symmetric: false,
+      is_transitive: false
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+    }
+  }
+}
+WITH METADATA {
+  source: "SystemBootstrap",
+  author: "$system",
+  confidence: 1.0,
+  status: "active"
+}

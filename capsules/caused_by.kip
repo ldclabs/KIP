@@ -1,0 +1,22 @@
+// --- DEFINE the "caused_by" predicate: ExperienceStep -> ExperienceStep ---
+UPSERT {
+  CONCEPT ?caused_by_prop_def {
+    {type: "$PropositionType", name: "caused_by"}
+    SET ATTRIBUTES {
+      description: "Asserts that the subject ExperienceStep's outcome, observation, or feedback was causally produced by the object ExperienceStep. Direction is effect -> cause. Create only when the trace or later analysis supports causality; temporal adjacency alone is insufficient.",
+      subject_types: ["ExperienceStep"],
+      object_types: ["ExperienceStep"],
+      is_symmetric: false,
+      is_transitive: false
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+    }
+  }
+}
+WITH METADATA {
+  source: "SystemBootstrap",
+  author: "$system",
+  confidence: 1.0,
+  status: "active"
+}

@@ -1,0 +1,136 @@
+// --- DEFINE the "Skill" concept type ---
+//
+// A Skill is procedural memory: experience compiled into an action-selecting
+// policy. It is more than an Insight (a declarative lesson) and more than a
+// transcript or runbook (instructions without evidence and applicability).
+UPSERT {
+  CONCEPT ?skill_type_def {
+    {type: "$ConceptType", name: "Skill"}
+    SET ATTRIBUTES {
+      description: "Represents procedural memory compiled from Experience: an action-selecting policy with explicit applicability conditions, procedure, success criteria, and evidence. A Skill may guide reasoning directly or reference an executable workflow, tool, program, or agent skill.",
+      display_hint: "🛠️",
+      instance_schema: {
+        "skill_class": {
+          "type": "string",
+          "is_required": true,
+          "enum": ["procedure", "diagnostic", "decision_policy", "recovery", "tool_use", "communication"],
+          "description": "The policy family. Select the narrowest class that matches how the Skill changes action."
+        },
+        "description": {
+          "type": "string",
+          "is_required": true,
+          "description": "A concise statement of what the Skill enables the subject to do."
+        },
+        "goal": {
+          "type": "string",
+          "is_required": true,
+          "description": "The outcome this Skill is intended to produce."
+        },
+        "trigger_conditions": {
+          "type": "array",
+          "item_type": "string",
+          "is_required": true,
+          "description": "Observable conditions under which Recall should consider this Skill applicable."
+        },
+        "preconditions": {
+          "type": "array",
+          "item_type": "string",
+          "is_required": false,
+          "description": "Conditions that must hold before the policy can be applied safely."
+        },
+        "procedure": {
+          "type": "array",
+          "item_type": "string",
+          "is_required": true,
+          "description": "Ordered, action-oriented instructions. Each item should be independently executable or testable; branching belongs in decision_rules."
+        },
+        "decision_rules": {
+          "type": "array",
+          "item_type": "string",
+          "is_required": false,
+          "description": "Condition-to-action rules for branches, retries, and escalation."
+        },
+        "expected_outcome": {
+          "type": "string",
+          "is_required": true,
+          "description": "The observable result expected when the Skill is correctly applied."
+        },
+        "success_criteria": {
+          "type": "array",
+          "item_type": "string",
+          "is_required": false,
+          "description": "Observable tests that distinguish successful execution from apparent completion."
+        },
+        "failure_signals": {
+          "type": "array",
+          "item_type": "string",
+          "is_required": false,
+          "description": "Observations indicating that the policy is failing, inapplicable, or unsafe."
+        },
+        "recovery_strategy": {
+          "type": "string",
+          "is_required": false,
+          "description": "Fallback or escalation behavior when a failure signal appears."
+        },
+        "execution_mode": {
+          "type": "string",
+          "is_required": false,
+          "enum": ["advisory", "supervised", "autonomous"],
+          "default_value": "advisory",
+          "description": "Maximum autonomy allowed by the policy. This is a capability boundary, not a recommendation to bypass external authorization."
+        },
+        "implementation_ref": {
+          "type": "string",
+          "is_required": false,
+          "description": "URI or internal identifier for an executable workflow, program, tool, state machine, or agent-skill artifact."
+        },
+        "maturity": {
+          "type": "string",
+          "is_required": false,
+          "enum": ["candidate", "validated", "needs_review", "deprecated"],
+          "default_value": "candidate",
+          "description": "Procedural maturity. Candidate Skills require confirmation; validated Skills have succeeded across sufficient independent Experiences; needs_review Skills have conflicting or degraded evidence; deprecated Skills remain for history and must not guide new action."
+        },
+        "utility": {
+          "type": "number",
+          "is_required": false,
+          "description": "Observed practical utility on a [0,1] scale under matching conditions. It is derived from validation outcomes and context, and is distinct from epistemic confidence."
+        },
+        "evidence_count": {
+          "type": "number",
+          "is_required": false,
+          "description": "Number of independent Experiences used to compile or validate this Skill."
+        },
+        "success_count": {
+          "type": "number",
+          "is_required": false,
+          "description": "Number of supporting Experiences in which applying this policy achieved the relevant goal."
+        },
+        "failure_count": {
+          "type": "number",
+          "is_required": false,
+          "description": "Number of contrasting Experiences in which this policy failed or proved inapplicable. Failures refine scope; they are not silently discarded."
+        },
+        "last_validated_at": {
+          "type": "string",
+          "is_required": false,
+          "description": "ISO 8601 timestamp of the latest Experience that successfully validated the Skill."
+        },
+        "applicability_context": {
+          "type": "object",
+          "is_required": false,
+          "description": "Structured domain, environment, version, actor, risk, or resource constraints that bound transfer to new situations."
+        }
+      }
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+    }
+  }
+}
+WITH METADATA {
+  source: "SystemBootstrap",
+  author: "$system",
+  confidence: 1.0,
+  status: "active"
+}

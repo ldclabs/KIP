@@ -40,9 +40,12 @@ UPSERT {
                 "$PropositionType",
                 "Domain",
                 "Event",
+                "Experience",
+                "ExperienceStep",
                 "Person",
                 "Preference",
                 "Insight",
+                "Skill",
                 "Commitment",
                 "SleepTask"
             ]
@@ -87,7 +90,11 @@ UPSERT {
                 "learned",
                 "committed_to",
                 "owed_to",
-                "assigned_to"
+                "assigned_to",
+                "has_step",
+                "caused_by",
+                "derived_insight",
+                "compiled_to"
             ]
         }
     }

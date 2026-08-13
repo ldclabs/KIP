@@ -3,42 +3,67 @@
 **[English](./README.md) | [中文](./README_CN.md)**
 
 <p align="center">
-  <em>The open memory protocol for AI agents —<br/>turning stateless language models into minds that remember, learn, and evolve.</em>
+  <em>The open experience learning protocol for AI agents —<br/>turning interaction into memory, knowledge, skill, and better action.</em>
 </p>
 
 <p align="center">
-  <a href="./SPECIFICATION.md"><img src="https://img.shields.io/badge/spec-v1.0--RC10-blue.svg" alt="Specification"></a>
+  <a href="./SPECIFICATION.md"><img src="https://img.shields.io/badge/core-v1.0--RC11-blue.svg" alt="KIP Core Specification"></a>
+  <a href="#the-experience-learning-profile"><img src="https://img.shields.io/badge/profile-Experience%20Learning-purple.svg" alt="Experience Learning Profile"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License: MIT"></a>
-  <a href="#version-history"><img src="https://img.shields.io/badge/status-Release%20Candidate-orange.svg" alt="Status: Release Candidate"></a>
 </p>
 
 ---
 
 ## Why KIP?
 
-> The smartest mind in the world is worth little if it forgets everything by morning.
+> An intelligence that cannot accumulate experience cannot truly learn.
 
-Today's AI is brilliant in the moment and amnesiac the moment after. Close the session, and everything the agent learned — your preferences, the decisions you made together, the promise to follow up on Friday — evaporates. Larger context windows don't fix this; they only buy a larger goldfish bowl. An intelligence that cannot accumulate experience cannot truly learn, cannot keep its word, and cannot grow.
+Today's AI can reason brilliantly inside one session and still repeat the same mistake tomorrow. Larger context windows postpone forgetting; vector retrieval can return related text. Neither, by itself, explains what the agent was trying to achieve, which action changed the situation, where reality contradicted expectation, or how the past should change the next action.
 
-**KIP (Knowledge Interaction Protocol)** fixes this at the protocol layer. It is an open standard for the dialogue between two complementary kinds of machine intelligence:
+KIP is an open protocol for the whole learning loop:
 
-- the **LLM** — a powerful but stateless *probabilistic reasoning engine*;
-- the **knowledge graph** — a persistent, precise, auditable *symbolic memory* (a network of things, and the facts that connect them).
+```text
+Experience → Memory → Knowledge → Skill → Action
+     ▲                                      │
+     └────────────── new feedback ──────────┘
+```
 
-The model thinks; the graph remembers; KIP is the language they speak to each other. It is not a database driver — it is a set of **memory and cognitive primitives**: remember, recall, associate, reinforce, correct, consolidate, forget. With KIP, an agent stops being a brilliant consultant with amnesia and becomes a colleague who has genuinely worked with you for years. This is **Neuro-Symbolic AI** made practical.
+- **Experience** preserves a subject's goal-directed state–decision–action–feedback trajectory.
+- **Memory** lets past state participate in future computation.
+- **Knowledge** compresses stable regularities from evidence and experience.
+- **Skill** compiles experience into an action-selecting policy.
+- **Action** applies that policy to the world and creates new experience.
+
+The protocol connects two complementary kinds of machine intelligence:
+
+- the **LLM** — a powerful but stateless probabilistic reasoning and policy engine;
+- the **Cognitive Nexus** — a persistent, precise, auditable symbolic substrate for memory and learning.
+
+The model interprets and acts; the graph preserves and reorganizes what matters; KIP is the language through which the past changes the future. It is not a database driver. It provides cognitive primitives for **remembering, replaying, associating, reinforcing, correcting, consolidating, compiling skills, and forgetting**.
 
 ### What this gives you
 
-- 🧠 **Memory that survives the session** — conversations, observations, and conclusions become structured, queryable knowledge that you own, instead of context that evaporates
-- 📈 **Learning without retraining** — the agent updates its own knowledge in seconds: new facts, corrected mistakes, evolved preferences — no fine-tuning, no GPU
-- 🔍 **Answers you can audit** — every fact carries source, author, confidence, and timestamps; every answer can be traced back to the memories that produced it
-- 🤖 **A self that persists** — the agent maintains an evolving self-model (`$self`): identity, values, lessons learned, promises made
+- 🧭 **Trajectory memory, not just transcripts** — goals, actions, observations, outcomes, and prediction errors remain queryable as a coherent Experience.
+- 🧠 **Memory that survives the session** — Events, Experiences, facts, preferences, insights, skills, and commitments live in a graph the agent can revisit.
+- 🛠️ **Learning without retraining** — repeated successes and failures can update Knowledge and Skill in seconds, without a weight update.
+- 🎯 **Action-aware recall** — an Action Briefing can return applicable Skills, analogous Experiences, constraints, risks, and commitments before the agent acts.
+- 🔍 **Auditable cognition** — assertions carry provenance, author, confidence, and temporal state; derived Knowledge and Skills point back to their evidence.
+- 🤖 **A self that persists** — `$self` can retain identity, values, lessons, commitments, and a history of changed behavior.
+- 📦 **Portable learning** — idempotent Knowledge Capsules can back up, migrate, and exchange a self-describing memory graph.
 
 ## KIP in 60 Seconds
 
-Memory is a graph. **Concept Nodes** are the things worth remembering (people, projects, ideas); **Proposition Links** are the facts that connect them — `(Alice, prefers, Dark Mode)` — and facts can be about other facts. Every node and link carries **metadata**: where it came from, who asserted it, how confident we are, when it should be forgotten. The LLM operates this graph through three compact instruction sets — **KQL** (query), **KML** (write & evolve), **META** (introspect) — designed to be generated reliably by a language model.
+The Cognitive Nexus is a graph. **Concept Nodes** are the things worth remembering; **Proposition Links** are typed assertions connecting them. Assertions can themselves be subjects or objects, so KIP can represent provenance, attribution, disagreement, and evolving belief.
 
-**Remember** — with provenance:
+The LLM operates the graph through three compact instruction sets:
+
+| Instruction set | Purpose | Statements |
+| --- | --- | --- |
+| **KQL** | Retrieval and graph reasoning | `FIND`, `WHERE`, `FILTER` |
+| **KML** | Formation, correction, and evolution | `UPSERT`, `UPDATE`, `MERGE`, `DELETE` |
+| **META** | Grounding, discovery, and portability | `DESCRIBE`, `SEARCH`, `EXPORT` |
+
+**Remember a fact with provenance:**
 
 ```prolog
 UPSERT {
@@ -51,194 +76,408 @@ UPSERT {
     SET PROPOSITIONS { ("prefers", ?dark_mode) }
   }
 }
-WITH METADATA { source: "conversation:2026-06-11", author: "$self", confidence: 0.95 }
+WITH METADATA {
+  source: "conversation:2026-06-11",
+  author: "$self",
+  confidence: 0.95,
+  memory_strength: 0.80
+}
 ```
 
-**Recall** — strongest memories first:
+**Recall the strongest current assertions:**
 
 ```prolog
-FIND(?pref.name, ?link.metadata.confidence)
+FIND(?pref.name, ?link.metadata.confidence, ?link.metadata.memory_strength)
 WHERE {
   ?alice {type: "Person", name: "Alice"}
   ?link (?alice, "prefers", ?pref)
+  FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded == false)
 }
-ORDER BY ?link.metadata.confidence DESC
+ORDER BY ?link.metadata.memory_strength DESC, ?link.metadata.confidence DESC
 LIMIT 10
 ```
 
-**Associate** — "what do I know about Alice?", with no schema known in advance:
+**Associate without knowing the schema in advance:**
 
 ```prolog
-FIND(?pred, ?neighbor)
+FIND(?predicate, ?neighbor)
 WHERE {
-  ?link ({type: "Person", name: "Alice"}, ?pred, ?neighbor)
+  ?link ({type: "Person", name: "Alice"}, ?predicate, ?neighbor)
 }
 LIMIT 50
 ```
 
-And when an agent wakes up inside a brain it has never seen, a single command — `DESCRIBE PRIMER` — tells it who it is and what it knows. The graph describes itself.
+When an agent wakes inside a graph it has never seen, `DESCRIBE PRIMER` tells it who it is, which domains exist, and which types and predicates it can use. The graph describes itself.
 
-## What Can You Build?
+## The Experience Learning Profile
 
-- **A personal AI that actually knows you** — preferences, history, relationships, and commitments that survive across sessions, devices, and even model upgrades.
-- **An organizational brain** — institutional knowledge that outlives employee turnover and vendor changes, with compliance-grade traceability behind every answer.
-- **Agents that keep their promises** — prospective memory as data: `Commitment` nodes with deadlines that resurface exactly when they are due.
-- **Multi-agent knowledge networks** — memory enters and leaves the brain as portable, idempotent **Knowledge Capsules**, so agents can back up, migrate, and exchange what they know.
+KIP Core remains a general graph protocol. Experience learning is an additive, self-described **Cognitive Memory Profile** built with ordinary KIP capsules. No KQL, KML, or META syntax changes are required.
 
-## Architecture
+### The model
 
-One graph, two cooperating minds, and an integration layer that hides the syntax:
+| Concept | Canonical question | Representation |
+| --- | --- | --- |
+| `Event` | What happened? | Time-bounded occurrence or interaction summary |
+| `Experience` | What goal was pursued, what changed, and what was learned? | Goal-directed trajectory |
+| `ExperienceStep` | What was observed, decided, done, or returned at this point? | Ordered trajectory record |
+| `Insight` | What declarative lesson should be remembered? | Self-contained reflective knowledge |
+| `Skill` | In this kind of state, what policy should guide action? | Procedural memory |
 
-- **`$self` (the waking mind)** converses, encodes new memories, and recalls — in real time.
-- **`$system` (the sleeping mind)** runs maintenance cycles modeled on biological sleep: consolidating episodes into knowledge, scoring salience, decaying the unused, merging duplicates, and reclaiming the expired.
-- **The Brain layer** lets ordinary business agents use all of this through natural language alone — zero KIP knowledge required.
+An Event and an Experience may refer to the same real-world interval, but they are not interchangeable. Event is observer-oriented; Experience is subject-oriented. A conversation with no meaningful goal/action/feedback dynamics should remain an Event. A deployment attempt with hypotheses, tool actions, failures, revised state, and a terminal outcome should be an Experience.
+
+`Memory`, `Knowledge`, and `Action` name functional roles in the learning loop, not mandatory universal Concept Types. Domain capsules define concrete semantic types; the Experience Learning Profile adds three Concept Types (`Experience`, `ExperienceStep`, `Skill`) and four Proposition Types (`has_step`, `caused_by`, `derived_insight`, `compiled_to`).
 
 ```mermaid
 graph LR
-    subgraph "Cognitive Nexus — one graph, every kind of memory"
-        E["Event: Conversation 2026-06-11"] -->|involves| P["Person: Alice"]
-        E -->|consolidated_to| F["Preference: Dark Mode"]
-        P -->|prefers| F
-        S["Person: $self"] -->|committed_to| C["Commitment: Send report by Friday"]
-        C -->|owed_to| P
-        S -->|learned| I["Insight: Lead with conclusions"]
-    end
+    X -->|"has_step"| S1["ExperienceStep 0<br/>observation"]
+    X -->|"has_step"| S2["ExperienceStep 1<br/>action"]
+    X -->|"has_step"| S3["ExperienceStep 2<br/>feedback"]
+    S3 -->|"caused_by"| S2
+    X -->|"consolidated_to"| K["Knowledge"]
+    X -->|"derived_insight"| I["Insight"]
+    X -->|"compiled_to"| P["Skill"]
+    P -->|"conditions"| A["Future action"]
+    A -->|"creates"| NX["New Experience"]
 ```
 
+`ExperienceStep.index` establishes temporal order. `caused_by` is optional and explicit: **earlier does not mean causal**.
+
+### Expectation is a learning signal
+
+Experience becomes especially valuable where the world violates the subject's model:
+
+```text
+expected observation → actual observation → prediction error → policy update
 ```
+
+`ExperienceStep` therefore supports `expected_observation`, `actual_observation`, and `prediction_error`. The parent Experience may carry an aggregate `surprise_score`, which contributes to salience and consolidation priority.
+
+### Confidence is not memory strength
+
+The profile separates three independent signals:
+
+| Signal | Meaning | Typical change |
+| --- | --- | --- |
+| `metadata.confidence` | How strongly evidence warrants believing an assertion | New evidence, contradiction, correction |
+| `metadata.memory_strength` | How accessible a memory currently is and how strongly it competes for recall | Reinforcement, successful reuse, time-based decay |
+| `attributes.salience_score` | How urgently an Event or Experience deserves encoding or consolidation | Goal relevance, surprise, outcome magnitude, novelty, emotion, reusability |
+
+A true but rarely useful fact may retain high confidence while its memory strength falls. A vivid new Experience may have high salience and memory strength while its causal interpretation remains low-confidence. Maintenance must never use confidence as a proxy for retrieval frequency or forgetting.
+
+### From Experience to Skill
+
+Procedural consolidation compares trajectories instead of summarizing a single transcript:
+
+1. Cluster Experiences by goal, initial state, domain, tools, and outcome.
+2. Contrast successful and failed trajectories.
+3. Identify the decision or action that changed the outcome; do not infer causality from sequence alone.
+4. Compile a candidate `Skill` with trigger conditions, preconditions, procedure, decision rules, success criteria, and failure signals.
+5. Link every source with `compiled_to` and inverse `derived_from` provenance.
+6. Validate the policy on later Experiences; strengthen, narrow, supersede, or deprecate it as evidence changes.
+
+`Skill.execution_mode` is a capability boundary (`advisory`, `supervised`, or `autonomous`), not permission to bypass an application's authorization or safety policy.
+
+### Action Briefing
+
+Recall should not stop at “what is related?” Before a consequential action, an Action Briefing can assemble:
+
+- the current goal and known constraints;
+- analogous successful and failed Experiences;
+- applicable Skills and their maturity, confidence, and failure signals;
+- relevant Knowledge and Insights;
+- unresolved contradictions, risks, and due Commitments.
+
+This is the functional test for memory: if removing a past item cannot change any relevant future state, prediction, or action, it is archive material rather than active memory.
+
+## A Complete Experience Example
+
+The following uses only existing KIP Core syntax. Load the profile capsules first.
+
+```prolog
+UPSERT {
+  CONCEPT ?observe_failure {
+    {type: "ExperienceStep", name: "Experience:2026-08-13T09:00:deploy-v2:Step:00"}
+    SET ATTRIBUTES {
+      index: 0,
+      kind: "observation",
+      summary: "The v2 service failed its health check after deployment",
+      timestamp: "2026-08-13T09:00:00Z",
+      actual_observation: "health endpoint returned 503"
+    }
+    SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "Unsorted"}) }
+  }
+  WITH METADATA {
+    source: "execution-trace:deploy-v2", author: "$self",
+    created_at: "2026-08-13T09:10:00Z", observed_at: "2026-08-13T09:00:00Z",
+    confidence: 0.95, memory_strength: 0.90,
+    memory_tier: "short-term", expires_at: "2026-09-12T09:10:00Z"
+  }
+  CONCEPT ?check_database {
+    {type: "ExperienceStep", name: "Experience:2026-08-13T09:00:deploy-v2:Step:01"}
+    SET ATTRIBUTES {
+      index: 1,
+      kind: "action",
+      summary: "Checked the active database target before retrying migration",
+      timestamp: "2026-08-13T09:03:00Z",
+      tool: "database-inspector",
+      expected_observation: "the service points to the migrated database",
+      actual_observation: "the service points to the old database",
+      prediction_error: "the assumed migration problem was actually a connection-target problem",
+      success: true
+    }
+    SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "Unsorted"}) }
+  }
+  WITH METADATA {
+    source: "execution-trace:deploy-v2", author: "$self",
+    created_at: "2026-08-13T09:10:00Z", observed_at: "2026-08-13T09:03:00Z",
+    confidence: 0.95, memory_strength: 0.90,
+    memory_tier: "short-term", expires_at: "2026-09-12T09:10:00Z"
+  }
+  CONCEPT ?experience {
+    {type: "Experience", name: "Experience:2026-08-13T09:00:deploy-v2"}
+    SET ATTRIBUTES {
+      experience_class: "problem_solving",
+      goal: "Deploy service v2 with a healthy database connection",
+      initial_state: {service_version: "v2", assumed_database: "migrated-primary"},
+      status: "completed",
+      outcome: "Corrected the database target and completed the deployment",
+      success: true,
+      prediction_error: "The service was connected to the old database, not the migrated primary",
+      surprise_score: 82,
+      learning_value: 91,
+      started_at: "2026-08-13T09:00:00Z",
+      ended_at: "2026-08-13T09:10:00Z",
+      consolidation_status: "pending",
+      salience_score: 86
+    }
+    SET PROPOSITIONS {
+      ("involves", {type: "Person", name: "$self"})
+      ("belongs_to_domain", {type: "Domain", name: "Unsorted"})
+      ("has_step", ?observe_failure) WITH METADATA {
+        source: "execution-trace:deploy-v2", author: "$self",
+        created_at: "2026-08-13T09:10:00Z", confidence: 0.95,
+        memory_strength: 0.90, expires_at: "2026-09-12T09:10:00Z"
+      }
+      ("has_step", ?check_database) WITH METADATA {
+        source: "execution-trace:deploy-v2", author: "$self",
+        created_at: "2026-08-13T09:10:00Z", confidence: 0.95,
+        memory_strength: 0.90, expires_at: "2026-09-12T09:10:00Z"
+      }
+    }
+  }
+  WITH METADATA {
+    source: "execution-trace:deploy-v2", author: "$self",
+    created_at: "2026-08-13T09:10:00Z", observed_at: "2026-08-13T09:10:00Z",
+    confidence: 0.95, memory_strength: 0.90,
+    memory_tier: "short-term", expires_at: "2026-09-12T09:10:00Z"
+  }
+}
+
+UPSERT {
+  CONCEPT ?experience {
+    {type: "Experience", name: "Experience:2026-08-13T09:00:deploy-v2"}
+  }
+  CONCEPT ?skill {
+    {type: "Skill", name: "Skill:deployment:verify-database-target"}
+    SET ATTRIBUTES {
+      skill_class: "diagnostic",
+      description: "Verify the active database target before treating a deployment failure as a migration failure",
+      goal: "Distinguish database-target failures from migration failures early",
+      trigger_conditions: ["new deployment fails startup or health checks", "database schema error is suspected"],
+      preconditions: ["database target is inspectable"],
+      procedure: ["read the service's active database target", "compare it with the migrated target", "only then inspect or rerun migrations"],
+      expected_outcome: "database target mismatch is confirmed or ruled out before mutation",
+      success_criteria: ["active target identity is verified", "no migration is rerun against an unverified target"],
+      failure_signals: ["target identity cannot be read", "multiple environments share ambiguous credentials"],
+      recovery_strategy: "stop and request environment-owner verification",
+      execution_mode: "supervised",
+      maturity: "candidate",
+      evidence_count: 1,
+      success_count: 1,
+      failure_count: 0,
+      last_validated_at: "2026-08-13T09:10:00Z"
+    }
+    SET PROPOSITIONS {
+      ("derived_from", ?experience)
+      ("belongs_to_domain", {type: "Domain", name: "Unsorted"})
+    }
+  }
+  WITH METADATA {
+    source: "ProceduralConsolidation",
+    author: "$system",
+    created_at: "2026-08-13T10:00:00Z",
+    confidence: 0.72,
+    memory_strength: 0.85
+  }
+  PROPOSITION ?compilation {
+    (?experience, "compiled_to", ?skill)
+  }
+  WITH METADATA {
+    source: "ProceduralConsolidation",
+    author: "$system",
+    created_at: "2026-08-13T10:00:00Z",
+    confidence: 0.72,
+    memory_strength: 0.85
+  }
+}
+```
+
+## Architecture
+
+```text
 ┌─────────────────────┐
-│   Business Agent    │  ← No KIP knowledge needed
+│   Business Agent    │  ← goals, decisions, actions, user interaction
 └────────┬────────────┘
-         │ Natural Language
+         │ natural language + structured traces
          ▼
 ┌─────────────────────┐
-│       Brain         │  ← Formation / Recall / Maintenance (LLM layer)
+│       Brain         │  ← Formation / Recall / Maintenance
 └────────┬────────────┘
-         │ KIP (KQL/KML/META)
+         │ KIP (KQL / KML / META)
          ▼
 ┌─────────────────────┐
-│  Cognitive Nexus    │  ← Persistent Knowledge Graph
+│  Cognitive Nexus    │  ← Event / Experience / Knowledge / Skill / Self
 └─────────────────────┘
 ```
 
-| Instruction Set        | Purpose                           | Statements                            |
-| ---------------------- | --------------------------------- | ------------------------------------- |
-| **KQL** (Query)        | Knowledge retrieval and reasoning | `FIND`, `WHERE`, `FILTER`             |
-| **KML** (Manipulation) | Knowledge evolution and learning  | `UPSERT`, `UPDATE`, `MERGE`, `DELETE` |
-| **META** (Discovery)   | Schema exploration and grounding  | `DESCRIBE`, `SEARCH`, `EXPORT`        |
+- **Formation** identifies memory boundaries, encodes Events and Experiences, preserves provenance, and captures prediction errors without storing noise or private chain-of-thought.
+- **Recall** performs associative memory and trajectory replay, and can produce an Action Briefing that changes what the agent does next.
+- **Maintenance** consolidates Events and Experiences into Knowledge, Insights, Skills, and a coherent self-model; it also reinforces, corrects, supersedes, decays, archives, and forgets.
+
+## Compatibility Contract
+
+The Experience Learning Profile is deliberately additive:
+
+- **No grammar changes.** Existing KQL, KML, and META parsers remain valid.
+- **No new primitive data types.** Profile schemas use existing Concept, Proposition, Object, Array, number, string, and boolean values.
+- **No changed identity rules.** Concepts still use `id` or `{type, name}`; propositions still use `id` or `(subject, predicate, object)`.
+- **Idempotent bootstrap.** Every profile capsule uses ordinary `UPSERT` and can be safely replayed.
+- **Advisory schemas remain advisory.** Engines that know only KIP Core can store and query these types without profile-specific code.
+- **Existing memories remain valid.** Event-only graphs continue to work; Experiences and Skills can be introduced incrementally.
+- **Existing predicates are only widened.** `involves`, `consolidated_to`, and `derived_from` retain all previous valid subject/object combinations while adding Experience-aware ones.
+
+KIP Core specifies the protocol. Capsules define the cognitive vocabulary. Anda Brain implements the Experience Learning Loop as agent behavior.
 
 ## Design Pillars
 
-Eight load-bearing decisions, for readers who want to know whether this is deep or just another wrapper:
+1. **Model-first language design.** Declarative graph patterns, JSON-compatible values, parameters, and idempotent writes make commands reliable for language models and safe to retry. ([Spec §1](./SPECIFICATION.md#1-introduction--design-philosophy))
+2. **A self-describing graph.** Types and predicates live in the graph; `DESCRIBE PRIMER` grounds an agent without out-of-band schema knowledge. ([Spec §2.9](./SPECIFICATION.md#29-knowledge-bootstrapping--meta-definition))
+3. **Experience is a trajectory, not a text chunk.** The profile preserves goal, state, decisions, actions, feedback, outcome, and prediction error.
+4. **Temporal order is not causality.** Step index provides order; explicit `caused_by` links require evidence.
+5. **Facts about facts.** Higher-order propositions represent attribution, confidence, disagreement, and belief evolution. ([Spec §2.3](./SPECIFICATION.md#23-proposition-link))
+6. **Provenance mandatory, history sacred.** Corrections use state evolution and supersession instead of silent overwrite. ([Spec §2.10](./SPECIFICATION.md#210-data-consistency--conflict-resolution-principles))
+7. **Semantic and procedural consolidation are distinct.** Experience may compress into Knowledge or Insight and compile into Skill; neither output substitutes for the other.
+8. **Memory strength is not truth.** Retention and retrieval dynamics never silently rewrite epistemic confidence.
+9. **Memory metabolizes.** Formation, Recall, and Maintenance make consolidation, reinforcement, forgetting, and reconsolidation part of the architecture. ([brain/](./brain/README.md))
+10. **Memory sovereignty.** `EXPORT` turns subgraphs into portable, idempotent capsules that users can own and move. ([Spec §5.3](./SPECIFICATION.md#53-export-statement))
 
-1. **Model-first language design.** KQL/KML/META are not SQL or SPARQL retrofits. Declarative graph patterns, JSON-compatible literals, `:param` placeholders, and strictly idempotent writes make commands easy for a transformer to generate — and safe to retry when it fails. ([Spec §1](./SPECIFICATION.md#1-introduction--design-philosophy), [§4.1](./SPECIFICATION.md#41-upsert-statement))
-2. **A self-describing graph.** The schema lives *inside* the graph: `$ConceptType` defines itself (the Genesis), and every type and predicate is a queryable node. An agent grounds itself in an unfamiliar brain via `DESCRIBE PRIMER` — no out-of-band documentation. ([§2.9](./SPECIFICATION.md#29-knowledge-bootstrapping--meta-definition), [Appendix 2](./SPECIFICATION.md#appendix-2-the-genesis-capsule))
-3. **Facts about facts.** Propositions are first-class citizens and can be the subject or object of higher-order propositions — beliefs, attributions, and disagreements are representable, not flattened away. ([§2.3](./SPECIFICATION.md#23-proposition-link))
-4. **Provenance mandatory, history sacred.** Every assertion carries `source / author / confidence`; contradictions resolve by *state evolution* (`superseded`), never silent overwrite. The brain remembers what it used to believe — and when it changed its mind. ([§2.10](./SPECIFICATION.md#210-data-consistency--conflict-resolution-principles), [Appendix 1](./SPECIFICATION.md#appendix-1-metadata-field-design))
-5. **Memory that metabolizes.** Encoding (Formation), associative retrieval (Recall), and sleep cycles (Maintenance): salience scoring, reinforcement, asymmetric confidence decay, episodic→semantic consolidation, TTL reclamation. Forgetting is a designed feature with three orthogonal mechanisms — not a failure mode. ([brain/](./brain/README.md))
-6. **Identity as memory.** `$self` is a living node — persona, values, `Insight` lessons, growth milestones — woven into a coherent self-narrative during sleep. The agent doesn't merely *have* memories; over time, it *is* them. ([Appendix 3](./SPECIFICATION.md#appendix-3-core-identity--actor-definitions-genesis-template))
-7. **An engineering-grade substrate.** Engine-maintained `_version` with `EXPECT VERSION` optimistic locking for multi-writer brains; bulk `UPDATE` arithmetic (a whole decay pass in one command); atomic `MERGE` entity consolidation; specified `keyword | semantic | hybrid` retrieval with normalized scores — and reads stay reads: the protocol deliberately defines no access statistics. ([§2.11](./SPECIFICATION.md#211-system-maintained-metadata--optimistic-concurrency), [§4.3–4.4](./SPECIFICATION.md#43-update-statement), [§5.2](./SPECIFICATION.md#52-search-statement))
-8. **Memory sovereignty.** `EXPORT` serializes any subgraph into an idempotent capsule: back up your brain, migrate between engines, share knowledge agent-to-agent. Your agent's mind is an asset you own — not a byproduct trapped in someone else's weights. ([§5.3](./SPECIFICATION.md#53-export-statement))
+## What Can You Build?
 
-## The Road to AGI: Why a Memory Protocol Matters
-
-Scaling gave machines fluent thought. It has not given them durable minds. A growing body of work — from memory-augmented architectures to neuro-symbolic systems — points to the same conclusion: the next leap toward general intelligence depends less on ever-larger context windows and more on **memory as a system**: structured, persistent, self-organizing. KIP is a concrete, implementable position in that conversation:
-
-1. **Fluid and crystallized intelligence, finally separated.** The LLM supplies fluid intelligence — reasoning, language, intuition. The Cognitive Nexus accumulates crystallized intelligence — verified facts, learned preferences, hard-won lessons. KIP is the interface where the two trade. Upgrade the model, and the mind survives; keep the agent running, and its knowledge compounds.
-2. **Learning at the speed of conversation.** A weight update takes a training run; a KIP `UPSERT` takes milliseconds and is inspectable, correctable, and reversible. This is continual learning without catastrophic forgetting — knowledge editing as a first-class operation, not an open research problem.
-3. **Identity that persists.** Memory is the substrate of self. An agent that remembers its history, keeps its promises, and refines its self-model over years is categorically different from a chat session. KIP makes the self a data structure: protected core directives, an evolvable narrative, and a growth timeline written in the graph itself.
-4. **Accountability before autonomy.** The more autonomous AI becomes, the more its knowledge must be auditable. With mandatory provenance, confidence, and supersession history, you can ask not just *"what does the agent believe?"* but *"why, since when, on what evidence — and what did it believe before?"* That is the difference between plausible text and accountable knowledge.
-5. **From private memory to a knowledge economy.** When memory is portable and verifiable, knowledge becomes an asset: capsules can be backed up, migrated, shared, and eventually traded between agents — a market for what minds know, not just what models weigh.
-
-What TCP/IP did for connecting machines, and SQL did for querying data, KIP aims to do for the memory of intelligent agents. The specification has been refined through 17 public revisions in its first year, alongside production implementations ([Anda DB](https://github.com/ldclabs/anda-db), [Anda Brain](https://github.com/ldclabs/anda-brain), [Anda Bot](https://github.com/ldclabs/anda-bot)) — it is a proposal you can run today, and a standard we invite you to challenge.
-
-*LLMs taught machines to think. KIP teaches them to remember — and remembering, over time, is how a mind becomes itself.*
+- **A personal AI that grows through use** — it remembers preferences and commitments, but also how previous attempts succeeded or failed.
+- **An organizational learning system** — decision rationale, incident trajectories, operational knowledge, and validated procedures survive personnel and model changes.
+- **Agents that improve without retraining** — new Experiences update inspectable Knowledge and Skills instead of waiting for another model release.
+- **Action-aware copilots** — retrieve applicable policies and contrasting cases before a deployment, diagnosis, negotiation, or high-stakes decision.
+- **Multi-agent learning networks** — exchange portable Knowledge and Skill capsules with explicit provenance and confidence.
 
 ## Get Started
 
-**1. Run a brain.** Spin up the [Anda Cognitive Nexus HTTP Server](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus_server) (Rust, JSON-RPC at `POST /kip`), or embed it directly via the [Rust crate](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) / [Python binding](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py).
+1. **Run a Cognitive Nexus.** Use the [Anda Cognitive Nexus HTTP Server](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus_server), the [Rust crate](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus), or the [Python binding](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py).
+2. **Bootstrap KIP Core.** Load [Genesis.kip](./capsules/Genesis.kip), followed by `Person`, `Event`, `Preference`, `Insight`, `Commitment`, and `SleepTask`.
+3. **Load the Experience Learning Profile.** Load `Experience`, `ExperienceStep`, and `Skill`, then the four predicate capsules. The recommended deterministic order is shown below.
+4. **Connect the agent.** Embed [KIPSyntax.md](./KIPSyntax.md) and expose [`execute_kip`](./FunctionDefinition.json), or put the [Brain layer](./brain/README.md) or [MCP server](./mcp/kip-mcp-server/) in front of KIP.
 
-**2. Bootstrap the mind.** Load [Genesis.kip](./capsules/Genesis.kip) and the core capsules (`Person`, `Event`, `Preference`, `Insight`, `Commitment`, `SleepTask`) — the graph now describes itself.
+```text
+capsules/Genesis.kip
+capsules/Person.kip
+capsules/Event.kip
+capsules/Preference.kip
+capsules/Insight.kip
+capsules/Commitment.kip
+capsules/SleepTask.kip
+capsules/Experience.kip
+capsules/ExperienceStep.kip
+capsules/Skill.kip
+capsules/has_step.kip
+capsules/caused_by.kip
+capsules/derived_insight.kip
+capsules/compiled_to.kip
+```
 
-**3. Connect your agent.** Speak KIP directly — embed [KIPSyntax.md](./KIPSyntax.md) in the system prompt and expose [`execute_kip`](./FunctionDefinition.json) — or skip the syntax entirely: front the graph with the [Brain layer](./brain/README.md) (Formation / Recall / Maintenance prompts) or the [MCP server](./mcp/kip-mcp-server/), and any MCP client (Claude, Cursor, VS Code, ...) gets a memory brain out of the box.
+The type capsules precede predicate capsules so schema references are already grounded. All writes are idempotent, so the complete sequence may be replayed.
 
 ## Documentation
 
-| Document                                           | Description                                                   |
-| -------------------------------------------------- | ------------------------------------------------------------- |
-| [📖 Specification](./SPECIFICATION.md)              | Complete KIP protocol specification (English)                 |
-| [📖 规范文档](./SPECIFICATION_CN.md)                | 完整的 KIP 协议规范 (中文)                                    |
-| [📐 Syntax Reference](./KIPSyntax.md)               | Condensed KQL / KML / META syntax for system prompts          |
-| [🧠 Brain Overview](./brain/README.md)              | The autonomous memory layer: Formation / Recall / Maintenance |
-| [🤖 Agent Instructions](./SelfInstructions.md)      | `$self` operational guide (waking mind)                       |
-| [⚙️ System Instructions](./SystemInstructions.md)   | `$system` sleep-cycle maintenance guide                       |
-| [📋 Function Definition](./FunctionDefinition.json) | `execute_kip` function schema for LLM integration             |
+| Document | Description |
+| --- | --- |
+| [📖 Specification](./SPECIFICATION.md) | Complete KIP Core protocol specification |
+| [📖 规范文档](./SPECIFICATION_CN.md) | KIP Core protocol specification in Chinese |
+| [📐 Syntax Reference](./KIPSyntax.md) | Condensed KQL / KML / META syntax for prompts |
+| [🧠 Brain Overview](./brain/README.md) | Formation / Recall / Maintenance architecture |
+| [🤖 Agent Instructions](./SelfInstructions.md) | `$self` operational guide |
+| [⚙️ System Instructions](./SystemInstructions.md) | `$system` maintenance guide |
+| [📋 Function Definition](./FunctionDefinition.json) | `execute_kip` function schema |
+| [🗣 Domain Language](./CONTEXT.md) | Canonical Experience Learning vocabulary |
 
 ## Resources
 
-This repository includes ready-to-use resources for building KIP-powered AI agents:
-
 ### 📦 Knowledge Capsules (`capsules/`)
 
-Pre-built knowledge capsules for bootstrapping your Cognitive Nexus:
-
-| Capsule                                             | Description                                                 |
-| --------------------------------------------------- | ----------------------------------------------------------- |
-| [Genesis.kip](./capsules/Genesis.kip)               | Foundational capsule that bootstraps the entire type system |
-| [Person.kip](./capsules/Person.kip)                 | `Person` concept type for actors (AI, Human, Organization)  |
-| [Event.kip](./capsules/Event.kip)                   | `Event` concept type for episodic memory                    |
-| [Preference.kip](./capsules/Preference.kip)         | `Preference` concept type for stable preference facts       |
-| [Insight.kip](./capsules/Insight.kip)               | `Insight` concept type for self-reflective lessons          |
-| [Commitment.kip](./capsules/Commitment.kip)         | `Commitment` type for prospective promises & deadlines      |
-| [SleepTask.kip](./capsules/SleepTask.kip)           | `SleepTask` type plus `Unsorted` / `Archived` domains       |
-| [persons/self.kip](./capsules/persons/self.kip)     | The `$self` concept instance                                |
-| [persons/system.kip](./capsules/persons/system.kip) | The `$system` concept instance                              |
+| Capsule | Description |
+| --- | --- |
+| [Genesis.kip](./capsules/Genesis.kip) | Bootstraps the self-describing KIP type system |
+| [Person.kip](./capsules/Person.kip) | Actors: AI, Human, Organization |
+| [Event.kip](./capsules/Event.kip) | Objective episodic occurrences and shared provenance predicates |
+| [Experience.kip](./capsules/Experience.kip) | Goal-directed trajectories |
+| [ExperienceStep.kip](./capsules/ExperienceStep.kip) | Ordered observation, decision, action, and feedback records |
+| [Skill.kip](./capsules/Skill.kip) | Procedural memory and action-selecting policy |
+| [has_step.kip](./capsules/has_step.kip) | `Experience → ExperienceStep` membership |
+| [caused_by.kip](./capsules/caused_by.kip) | Evidence-backed causal links between steps |
+| [derived_insight.kip](./capsules/derived_insight.kip) | `Experience → Insight` consolidation |
+| [compiled_to.kip](./capsules/compiled_to.kip) | `Experience → Skill` procedural consolidation |
+| [Preference.kip](./capsules/Preference.kip) | Stable preference facts |
+| [Insight.kip](./capsules/Insight.kip) | Declarative lessons and self-reflection |
+| [Commitment.kip](./capsules/Commitment.kip) | Prospective promises, reminders, and deadlines |
+| [SleepTask.kip](./capsules/SleepTask.kip) | Maintenance work, including `compile_to_skill` |
+| [persons/self.kip](./capsules/persons/self.kip) | The `$self` concept instance |
+| [persons/system.kip](./capsules/persons/system.kip) | The `$system` concept instance |
 
 ### 🧠 Brain (`brain/`)
 
-A dedicated LLM layer that manages the Cognitive Nexus on behalf of business agents — no KIP knowledge required:
-
-| File                                                                   | Description                                                          |
-| ---------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| [BrainFormation.md](./brain/BrainFormation.md)                         | System prompt for memory encoding (messages → structured knowledge)  |
-| [BrainRecall.md](./brain/BrainRecall.md)                               | System prompt for memory retrieval (natural language → KIP → answer) |
-| [BrainMaintenance.md](./brain/BrainMaintenance.md)                     | System prompt for memory maintenance (sleep mode)                    |
-| [RecallFunctionDefinition.json](./brain/RecallFunctionDefinition.json) | `recall_memory` function schema for business agent integration       |
+| File | Description |
+| --- | --- |
+| [BrainFormation.md](./brain/BrainFormation.md) | Messages and structured traces → Event / Experience / Knowledge |
+| [BrainRecall.md](./brain/BrainRecall.md) | Natural language → associative recall / replay / Action Briefing |
+| [BrainMaintenance.md](./brain/BrainMaintenance.md) | Semantic and procedural consolidation, correction, decay, and forgetting |
+| [RecallFunctionDefinition.json](./brain/RecallFunctionDefinition.json) | Read-only memory interface for business agents |
 
 ### 🔧 Tooling
 
-| Tool                                    | Description                                                                                                    |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| [kip-mcp-server](./mcp/kip-mcp-server/) | `@ldclabs/kip-mcp-server` — MCP server bridging any MCP client (Claude, Cursor, VS Code, ...) to a KIP backend |
-| [vscode-kip](./packages/vscode-kip/)    | VS Code language support for `.kip` files: syntax highlighting, formatting, diagnostics, folding               |
+| Tool | Description |
+| --- | --- |
+| [kip-mcp-server](./mcp/kip-mcp-server/) | MCP bridge from compatible clients to a KIP backend |
+| [vscode-kip](./packages/vscode-kip/) | `.kip` syntax highlighting, formatting, diagnostics, and folding |
 
 ## Implementations
 
-| Project                                                                                                         | Description                                                                               |
-| --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip)                                        | Rust SDK for building AI knowledge memory systems                                         |
-| [Anda Cognitive Nexus](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus)                    | Rust implementation of KIP based on Anda DB                                               |
-| [Anda Brain](https://github.com/ldclabs/anda-brain)                                                             | Autonomous Graph Memory for AI Agents                                                     |
-| [Anda Cognitive Nexus Python](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py)          | Python binding for Anda Cognitive Nexus                                                   |
-| [Anda Cognitive Nexus HTTP Server](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus_server) | A Rust-based HTTP server that exposes KIP via a small JSON-RPC API (`GET /`, `POST /kip`) |
-| [Anda Bot](https://github.com/ldclabs/anda-bot)                                                                 | AI Agent based on KIP & Anda Brain                                                        |
+| Project | Description |
+| --- | --- |
+| [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip) | Rust SDK for KIP applications |
+| [Anda Cognitive Nexus](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) | Anda DB-based KIP implementation |
+| [Anda Brain](https://github.com/ldclabs/anda-brain) | Autonomous memory and experience-learning layer for AI agents |
+| [Anda Cognitive Nexus Python](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py) | Python binding for the Cognitive Nexus |
+| [Anda Bot](https://github.com/ldclabs/anda-bot) | AI agent built with KIP and Anda Brain |
 
-## Version History
+## Versioning
 
-| Version     | Date       | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ----------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| v1.0-RC10   | 2026-07-04 | v1.0 Release Candidate 10: Defined per-command result shapes (columnar `FIND` result model, `UPSERT` block/ID report, `DELETE` deletion/mutation counters) and solution-set deduplication; added `CURSOR` pagination to `EXPORT` and structural `(s, "p", o)` references for outside higher-order endpoints; specified `SEARCH PROPOSITION ... WITH TYPE` predicate semantics; `MERGE` now carries source `_merged_from` forward and hints "already merged" on replay; added the operational `System` domain (SleepTask home) to the Genesis bootstrap; hardened decay examples and brain-prompt templates; refreshed Genesis `key_instances` and aligned EN/CN drift |
-| v1.0-RC9    | 2026-06-11 | v1.0 Release Candidate 9: Associative-recall & memory-metabolism primitives — predicate variables (`(?s, ?p, ?o)`), multi-key `ORDER BY`, specified `SEARCH` modes (`keyword` \| `semantic` \| `hybrid` with `THRESHOLD` / `_score`), new KML `UPDATE` (bulk mutation with `ADD`/`MUL`/`CLAMP`/`COALESCE`) and `MERGE CONCEPT ... INTO ...` (atomic entity consolidation), reserved engine-maintained `_` metadata (`_version`, `_updated_at`, ...), `EXPECT VERSION` optimistic concurrency (`KIP_3005`), and META `EXPORT` for capsule round-tripping                                                                                                               |
-| v1.0-RC8    | 2026-06-10 | v1.0 Release Candidate 8: Clarified `ORDER BY` sort expressions (dot-paths and aggregations, single key), whole-object dot access (`?var.attributes` / `?var.metadata`), aggregation `null` semantics, `KIP_3002` for match-only `{id:}` / `(id:)` targets, advisory `instance_schema` enforcement, and `CURSOR :param` placeholders; extended `KIP_3004` protected scope to the `Domain` type and `belongs_to_domain`; aligned instruction examples (removed unregistered `created_by`, ID-based confidence decay)                                                                                                                                                   |
-| v1.0-RC7    | 2026-06-04 | v1.0 Release Candidate 7: Added single-command `execute_kip`, per-command batch parameters, KIP value-position placeholders for `LIMIT` / `SEARCH`, JSON-compatible unquoted object keys, `belongs_to_class` examples, stronger Hippocampus provenance/supersession guidance, and aligned Recall/MCP schemas                                                                                                                                                                                                                                                                                                                                                          |
-| v1.0-RC6    | 2026-04-25 | v1.0 Release Candidate 6: Added state-evolution metadata (`superseded` / `superseded_by` / `superseded_at`); clarified `expires_at` as a maintenance signal (only `$system` Phase 12 hard-deletes, capped 500/cycle); added `KIP_2003 InvalidValueType` and `KIP_3004 ImmutableTarget` error codes; consolidated syntax reference into [KIPSyntax.md](./KIPSyntax.md); restructured Hippocampus prompts (Formation / Recall / Maintenance) for prompt-embedding                                                                                                                                                                                                       |
-| v1.0-RC5    | 2026-03-25 | v1.0 Release Candidate 5: Added `execute_kip_readonly` interface                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| v1.0-RC4    | 2026-03-09 | v1.0 Release Candidate 4: Added `IN`, `IS_NULL`, `IS_NOT_NULL` FILTER operators; clarified UNION variable scope semantics; defined batch response structure; added temporal and UNION query examples                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| v1.0-RC3    | 2026-01-09 | v1.0 Release Candidate 3: Optimized documentation; optimized instructions; optimized knowledge capsules                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ...         | ...        | ...                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| v1.0-draft1 | 2025-06-09 | Initial Draft                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+KIP Core and Cognitive Memory Profiles evolve independently:
 
-[Full version history →](./SPECIFICATION.md)
+- The badge at the top identifies the KIP Core grammar and execution contract.
+- Capsule changes may add or widen cognitive types and predicates without changing Core.
+- A future Core revision is required only when syntax, execution semantics, result shapes, or protocol-level invariants change.
+
+The Experience Learning Profile therefore does **not** rename KIP or invalidate existing v1.0-RC11 clients. It makes the protocol's learning purpose explicit while preserving every existing Core command.
+
+[Full KIP Core version history →](./SPECIFICATION.md)
 
 ## About Us
 

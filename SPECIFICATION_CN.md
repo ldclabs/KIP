@@ -24,6 +24,7 @@
 | v1.0-RC8    | 2026-06-10 | v1.0 Release Candidate 8：澄清 `ORDER BY` 排序表达式（支持点路径与聚合表达式、单一排序键）；定义整对象点访问（`?var.attributes` / `?var.metadata`）；定义聚合函数的 `null` 语义（`OPTIONAL` 未命中组的 `COUNT` 为 `0`）；明确仅匹配的 `{id:}` / `(id:)` 目标不存在时返回 `KIP_3002`；将 `KIP_3004` 保护范围扩展至 `Domain` 类型与 `belongs_to_domain` 定义；声明 `instance_schema` 的强制校验由实现决定；允许 `CURSOR :param` 占位符；移除指令示例中未注册的 `created_by` 谓词，并将 `$system` 置信度衰减指引对齐为基于 ID 的命题更新                                                                                                                                                              |
 | v1.0-RC9    | 2026-06-11 | v1.0 Release Candidate 9：新增联想回忆与记忆代谢原语：命题模式中的谓词变量（`(?s, ?p, ?o)`）；多键 `ORDER BY`；规范化 `SEARCH` 检索模式（`MODE "keyword" \| "semantic" \| "hybrid"`、`THRESHOLD`、瞬态 `_score`）；新增 KML `UPDATE` 语句（基于模式匹配的批量变更，支持 `ADD` / `MUL` / `CLAMP` / `COALESCE` 更新表达式）与 `MERGE CONCEPT ... INTO ...` 语句（原子实体合并）；保留由引擎维护的 `_` 元数据命名空间（`_version`、`_updated_at`；刻意不含读取追踪统计）；`EXPECT VERSION` 乐观并发控制及新错误码 `KIP_3005`；新增 META `EXPORT` 语句以实现知识胶囊的导出回流                                                                                                                         |
 | v1.0-RC10   | 2026-07-04 | v1.0 Release Candidate 10：定义各命令的结果结构（列式 `FIND` 结果模型、`UPSERT` 块/ID 报告、`DELETE` 删除/变更计数）与解集去重（集合语义）；`EXPORT` 新增 `CURSOR` 分页，导出集外的高阶端点以结构化 `(s, "p", o)` 子句引用；明确 `SEARCH PROPOSITION ... WITH TYPE` 的谓词语义；`MERGE` 会继承源节点的 `_merged_from` 并应在重放时提示“已合并”；要求 `command` / `commands` 恰好提供其一；在创世胶囊中新增操作性 `System` 领域（`SleepTask` 实例的归属），与 `Unsorted` / `Archived` 一同引导；加固置信度衰减示例；澄清 `EXPECT VERSION` 幂等性例外、零跳路径示例、裸变量 `ORDER BY` 排序键及领域归属措辞；刷新创世 `key_instances` 与 `instance_schema` 元键；补全附录 3 胶囊清单并对齐中英文漂移 |
+| v1.0-RC11   | 2026-08-13 | 新增 Experience Learning 认知 Profile：明确 Event、Experience 与 Skill 的边界；引入与认知置信度 `confidence` 分离的 `memory_strength`；在不修改 KQL/KML Core 语法的前提下，补充程序性记忆与 Experience → Skill 巩固模型；链接 Brain 的经验学习架构和认知记忆 Profile 文档。 |
 
 **KIP 实现**：
 
@@ -38,21 +39,34 @@
 
 ## 0. 前言
 
-大型语言模型（LLM）展现了卓越的通用推理与生成能力，但其**“无状态”（Stateless）**的本质导致了长期记忆的缺失，而基于概率的生成机制则引发了不可控的“幻觉”与知识过时问题。
+大型语言模型（LLM）已经具备很强的通用推理和生成能力，但无状态的执行方式本身不提供持久的个人记忆；概率生成也可能产生幻觉，并很快与持续变化的外部事实脱节。
 
-如何构建一个既能利用 LLM 强大的推理能力，又能通过结构化数据确保持久性、准确性和可追溯性的系统，是当前 AI 智能体架构的核心挑战。**神经符号人工智能（Neuro-Symbolic AI）**被认为是解决这一问题的关键路径。
+如何把 LLM 的推理能力与持久、可纠正、可追溯的外部状态结合起来，是 AI 智能体架构的核心问题之一。**KIP（Knowledge Interaction Protocol，知识交互协议）**就是面向这类外部认知状态设计的图协议。
 
-**KIP（Knowledge Interaction Protocol，知识交互协议）** 为此而生。
+KIP 连接 **LLM（概率推理引擎）** 与 **认知中枢（结构化、确定性的记忆状态）**。它不只是数据库接口，还提供面向模型的接地、查询、变更、溯源、时间演变、巩固和遗忘原语。
 
-KIP 定义了一套标准的交互协议，旨在弥合 **LLM（概率推理引擎）** 与 **知识图谱（确定性知识库）** 之间的鸿沟。它不是一个简单的数据库接口，而是一套专为智能体设计的**记忆与认知操作原语**。
+KIP 刻意不绑定唯一的认知理论。实现可以只保存普通领域知识，也可以采用更完整的**认知记忆 Profile**，区分情景事件、目标导向经验、语义知识、程序性技能、前瞻承诺和自我模型等产物。
 
-通过 KIP，我们致力于实现：
+这些概念可以这样区分：
 
-1.  **记忆持久化（Persistence）**：将智能体的对话、观测与推理结果，转化为结构化的“知识胶囊”，实现记忆的原子性存储与复用。
-2.  **知识动态演进（Evolution）**：提供完整的增删改查（CRUD）与元数据管理机制，使智能体具备自主更新知识库、修正错误的“学习”能力。
-3.  **交互可解释（Explainability）**：将隐式的思维过程显式化为 KIP 指令，使智能体的每一次回答都有据可查，每一次决策都逻辑透明。
+```text
+Event       = 发生了什么
+Experience  = 主体走过的状态—行动—观察轨迹
+Knowledge   = 从经验或证据中压缩出的规律
+Skill       = 由经验编译成的可执行流程或策略
+Memory      = 让过去参与未来计算的机制
+```
 
-本规范旨在为开发者提供一套开放、通用的标准，构建下一代具备**可信记忆**与**持续学习能力**的智能体。
+KIP 希望提供以下能力：
+
+1. **记忆持久化**：把对话、观察、工具结果和其他值得保留的信号，转成结构化、可寻址的记忆。
+2. **知识演变**：在保留来源和时间历史的前提下，更新、纠正、取代、合并和退出知识。
+3. **经验学习**：当认知 Profile 支持时，保存有意义的轨迹，并将其巩固为语义知识和程序性 Skill。
+4. **交互可解释**：通过显式 KIP 指令和溯源信息，让外部记忆操作可以检查和审计。
+
+KIP 提供的是**实现学习所需的原语**；仅仅写入存储，还不能证明智能体已经学会。更有力的操作性判据是：过去的经验是否在相关情境下，持续改变了未来行为。
+
+本规范面向需要**可信记忆、连续状态演变和经验驱动学习**的智能体，为开发者、架构师和研究者提供一套开放、通用的协议。
 
 ## 1. 简介与设计哲学
 
@@ -72,7 +86,7 @@ KIP 的核心目标是建立一个**统一的认知中枢（Cognitive Nexus）**
 
 ### 2.1. 认知中枢（Cognitive Nexus）
 
-一个由**概念节点**和**命题链接**构成的知识图谱，是 AI 智能体 **统一的记忆大脑**。它容纳了从短暂的情景事件到持久的语义知识等所有层次的记忆，并通过系统后台的自主进程实现记忆的**新陈代谢（巩固与遗忘）**。
+由**概念节点**和**命题链接**构成的知识图谱，承载 AI 智能体统一的**外部认知状态**。它具体容纳哪些记忆，取决于采用的认知 Profile，可以包括情景 Event、目标导向 Experience、语义知识、程序性 Skill、前瞻承诺和自我模型。巩固、强化、取代与遗忘等记忆代谢过程由构建在 KIP 之上的高层认知流程实现。
 
 ### 2.2. 概念节点（Concept Node）
 
@@ -694,13 +708,13 @@ LIMIT 20
 **示例 5（联想回忆与记忆排序）**：以某人为起点，在事先不知道谓词的情况下探索其周边的全部关系（排除组织性链接），并按记忆强度排序。
 
 ```prolog
-FIND(?pred, ?neighbor, ?link.metadata.confidence)
+FIND(?pred, ?neighbor, ?link.metadata.memory_strength, ?link.metadata.confidence)
 WHERE {
   ?person {type: "Person", name: "Alice"}
   ?link (?person, ?pred, ?neighbor)
   FILTER(?pred != "belongs_to_domain")
 }
-ORDER BY ?link.metadata.confidence DESC, ?link.metadata.created_at DESC
+ORDER BY ?link.metadata.memory_strength DESC, ?link.metadata.confidence DESC
 LIMIT 50
 ```
 
@@ -922,7 +936,7 @@ WHERE {
 
 ### 4.3. `UPDATE` 语句
 
-**功能**：对已存在的概念节点或命题链接进行基于模式匹配的**批量变更**。`UPSERT` 按身份逐个定位元素，而 `UPDATE` 在单条原子语句中变更 `WHERE` 模式匹配到的*所有*元素。它**绝不创建**新元素。这是**记忆代谢**的主力原语：置信度衰减、强化计数、显著性刷新、状态清扫，都从 N 条按身份定位的写入收敛为一条意图级命令。
+**功能**：对已存在的概念节点或命题链接进行基于模式匹配的**批量变更**。`UPSERT` 按身份逐个定位元素，而 `UPDATE` 在单条原子语句中变更 `WHERE` 模式匹配到的*所有*元素。它**绝不创建**新元素。这是**记忆代谢**的主力原语：记忆强度衰减、强化计数、显著性刷新、状态清扫，都从 N 条按身份定位的写入收敛为一条意图级命令。
 
 **语法**：
 
@@ -963,27 +977,32 @@ LIMIT N
 **示例**：
 
 ```prolog
-// 睡眠周期置信度衰减：一条命令覆盖所有谓词
-//（谓词变量 + 批量更新；豁免结构性链接与 1.0 公理性真值）
+// 睡眠周期记忆强度衰减：一条命令覆盖所有谓词
+//（谓词变量 + 批量更新；豁免结构性链接）
 // 仅适用于小图：候选集超出引擎物化上限后，这种无约束扫描会被拒绝
-//（KIP_4002）——应按谓词（?link (?s, :predicate, ?o)）、端点类型或域分片，
+//（KIP_4002）——应按谓词（?link (?s, "prefers", ?o)）、端点类型或域分片，
 // 配合同一标记护栏逐片遍历（见「扫描边界」）。
 UPDATE ?link
 SET METADATA {
-  confidence: CLAMP(MUL(?link.metadata.confidence, :decay_factor), 0.0, 1.0),
-  decay_applied_at: :timestamp
+  memory_strength: CLAMP(
+    MUL(COALESCE(?link.metadata.memory_strength, 0.7), :decay_factor),
+    0.0, 1.0
+  ),
+  strength_decay_applied_at: :timestamp
 }
 WHERE {
   ?link (?s, ?p, ?o)
   FILTER(?p != "belongs_to_domain")
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
-  FILTER(?link.metadata.created_at < :decay_threshold)
-  FILTER(?link.metadata.confidence > 0.3 && ?link.metadata.confidence < 1.0)
+  FILTER(IS_NULL(?link.metadata.observed_at) || ?link.metadata.observed_at < :stale_cutoff)
   // 幂等护栏：每条链接每周期至多衰减一次；重复执行直到 updated < LIMIT
-  FILTER(IS_NULL(?link.metadata.decay_applied_at) || ?link.metadata.decay_applied_at < :cycle_start)
+  FILTER(IS_NULL(?link.metadata.strength_decay_applied_at) ||
+         ?link.metadata.strength_decay_applied_at < :cycle_start)
 }
 LIMIT 500
 ```
+
+该示例衰减的是记忆可访问性，不是真值证据。仅凭时间流逝不应降低 `confidence`；只有当证据、来源质量、矛盾、撤回或有效性发生变化时才更新它。
 
 ```prolog
 // 再次确认时的记忆强化 —— 无需读-改-写往返
@@ -1412,13 +1431,13 @@ graph TD
 4. **执行与响应（Execute & Respond）**：
    生成的代码被发送到认知中枢的推理引擎执行，推理引擎返回结构化的数据结果或操作成功的状态。
 
-5. **知识固化（Solidify Knowledge）**：
-   如果在交互中产生了新的、可信的知识（例如，用户确认了一个新的事实），LLM 应该履行“学习”的职责：
-   - 生成一个封装了新知识的 `UPSERT` 语句。
-   - 执行该语句，将新知识永久固化到认知中枢，完成学习闭环。
+5. **存入候选记忆（Store Candidate Memory）**：
+   如果交互中产生了新的、可信的知识（例如用户确认了一个新事实），LLM 应：
+   - 生成封装该知识的 `UPSERT` 语句。
+   - 执行该语句，将其存为候选持久记忆。是否形成学习，由后续召回、预测或行为是否改变来验证。
 
 6. **结果综合（Synthesize Results）**：
-   LLM 将从符号核心收到的结构化数据或操作回执，翻译成流畅、人性化且**可解释**的自然语言。建议 LLM 向用户解释自己的推理过程（即 KIP 代码所代表的逻辑），从而建立信任。
+   LLM 将符号核心返回的结构化数据或操作回执，转成清楚、可解释的自然语言。可以说明检索到的证据和执行的 KIP 操作，但不得披露内部思维链。
 
 ## 附录 1. 元数据字段设计
 
@@ -1428,7 +1447,8 @@ graph TD
 
 - `source` (来源): `String` | `Array<String>`, 知识的直接来源标识。
 - `author` (作者/创建者): `String`, 断言或创建该记录的实体。
-- `confidence` (可信度): `Number`, 对知识为真的信心分数 (0.0-1.0)。断言的信任度**只**存放于此（做出该断言的节点或链接的 metadata）；不要在 attributes 中重复存放一份——否则强化与衰减会各自作用在不同副本上。属于知识内容本身的强化信号（`evidence_count`、`first_observed` / `last_observed`）则放在 attributes 中。
+- `confidence`（认知置信度）：`Number`，表示一条断言为真或记录忠实的证据支持程度（0.0–1.0）。断言置信度**只**存放在做出该断言的节点或链接的 metadata 中，不要在 attributes 里再复制一份。`confidence` 应当因为证据、核验、矛盾、撤回或来源质量而变化，不能只因为长期没有召回就自动降低。
+- `memory_strength`（记忆强度）：`Number`（0.0–1.0，可选），表示记忆当前的可访问性或激活强度。它可以随强化或成功复用而提高，也可以因长期不用而衰减；它不是事实为真的概率，不能替代 `confidence`。
 - `evidence` (证据): `Array<String>`, 指向支持断言的具体证据。
 
 ### A1.2. 时效性与生命周期 (Temporality & Lifecycle)
@@ -1441,6 +1461,8 @@ graph TD
 - `superseded` (已被取代): `Boolean`, 当较新的事实取代当前事实、而当前事实作为历史状态保留时为 `true`。
 - `superseded_by` / `supersedes` (取代链): `String`, 指向状态演进链中的相关事实。
 - `superseded_at` (取代时间): `String` (ISO 8601), 该断言被取代的时间。
+
+> **彼此独立的记忆维度**：`confidence` 表示证据支持，`memory_strength` 表示可访问性，`memory_tier` / `expires_at` 表示存储生命周期，`superseded` / 有效期字段表示时间适用性。实现不应拿其中一个字段代替另一个。
 
 ### A1.3. 上下文与审核 (Context & Auditing)
 
@@ -1461,10 +1483,10 @@ graph TD
 
 **创世的设计哲学**：
 
-1. **完全自洽（Fully Self-Consistent）**：定义 `"$ConceptType"` 的节点，其自身的结构必须完全符合它所定义的规则。它用自己的存在，完美诠释了“什么是概念类型”。
+1. **完全自洽（Fully Self-Consistent）**：定义 `"$ConceptType"` 的节点，其自身结构也必须符合所定义的规则。
 2. **元数据驱动（Metadata-Driven）**：元类型节点的 `attributes` 使得模式（Schema）本身是可查询、可描述、可演化的。
-3. **引导性（Guidance-Oriented）**：这些定义不仅仅是约束，更是给 LLM 的“使用说明书”。它告诉 LLM 如何命名、如何构建实例、哪些实例最重要，极大地降低了 LLM 与知识中枢交互的“幻觉”概率。
-4. **可扩展性（Extensible）**：`instance_schema` 结构允许未来为不同类型的概念定义极其丰富和复杂的属性约束，为构建专业领域的知识库打下坚实基础。
+3. **引导性（Guidance-Oriented）**：这些定义同时记录命名方式、实例结构和关键实例，供 LLM 在使用 schema 时参考，减少错误写入。
+4. **可扩展性（Extensible）**：`instance_schema` 允许不同概念类型定义自己的属性约束，便于扩展专业领域 schema。
 
 ```prolog
 // # KIP Genesis Capsule v1.0
@@ -1672,9 +1694,13 @@ WITH METADATA {
 }
 ```
 
-## 附录 3：核心身份与行为人定义（创世模板）
+## 附录 3：推荐认知记忆 Profile（创世模板）
 
-本附录为基于 KIP 的认知中枢提供了一套推荐的、用于定义认知行为人的基础模板。这些定义确立了“人”（`Person`）、智能体的自我身份（`$self`）以及系统守护者（`$system`）的概念。它们被设计为引导知识图谱启动的初始“创世知识胶囊”的一部分。
+本附录给出一套推荐的、非 Core 的认知记忆 Profile。KIP Core 语法不依赖这些类型；实现可以全部采用、部分采用，也可以完全不用。
+
+Profile 定义 `Event`、`Person`、`Preference`、`Insight`、`Commitment` 和 `SleepTask` 等常见记忆产物。需要经验学习的实现还应定义 `Experience`、`ExperienceStep` 与 `Skill`，具体见下文及 [CognitiveMemoryProfile_CN.md](./brain/CognitiveMemoryProfile_CN.md)。
+
+这里的边界是有意为之：`Event` 摘要记录**发生了什么**；`Experience` 保存可复用的**状态—行动—观察轨迹**；`Skill` 表示从一段或多段 Experience 中编译出的行动流程。
 
 ### A3.1. `Event` 概念类型
 
@@ -1688,21 +1714,21 @@ WITH METADATA {
 
 **[Person.kip](./capsules/Person.kip)**
 
-#### A3.2.1. `$self` 节点：智能体的涌现式自我
+#### A3.2.1. `$self` 节点：业务智能体身份
 
-此节点代表 AI 智能体自身。它被设计为一个“带有守护外壳的白板”，其个性通过交互涌现，而其核心完整性则受到与生俱来的指令的保护。
+此节点代表业务智能体自身。其普通属性可随证据更新，但身份元组和 `core_directives` 受保护。
 
 **[self.kip](./capsules/persons/self.kip)**
 
-#### A3.2.2. `$system` 节点：清醒的园丁
+#### A3.2.2. `$system` 节点：维护身份
 
-此节点代表系统的“超我”。它是一个没有情感、没有个性的 AI **行为人**，负责引导 `$self` 的成长并维护整个知识图谱的健康。
+此节点代表后台维护行动者，负责巩固、整理、审计和清理认知中枢。
 
 **[system.kip](./capsules/persons/system.kip)**
 
 ### A3.3. `Preference` 概念类型
 
-一等的稳定偏好事实——某个主体稳定地偏好某物——通过 `prefers` 谓词连接到其主体，并跨 Event 累积证据（`evidence_count`、`first_observed` / `last_observed`）。
+一等的稳定偏好事实——某个主体稳定地偏好某物——以 `Person ─prefers→ Preference` 的方向连接，并跨 Event 累积证据（`evidence_count`、`first_observed` / `last_observed`）。
 
 **[Preference.kip](./capsules/Preference.kip)**
 
@@ -1723,6 +1749,37 @@ WITH METADATA {
 标记给 `$system`、在睡眠周期中处理的后台维护任务，通过 `assigned_to` 连接。任务实例归属 `System` 领域；`Unsorted` / `Archived` / `System` 这三个操作性领域本身由创世胶囊创建（见附录 2）。
 
 **[SleepTask.kip](./capsules/SleepTask.kip)**
+
+### A3.7. `Experience` 概念类型
+
+一段有边界、有目标的轨迹，并且这段**过程本身**对未来学习有价值。与 `Event` 不同，`Experience` 会保留相关初始状态、行动、观察、反馈、结果，以及指向有序 `ExperienceStep` 的链接。当失败揭示了失效条件、诊断信号或恢复策略时，失败 Experience 也是一等证据。
+
+经验学习系统应当区分：
+
+- `metadata.confidence`：记录是否忠实反映了原始轨迹；
+- `metadata.memory_strength`：这段 Experience 在召回时应有多强的竞争力；
+- `attributes.learning_value` / `attributes.surprise_score`：未来复用价值和预期违背程度；
+- `attributes.status`、`attributes.outcome`、`attributes.success`：轨迹生命周期、最终结果与目标是否达成。
+
+详见 [CognitiveMemoryProfile_CN.md](./brain/CognitiveMemoryProfile_CN.md)。
+
+### A3.8. `ExperienceStep` 概念类型
+
+`Experience` 中的一个有序单元，通常属于 `observation`、`decision`、`action` 或 `feedback`。Step 可以记录简洁的 `decision_rationale`、`expected_observation` 和 `actual_observation`。
+
+`ExperienceStep` 用于保存**可观察的决策轨迹**，不用于保存模型内部思维链。`index` 只表示顺序；只有在轨迹或后续分析提供了超越时间相邻性的证据时，才能创建 `caused_by` 命题。
+
+详见 [CognitiveMemoryProfile_CN.md](./brain/CognitiveMemoryProfile_CN.md)。
+
+### A3.9. `Skill` 概念类型
+
+从一段或多段 Experience 中提炼出的程序性记忆。Skill 描述的是：**在什么条件下，什么做法往往有效**。它应包含触发条件、适用上下文、前置条件、流程或策略、预期结果、成功标准、已知失败信号、恢复办法和成熟度。
+
+Skill 的实际 `utility` 与认知 `confidence` 是两个维度：同一流程反复失败时，应降低或收窄它的程序性效用，而不能因为“重复出现”就把失败当成支持证据。
+
+经验学习实现应保留 Skill 到来源 Experience 的溯源关系（如 `derived_from`），也可以用显式 `compiled_to` 表示 Experience 到 Skill 的编译关系。
+
+详见 [CognitiveMemoryProfile_CN.md](./brain/CognitiveMemoryProfile_CN.md) 和 [ExperienceLearningArchitecture_CN.md](./brain/ExperienceLearningArchitecture_CN.md)。
 
 ## 附录 4. KIP 标准错误码 (KIP Standard Error Codes)
 

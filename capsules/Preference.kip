@@ -19,22 +19,27 @@ UPSERT {
                 "evidence_count": {
                     "type": "number",
                     "is_required": false,
-                    "description": "The number of independent Events supporting this preference. Updated during sleep-cycle consolidation. Assertion trust is NOT an attribute — it lives in metadata.confidence on the 'prefers' assertion link, where reinforcement raises it and sleep-cycle decay lowers it. The node's own metadata.confidence records creation-time provenance only and is not the maintained value."
+                    "description": "The number of independent Events or Experiences supporting this preference. Updated during consolidation. Epistemic support lives in metadata.confidence on the 'prefers' assertion link; retention and retrieval availability live separately in metadata.memory_strength. Reinforcement and time-based decay primarily update memory_strength, while confirming or contradicting evidence may update confidence."
                 },
                 "first_observed": {
                     "type": "string",
                     "is_required": false,
-                    "description": "ISO 8601 timestamp of the earliest Event from which this preference was derived."
+                    "description": "ISO 8601 timestamp of the earliest Event or Experience from which this preference was derived."
                 },
                 "last_observed": {
                     "type": "string",
                     "is_required": false,
-                    "description": "ISO 8601 timestamp of the most recent Event confirming this preference."
+                    "description": "ISO 8601 timestamp of the most recent Event or Experience confirming this preference."
                 },
                 "source_event": {
                     "type": "string",
                     "is_required": false,
-                    "description": "Name of the original Event from which this preference was first derived. For multi-event derivations, use the 'derived_from' proposition instead."
+                    "description": "Legacy convenience field containing the name of the original Event. New writes should use source_memory or the structural 'derived_from' proposition."
+                },
+                "source_memory": {
+                    "type": "string",
+                    "is_required": false,
+                    "description": "Name of the original Event or Experience from which this preference was first derived. For multiple sources, use structural 'derived_from' propositions instead."
                 }
             }
         }

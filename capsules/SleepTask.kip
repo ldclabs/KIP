@@ -8,7 +8,7 @@ UPSERT {
                 "target_type": {
                     "type": "string",
                     "is_required": true,
-                    "description": "Type of the target concept (e.g., 'Event', 'Preference', 'Person')."
+                    "description": "Type of the target concept (e.g., 'Event', 'Experience', 'Skill', 'Preference', 'Person')."
                 },
                 "target_name": {
                     "type": "string",
@@ -20,13 +20,14 @@ UPSERT {
                     "is_required": true,
                     "enum": [
                         "consolidate_to_semantic",
+                        "compile_to_skill",
                         "archive",
                         "merge_duplicates",
                         "reclassify",
                         "review",
                         "resolve_contradiction"
                     ],
-                    "description": "The maintenance action to perform. 'resolve_contradiction' is used when Formation detects conflicting facts that require deeper analysis."
+                    "description": "The maintenance action to perform. 'consolidate_to_semantic' extracts durable Knowledge or Insight; 'compile_to_skill' performs procedural consolidation over one or more Experiences; 'resolve_contradiction' handles conflicting facts or policies that require deeper analysis."
                 },
                 "reason": {
                     "type": "string",

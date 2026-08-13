@@ -1,0 +1,114 @@
+// --- DEFINE the "Experience" concept type ---
+//
+// Event and Experience are intentionally distinct:
+// - Event records what happened.
+// - Experience records what a subject went through while pursuing a goal.
+//
+// An Experience owns an ordered trajectory of ExperienceStep nodes through the
+// `has_step` predicate. Step `index` records temporal order; causal claims must
+// be expressed separately with `caused_by`.
+UPSERT {
+  CONCEPT ?experience_type_def {
+    {type: "$ConceptType", name: "Experience"}
+    SET ATTRIBUTES {
+      description: "Represents a subject-relative, goal-directed trajectory through state, decision, action, observation, feedback, and outcome. Unlike an Event, which records what happened, an Experience preserves what the subject tried, expected, observed, revised, and learned. Experience is the episodic source from which durable Knowledge, Insight, and Skill may be consolidated.",
+      display_hint: "🧭",
+      instance_schema: {
+        "experience_class": {
+          "type": "string",
+          "is_required": true,
+          "enum": ["task_execution", "problem_solving", "decision_making", "exploration", "interaction", "self_reflection"],
+          "description": "The kind of goal-directed trajectory. Use 'interaction' only when the interaction contains meaningful state/action/feedback dynamics; a routine conversation remains an Event."
+        },
+        "goal": {
+          "type": "string",
+          "is_required": true,
+          "description": "The outcome the subject was trying to achieve. State it independently of whether the attempt succeeded."
+        },
+        "initial_state": {
+          "type": "object",
+          "is_required": true,
+          "description": "A compact structured snapshot of the relevant starting state, including known constraints and externally supportable beliefs. Do not store private chain-of-thought."
+        },
+        "status": {
+          "type": "string",
+          "is_required": true,
+          "enum": ["ongoing", "completed", "aborted"],
+          "default_value": "completed",
+          "description": "Trajectory lifecycle. 'aborted' means the attempt ended without reaching a normal terminal outcome; it may still be valuable evidence."
+        },
+        "outcome": {
+          "type": "string",
+          "is_required": false,
+          "description": "A concise account of the terminal result. Required in practice when status is 'completed' or 'aborted'."
+        },
+        "success": {
+          "type": "boolean",
+          "is_required": false,
+          "description": "Whether the stated goal was achieved. Omit while ongoing or when the result cannot yet be evaluated."
+        },
+        "prediction_error": {
+          "type": "string",
+          "is_required": false,
+          "description": "The most consequential mismatch between what was expected and what was observed across the trajectory. Step-level mismatches belong on the relevant ExperienceStep."
+        },
+        "surprise_score": {
+          "type": "number",
+          "is_required": false,
+          "description": "Aggregate prediction-error magnitude on a [0,100] scale. It contributes to salience but is not epistemic confidence."
+        },
+        "learning_value": {
+          "type": "number",
+          "is_required": false,
+          "description": "Estimated future reuse value on a [0,100] scale, based on goal relevance, prediction error, outcome magnitude, human feedback, novelty, and transfer potential. Distinct from autobiographical salience."
+        },
+        "learning_value_scored_at": {
+          "type": "string",
+          "is_required": false,
+          "description": "ISO 8601 timestamp of the most recent learning-value assessment."
+        },
+        "started_at": {
+          "type": "string",
+          "is_required": true,
+          "description": "ISO 8601 timestamp when the goal-directed trajectory began."
+        },
+        "ended_at": {
+          "type": "string",
+          "is_required": false,
+          "description": "ISO 8601 timestamp when the trajectory ended. Omit while status is 'ongoing'."
+        },
+        "context": {
+          "type": "object",
+          "is_required": false,
+          "description": "Environment, project, task, constraints, and other retrieval-relevant context. Keep large raw payloads outside the graph."
+        },
+        "raw_trace_ref": {
+          "type": "string",
+          "is_required": false,
+          "description": "URI or internal identifier for the immutable raw interaction or execution trace stored outside the graph."
+        },
+        "consolidation_status": {
+          "type": "string",
+          "is_required": false,
+          "enum": ["pending", "partially_consolidated", "completed", "archived"],
+          "default_value": "pending",
+          "description": "Whether semantic and procedural learning opportunities have been processed. 'completed' does not require both outputs when one is not applicable."
+        },
+        "salience_score": {
+          "type": "number",
+          "is_required": false,
+          "description": "Encoding and consolidation priority on a [0,100] scale, based on goal relevance, prediction error, outcome magnitude, novelty, emotion, and reusability. Distinct from metadata.confidence and metadata.memory_strength."
+        }
+      }
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+    }
+  }
+}
+WITH METADATA {
+  source: "SystemBootstrap",
+  author: "$system",
+  confidence: 1.0,
+  status: "active"
+}

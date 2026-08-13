@@ -37,17 +37,17 @@ UPSERT {
         "evidence_count": {
           "type": "number",
           "is_required": false,
-          "description": "The number of independent Events supporting this insight. Incremented during maintenance consolidation when multiple events confirm the same lesson. Assertion trust is NOT an attribute — it lives in metadata.confidence on the 'learned' assertion link, where reinforcement raises it and sleep-cycle decay lowers it; the node's own metadata.confidence records creation-time provenance only. User corrections typically yield 0.9+; inferred gaps or patterns may be lower."
+          "description": "The number of independent Events or Experiences supporting this insight. Incremented during maintenance consolidation when multiple sources confirm the same lesson. Assertion trust lives in metadata.confidence on the 'learned' assertion link; retention and retrieval availability live separately in metadata.memory_strength. User corrections typically yield high confidence; inferred gaps or patterns may be lower."
         },
         "first_observed": {
           "type": "string",
           "is_required": false,
-          "description": "ISO 8601 timestamp of the earliest Event from which this insight was derived."
+          "description": "ISO 8601 timestamp of the earliest Event or Experience from which this insight was derived."
         },
         "last_observed": {
           "type": "string",
           "is_required": false,
-          "description": "ISO 8601 timestamp of the most recent Event confirming or reinforcing this insight."
+          "description": "ISO 8601 timestamp of the most recent Event or Experience confirming or reinforcing this insight."
         },
         "aliases": {
           "type": "array",
@@ -66,7 +66,7 @@ UPSERT {
   CONCEPT ?learned_prop_def {
     {type: "$PropositionType", name: "learned"}
     SET ATTRIBUTES {
-      description: "Connects a Person (typically `$self`) to an `Insight` acquired through experience. This relation forms the queryable growth history of the agent.",
+      description: "Connects a Person (typically `$self`) to an `Insight` acquired through Events or Experiences. This relation forms the queryable declarative growth history of the agent; procedural learning belongs in Skill.",
       object_types: ["Insight"],
       subject_types: ["Person"]
     }

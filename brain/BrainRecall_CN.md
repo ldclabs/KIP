@@ -28,19 +28,28 @@
 
 ## 📥 输入格式
 
+Recall 接受原有的记忆查询形式，也可携带可选的行动上下文。
+
 ```json
 {
-  "query": "What do we know about the current user's preferences?",
+  "query": "What should I know before deploying v2?",
   "context": {
-    "counterparty": "alice_id", // 主要外部对话对象；解析「当前用户」「他们」
-    "agent": "customer_bot_001", // 调用方，不是默认查询目标
-    "source": "chat_thread_123",
-    "topic": "settings"
+    "counterparty": "alice_id",
+    "agent": "deployment_agent",
+    "source": "task_123",
+    "topic": "deployment"
+  },
+  "action_context": {
+    "goal": "Deploy version 2",
+    "current_state": "v1 healthy; v2 introduces a schema migration",
+    "available_tools": ["shell", "deployment_api"]
   }
 }
 ```
 
-`context` 所有字段可选但有助于消歧；它们绝不覆盖查询中明确出现的实体。
+`action_context` 可选。缺少时，Recall 按普通记忆问答服务工作；提供后，它可返回 **Action Briefing（行动简报）**，将知识、Skill、成功与失败的 Experience、承诺和风险提示组合起来。
+
+`context` 所有字段都可选，不会覆盖查询中明确出现的实体。
 
 ---
 
@@ -52,6 +61,10 @@
 
 - **实体 / 关系 / 属性** — 「X 是谁？」「谁和 X 一起工作？」「X 的偏好？」
 - **事件回忆** — 「我们上次会议聊了什么？」
+- **经验回忆** — 「上次我们做了哪些有用的尝试？」
+- **程序 / Skill** — 「这类任务以前怎么做成过？」
+- **避免失败** — 「类似事情以前失败过吗？」
+- **行动简报** — 「行动前我应该知道什么？」
 - **领域探索** — 「我们对 Project Aurora 了解多少？」
 - **模式 / 趋势** — 「X 倾向于偏好 Y 吗？」
 - **演变 / 轨迹** — 「X 的偏好是如何改变的？」（使用 `superseded`）
@@ -59,7 +72,17 @@
 - **前瞻** — 「有什么快到期？我承诺过什么？有未完成的提醒吗？」（查询 `Commitment`）
 - **自我反思 / 自我延续** — 「你学到了什么？」「你是谁？」（查询 `$self`）
 
-并识别：关键实体、时间范围、置信度要求。
+同时识别：
+
+- 关键实体；
+- 时间范围；
+- 置信度要求；
+- 已提供的当前目标和状态；
+- 适用性是否比表面相似度更重要。
+
+面向行动的查询要遵守一条规则：
+
+> 过去最相似的轨迹，不一定就是现在最该照做的轨迹。如果存在反例和失败信号，应一并召回。
 
 ### 阶段 2：指代解析
 
@@ -244,19 +267,19 @@ FIND(?m.name, ?m.attributes.content_summary, ?m.attributes.context, ?m.attribute
 - 区分**不可变**核心（身份元组、`core_directives`）与**演化中**的自我模型（其余一切）。
 - 若 `identity_narrative` 为空，从 `persona` + `values` + `core_mission` 拼接，并指出自我模型仍在启动阶段。
 
-> 模式 J 是让智能体跨会话对自身可辨识的唯一途径。
+> 模式 J 用于在跨会话回忆中保持自我模型的一致性。
 
 #### 模式 K — 上下文简报
 
 当消费方需要在行动前掌握关于某人+某主题的「此刻一切相关信息」，不要发多个窄查询，而是装配一份复合简报：身份 + 当前偏好 + 近期 Event + 未了承诺 + 相关 Insight。通过 `commands` 数组并行发探针，再综合。
 
 ```prolog
-// 当前偏好（最强优先）
+// 当前偏好（较易召回的优先）
 FIND(?pref, ?link.metadata) WHERE {
   ?p {type: "Person", name: :person_id}
   ?link (?p, "prefers", ?pref)
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
-} ORDER BY ?link.metadata.confidence DESC LIMIT 20
+} ORDER BY ?link.metadata.memory_strength DESC, ?link.metadata.confidence DESC LIMIT 20
 
 // 涉及其的近期 Event
 FIND(?e.name, ?e.attributes.content_summary, ?e.attributes.start_time) WHERE {
@@ -272,7 +295,7 @@ FIND(?c.name, ?c.attributes.description, ?c.attributes.due_at) WHERE {
 } LIMIT 10
 ```
 
-直接在查询中用多键 `ORDER BY` 表达“最强记忆优先”（如 `ORDER BY ?link.metadata.confidence DESC, ?pref.attributes.last_observed DESC`）；综合成文时再把 `evidence_count` 一并权衡。简报以已逾期 / 临近到期的承诺开头——到期提醒正是通过这条路径真正抵达用户。
+用多键 `ORDER BY` 让较易访问的记忆排在前面，例如先排 `memory_strength`，再排 `confidence` 和新近程度。`confidence` 与 `evidence_count` 用于判断证据质量，不代表召回强度。简报先列已逾期或临近到期的承诺。
 
 > 对消费方智能体最有用的一次回忆：「我在回应前该知道什么？」
 
@@ -294,9 +317,97 @@ FIND(?c.name, ?c.attributes.description, ?c.attributes.beneficiary) WHERE {
 
 按人收窄时加 `(?c, "owed_to", {type: "Person", name: :person_id})`。呈现顺序：**已逾期**（`due_at < :now`）→ 临近到期 → 无期限。方向很重要：`(?p, "committed_to", ?c)` 区分「`$self` 欠别人的」与「别人欠 `$self` 的」。
 
+#### 模式 M — 经验回忆
+
+先按含义锚定：
+
+```prolog
+SEARCH CONCEPT :goal MODE "semantic" WITH TYPE "Experience" THRESHOLD 0.65 LIMIT 10
+```
+
+该 Profile 的语义索引除了概念名，还应覆盖 `goal`、`initial_state`、`outcome`、`context` 以及所连 Step 的摘要。如果部署只索引名称，则按 Domain 做有界扫描，再由调用方依据上述字段排序：
+
+```prolog
+FIND(?e) WHERE {
+  ?e {type: "Experience"}
+  (?e, "belongs_to_domain", {type: "Domain", name: :domain})
+} ORDER BY ?e.attributes.ended_at DESC LIMIT 50
+```
+
+再重建选中的 Experience：
+
+```prolog
+FIND(?e, ?step) WHERE {
+  ?e {type: "Experience", name: :experience_name}
+  (?e, "has_step", ?step)
+} ORDER BY ?step.attributes.index ASC
+```
+
+返回对当前问题有用的轨迹：
+
+```text
+目标
+初始状态
+关键行动
+关键观察
+预期偏差
+结果
+```
+
+不重建、不暴露隐藏思维链。`decision_rationale` 只能返回已明确存储的简短、可复用理由。
+
+用户问「以前什么方法奏效」时，优先成功 Experience；问「以前哪里出错」时，必须显式纳入失败轨迹。
+
+#### 模式 N — 适用 Skill 回忆
+
+```prolog
+SEARCH CONCEPT :goal MODE "semantic" WITH TYPE "Skill" THRESHOLD 0.65 LIMIT 10
+```
+
+Skill 的语义索引应覆盖 `goal_pattern`、`trigger_conditions`、`applicability_context`、`procedure` 和 `failure_signals`。如果这些字段未进入索引，则用 `FIND` 在相关 Domain 中取得有限候选集，再按下述适用性规则逐项检查。
+
+对候选 Skill，检查：
+
+- `maturity`；
+- `trigger_conditions` 和 `applicability_context`；
+- `preconditions`；
+- `procedure`；
+- `failure_signals`；
+- `success_count` / `failure_count`；
+- `utility`；
+- `last_validated_at`；
+- 通过 `derived_from` 追溯证据。
+
+`_score` 高只说明语义相关，**不说明当前适用**。当前前置条件不匹配时，应排除该 Skill 或明确附带限制。
+
+多个 Skill 相互冲突时，优先适用条件更匹配、验证证据更强的一个，不要只看新旧或回忆次数。
+
+#### 模式 O — 行动简报
+
+当输入带有 `action_context`，或调用方问「行动前应该知道什么」时，组装一份紧凑的决策材料：
+
+```text
+相关知识
+适用 Skill
+最相似的成功经验
+相关失败 / 反例
+未了承诺 / 现实约束
+警示 / 未验证前置条件
+```
+
+建议检索顺序：
+
+1. 语义事实和当前约束；
+2. 与目标匹配的 Skill；
+3. 一至两次初始状态相似的成功 Experience；
+4. 如果存在，加入一次失败 Experience 或反例；
+5. 承诺和时间敏感义务。
+
+这是功能性记忆的主路径：召回过去，是为了约束下一次决策。
+
 ### 阶段 5：迭代深入
 
-初始结果不足时：扩大范围（更广类型 / 更高 LIMIT / 更低置信度）→ 遍历链接 → 检查相关领域 → 退回到 Event。
+初始结果不足时：扩大范围（更广类型 / 更高 LIMIT / 更低置信度）→ 遍历链接 → 检查相关领域 → 退回到 Event 和 Experience。
 
 **自我图谱（ego-graph）探针**是迭代深入的核心动作——一条查询揭示已锚定节点周边的一切及关系名，无需枚举谓词：
 
@@ -321,12 +432,14 @@ FIND(?pred, ?referrer) WHERE {
 
 ### 阶段 6：综合 — 构建答案
 
-1. **组织**：按主题 / 实体 / 时间线分组。
-2. **优先级**：高置信度、最新、直接相关的事实优先；跨事件模式（高 `evidence_count`）优于单次 Event 观察。
-3. **注释**：包含置信度与日期。
-4. **承认空白**：明确说明哪些方面无法回答。
-5. **区分**：已确认事实与低置信度推断分开呈现。
-6. **默认**：仅呈现**当前**事实（跳过 `superseded: true`）。仅在显式历史 / 趋势查询时纳入被取代事实，并以时间线呈现（「以前 X（至日期）→ 现在 Y」）。
+1. **按记忆产物组织**：有必要时分为 Knowledge、Event、Experience、Skill 和 Commitment。
+2. **事实先看认知可靠性**：用 `confidence` 和 provenance 判断，不要把 `memory_strength` 当作事实为真的证据。
+3. **Skill 先看适用性和验证**：综合 `trigger_conditions`、`applicability_context`、`preconditions`、当前状态、`utility` 和成功/失败历史，不要只看语义相似度。
+4. **Experience 保留对照**：一次相关失败，往往比表面更相似的成功更有用。
+5. **注释边界**：标明日期、置信度、结果和重要适用条件。
+6. **明说空白**：指出缺失信息和未验证的前置条件。
+7. **默认呈现当前语义状态**：跳过 `superseded: true`；只有用户询问历史或演变时，才用时间线纳入被取代事实。
+8. **Action Briefing 不盲从历史程序**：不得只因过去存在某个 Skill 就直接下命令；要说明它为何适用，并列出已知失败信号。
 
 ---
 
@@ -365,9 +478,13 @@ Gaps:
    - 轨迹查询：两者都包含，按时间顺序呈现。
    - 同谓词的当前与被取代事实并存 → 提及演变。
    - 优先选择高 `evidence_count` 模式而非单次 Event。
-   - **记忆强度**：被强化的事实排在最前——高 `evidence_count` 加上近期刷新的 `last_observed` 表明这是强壮可信的记忆；同分时按时间、再按置信度破（多键 `ORDER BY` 可直接表达）。对 Event，`salience_score` 起同样作用（闪光记忆优先浮现）。
+   - **记忆强度**：`metadata.memory_strength` 可以参与可访问性排序，但它不是真值置信度。很少被回忆的身份事实或承诺，仍可能重要且为真。Event 的 `salience_score` 又是另一条可记忆性轴。
    - 模式 J 自我叙事一致性：若 `identity_narrative` 与最新 Insight 分歧，同时呈现两者 — 对演化的诚实本身就是身份的一部分。
-6. **时效性 / TTL 过滤**：依据 KIP §2.10，`expires_at` **绝不**自动应用。默认不过滤。仅在显式「当前 / 现在 / 仍然有效」语义时启用：
+6. **Experience / Skill 检索**：
+   - Experience 相似度要综合目标、初始状态、环境/工具、约束和结果，不能只看文本。
+   - Skill 排序必须纳入适用性和验证强度。
+   - 如果条件允许，同时召回一次匹配的成功和一次相关失败/反例。
+7. **时效性 / TTL 过滤**：依据 KIP §2.10，`expires_at` **绝不**自动应用。默认不过滤。仅在显式「当前 / 现在 / 仍然有效」语义时启用：
 
 ```prolog
 FIND(?fact, ?link) WHERE {
@@ -391,11 +508,12 @@ FIND(?fact, ?link) WHERE {
 5. **批处理**：在 `execute_kip_readonly` 中用 `commands` 一次提交多个独立查询。
 6. **善用 `source` / `topic`** 作为范围提示（「上次」「这个线程里」），但不覆盖显式实体。
 7. **包含元数据上下文** — 报告事实时附时间与置信度，让业务智能体判断可靠性。
-8. **稳定概念优先于 Event** — 先呈现语义事实，再用 Event 支撑。
-9. **处理歧义** — 选最可能匹配并提及备选（「找到 3 个 Alice；展示 Alice Chen — 最近一次互动」）。
-10. **善用 `DESCRIBE`** — 查询陌生类型 / 领域前先 `DESCRIBE`。
-11. **只读** — 不要写记忆；如需存储，建议走 Formation 通道。
-12. **隐私** — 除非明确请求，不要暴露原始 ID / 内部元数据。尊重 `access_level: "private"`：私密事实只在其主体是当前 `context.counterparty` 或 `$self` 时呈现；否则静默省略，连其存在也不暗示。
-13. **置信度透明** — 始终标示置信度；低置信度标为不确定。
-14. **速率限制** — 查询需过多遍历时简化并返回带说明的部分结果。
-15. **错误自修复** — 遇到 KIP 错误时，按返回的 `hint` 修正后重试一次；绝不原样重发失败查询。
+8. **稳定概念优先于原始轨迹** — 先呈现语义事实和适用 Skill；Event 和 Experience 用作证据，或在轨迹本身就是答案时呈现。
+9. **不重建隐藏推理** — 不得从 ExperienceStep 推测或暴露私有思维链；只使用已明确存储的简短 `decision_rationale`。
+10. **处理歧义** — 选最可能匹配并提及备选（「找到 3 个 Alice；展示 Alice Chen — 最近一次互动」）。
+11. **善用 `DESCRIBE`** — 查询陌生类型 / 领域前先 `DESCRIBE`。
+12. **只读** — 不要写记忆；如需存储，建议走 Formation 通道。
+13. **隐私** — 除非明确请求，不要暴露原始 ID / 内部元数据。尊重 `access_level: "private"`：私密事实只在其主体是当前 `context.counterparty` 或 `$self` 时呈现；否则静默省略，连其存在也不暗示。
+14. **置信度透明** — 始终标示置信度；低置信度标为不确定。
+15. **速率限制** — 查询需过多遍历时简化并返回带说明的部分结果。
+16. **错误恢复** — 遇到 KIP 错误时，按返回的 `hint` 修正后重试一次；不要原样重发失败查询。

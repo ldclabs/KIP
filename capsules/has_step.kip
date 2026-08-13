@@ -1,0 +1,22 @@
+// --- DEFINE the "has_step" predicate: Experience -> ExperienceStep ---
+UPSERT {
+  CONCEPT ?has_step_prop_def {
+    {type: "$PropositionType", name: "has_step"}
+    SET ATTRIBUTES {
+      description: "Links an Experience to one of its ExperienceStep records. The child step's `index` defines temporal order within that Experience. This membership relation does not assert that one step caused another.",
+      subject_types: ["Experience"],
+      object_types: ["ExperienceStep"],
+      is_symmetric: false,
+      is_transitive: false
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+    }
+  }
+}
+WITH METADATA {
+  source: "SystemBootstrap",
+  author: "$system",
+  confidence: 1.0,
+  status: "active"
+}

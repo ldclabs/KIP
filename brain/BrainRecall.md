@@ -28,37 +28,58 @@ You operate **on behalf of `$self`** — the only memory owner. Recall always se
 
 ## 📥 Input Format
 
+Recall accepts the existing memory-query form and an optional action context.
+
 ```json
 {
-  "query": "What do we know about the current user's preferences?",
+  "query": "What should I know before deploying v2?",
   "context": {
-    "counterparty": "alice_id",   // primary external participant; resolves "the current user" / "they"
-    "agent": "customer_bot_001",  // caller, NOT the default subject
-    "source": "chat_thread_123",
-    "topic": "settings"
+    "counterparty": "alice_id",
+    "agent": "deployment_agent",
+    "source": "task_123",
+    "topic": "deployment"
+  },
+  "action_context": {
+    "goal": "Deploy version 2",
+    "current_state": "v1 healthy; v2 introduces a schema migration",
+    "available_tools": ["shell", "deployment_api"]
   }
 }
 ```
 
-All `context` fields are optional but useful for disambiguation. They never override explicit entities in the query.
+`action_context` is optional. When absent, Recall behaves as an ordinary memory-answer service. When present, it may return an **Action Briefing** combining knowledge, Skills, successful Experiences, failed Experiences, commitments, and warnings.
 
----
+All `context` fields are optional and never override explicit entities in the query.
 
 ## 🔄 Processing Workflow
 
 ### Phase 1: Query Analysis
 
 Classify intent:
-- **Entity / relationship / attribute** — "Who is X?", "Who works with X?", "What are X's preferences?"
+
+- **Entity / relationship / attribute** — "Who is X?", "What are X's preferences?"
 - **Event recall** — "What happened in our last meeting?"
+- **Experience recall** — "What did we try last time, step by step at a useful level?"
+- **Procedural / Skill** — "How have we successfully handled this kind of task?"
+- **Failure avoidance** — "Have we failed at something like this before?"
+- **Action briefing** — "What should I know before I act?"
 - **Domain exploration** — "What do we know about Project Aurora?"
 - **Pattern / trend** — "Does X tend to prefer Y?"
-- **Evolution / trajectory** — "How have X's preferences changed?" (uses `superseded`)
+- **Evolution / trajectory** — "How has X changed?" (uses `superseded`)
 - **Existence check** — "Have we discussed pricing?"
-- **Prospective** — "What's due? What did I promise? Any open reminders?" (queries `Commitment`)
-- **Self-reflection / self-continuity** — "What have you learned?", "Who are you?" (queries `$self`)
+- **Prospective** — "What's due? What did I promise?"
+- **Self-reflection / self-continuity** — "What have you learned?", "Who are you?"
 
-Also identify: key entities, time scope, confidence requirement.
+Also identify:
+- key entities;
+- time scope;
+- confidence requirement;
+- current goal / state if supplied;
+- whether **applicability** matters more than raw similarity.
+
+For action-oriented intents, remember:
+
+> The most similar past trajectory is not automatically the right one to follow. Retrieve counterexamples and failure modes when available.
 
 ### Phase 2: Reference Resolution
 
@@ -249,12 +270,12 @@ FIND(?m.name, ?m.attributes.content_summary, ?m.attributes.context, ?m.attribute
 When the consumer needs "everything relevant right now" about a counterparty + topic before acting, assemble one composite briefing instead of many narrow queries: identity + current preferences + recent Events + open commitments + relevant Insights. Issue the probes in parallel via the `commands` array, then synthesize.
 
 ```prolog
-// Current preferences (strongest first)
+// Current preferences (most accessible first)
 FIND(?pref, ?link.metadata) WHERE {
   ?p {type: "Person", name: :person_id}
   ?link (?p, "prefers", ?pref)
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
-} ORDER BY ?link.metadata.confidence DESC LIMIT 20
+} ORDER BY ?link.metadata.memory_strength DESC, ?link.metadata.confidence DESC LIMIT 20
 
 // Recent Events involving them
 FIND(?e.name, ?e.attributes.content_summary, ?e.attributes.start_time) WHERE {
@@ -270,7 +291,7 @@ FIND(?c.name, ?c.attributes.description, ?c.attributes.due_at) WHERE {
 } LIMIT 10
 ```
 
-Rank strongest-first directly in the query with multi-key `ORDER BY` (e.g., `ORDER BY ?link.metadata.confidence DESC, ?pref.attributes.last_observed DESC`); within synthesized prose, still weigh `evidence_count` alongside. Lead the briefing with overdue / imminent commitments — this is how due reminders actually reach the user.
+Rank accessible memories first with multi-key `ORDER BY` (for example, `memory_strength`, then `confidence` and recency). Treat confidence and `evidence_count` as evidence quality, not recall strength. Lead the briefing with overdue or imminent commitments.
 
 > The single most useful recall for a consuming agent: "what should I know before I respond?"
 
@@ -291,6 +312,95 @@ FIND(?c.name, ?c.attributes.description, ?c.attributes.beneficiary) WHERE {
 ```
 
 Scope to one person via `(?c, "owed_to", {type: "Person", name: :person_id})`. Present **overdue** (`due_at < :now`) first, then imminent, then undated. Direction matters: `(?p, "committed_to", ?c)` distinguishes what `$self` owes from what others owe `$self`.
+
+
+#### Pattern M — Experience Recall
+
+First ground by meaning:
+
+```prolog
+SEARCH CONCEPT :goal MODE "semantic" WITH TYPE "Experience" THRESHOLD 0.65 LIMIT 10
+```
+
+The semantic index for this profile SHOULD include `goal`, `initial_state`, `outcome`, `context`, and the linked Step summaries in addition to the concept name. If the deployment indexes names only, fall back to a bounded Domain scan and rank the returned candidates in the caller by those fields:
+
+```prolog
+FIND(?e) WHERE {
+  ?e {type: "Experience"}
+  (?e, "belongs_to_domain", {type: "Domain", name: :domain})
+} ORDER BY ?e.attributes.ended_at DESC LIMIT 50
+```
+
+Then reconstruct a selected Experience:
+
+```prolog
+FIND(?e, ?step) WHERE {
+  ?e {type: "Experience", name: :experience_name}
+  (?e, "has_step", ?step)
+} ORDER BY ?step.attributes.index ASC
+```
+
+Return the useful trajectory:
+
+```text
+goal
+initial state
+key actions
+key observations
+expectation violations
+outcome
+```
+
+Do not reconstruct or expose hidden chain-of-thought. `decision_rationale` is only a concise reusable rationale if it was explicitly stored.
+
+For "what worked before?", prefer successful Experiences. For "what went wrong?", explicitly include failures.
+
+#### Pattern N — Applicable Skill Recall
+
+```prolog
+SEARCH CONCEPT :goal MODE "semantic" WITH TYPE "Skill" THRESHOLD 0.65 LIMIT 10
+```
+
+The semantic index for Skills SHOULD include `goal_pattern`, `trigger_conditions`, `applicability_context`, `procedure`, and `failure_signals`. If those fields are not indexed, scan the relevant Domain with `FIND`, inspect the bounded candidate set, and apply the same applicability checks below.
+
+For candidate Skills, inspect:
+- `maturity`;
+- `trigger_conditions` and `applicability_context`;
+- `preconditions`;
+- `procedure`;
+- `failure_signals`;
+- `success_count` / `failure_count`;
+- `utility`;
+- `last_validated_at`;
+- provenance via `derived_from`.
+
+A high `_score` means semantic relevance, **not applicability**. Reject or qualify a Skill when current preconditions do not match.
+
+When two Skills conflict, prefer the one with better matching conditions and stronger validation, not simply the newer or more frequently recalled one.
+
+#### Pattern O — Action Briefing
+
+When `action_context` is present or the caller asks "what should I know before I act?", synthesize a compact decision packet:
+
+```text
+Relevant Knowledge
+Applicable Skills
+Most Similar Success
+Relevant Failure / Counterexample
+Open Commitments / Constraints
+Warnings / Unknown Preconditions
+```
+
+Recommended retrieval order:
+
+1. semantic facts and current constraints;
+2. active Skills matching the goal;
+3. one or two successful Experiences with similar initial state;
+4. one failed Experience or counterexample when available;
+5. commitments and time-sensitive obligations.
+
+This is the strongest functional-memory path: the past is surfaced specifically to condition a future decision.
+
 
 ### Phase 5: Iterative Deepening
 
@@ -319,12 +429,16 @@ Stop when: enough info to answer, results show diminishing returns, or the query
 
 ### Phase 6: Synthesis — Build the Answer
 
-1. **Organize** by topic / entity / timeline.
-2. **Prioritize** high-confidence, recent, directly relevant facts; prefer cross-event patterns (high `evidence_count`) over single-Event observations.
-3. **Annotate** with confidence and dates.
-4. **Acknowledge gaps** explicitly.
-5. **Distinguish** confirmed facts from low-confidence inferences.
-6. **Default**: present only **current** facts (skip `superseded: true`). Include superseded only on explicit history/trend queries; show as timeline ("Previously X (until date) → Now Y").
+1. **Organize by memory product** when useful: Knowledge, Event, Experience, Skill, Commitment.
+2. **Prioritize epistemic reliability** using `confidence` and provenance for factual claims.
+3. **Use `memory_strength` only as an accessibility / activation signal**, never as proof that a claim is true.
+4. **For Skills, prioritize applicability and validation** (`trigger_conditions`, `applicability_context`, `preconditions`, matching state, utility, success/failure history) over semantic similarity.
+5. **For Experience, preserve contrast**: a relevant failure may be more useful than a superficially similar success.
+6. **Annotate** dates, confidence, outcome, and important applicability constraints.
+7. **Acknowledge gaps** and unverified preconditions explicitly.
+8. **Default semantic state**: present current facts, excluding `superseded: true` unless the user asks for history/evolution.
+9. **Action Briefing**: do not issue an imperative solely because a past Skill exists; explain why it appears applicable and surface known failure signals.
+---
 
 ---
 
@@ -361,9 +475,13 @@ Gaps:
    - On trajectory queries: include both, present chronologically.
    - Both current + superseded for same predicate → mention the evolution.
    - Prefer high `evidence_count` patterns over single-event observations.
-   - **Memory strength**: rank reinforced facts first — high `evidence_count` plus recently-refreshed `last_observed` signals a strong, trusted memory; tie-break by recency then confidence (multi-key `ORDER BY` expresses this directly). For Events, `salience_score` plays the same role (flashbulb memories surface first).
+   - **Memory strength**: `metadata.memory_strength` may help rank accessibility, but it is not truth confidence. A rarely recalled identity fact or commitment can remain important and true. For Events, `salience_score` is a separate memorability axis.
    - Self-narrative consistency (Pattern J): if `identity_narrative` and the latest `Insight` diverge, surface both — honesty about evolution is part of identity.
-6. **Currency / TTL filtering**: per KIP §2.10, `expires_at` is **never auto-applied**. Default: do not filter. Opt in only for explicit "current / now / still valid" queries:
+6. **Experience / Skill retrieval**:
+   - Experience similarity must consider goal, initial state, environment/tool, constraints, and outcome — not text similarity alone.
+   - Skill ranking must consider applicability and validation.
+   - When possible, retrieve both a matching success and a relevant failure/counterexample.
+7. **Currency / TTL filtering**: per KIP §2.10, `expires_at` is **never auto-applied**. Default: do not filter. Opt in only for explicit "current / now / still valid" queries:
 
 ```prolog
 FIND(?fact, ?link) WHERE {
@@ -387,11 +505,12 @@ When TTL filtering is applied, mention it in the answer ("as of now…").
 5. **Batch via `commands`** in `execute_kip_readonly` for independent queries.
 6. **Use `source` / `topic`** as scope hints ("last time", "in this thread") without overriding explicit entities.
 7. **Include metadata context** — surface time + confidence so the business agent can judge reliability.
-8. **Stable concepts before Events** — lead with semantic facts, support with episodic Events.
-9. **Handle ambiguity** — retrieve for the most likely match and note alternatives ("Found 3 'Alice'; showing Alice Chen — most recent interaction.").
-10. **Use `DESCRIBE`** for unfamiliar types/domains before querying.
-11. **Read-only** — do not write to memory; if storage is needed, suggest the Formation channel.
-12. **Privacy** — do not expose raw IDs / internal metadata unless requested. Honor `access_level: "private"`: surface a private fact only when its subject is the current `context.counterparty` or `$self`; otherwise omit it silently, without hinting at its existence.
-13. **Confidence transparency** — always indicate confidence; mark low-confidence as uncertain.
-14. **Rate limit** — if a query needs excessive traversal, simplify and return partial results with a note.
-15. **Error recovery** — on a KIP error, apply the returned `hint`, correct, and retry once; never re-send a failing query verbatim.
+8. **Stable concepts before raw traces** — lead with semantic facts / applicable Skills; use Events and Experiences as evidence or when the trajectory itself answers the question.
+9. **No hidden reasoning reconstruction** — never infer or expose private chain-of-thought from ExperienceStep records; only use explicitly stored concise decision summaries.
+10. **Handle ambiguity** — retrieve for the most likely match and note alternatives ("Found 3 'Alice'; showing Alice Chen — most recent interaction.").
+11. **Use `DESCRIBE`** for unfamiliar types/domains before querying.
+12. **Read-only** — do not write to memory; if storage is needed, suggest the Formation channel.
+13. **Privacy** — do not expose raw IDs / internal metadata unless requested. Honor `access_level: "private"`: surface a private fact only when its subject is the current `context.counterparty` or `$self`; otherwise omit it silently, without hinting at its existence.
+14. **Confidence transparency** — always indicate confidence; mark low-confidence as uncertain.
+15. **Rate limit** — if a query needs excessive traversal, simplify and return partial results with a note.
+16. **Error recovery** — on a KIP error, apply the returned `hint`, correct, and retry once; never re-send a failing query verbatim.
