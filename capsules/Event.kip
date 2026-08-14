@@ -1,4 +1,9 @@
-// --- DEFINE the "Event" concept type and its core predicates ---
+// --- DEFINE the "Event" concept type ---
+//
+// The shared episodic/provenance predicates that connect Events and
+// Experiences to the rest of the graph — involves, mentions,
+// consolidated_to, derived_from — are defined in their own capsules:
+// involves.kip, mentions.kip, consolidated_to.kip, derived_from.kip.
 UPSERT {
     CONCEPT ?event_type_def {
         {type: "$ConceptType", name: "Event"}
@@ -71,59 +76,6 @@ UPSERT {
                     "description": "ISO 8601 timestamp of when the salience score was last computed."
                 }
             }
-        }
-        SET PROPOSITIONS {
-            ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
-        }
-    }
-
-    // --- DEFINE Event-centric predicates ---
-    // "involves": Links an Event or Experience to a Person who directly participated.
-    CONCEPT ?involves_prop_def {
-        {type: "$PropositionType", name: "involves"}
-        SET ATTRIBUTES {
-            description: "Links an Event or Experience to a Person who directly participated in it. Distinct from 'mentions', which is for referenced but non-participant entities. For an Experience, include the subject who pursued the goal.",
-            object_types: ["Person"],
-            subject_types: ["Event", "Experience"]
-        }
-        SET PROPOSITIONS {
-            ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
-        }
-    }
-
-    // "mentions": Links an Event to any concept that was referenced but not a direct participant.
-    CONCEPT ?mentions_prop_def {
-        {type: "$PropositionType", name: "mentions"}
-        SET ATTRIBUTES {
-            description: "Links an Event to a concept (of any type) that was referenced or discussed during the event, but was not a direct participant. Use 'involves' for direct participants (Persons).",
-            object_types: ["*"],
-            subject_types: ["Event"]
-        }
-        SET PROPOSITIONS {
-            ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
-        }
-    }
-
-    // "consolidated_to": Links an Event or Experience to semantic knowledge extracted from it.
-    CONCEPT ?consolidated_to_prop_def {
-        {type: "$PropositionType", name: "consolidated_to"}
-        SET ATTRIBUTES {
-            description: "Links an Event or Experience to a durable semantic concept (e.g., Preference or domain fact) extracted during Formation or Maintenance. Use the more specific 'derived_insight' for Experience -> Insight and 'compiled_to' for Experience -> Skill. The reverse provenance link is 'derived_from'.",
-            object_types: ["*"],
-            subject_types: ["Event", "Experience"]
-        }
-        SET PROPOSITIONS {
-            ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
-        }
-    }
-
-    // "derived_from": Links consolidated knowledge or skill back to source evidence.
-    CONCEPT ?derived_from_prop_def {
-        {type: "$PropositionType", name: "derived_from"}
-        SET ATTRIBUTES {
-            description: "Links a durable semantic concept, Insight, or Skill back to the Event(s) or Experience(s) from which it was derived. It is the inverse provenance relation for 'consolidated_to', 'derived_insight', and 'compiled_to'.",
-            object_types: ["Event", "Experience"],
-            subject_types: ["*"]
         }
         SET PROPOSITIONS {
             ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})

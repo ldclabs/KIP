@@ -1,0 +1,22 @@
+// --- DEFINE the "mentions" predicate: Event | Experience -> any concept ---
+UPSERT {
+  CONCEPT ?mentions_prop_def {
+    {type: "$PropositionType", name: "mentions"}
+    SET ATTRIBUTES {
+      description: "Links an Event or Experience to a concept (of any type) that was referenced or discussed but was not a direct participant. Use 'involves' for direct participants (Persons).",
+      subject_types: ["Event", "Experience"],
+      object_types: ["*"],
+      is_symmetric: false,
+      is_transitive: false
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+    }
+  }
+}
+WITH METADATA {
+  source: "SystemBootstrap",
+  author: "$system",
+  confidence: 1.0,
+  status: "active"
+}

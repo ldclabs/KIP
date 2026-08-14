@@ -1702,6 +1702,8 @@ WITH METADATA {
 
 Profile 定义 `Event`、`Person`、`Preference`、`Insight`、`Commitment` 和 `SleepTask` 等常见记忆产物。需要经验学习的实现还应定义 `Experience`、`ExperienceStep` 与 `Skill`，具体见下文及 [CognitiveMemoryProfile_CN.md](./brain/CognitiveMemoryProfile_CN.md)。
 
+谓词以独立胶囊发布：共享的情景/溯源关系——[involves.kip](./capsules/involves.kip)、[mentions.kip](./capsules/mentions.kip)、[consolidated_to.kip](./capsules/consolidated_to.kip)、[derived_from.kip](./capsules/derived_from.kip)（均同时覆盖 Event 与 Experience）——以及 Experience 专属关系——[has_step.kip](./capsules/has_step.kip)、[caused_by.kip](./capsules/caused_by.kip)、[derived_insight.kip](./capsules/derived_insight.kip)、[compiled_to.kip](./capsules/compiled_to.kip)。请在其引用的类型胶囊之后加载。
+
 这里的边界是有意为之：`Event` 摘要记录**发生了什么**；`Experience` 保存可复用的**状态—行动—观察轨迹**；`Skill` 表示从一段或多段 Experience 中编译出的行动流程。
 
 ### A3.1. `Event` 概念类型

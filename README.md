@@ -354,7 +354,7 @@ The Experience Learning Profile is deliberately additive:
 - **Idempotent bootstrap.** Every profile capsule uses ordinary `UPSERT` and can be safely replayed.
 - **Advisory schemas remain advisory.** Engines that know only KIP Core can store and query these types without profile-specific code.
 - **Existing memories remain valid.** Event-only graphs continue to work; Experiences and Skills can be introduced incrementally.
-- **Existing predicates are only widened.** `involves`, `consolidated_to`, and `derived_from` retain all previous valid subject/object combinations while adding Experience-aware ones.
+- **Existing predicates are only widened.** `involves`, `mentions`, `consolidated_to`, and `derived_from` retain all previous valid subject/object combinations while adding Experience-aware ones.
 
 KIP Core specifies the protocol. Capsules define the cognitive vocabulary. Anda Brain implements the Experience Learning Loop as agent behavior.
 
@@ -382,8 +382,8 @@ KIP Core specifies the protocol. Capsules define the cognitive vocabulary. Anda 
 ## Get Started
 
 1. **Run a Cognitive Nexus.** Use the [Anda Cognitive Nexus HTTP Server](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus_server), the [Rust crate](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus), or the [Python binding](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py).
-2. **Bootstrap KIP Core.** Load [Genesis.kip](./capsules/Genesis.kip), followed by `Person`, `Event`, `Preference`, `Insight`, `Commitment`, and `SleepTask`.
-3. **Load the Experience Learning Profile.** Load `Experience`, `ExperienceStep`, and `Skill`, then the four predicate capsules. The recommended deterministic order is shown below.
+2. **Bootstrap KIP Core.** Load [Genesis.kip](./capsules/Genesis.kip), followed by `Person`, `Event`, `Preference`, `Insight`, `Commitment`, and `SleepTask`, plus the shared episodic/provenance predicate capsules `involves`, `mentions`, `consolidated_to`, and `derived_from`.
+3. **Load the Experience Learning Profile.** Load `Experience`, `ExperienceStep`, and `Skill`, then the four Experience-specific predicate capsules. The recommended deterministic order is shown below.
 4. **Connect the agent.** Embed [KIPSyntax.md](./KIPSyntax.md) and expose [`execute_kip`](./FunctionDefinition.json), or put the [Brain layer](./brain/README.md) or [MCP server](./mcp/kip-mcp-server/) in front of KIP.
 
 ```text
@@ -397,13 +397,17 @@ capsules/SleepTask.kip
 capsules/Experience.kip
 capsules/ExperienceStep.kip
 capsules/Skill.kip
+capsules/involves.kip
+capsules/mentions.kip
+capsules/consolidated_to.kip
+capsules/derived_from.kip
 capsules/has_step.kip
 capsules/caused_by.kip
 capsules/derived_insight.kip
 capsules/compiled_to.kip
 ```
 
-The type capsules precede predicate capsules so schema references are already grounded. All writes are idempotent, so the complete sequence may be replayed.
+The type capsules precede predicate capsules so schema references are already grounded. All writes are idempotent, so the complete sequence may be replayed. An Event-only deployment loads the core type capsules plus the four shared predicate capsules and stops there; the `Experience` entries in their `subject_types` / `object_types` stay dormant until the profile types are registered.
 
 ## Documentation
 
@@ -426,10 +430,14 @@ The type capsules precede predicate capsules so schema references are already gr
 | --- | --- |
 | [Genesis.kip](./capsules/Genesis.kip) | Bootstraps the self-describing KIP type system |
 | [Person.kip](./capsules/Person.kip) | Actors: AI, Human, Organization |
-| [Event.kip](./capsules/Event.kip) | Objective episodic occurrences and shared provenance predicates |
+| [Event.kip](./capsules/Event.kip) | Objective episodic occurrences |
 | [Experience.kip](./capsules/Experience.kip) | Goal-directed trajectories |
 | [ExperienceStep.kip](./capsules/ExperienceStep.kip) | Ordered observation, decision, action, and feedback records |
 | [Skill.kip](./capsules/Skill.kip) | Procedural memory and action-selecting policy |
+| [involves.kip](./capsules/involves.kip) | `Event / Experience → Person` participation |
+| [mentions.kip](./capsules/mentions.kip) | `Event / Experience → concept` non-participant references |
+| [consolidated_to.kip](./capsules/consolidated_to.kip) | `Event / Experience → semantic knowledge` consolidation |
+| [derived_from.kip](./capsules/derived_from.kip) | Inverse provenance back to source Events / Experiences |
 | [has_step.kip](./capsules/has_step.kip) | `Experience → ExperienceStep` membership |
 | [caused_by.kip](./capsules/caused_by.kip) | Evidence-backed causal links between steps |
 | [derived_insight.kip](./capsules/derived_insight.kip) | `Experience → Insight` consolidation |

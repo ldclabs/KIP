@@ -352,7 +352,7 @@ Experience Learning Profile 是纯增量扩展：
 - **自举过程幂等。** 所有 Profile 胶囊都使用普通 `UPSERT`，可安全重放。
 - **Schema 仍是建议性约束。** 只理解 KIP Core 的引擎也能存取这些类型，无需写 Profile 专用代码。
 - **旧记忆继续有效。** 只使用 Event 的图谱无需迁移，可以逐步引入 Experience 和 Skill。
-- **既有谓词只扩宽，不收窄。** `involves`、`consolidated_to` 和 `derived_from` 保留原有合法组合，并增加对 Experience 的支持。
+- **既有谓词只扩宽，不收窄。** `involves`、`mentions`、`consolidated_to` 和 `derived_from` 保留原有合法组合，并增加对 Experience 的支持。
 
 KIP Core 规定协议；胶囊定义认知词汇；Anda Brain 负责把 Experience Learning Loop 落成智能体行为。
 
@@ -380,8 +380,8 @@ KIP Core 规定协议；胶囊定义认知词汇；Anda Brain 负责把 Experien
 ## 快速上手
 
 1. **运行认知中枢。** 可使用 [Anda Cognitive Nexus HTTP Server](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus_server)、[Rust crate](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) 或 [Python binding](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py)。
-2. **加载 KIP Core。** 先加载 [Genesis.kip](./capsules/Genesis.kip)，再加载 `Person`、`Event`、`Preference`、`Insight`、`Commitment` 和 `SleepTask`。
-3. **加载 Experience Learning Profile。** 依次加载 `Experience`、`ExperienceStep`、`Skill` 以及四个谓词胶囊。推荐顺序见下方。
+2. **加载 KIP Core。** 先加载 [Genesis.kip](./capsules/Genesis.kip)，再加载 `Person`、`Event`、`Preference`、`Insight`、`Commitment` 和 `SleepTask`，以及共享的情景/溯源谓词胶囊 `involves`、`mentions`、`consolidated_to`、`derived_from`。
+3. **加载 Experience Learning Profile。** 依次加载 `Experience`、`ExperienceStep`、`Skill` 以及四个 Experience 专属谓词胶囊。推荐顺序见下方。
 4. **连接智能体。** 可嵌入 [KIPSyntax.md](./KIPSyntax.md) 并暴露 [`execute_kip`](./FunctionDefinition.json)，也可以使用 [Brain 层](./brain/README_CN.md) 或 [MCP Server](./mcp/kip-mcp-server/) 代理 KIP。
 
 ```text
@@ -395,13 +395,17 @@ capsules/SleepTask.kip
 capsules/Experience.kip
 capsules/ExperienceStep.kip
 capsules/Skill.kip
+capsules/involves.kip
+capsules/mentions.kip
+capsules/consolidated_to.kip
+capsules/derived_from.kip
 capsules/has_step.kip
 capsules/caused_by.kip
 capsules/derived_insight.kip
 capsules/compiled_to.kip
 ```
 
-类型胶囊排在谓词胶囊之前，确保 `subject_types` 和 `object_types` 引用已经接地。所有写入都是幂等的，完整序列可以重复执行。
+类型胶囊排在谓词胶囊之前，确保 `subject_types` 和 `object_types` 引用已经接地。所有写入都是幂等的，完整序列可以重复执行。只使用 Event 的部署加载核心类型胶囊和四个共享谓词胶囊即可；谓词 `subject_types` / `object_types` 中的 `Experience` 引用在注册 Profile 类型之前保持休眠，无副作用。
 
 ## 文档
 
@@ -426,10 +430,14 @@ capsules/compiled_to.kip
 | --- | --- |
 | [Genesis.kip](./capsules/Genesis.kip) | 自描述 KIP 类型系统的自举入口 |
 | [Person.kip](./capsules/Person.kip) | AI、人类和组织等行为主体 |
-| [Event.kip](./capsules/Event.kip) | 客观情景事件与通用来源谓词 |
+| [Event.kip](./capsules/Event.kip) | 客观情景事件 |
 | [Experience.kip](./capsules/Experience.kip) | 目标导向轨迹 |
 | [ExperienceStep.kip](./capsules/ExperienceStep.kip) | 有序的观察、决策、行动和反馈记录 |
 | [Skill.kip](./capsules/Skill.kip) | 程序性记忆与行动策略 |
+| [involves.kip](./capsules/involves.kip) | `Event / Experience → Person` 参与关系 |
+| [mentions.kip](./capsules/mentions.kip) | `Event / Experience → 概念` 非参与者引用 |
+| [consolidated_to.kip](./capsules/consolidated_to.kip) | `Event / Experience → 语义知识` 巩固关系 |
+| [derived_from.kip](./capsules/derived_from.kip) | 指回来源 Event / Experience 的反向溯源 |
 | [has_step.kip](./capsules/has_step.kip) | `Experience → ExperienceStep` 归属关系 |
 | [caused_by.kip](./capsules/caused_by.kip) | 有证据支持的 Step 因果关系 |
 | [derived_insight.kip](./capsules/derived_insight.kip) | `Experience → Insight` 巩固关系 |

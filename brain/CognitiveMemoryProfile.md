@@ -58,6 +58,7 @@ belongs_to_domain
 ```text
 Experience
   ├── involves ─────────> Person
+  ├── mentions ─────────> referenced concepts
   ├── has_step ─────────> ExperienceStep
   ├── consolidated_to ──> semantic knowledge
   ├── derived_insight ──> Insight
@@ -327,6 +328,7 @@ The Skill SHOULD also retain `derived_from` links to every supporting Experience
 ### 6.5 Reused predicates
 
 - `involves`: links an Experience to the Person pursuing or participating in the goal.
+- `mentions`: links an Experience to a concept that was referenced or acted on but was not a participant (a tool, service, project, or topic).
 - `consolidated_to`: links an Experience to semantic knowledge.
 - `derived_from`: preserves inverse provenance from knowledge, Insight, or Skill to Event or Experience.
 

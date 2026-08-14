@@ -1,0 +1,22 @@
+// --- DEFINE the "involves" predicate: Event | Experience -> Person ---
+UPSERT {
+  CONCEPT ?involves_prop_def {
+    {type: "$PropositionType", name: "involves"}
+    SET ATTRIBUTES {
+      description: "Links an Event or Experience to a Person who directly participated in it. Distinct from 'mentions', which is for referenced but non-participant entities. For an Experience, include the subject who pursued the goal.",
+      subject_types: ["Event", "Experience"],
+      object_types: ["Person"],
+      is_symmetric: false,
+      is_transitive: false
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+    }
+  }
+}
+WITH METADATA {
+  source: "SystemBootstrap",
+  author: "$system",
+  confidence: 1.0,
+  status: "active"
+}

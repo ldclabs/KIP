@@ -1671,6 +1671,8 @@ This appendix provides a **recommended**, non-core cognitive memory profile for 
 
 The profile defines actors and common memory products including `Event`, `Person`, `Preference`, `Insight`, `Commitment`, and `SleepTask`. Experience-learning implementations SHOULD additionally define `Experience`, `ExperienceStep`, and `Skill` as described below and in [CognitiveMemoryProfile.md](./brain/CognitiveMemoryProfile.md).
 
+Predicates ship as standalone capsules: the shared episodic/provenance relations — [involves.kip](./capsules/involves.kip), [mentions.kip](./capsules/mentions.kip), [consolidated_to.kip](./capsules/consolidated_to.kip), [derived_from.kip](./capsules/derived_from.kip) (all spanning Event and Experience) — and the Experience-specific relations — [has_step.kip](./capsules/has_step.kip), [caused_by.kip](./capsules/caused_by.kip), [derived_insight.kip](./capsules/derived_insight.kip), [compiled_to.kip](./capsules/compiled_to.kip). Load them after the type capsules they reference.
+
 The distinction is intentional: an `Event` summarizes **what happened**, while an `Experience` preserves a reusable **state-action-observation trajectory**, and a `Skill` represents a procedure compiled from one or more Experiences.
 
 ### A3.1. `Event` Concept Type

@@ -530,6 +530,7 @@ UPSERT {
 Recommended `kind`: `observation | decision | action | feedback`.
 
 - `index` defines order.
+- Link referenced but non-participant entities (tools, services, projects, topics) from the Experience with `mentions` when they aid future retrieval.
 - `caused_by` MAY be added only when the trace or later analysis supports a causal claim; temporal adjacency is not enough.
 - `decision_rationale` is concise reusable rationale only; never persist hidden chain-of-thought.
 - Preserve failed actions and observations when they establish failure modes or diagnostic branches.

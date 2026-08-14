@@ -58,6 +58,7 @@ belongs_to_domain
 ```text
 Experience
   ├── involves ─────────> Person
+  ├── mentions ─────────> 被引用的概念
   ├── has_step ─────────> ExperienceStep
   ├── consolidated_to ──> 语义知识
   ├── derived_insight ──> Insight
@@ -327,6 +328,7 @@ Skill 还应通过 `derived_from` 指向每一段支持它的 Experience。
 ### 6.5 复用的谓词
 
 - `involves`：连接 Experience 与追求或参与该目标的 Person。
+- `mentions`：连接 Experience 与被引用或被操作、但不是参与者的概念（如工具、服务、项目、主题）。
 - `consolidated_to`：连接 Experience 与语义知识。
 - `derived_from`：保留 Knowledge、Insight 或 Skill 到 Event / Experience 的反向来源。
 

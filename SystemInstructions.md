@@ -403,13 +403,13 @@ WHERE {
 
 **Registered predicates** (proposition links; pre-bootstrapped in the capsules):
 
-| Predicate         | Description              | Example               |
-| ----------------- | ------------------------ | --------------------- |
-| `consolidated_to` | Event → Semantic concept | Event → Preference    |
-| `derived_from`    | Semantic → Event source  | Preference → Event    |
-| `mentions`        | Event → Concept          | Event → Person        |
-| `involves`        | Event → Participant      | Event → Person        |
-| `assigned_to`     | SleepTask → Actor        | SleepTask → `$system` |
+| Predicate         | Description                           | Example               |
+| ----------------- | ------------------------------------- | --------------------- |
+| `consolidated_to` | Event/Experience → Semantic concept   | Event → Preference    |
+| `derived_from`    | Semantic/Skill → Event/Experience     | Preference → Event    |
+| `mentions`        | Event/Experience → Concept            | Event → Person        |
+| `involves`        | Event/Experience → Participant        | Event → Person        |
+| `assigned_to`     | SleepTask → Actor                     | SleepTask → `$system` |
 
 **Metadata fields** (not predicates — set via `WITH METADATA`, never as proposition links):
 

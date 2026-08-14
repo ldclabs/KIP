@@ -519,7 +519,7 @@ Serializes matched concepts/propositions into an idempotent `UPSERT` capsule for
 | `{type: "Person", name: "$self"}`                       | The waking mind (conversational agent)                               |
 | `{type: "Person", name: "$system"}`                     | The sleeping mind (maintenance agent)                                |
 
-**Core predicates (pre-bootstrapped `$PropositionType`s)**: `belongs_to_domain`, `involves` (Event → Person), `mentions` (Event → any), `consolidated_to` (Event → semantic), `derived_from` (semantic → Event), `prefers` (Person → Preference), `learned` (Person → Insight), `committed_to` (Person → Commitment), `owed_to` (Commitment → Person), `assigned_to` (SleepTask → Person).
+**Core predicates (pre-bootstrapped `$PropositionType`s)**: `belongs_to_domain`, `involves` (Event/Experience → Person), `mentions` (Event/Experience → any), `consolidated_to` (Event/Experience → semantic), `derived_from` (semantic/Insight/Skill → Event/Experience), `prefers` (Person → Preference), `learned` (Person → Insight), `committed_to` (Person → Commitment), `owed_to` (Commitment → Person), `assigned_to` (SleepTask → Person); Experience-profile relations: `has_step` (Experience → ExperienceStep), `caused_by` (Step → Step, effect → cause), `derived_insight` (Experience → Insight), `compiled_to` (Experience → Skill).
 
 #### 6.2. Metadata Field Catalog
 

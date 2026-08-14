@@ -1,0 +1,22 @@
+// --- DEFINE the "derived_from" predicate: consolidated knowledge or skill -> source evidence ---
+UPSERT {
+  CONCEPT ?derived_from_prop_def {
+    {type: "$PropositionType", name: "derived_from"}
+    SET ATTRIBUTES {
+      description: "Links a durable semantic concept, Insight, or Skill back to the Event(s) or Experience(s) from which it was derived. It is the inverse provenance relation for 'consolidated_to', 'derived_insight', and 'compiled_to'.",
+      subject_types: ["*"],
+      object_types: ["Event", "Experience"],
+      is_symmetric: false,
+      is_transitive: false
+    }
+    SET PROPOSITIONS {
+      ("belongs_to_domain", {type: "Domain", name: "CoreSchema"})
+    }
+  }
+}
+WITH METADATA {
+  source: "SystemBootstrap",
+  author: "$system",
+  confidence: 1.0,
+  status: "active"
+}

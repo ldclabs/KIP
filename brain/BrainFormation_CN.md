@@ -548,6 +548,7 @@ UPSERT {
 `kind` 建议取 `observation | decision | action | feedback`。
 
 - `index` 定义顺序。
+- 被引用但非参与者的实体（工具、服务、项目、主题）可用 `mentions` 从 Experience 链接出去，帮助未来检索。
 - 只有轨迹或后续分析支持因果关系时，才可添加 `caused_by`；时间相邻不等于因果。
 - `decision_rationale` 只保留简短、可复用的决策理由，不存储隐藏思维链。
 - 失败行动或观察如果界定了故障信号或诊断分支，应予保留。
