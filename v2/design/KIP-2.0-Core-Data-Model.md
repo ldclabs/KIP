@@ -1,5 +1,7 @@
 # KIP 2.0 Core Data Model
 
+**[English](./KIP-2.0-Core-Data-Model.md) | [中文](./KIP-2.0-Core-Data-Model_CN.md)**
+
 ## Status
 
 **Core Data Model Proposal / Pre-Specification Draft**

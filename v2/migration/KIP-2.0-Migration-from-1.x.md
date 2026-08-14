@@ -1,5 +1,7 @@
 # KIP 2.0 Migration from KIP 1.x
 
+**[English](./KIP-2.0-Migration-from-1.x.md) | [中文](./KIP-2.0-Migration-from-1.x_CN.md)**
+
 ## Status
 
 **Operational Migration Guide / Informative Companion to KIP 2.0 Specification §103**

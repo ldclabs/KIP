@@ -1,5 +1,7 @@
 # KIP 2.0 Cognitive Capsule
 
+**[English](./KIP-2.0-Capsule.md) | [中文](./KIP-2.0-Capsule_CN.md)**
+
 ## Status
 
 **Cognitive Capsule Proposal / Pre-Specification Draft**

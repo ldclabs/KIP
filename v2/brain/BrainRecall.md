@@ -1,5 +1,7 @@
 # KIP 2.0 Brain — Memory Recall
 
+**[English](./BrainRecall.md) | [中文](./BrainRecall_CN.md)**
+
 ## Status
 
 **Reference Anda Brain Recall Policy**

@@ -1,5 +1,7 @@
 # KIP 2.0 Governance
 
+**[English](./KIP-2.0-Governance.md) | [中文](./KIP-2.0-Governance_CN.md)**
+
 ## Status
 
 **Governance Model Proposal / Pre-Specification Draft**

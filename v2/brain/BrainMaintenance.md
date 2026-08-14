@@ -1,5 +1,7 @@
 # KIP 2.0 Brain — Memory Maintenance
 
+**[English](./BrainMaintenance.md) | [中文](./BrainMaintenance_CN.md)**
+
 ## Status
 
 **Reference Anda Brain Maintenance / Metabolism Policy**

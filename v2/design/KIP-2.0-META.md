@@ -1,5 +1,7 @@
 # KIP 2.0 META — Cognitive Nexus Introspection & Grounding
 
+**[English](./KIP-2.0-META.md) | [中文](./KIP-2.0-META_CN.md)**
+
 ## Status
 
 **META Protocol Proposal / Pre-Specification Draft**

@@ -1,5 +1,7 @@
 # KIP 2.0 Brain — Memory Formation
 
+**[English](./BrainFormation.md) | [中文](./BrainFormation_CN.md)**
+
 ## Status
 
 **Reference Anda Brain Formation Policy**

@@ -1,5 +1,7 @@
 # KIP 2.0 Conformance Tests
 
+**[English](./KIP-2.0-Conformance-Tests.md) | [中文](./KIP-2.0-Conformance-Tests_CN.md)**
+
 ## Status
 
 **Normative Test Design / Pre-Executable Test Suite**

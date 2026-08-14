@@ -1,5 +1,7 @@
 # KIP 2.0 Architecture — A Cognitive State Protocol for Agent Memory Brains
 
+**[English](./KIP-2.0-Architecture.md) | [中文](./KIP-2.0-Architecture_CN.md)**
+
 ## Status
 
 **Informative Architecture / KIP 2.0 Design Rationale**

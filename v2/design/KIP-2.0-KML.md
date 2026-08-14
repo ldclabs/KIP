@@ -1,5 +1,7 @@
 # KIP 2.0 KML — Cognitive Mutation Language
 
+**[English](./KIP-2.0-KML.md) | [中文](./KIP-2.0-KML_CN.md)**
+
 ## Status
 
 **Mutation Language Proposal / Pre-Specification Draft**

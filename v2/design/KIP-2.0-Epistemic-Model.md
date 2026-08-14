@@ -1,5 +1,7 @@
 # KIP 2.0 Epistemic Model
 
+**[English](./KIP-2.0-Epistemic-Model.md) | [中文](./KIP-2.0-Epistemic-Model_CN.md)**
+
 ## Status
 
 **Epistemic Model Proposal / Pre-Specification Draft**

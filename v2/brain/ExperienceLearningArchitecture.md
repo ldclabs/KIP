@@ -1,5 +1,7 @@
 # Experience Learning Architecture for a KIP 2.0 Brain
 
+**[English](./ExperienceLearningArchitecture.md) | [中文](./ExperienceLearningArchitecture_CN.md)**
+
 ## Status
 
 **Reference Cognitive Architecture / Brain-Layer Design**

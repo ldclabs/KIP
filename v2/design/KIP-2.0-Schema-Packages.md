@@ -1,5 +1,7 @@
 # KIP 2.0 Schema Packages
 
+**[English](./KIP-2.0-Schema-Packages.md) | [中文](./KIP-2.0-Schema-Packages_CN.md)**
+
 ## Status
 
 **Schema Package Model Proposal / Pre-Specification Draft**

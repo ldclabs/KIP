@@ -1,5 +1,7 @@
 # KIP Cognitive Memory Profile 2.0
 
+**[English](./CognitiveMemoryProfile-2.0.md) | [中文](./CognitiveMemoryProfile-2.0_CN.md)**
+
 ## Status
 
 **Standard Profile Candidate / Informative until separately published as a normative Profile Package**

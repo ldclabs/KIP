@@ -1,5 +1,7 @@
 # KIP 2.0 Specification
 
+**[English](./KIP-2.0-SPECIFICATION.md) | [中文](./KIP-2.0-SPECIFICATION_CN.md)**
+
 ## Status
 
 **Normative Draft / Protocol Consolidation Candidate**

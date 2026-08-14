@@ -1,5 +1,7 @@
 ## 🧬 KIP 2.0 Syntax Reference (LLM-Facing)
 
+**[English](./KIPSyntax.md) | [中文](./KIPSyntax_CN.md)**
+
 **Full Spec**: `KIP-2.0-SPECIFICATION.md` (normative; this card is a faithful condensation)
 
 KIP 2.0 is a cognitive state protocol between an Agent and a persistent **Cognitive Nexus**. You read with **KQL** (`FIND`), change cognition with **KML** (`ASSERT` / `MUTATE` / ...), and ground/introspect with **META** (`DESCRIBE` / `SEARCH` / `VERIFY` / ...). Values are JSON-compatible; keywords are ASCII case-insensitive (canonical UPPERCASE); schema symbols and strings stay case-sensitive.

@@ -1,5 +1,7 @@
 # KIP 2.0 Transactions
 
+**[English](./KIP-2.0-Transactions.md) | [中文](./KIP-2.0-Transactions_CN.md)**
+
 ## Status
 
 **Transaction Model Proposal / Pre-Specification Draft**

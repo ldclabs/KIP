@@ -1,5 +1,7 @@
 # KIP 2.0 Protocol Runtime
 
+**[English](./KIP-2.0-Protocol-Runtime.md) | [中文](./KIP-2.0-Protocol-Runtime_CN.md)**
+
 ## Status
 
 **Protocol Runtime Proposal / Pre-Specification Draft**

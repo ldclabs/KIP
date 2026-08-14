@@ -1,5 +1,7 @@
 # KIP 2.0 KQL — Cognitive Query Language
 
+**[English](./KIP-2.0-KQL.md) | [中文](./KIP-2.0-KQL_CN.md)**
+
 ## Status
 
 **Query Language Proposal / Pre-Specification Draft**
