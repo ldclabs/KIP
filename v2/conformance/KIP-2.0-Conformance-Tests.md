@@ -322,16 +322,13 @@ works_for:
 Structural Fields:
 
 ```text
-has_step
+has_step        (ordered)
 experienced_by
-evidence
-source
-generated_by
-inputs
-outputs
 compiled_from
 compiled_by
 ```
+
+The reserved Core structural fields (`evidence`, `source`, `generated_by`, `inputs`, `outputs`) are built-ins defined by `KIP-2.0-SPECIFICATION.md` §20.13; the test package does not redefine them, and vectors exercising them test the Core built-in constraints directly.
 
 Facets:
 

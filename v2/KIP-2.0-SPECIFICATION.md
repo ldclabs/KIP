@@ -423,6 +423,24 @@ Space must be explicitly or safely resolved through execution context.
 
 ---
 
+## 5.6 Space self identity
+
+A MemorySpace MAY designate at most one **self identity**: a reference to a Concept (typically a Person/Agent Concept) that the Space treats as its semantic `$self`.
+
+The designation is protected Space/Governance configuration state:
+
+```text
+it is not ordinary cognitive content
+ordinary KML MUST NOT create or change it
+changing it requires a protected Governance operation
+```
+
+`$self` is a documentation name, not literal KIP syntax. An Agent obtains the designated self Concept's exact reference through `DESCRIBE PRIMER` / execution context (§64.2).
+
+All Capsule rules about source/destination `$self` (§38.4, §38.5) refer to this designated self identity. A Space without a designated self identity has no `$self` for those rules to map onto.
+
+---
+
 # 6. Core Data Model
 
 ## 6.1 Core element kinds
@@ -1309,6 +1327,37 @@ If a statement about a structural relation needs epistemic treatment, model it a
 
 ---
 
+## 17.4 Ordered Structural References
+
+A Structural Field MAY be declared **ordered**.
+
+For an ordered field, the engine maintains one stable, dense, zero-based total order of references per source element:
+
+```text
+references added without an explicit index append in mutation order
+an explicit {index: n} assignment declares the intended zero-based position
+conflicting explicit positions in one mutation plan MUST fail validation
+the committed order MUST be dense (0..n-1) and deterministic
+```
+
+Queries expose the current position of each reference as the virtual field:
+
+```text
+?edge.index
+```
+
+on the Structural Pattern binding (§43.7). Unordered fields expose no index.
+
+Order is record topology only:
+
+```text
+index order ≠ causality
+```
+
+A causal claim between referenced elements is a semantic Proposition + Assertion (for ExperienceSteps, see the Cognitive Memory Profile's `caused_by` Predicate).
+
+---
+
 # 18. Facets and Profiles
 
 ## 18.1 Facet
@@ -1584,6 +1633,56 @@ preview
 ```
 
 without being activated in the destination Space.
+
+---
+
+## 20.13 The Core Package
+
+`kip://core` is a **virtual, built-in Schema Package defined by this Specification itself**.
+
+```text
+its version is the protocol version (kip://core@2.0.0 for this Specification)
+it is implicitly active in every Schema Environment
+it MUST NOT be deactivated, replaced, or shadowed
+it has no separate package artifact
+a dependency declaration on kip://core MAY therefore omit an artifact digest;
+its identity is the protocol version
+```
+
+`kip://core@2.0.0` exports the following symbols.
+
+**Core element kinds** (referable as, e.g., `kip://core@2.0.0/Assertion`):
+
+```text
+Concept
+Proposition
+Assertion
+Evidence
+Activity
+```
+
+**Reserved Core structural fields** (resolved by the source element's Core kind, not through package aliases):
+
+```text
+evidence       Assertion → Evidence            role-qualified citation (§56.2)
+source         Evidence  → Concept | Evidence  origin of the observation/artifact
+generated_by   Evidence  → Activity            producing Activity
+inputs         Activity  → any Core element    provenance inputs
+outputs        Activity  → any Core element    provenance outputs
+```
+
+**Core registries**:
+
+```text
+stance                support | reject | uncertain
+mode                  observed | stated | inferred | predicted | hypothetical | imported
+Assertion lifecycle   active | retracted | superseded | expired
+Evidence role         support | challenge | context
+Activity terminal     completed | failed | cancelled
+belief status         accepted | rejected | contested | uncertain | insufficient
+```
+
+A Schema Package MUST NOT define or alias a symbol that shadows a reserved Core symbol name in its resolution scope. Registries documented as extensible (for example `activity_class` values) MAY be extended with additional values through package registry extensions.
 
 ---
 
@@ -3113,6 +3212,12 @@ In native v2, `?predicate` binds the exact canonical Predicate ref.
 
 The bound `?edge` is virtual structural query state, not necessarily a durable Cognitive Element.
 
+For an ordered Structural Field, `?edge.index` exposes the reference's current zero-based order (§17.4):
+
+```prolog
+ORDER BY ?edge.index ASC
+```
+
 ---
 
 # 44. KQL Expressions and Clauses
@@ -3670,6 +3775,8 @@ canonical Proposition
 
 No Assertion is created by ENSURE alone.
 
+Predicate symbols in examples resolve through the active Schema Environment: `prefers` and `caused_by` are defined by the Cognitive Memory Profile, while domain facts such as `timezone` come from an activated domain package.
+
 ---
 
 # 56. CREATE EVIDENCE / ASSERTION / ACTIVITY
@@ -3975,6 +4082,31 @@ CHANGES
 SNAPSHOT
 EXPORT CAPSULE
 ```
+
+---
+
+## 63.4 EXPORT CAPSULE
+
+Recommended syntax:
+
+```text
+EXPORT CAPSULE ?roots
+WHERE {
+  ...
+}
+[WITH {
+  closure: "...",
+  provenance_depth: ...,
+  include_schema: true,
+  include_blobs: false,
+  proof_profile: "..."
+}]
+[AS OF SEQ :seq]
+```
+
+The operand names the **selection root binding**: every element bound to `?roots` by the `WHERE` block belongs to the export root set. The operand MAY instead be a parameter or string naming a single root element.
+
+The produced Capsule contains the root set plus the closure declared in `WITH`, subject to Governance and to the snapshot-consistency rules of §41.1. The result is a Capsule artifact (§85); no cognitive state is mutated.
 
 ---
 
@@ -5101,7 +5233,10 @@ KIP-META
 KIP-Runtime
 KIP-Historical
 KIP-High-Assurance
+KIP-1-Migration
 ```
+
+`KIP-1-Migration` applies only to implementations that claim KIP 1.x migration or compatibility support (§103); it is otherwise not required.
 
 ---
 
@@ -5659,7 +5794,8 @@ structural_pattern :=
     "(" term "," structural_field "," term ")"
 
 belief_pattern :=
-      variable "BELIEF" "(" proposition_variable ")"
+      variable "BELIEF" "(" variable ")"
+        (* the inner variable must be bound to a Proposition *)
     | variable "BELIEF"
       "(" term "," predicate_term "," term ")"
 
@@ -5771,35 +5907,34 @@ describe_target :=
 
 # Appendix D. Runtime Envelope Schema Sketch
 
-Illustrative JSON shape:
+Illustrative full-surface JSON shape (validates against `kip-request.schema.json`; an absent optional field is omitted entirely — explicit `null` is not used for optionality):
 
 ```json
 {
   "kip": "2.0",
 
-  "request_id": "req-...",
+  "request_id": "req-42",
 
   "space": {
-    "id": "space-id",
-    "uri": null
+    "id": "space-id"
   },
 
-  "compatibility_profile": null,
+  "compatibility_profile": "kip-1-compat",
 
   "execution": {
     "mode": "atomic",
-    "on_error": null,
+    "on_error": "stop",
     "isolation": "serializable",
-    "idempotency_key": "..."
+    "idempotency_key": "formation:42"
   },
 
   "read": {
-    "snapshot_token": null
+    "snapshot_token": "opaque-snapshot-token"
   },
 
   "preconditions": {
-    "space_seq": null,
-    "schema_environment_version": null
+    "space_seq": 1500,
+    "schema_environment_version": 17
   },
 
   "operations": [
@@ -5808,7 +5943,6 @@ Illustrative JSON shape:
       "language": "KQL",
       "command": "...",
       "parameters": {},
-      "idempotency_key": null,
       "options": {}
     }
   ],
@@ -5816,17 +5950,17 @@ Illustrative JSON shape:
   "parameters": {},
 
   "context": {
-    "purpose": null,
-    "risk": null,
-    "locale": null,
-    "client": null
+    "purpose": "answer_user",
+    "risk": "low",
+    "locale": "en-US",
+    "client": "anda-brain/2.0"
   },
 
   "requires": {},
 
   "options": {
     "dry_run": false,
-    "deadline_ms": null
+    "deadline_ms": 10000
   },
 
   "extensions": {}
@@ -5837,10 +5971,12 @@ Illustrative JSON shape:
 
 # Appendix E. Response Schema Sketch
 
+Illustrative committed-write response (validates against `kip-response.schema.json`):
+
 ```json
 {
   "kip": "2.0",
-  "request_id": "req-...",
+  "request_id": "req-42",
   "status": "succeeded",
 
   "execution": {
@@ -5862,23 +5998,30 @@ Illustrative JSON shape:
   },
 
   "snapshot": {
+    "space_id": "space-1",
     "snapshot_seq": 1500
   },
 
   "receipt": {
-    "tx_id": null,
-    "space_seq": null
+    "status": "committed",
+    "tx_id": "tx-900",
+    "space_id": "space-1",
+    "snapshot_seq": 1500,
+    "space_seq": 1501,
+    "committed_at": "2026-08-14T03:00:00Z"
   },
 
-  "warnings": [],
-
-  "error": null
+  "warnings": []
 }
 ```
+
+A read-only response carries `"receipt": null` (and MAY carry `"snapshot": null` when no snapshot context applies). A top-level `error` object appears only in failed / outcome-unknown responses; it is omitted, never `null`, elsewhere.
 
 ---
 
 # Appendix F. Cognitive Formation Examples
+
+Examples assume the Cognitive Memory Profile (which defines `prefers` and `caused_by`) plus a domain package defining `timezone` are active in the Schema Environment.
 
 ## F.1 User statement
 

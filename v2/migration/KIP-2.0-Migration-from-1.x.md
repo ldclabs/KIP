@@ -326,10 +326,12 @@ If the deployment already used the pre-2.0 Experience extension, map into Cognit
 Important conversions:
 
 ```text
-metadata.memory_strength → MnemonicState.memory_strength
-metadata.confidence      → classify; never blindly keep as Profile metadata
-next_step semantic edge  → ordered has_step topology where safe
-compiled_to/derived_from → compiled_from + compilation Activity where recoverable
+metadata.memory_strength   → MnemonicState.memory_strength
+metadata.confidence        → classify; never blindly keep as Profile metadata
+has_step + index attribute → ordered has_step topology (edge order; no step ordinal attribute)
+caused_by predicate        → Profile caused_by Proposition + migrated positive Assertion
+derived_insight            → derived_from structural lineage (Insight → Experience) where recoverable
+compiled_to/derived_from   → compiled_from + compilation Activity where recoverable
 ```
 
 Preserve raw legacy representation as provenance when exact conversion is uncertain.

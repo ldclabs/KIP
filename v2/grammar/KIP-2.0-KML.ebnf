@@ -51,13 +51,11 @@
 identifier       = identifier_start, { identifier_continue } ;
 identifier_start = ? ASCII letter or "_" ? ;
 identifier_continue
-                 = ? ASCII letter, ASCII digit, "_" or "-" ? ;
+                 = ? ASCII letter, ASCII digit or "_" ? ;
 
 variable         = "?", identifier ;
 parameter        = ":", identifier ;
 
-unsigned_integer = digit, { digit } ;
-integer_literal  = [ "-" ], unsigned_integer ;
 number_literal   = [ "-" ], integer_part, [ fraction_part ], [ exponent_part ] ;
 integer_part     = "0" | nonzero_digit, { digit } ;
 fraction_part    = ".", digit, { digit } ;

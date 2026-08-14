@@ -4011,7 +4011,8 @@ MUTATE {
     NAME :skill_name
 
     SET ATTRIBUTES {
-      intent: :intent,
+      skill_class: :skill_class,
+      summary: :summary,
       applicability: :applicability,
       procedure: :procedure,
       success_criteria: :success_criteria,
@@ -6006,7 +6007,8 @@ MUTATE {
     CLIENT KEY :skill_version_key
 
     SET ATTRIBUTES {
-      intent: :intent,
+      skill_class: :skill_class,
+      summary: :summary,
       applicability: :applicability,
       procedure: :procedure,
       status: "candidate"

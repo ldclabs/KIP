@@ -199,13 +199,13 @@
     "does_not_grant_governance_authority"
   ],
   "canonicalization": {
-    "fixture_profile": "kip-test-canonical-json-v1",
+    "fixture_profile": "kip-draft-canonical-json-v1",
     "production_status": "test-only",
-    "description": "UTF-8 JSON, recursively sorted object keys, compact separators, finite JSON numbers; integrity is excluded from its own digest."
+    "description": "UTF-8 JSON, recursively sorted object keys, compact separators, finite JSON numbers; integrity is excluded from its own digest. Test-only fixture usage of the shared draft canonicalization profile."
   },
   "integrity": {
-    "digest_profile": "kip-test-canonical-json-v1",
-    "content_digest": "sha256:2b2ba355621154fd3e54a89f583343b4debf96802816d79d5d61dfd7865615e2",
+    "digest_profile": "kip-draft-canonical-json-v1",
+    "content_digest": "sha256:59bdd05113a7c543d9e71f9b7795d94e8fe029a0538525aea047cd3df9488be4",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

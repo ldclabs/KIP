@@ -366,7 +366,7 @@
         "deadline_ms": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 9223372036854775807,
+          "maximum": 9007199254740991,
           "description": "Client execution window in milliseconds; expiry is not proof that a transaction aborted."
         },
         "extensions": {

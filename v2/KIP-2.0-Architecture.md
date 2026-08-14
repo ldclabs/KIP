@@ -2104,11 +2104,13 @@ This architecture should be implemented in stages.
 
 ---
 
-# 24. Open Architecture Questions
+# 24. Architecture Questions and Their Resolutions
 
-These should be resolved before writing the final KIP 2.0 grammar.
+These questions were raised while this architecture was being designed. The consolidated `KIP-2.0-SPECIFICATION.md` has since resolved them; the original discussion is preserved below with each outcome noted.
 
 ## Q1. Is Assertion a dedicated KIP element kind or a reserved Core Concept Type?
+
+**Resolved**: Assertion is a dedicated Core element kind (Specification §6.1), alongside Concept, Proposition, Evidence, and Activity.
 
 Dedicated syntax may be more ergonomic and enforceable; representing it as a reserved concept may preserve graph uniformity.
 
@@ -2119,6 +2121,8 @@ Architecture requirement: first-class semantics either way.
 A single assertion bundle can represent a quoted statement or source document containing many claims, but one-Assertion-per-Proposition is simpler for confidence and contradiction.
 
 Recommended initial default: one Assertion targets one Proposition; grouping is represented by a higher-level statement/evidence artifact.
+
+**Resolved**: one Assertion targets exactly one Proposition (Specification §13.1).
 
 ## Q3. What exactly is the native negative-claim model?
 
@@ -2132,6 +2136,8 @@ or a proposition whose object is `false` for boolean predicates.
 
 Recommended principle: prefer stance for epistemic rejection; use literal false only when false is genuinely the semantic object.
 
+**Resolved**: as recommended — reject stance for epistemic rejection, literal `false` only as a genuine semantic object; Core preserves the structural distinction (Specification §12.7).
+
 ## Q4. Should accepted belief be persisted or computed?
 
 Persisted acceptance is fast but can become stale under changing trust/policy.
@@ -2140,9 +2146,13 @@ Computed Epistemic Projection is cleaner.
 
 Recommended default: assertions are canonical state; acceptance is a view unless a profile explicitly snapshots it.
 
+**Resolved**: as recommended — Epistemic Projection is a computed read-only view; a read must not become durable self-belief (Specification §21.2).
+
 ## Q5. How much policy belongs in KIP Core?
 
 Core must define enforcement semantics and operation context. It should avoid becoming a complete general-purpose authorization language.
+
+**Resolved**: as recommended — the Specification defines permission families, evaluation order, and protocol invariants (§§28–31) without a general-purpose policy language.
 
 A compact capability/policy profile may be preferable.
 

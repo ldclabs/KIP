@@ -225,12 +225,6 @@
         "attributes": {
           "open": true,
           "fields": {
-            "ordinal": {
-              "type": "integer",
-              "required": true,
-              "mutable": false,
-              "minimum": 0
-            },
             "step_kind": {
               "type": "string",
               "required": true,
@@ -308,7 +302,8 @@
           }
         },
         "model_hints": {
-          "privacy_invariant": "decision_summary may store concise reusable rationale but never requires hidden chain-of-thought."
+          "privacy_invariant": "decision_summary may store concise reusable rationale but never requires hidden chain-of-thought.",
+          "ordering_invariant": "Step order lives on the ordered has_step Structural References (virtual edge index); causality requires an explicit caused_by Proposition + Assertion."
         }
       },
       "Preference": {
@@ -550,6 +545,15 @@
               "required": false,
               "mutable": true
             },
+            "recovery": {
+              "type": [
+                "string",
+                "array",
+                "object"
+              ],
+              "required": false,
+              "mutable": true
+            },
             "status": {
               "type": "string",
               "required": true,
@@ -742,7 +746,44 @@
         }
       }
     },
-    "predicates": {},
+    "predicates": {
+      "prefers": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/prefers",
+        "kind": "PredicateType",
+        "description": "Subject holds a relatively stable preference for the object. Truth-sensitive: use Proposition + Assertion + Evidence, not a bare attribute.",
+        "subject": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Person"
+          ]
+        },
+        "object": {
+          "kinds": [
+            "Concept"
+          ]
+        },
+        "functional": false,
+        "open_world": true,
+        "complete": false
+      },
+      "caused_by": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/caused_by",
+        "kind": "PredicateType",
+        "description": "Effect-to-cause claim between ExperienceSteps: the subject step's outcome/observation was causally produced by the object step. Direction is effect -> cause. This is a truth-sensitive semantic claim (Proposition + Assertion, typically mode observed/inferred with Evidence), never structural topology; step order alone must not be promoted into caused_by.",
+        "subject": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/ExperienceStep"
+          ]
+        },
+        "object": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/ExperienceStep"
+          ]
+        },
+        "functional": false,
+        "open_world": true,
+        "complete": false
+      }
+    },
     "facets": {
       "MnemonicState": {
         "ref": "kip://profiles/cognitive-memory@2.0.0/MnemonicState",
@@ -800,7 +841,9 @@
           "utility": {
             "type": "number",
             "required": false,
-            "mutable": true
+            "mutable": true,
+            "minimum": 0.0,
+            "maximum": 1.0
           },
           "success_count": {
             "type": "integer",
@@ -1206,6 +1249,7 @@
       "Event = compact record of what happened",
       "Experience = goal-directed state/action/observation trajectory",
       "ExperienceStep = ordered observable step; no hidden chain-of-thought",
+      "caused_by = explicit effect->cause claim between steps; edge order alone is not causality",
       "Skill = reusable procedure; not execution authority",
       "Commitment = prospective memory; not automatic scheduling",
       "SelfModel = cognition about self; not Governance",
@@ -1221,7 +1265,8 @@
       "Person != Principal",
       "SelfModel != Governance",
       "Structural Reference != Proposition",
-      "Remote Experience != local autobiography"
+      "Remote Experience != local autobiography",
+      "has_step order != caused_by"
     ]
   },
   "canonicalization": {
@@ -1231,7 +1276,7 @@
   },
   "integrity": {
     "digest_profile": "kip-draft-canonical-json-v1",
-    "content_digest": "sha256:619081bfeaf3e9ac99f49781f3165c37722207b1eeeb30a05a9c76d20e9e4b8f",
+    "content_digest": "sha256:edeb4079dc191b536489d14a43fd1200addf6fa26b8a64492d1656c5baf30388",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

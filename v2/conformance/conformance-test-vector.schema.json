@@ -88,7 +88,7 @@
     "timeout_ms": {
       "type": "integer",
       "minimum": 1,
-      "maximum": 9223372036854775807
+      "maximum": 9007199254740991
     },
     "variables": {
       "type": "object",
@@ -528,6 +528,24 @@
                   "expected_from"
                 ]
               }
+            ]
+          }
+        },
+        {
+          "$comment": "A step-scoped assertion must name its step.",
+          "if": {
+            "properties": {
+              "source": {
+                "const": "step"
+              }
+            },
+            "required": [
+              "source"
+            ]
+          },
+          "then": {
+            "required": [
+              "step"
             ]
           }
         },

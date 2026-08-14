@@ -181,7 +181,6 @@ One ordered unit of an Experience.
 Recommended fields:
 
 ```text
-ordinal
 step_kind
 summary
 timestamp
@@ -200,7 +199,9 @@ context | observation | decision | action | feedback | belief_update
 
 `decision_summary` may store a concise reusable rationale but MUST NOT require hidden chain-of-thought.
 
-Step order SHOULD use ordered `has_step` Structural References. Temporal adjacency does not prove causality.
+Step order lives on the ordered `has_step` Structural References: the engine maintains a dense zero-based order per Experience, written via structural `{index: n}` assignments (or appended), and exposed to queries as the virtual `?edge.index` (Specification §17.4). Steps carry no separate order attribute, so order has exactly one source of truth.
+
+Temporal adjacency does not prove causality. An explicit causal claim between steps uses the `caused_by` Predicate as a semantic Proposition + Assertion (typically `mode` observed/inferred, with Evidence). Like any claim, it can be supported, opposed, or contested — which is precisely why it is not structural topology.
 
 ## 5.5 Preference
 
@@ -257,6 +258,7 @@ procedure
 success_criteria
 failure_modes
 counterexamples
+recovery
 status
 created_at
 last_validated_at
@@ -329,9 +331,9 @@ Mnemonic metabolism MUST NOT rewrite Assertion confidence, trust, valid time, or
 }
 ```
 
-Utility is procedural usefulness, not probability and not authority.
+Utility is procedural usefulness on a `[0,1]` scale, not probability and not authority.
 
-# 7. Standard Structural Fields
+# 7. Standard Structural Fields and Predicates
 
 Structural Fields are record topology, not semantic Propositions.
 
@@ -351,6 +353,17 @@ about           Profile artifact → topical Concept
 ```
 
 `involves`, `mentions`, and `about` should not be used to fake stronger domain relations.
+
+The Profile also defines two standard **semantic Predicates** (truth-sensitive; used through Proposition + Assertion + Evidence):
+
+```text
+prefers    Person → Concept                     stable preference claim
+caused_by  ExperienceStep → ExperienceStep      effect → cause claim
+```
+
+`caused_by` direction is effect → cause. Step order (`has_step` edge index) alone must never be promoted into a `caused_by` claim.
+
+Domain-specific factual predicates (for example `timezone`) come from domain packages, not from this Profile.
 
 # 8. Evidence and Provenance
 
@@ -557,6 +570,7 @@ Cognitive Memory Profile 2.0
 Event: compact record of what happened
 Experience: goal-directed state/action/observation trajectory
 ExperienceStep: ordered observable step; no hidden chain-of-thought
+caused_by: explicit effect→cause claim between steps; edge order alone is not causality
 Insight: declarative lesson derived from memory
 Skill: reusable procedure; content does not grant execution authority
 Commitment: prospective memory

@@ -246,7 +246,7 @@ Do not place `confidence`, `source`, `validity`, or `asserted_by` on Proposition
 
 # 13. User Statement Recipe
 
-For `"I prefer dark mode"`:
+For `"I prefer dark mode"` (`prefers` is defined by the Cognitive Memory Profile; domain facts such as `timezone` assume a domain package):
 
 ```prolog
 MUTATE {
@@ -281,7 +281,7 @@ MUTATE {
 
   CREATE ACTIVITY ?formation {
     SET FIELDS {
-      activity_class: "experience_formation",
+      activity_class: "extraction",
       status: "completed"
     }
     SET STRUCTURAL {

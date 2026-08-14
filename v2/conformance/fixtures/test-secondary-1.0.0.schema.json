@@ -17,7 +17,7 @@
       "package_id": "kip://test/core-domain",
       "version": "1.0.0",
       "package_ref": "kip://test/core-domain@1.0.0",
-      "digest": "sha256:6a9d95fedd10c2a3649131568c2f64c8b78e551bfbab1dcd7657a195ce7dc3d5",
+      "digest": "sha256:d04c9778db56d11242cf275f6d21dbfac078aa87bae9e4773849f969250638ad",
       "required": true
     }
   ],
@@ -74,13 +74,13 @@
     ]
   },
   "canonicalization": {
-    "fixture_profile": "kip-test-canonical-json-v1",
+    "fixture_profile": "kip-draft-canonical-json-v1",
     "production_status": "test-only",
-    "description": "UTF-8 JSON, recursively sorted object keys, compact separators, finite JSON numbers; integrity is excluded from its own digest. Test-only."
+    "description": "UTF-8 JSON, recursively sorted object keys, compact separators, finite JSON numbers; integrity is excluded from its own digest. Test-only fixture usage of the shared draft canonicalization profile."
   },
   "integrity": {
-    "digest_profile": "kip-test-canonical-json-v1",
-    "content_digest": "sha256:b4dd42e9e65947154f2fc11636e49bbc7074ed27547f0d7f8cc78973fd6205cc",
+    "digest_profile": "kip-draft-canonical-json-v1",
+    "content_digest": "sha256:bd9d1206a952f72545f9d6d61ffb23d30df0000b2cd9a218f90d155508858311",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }
