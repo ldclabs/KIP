@@ -1,0 +1,281 @@
+(* ========================================================================= *)
+(* KIP 2.0 KQL Formal EBNF                                                   *)
+(* ========================================================================= *)
+(* Status: Formal syntax draft aligned to KIP-2.0-SPECIFICATION.md 2.0-draft.
+   Language: KQL — Cognitive Query Language.
+
+   This grammar defines lexical/syntactic validity only. The runtime/Schema/
+   Governance/Epistemic validators still determine, among other things:
+     - whether a Schema alias resolves unambiguously;
+     - whether a field exists and is visible;
+     - whether BELIEF/BELIEF SLOT is sufficiently bounded;
+     - whether historical state is retained;
+     - whether path-hop limits/capabilities are allowed;
+     - whether a function name is registered;
+     - whether a Predicate path expression is legal for its schema.
+
+   Formalization decisions made here:
+     1. Keywords are ASCII case-insensitive; canonical rendering is uppercase.
+     2. JSON-style strings and JSON finite numbers are the lexical baseline.
+     3. WHERE items are whitespace-delimited; commas are used only inside
+        tuples, objects, arrays, argument lists, and projection/sort lists.
+     4. Raw path quantifiers are syntax only for raw Proposition predicates.
+     5. UNION retains the KIP 1.x syntax `UNION { ... }`: it forms an
+        independent alternative branch relative to the surrounding block.
+*)
+
+(* ------------------------------------------------------------------------- *)
+(* Lexical conventions                                                       *)
+(* ------------------------------------------------------------------------- *)
+
+(* Protocol keywords are ASCII case-insensitive. Canonical rendering uses
+   uppercase spelling. Schema symbols, identifiers inside strings, and string
+   values remain case-sensitive according to their own contracts.
+
+   Whitespace and line comments beginning with // are ignored between tokens.
+
+   This EBNF uses:
+       =       definition
+       |       alternative
+       [ ... ] optional
+       { ... } zero-or-more repetition
+       ( ... ) grouping
+       "..."   terminal token
+       ? ... ? lexical special sequence
+*)
+
+identifier       = identifier_start, { identifier_continue } ;
+identifier_start = ? ASCII letter or "_" ? ;
+identifier_continue
+                 = ? ASCII letter, ASCII digit, "_" or "-" ? ;
+
+variable         = "?", identifier ;
+parameter        = ":", identifier ;
+
+unsigned_integer = digit, { digit } ;
+integer_literal  = [ "-" ], unsigned_integer ;
+number_literal   = [ "-" ], integer_part, [ fraction_part ], [ exponent_part ] ;
+integer_part     = "0" | nonzero_digit, { digit } ;
+fraction_part    = ".", digit, { digit } ;
+exponent_part    = ( "e" | "E" ), [ "+" | "-" ], digit, { digit } ;
+
+digit            = "0" | "1" | "2" | "3" | "4"
+                 | "5" | "6" | "7" | "8" | "9" ;
+nonzero_digit    = "1" | "2" | "3" | "4" | "5"
+                 | "6" | "7" | "8" | "9" ;
+
+string_literal   = '"', { string_character }, '"' ;
+string_character = unescaped_string_character | escape_sequence ;
+unescaped_string_character
+                 = ? Unicode scalar value except quotation mark, reverse solidus,
+                     and U+0000 through U+001F ? ;
+escape_sequence  = "\", ( '"' | "\" | "/" | "b" | "f" | "n" | "r" | "t"
+                       | unicode_escape ) ;
+unicode_escape   = "u", hex_digit, hex_digit, hex_digit, hex_digit ;
+hex_digit        = digit | "A" | "B" | "C" | "D" | "E" | "F"
+                         | "a" | "b" | "c" | "d" | "e" | "f" ;
+
+boolean_literal  = "true" | "false" ;
+null_literal     = "null" ;
+literal          = string_literal | number_literal | boolean_literal | null_literal ;
+
+schema_symbol    = string_literal | parameter ;
+field_name       = identifier | string_literal ;
+
+array_literal    = "[", [ data_value, { ",", data_value } ], "]" ;
+object_literal   = "{", [ object_member, { ",", object_member } ], "}" ;
+object_member    = field_name, ":", data_value ;
+
+data_value       = parameter
+                 | variable
+                 | literal
+                 | array_literal
+                 | object_literal
+                 | function_call
+                 | field_access ;
+
+field_access     = variable, { field_step } ;
+field_step       = ".", identifier | "[", string_literal, "]" ;
+
+function_call    = identifier, "(", [ expression_list ], ")" ;
+expression_list  = expression, { ",", expression } ;
+
+primary_expression
+                 = field_access
+                 | variable
+                 | parameter
+                 | literal
+                 | array_literal
+                 | object_literal
+                 | function_call
+                 | "(", expression, ")" ;
+
+unary_expression = [ "!" | "-" ], primary_expression ;
+relational_expression
+                 = unary_expression,
+                   [ ( "<" | ">" | "<=" | ">=" ), unary_expression ] ;
+equality_expression
+                 = relational_expression,
+                   { ( "==" | "!=" ), relational_expression } ;
+and_expression   = equality_expression, { "&&", equality_expression } ;
+or_expression    = and_expression, { "||", and_expression } ;
+expression       = or_expression ;
+
+(* ------------------------------------------------------------------------- *)
+(* Entry point                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+kql              = query ;
+
+query            = "FIND", "(", projection_list, ")",
+                   "WHERE", where_block,
+                   [ as_of_clause ],
+                   [ for_time_clause ],
+                   [ epistemic_clause ],
+                   [ order_by_clause ],
+                   [ limit_clause ],
+                   [ cursor_clause ] ;
+
+projection_list  = projection_expression,
+                   { ",", projection_expression } ;
+
+projection_expression
+                 = aggregate_expression | expression ;
+
+aggregate_expression
+                 = aggregate_name, "(",
+                   [ "DISTINCT" ], expression, ")" ;
+
+aggregate_name   = "COUNT" | "SUM" | "AVG" | "MIN" | "MAX" ;
+
+(* ------------------------------------------------------------------------- *)
+(* WHERE                                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+where_block      = "{", { where_clause }, "}" ;
+
+where_clause     = concept_pattern
+                 | proposition_pattern
+                 | assertion_pattern
+                 | evidence_pattern
+                 | activity_pattern
+                 | structural_pattern
+                 | belief_slot_pattern
+                 | belief_pattern
+                 | filter_clause
+                 | not_clause
+                 | optional_clause
+                 | union_clause ;
+
+concept_pattern  = variable, [ "CONCEPT" ], object_pattern ;
+
+proposition_pattern
+                 = [ variable ], [ "PROPOSITION" ], proposition_tuple ;
+
+assertion_pattern
+                 = variable, "ASSERTION", object_pattern ;
+
+evidence_pattern = variable, "EVIDENCE", object_pattern ;
+
+activity_pattern = variable, "ACTIVITY", object_pattern ;
+
+structural_pattern
+                 = [ variable ], "STRUCTURAL", "(",
+                   term, ",", structural_field, ",", term, ")" ;
+
+belief_pattern   = variable, "BELIEF", "(",
+                   ( variable
+                   | term, ",", predicate_atom, ",", term ),
+                   ")" ;
+
+belief_slot_pattern
+                 = variable, "BELIEF", "SLOT", "(",
+                   term, ",", predicate_atom, ")" ;
+
+filter_clause    = "FILTER", "(", expression, ")" ;
+not_clause       = "NOT", where_block ;
+optional_clause  = "OPTIONAL", where_block ;
+union_clause     = "UNION", where_block ;
+
+(* ------------------------------------------------------------------------- *)
+(* Raw semantic tuple patterns                                               *)
+(* ------------------------------------------------------------------------- *)
+
+proposition_tuple
+                 = "(", term, ",", raw_predicate_expression, ",", term, ")" ;
+
+term             = variable
+                 | parameter
+                 | literal
+                 | object_pattern
+                 | proposition_tuple ;
+
+predicate_atom   = string_literal | parameter | variable ;
+
+raw_predicate_expression
+                 = predicate_path_atom,
+                   { "|", predicate_path_atom } ;
+
+predicate_path_atom
+                 = predicate_atom, [ path_quantifier ] ;
+
+path_quantifier  = "{", unsigned_integer,
+                   [ ",", [ unsigned_integer ] ], "}" ;
+
+structural_field = schema_symbol ;
+
+(* ------------------------------------------------------------------------- *)
+(* Match objects                                                             *)
+(* ------------------------------------------------------------------------- *)
+
+object_pattern   = "{",
+                   [ pattern_member, { ",", pattern_member } ],
+                   "}" ;
+
+pattern_member   = field_name, ":", pattern_value ;
+
+pattern_value    = variable
+                 | parameter
+                 | literal
+                 | array_pattern
+                 | object_pattern
+                 | proposition_tuple ;
+
+array_pattern    = "[",
+                   [ pattern_value, { ",", pattern_value } ],
+                   "]" ;
+
+(* ------------------------------------------------------------------------- *)
+(* Temporal / epistemic / solution modifiers                                 *)
+(* ------------------------------------------------------------------------- *)
+
+as_of_clause     = "AS", "OF",
+                   ( "SEQ", scalar_value
+                   | "TX", scalar_value
+                   | "TIME", scalar_value ) ;
+
+for_time_clause  = "FOR", "TIME", scalar_value ;
+
+epistemic_clause = "WITH", "EPISTEMIC", object_literal ;
+
+order_by_clause  = "ORDER", "BY",
+                   order_item, { ",", order_item } ;
+
+order_item       = projection_expression, [ "ASC" | "DESC" ] ;
+
+limit_clause     = "LIMIT", scalar_value ;
+cursor_clause    = "CURSOR", scalar_value ;
+
+scalar_value     = parameter | literal ;
+
+(* ------------------------------------------------------------------------- *)
+(* Expression refinements                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+(* Registered runtime functions include, at minimum where supported:
+     IN, CONTAINS, STARTS_WITH, ENDS_WITH, REGEX,
+     IS_NULL, IS_NOT_NULL, IS_LITERAL, IS_ELEMENT, IS_KIND,
+     LITERAL_TYPE, plus aggregate names in projection/order contexts.
+   `function_call` is syntactically open so namespaced/future functions can
+   be parsed; semantic validation decides whether a function is supported.
+*)

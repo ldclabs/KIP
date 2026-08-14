@@ -1,0 +1,87 @@
+{
+  "format": "KIP-Schema-Package",
+  "format_version": "2.0-draft",
+  "manifest": {
+    "package_id": "kip://test/secondary",
+    "version": "1.0.0",
+    "package_ref": "kip://test/secondary@1.0.0",
+    "name": "KIP Conformance Secondary Domain",
+    "description": "Secondary test package whose alias 'status' intentionally collides with the core-domain alias 'status'. Exact refs remain unambiguous.",
+    "publisher": "urn:kip:test:publisher:conformance",
+    "purpose": "conformance_fixture",
+    "stability": "frozen_test_fixture",
+    "executable": false
+  },
+  "dependencies": [
+    {
+      "package_id": "kip://test/core-domain",
+      "version": "1.0.0",
+      "package_ref": "kip://test/core-domain@1.0.0",
+      "digest": "sha256:6a9d95fedd10c2a3649131568c2f64c8b78e551bfbab1dcd7657a195ce7dc3d5",
+      "required": true
+    }
+  ],
+  "definitions": {
+    "concept_types": {},
+    "predicates": {
+      "service_status": {
+        "ref": "kip://test/secondary@1.0.0/service_status",
+        "kind": "PredicateType",
+        "description": "Semantic status of a Service, used only to create the local alias collision.",
+        "subject": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Service"
+          ]
+        },
+        "object": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/StatusValue"
+          ]
+        },
+        "functional": true,
+        "open_world": true,
+        "complete": false,
+        "temporal_conflict": "overlapping_valid_time"
+      }
+    },
+    "facets": {},
+    "structural_fields": {},
+    "enums": {},
+    "registry_extensions": {}
+  },
+  "constraints": [],
+  "aliases": {
+    "concept_types": {},
+    "predicates": {
+      "status": "kip://test/secondary@1.0.0/service_status"
+    },
+    "facets": {},
+    "structural_fields": {}
+  },
+  "compatibility": {
+    "readable_with": [
+      "kip://test/core-domain@1.0.0"
+    ],
+    "supersedes": [],
+    "breaking_changes": []
+  },
+  "migrations": [],
+  "model_hints": {
+    "summary": "Activate with core-domain to test deterministic SchemaSymbolAmbiguous behavior.",
+    "common_confusions": [
+      "The alias 'status' is deliberately ambiguous when both packages are active.",
+      "Use the exact ref project_status or service_status to disambiguate."
+    ]
+  },
+  "canonicalization": {
+    "fixture_profile": "kip-test-canonical-json-v1",
+    "production_status": "test-only",
+    "description": "UTF-8 JSON, recursively sorted object keys, compact separators, finite JSON numbers; integrity is excluded from its own digest. Test-only."
+  },
+  "integrity": {
+    "digest_profile": "kip-test-canonical-json-v1",
+    "content_digest": "sha256:b4dd42e9e65947154f2fc11636e49bbc7074ed27547f0d7f8cc78973fd6205cc",
+    "covers": "all top-level fields except integrity",
+    "signatures": []
+  }
+}

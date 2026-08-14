@@ -1,0 +1,447 @@
+(* ========================================================================= *)
+(* KIP 2.0 META Formal EBNF                                                  *)
+(* ========================================================================= *)
+(* Status: Formal syntax draft aligned to KIP-2.0-SPECIFICATION.md 2.0-draft.
+   Language: META — Introspection, Grounding, Verification, Validation,
+   Preview, History, Changes, Snapshot, and Capsule Export.
+
+   META is semantically read-only. Syntax acceptance does not imply access.
+
+   Runtime validation still decides:
+     - whether a described resource exists/is visible;
+     - whether a capability is supported/available;
+     - whether a SEARCH mode/index is available or historical;
+     - cryptographic validity/trust;
+     - Schema/Core legality during VALIDATE;
+     - destination-specific identity/Governance behavior during PREVIEW;
+     - historical retention and current authorization.
+
+   Formalization decisions made here:
+     1. Keywords are ASCII case-insensitive; canonical rendering is uppercase.
+     2. VERIFY/VALIDATE/PREVIEW artifact/command operands are explicit values,
+        matching the design examples (`VERIFY CAPSULE :artifact`,
+        `PREVIEW KML :command`, etc.).
+     3. PREVIEW grammar is frozen for KML and IMPORT CAPSULE, the two operand
+        forms explicitly exemplified in the design. MERGE/PURGE/SCHEMA
+        MIGRATION remain reserved preview targets until their exact operand
+        syntax is separately standardized.
+     4. DESCRIBE ACCESS accepts an optional WITH object as a formalization of
+        the design's operation/resource/Space/purpose input list.
+     5. EXPORT CAPSULE freezes the conceptual syntax from the current Spec:
+        selection WHERE, optional WITH options, optional AS OF clause.
+*)
+
+(* ------------------------------------------------------------------------- *)
+(* Lexical conventions                                                       *)
+(* ------------------------------------------------------------------------- *)
+
+(* Protocol keywords are ASCII case-insensitive. Canonical rendering uses
+   uppercase spelling. Schema symbols, identifiers inside strings, and string
+   values remain case-sensitive according to their own contracts.
+
+   Whitespace and line comments beginning with // are ignored between tokens.
+
+   This EBNF uses:
+       =       definition
+       |       alternative
+       [ ... ] optional
+       { ... } zero-or-more repetition
+       ( ... ) grouping
+       "..."   terminal token
+       ? ... ? lexical special sequence
+*)
+
+identifier       = identifier_start, { identifier_continue } ;
+identifier_start = ? ASCII letter or "_" ? ;
+identifier_continue
+                 = ? ASCII letter, ASCII digit, "_" or "-" ? ;
+
+variable         = "?", identifier ;
+parameter        = ":", identifier ;
+
+unsigned_integer = digit, { digit } ;
+integer_literal  = [ "-" ], unsigned_integer ;
+number_literal   = [ "-" ], integer_part, [ fraction_part ], [ exponent_part ] ;
+integer_part     = "0" | nonzero_digit, { digit } ;
+fraction_part    = ".", digit, { digit } ;
+exponent_part    = ( "e" | "E" ), [ "+" | "-" ], digit, { digit } ;
+
+digit            = "0" | "1" | "2" | "3" | "4"
+                 | "5" | "6" | "7" | "8" | "9" ;
+nonzero_digit    = "1" | "2" | "3" | "4" | "5"
+                 | "6" | "7" | "8" | "9" ;
+
+string_literal   = '"', { string_character }, '"' ;
+string_character = unescaped_string_character | escape_sequence ;
+unescaped_string_character
+                 = ? Unicode scalar value except quotation mark, reverse solidus,
+                     and U+0000 through U+001F ? ;
+escape_sequence  = "\", ( '"' | "\" | "/" | "b" | "f" | "n" | "r" | "t"
+                       | unicode_escape ) ;
+unicode_escape   = "u", hex_digit, hex_digit, hex_digit, hex_digit ;
+hex_digit        = digit | "A" | "B" | "C" | "D" | "E" | "F"
+                         | "a" | "b" | "c" | "d" | "e" | "f" ;
+
+boolean_literal  = "true" | "false" ;
+null_literal     = "null" ;
+literal          = string_literal | number_literal | boolean_literal | null_literal ;
+
+schema_symbol    = string_literal | parameter ;
+field_name       = identifier | string_literal ;
+
+array_literal    = "[", [ data_value, { ",", data_value } ], "]" ;
+object_literal   = "{", [ object_member, { ",", object_member } ], "}" ;
+object_member    = field_name, ":", data_value ;
+
+data_value       = parameter
+                 | variable
+                 | literal
+                 | array_literal
+                 | object_literal
+                 | function_call
+                 | field_access ;
+
+field_access     = variable, { field_step } ;
+field_step       = ".", identifier | "[", string_literal, "]" ;
+
+function_call    = identifier, "(", [ expression_list ], ")" ;
+expression_list  = expression, { ",", expression } ;
+
+primary_expression
+                 = field_access
+                 | variable
+                 | parameter
+                 | literal
+                 | array_literal
+                 | object_literal
+                 | function_call
+                 | "(", expression, ")" ;
+
+unary_expression = [ "!" | "-" ], primary_expression ;
+relational_expression
+                 = unary_expression,
+                   [ ( "<" | ">" | "<=" | ">=" ), unary_expression ] ;
+equality_expression
+                 = relational_expression,
+                   { ( "==" | "!=" ), relational_expression } ;
+and_expression   = equality_expression, { "&&", equality_expression } ;
+or_expression    = and_expression, { "||", and_expression } ;
+expression       = or_expression ;
+
+(* ------------------------------------------------------------------------- *)
+(* Entry point                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+meta             = meta_statement ;
+
+meta_statement   = describe_statement
+                 | list_statement
+                 | search_statement
+                 | verify_statement
+                 | validate_statement
+                 | preview_statement
+                 | history_statement
+                 | changes_statement
+                 | snapshot_statement
+                 | export_capsule_statement ;
+
+(* ------------------------------------------------------------------------- *)
+(* DESCRIBE                                                                  *)
+(* ------------------------------------------------------------------------- *)
+
+describe_statement
+                 = describe_primer
+                 | describe_protocol
+                 | describe_execution_context
+                 | describe_capabilities
+                 | describe_space
+                 | describe_schema_environment
+                 | describe_package
+                 | describe_type
+                 | describe_predicate
+                 | describe_facet
+                 | describe_structural_field
+                 | describe_compatibility
+                 | describe_error
+                 | describe_transaction
+                 | describe_snapshot
+                 | describe_capsule
+                 | describe_epistemic_policy
+                 | describe_projection_capability
+                 | describe_access ;
+
+describe_primer  = "DESCRIBE", "PRIMER",
+                   [ "MODE", ( '"compact"' | '"full"' | parameter ) ] ;
+
+describe_protocol
+                 = "DESCRIBE", "PROTOCOL" ;
+
+describe_execution_context
+                 = "DESCRIBE", "EXECUTION", "CONTEXT" ;
+
+describe_capabilities
+                 = "DESCRIBE", "CAPABILITIES" ;
+
+describe_space   = "DESCRIBE", "SPACE", [ meta_value ] ;
+
+describe_schema_environment
+                 = "DESCRIBE", "SCHEMA", "ENVIRONMENT",
+                   [ as_of_clause ] ;
+
+describe_package = "DESCRIBE", "PACKAGE", meta_value ;
+describe_type    = "DESCRIBE", "TYPE", meta_value ;
+describe_predicate
+                 = "DESCRIBE", "PREDICATE", meta_value ;
+describe_facet   = "DESCRIBE", "FACET", meta_value ;
+describe_structural_field
+                 = "DESCRIBE", "STRUCTURAL", "FIELD", meta_value ;
+
+describe_compatibility
+                 = "DESCRIBE", "COMPATIBILITY",
+                   "FROM", meta_value,
+                   "TO", meta_value ;
+
+describe_error   = "DESCRIBE", "ERROR", meta_value ;
+
+describe_transaction
+                 = "DESCRIBE", "TRANSACTION",
+                   ( meta_value
+                   | "BY", "IDEMPOTENCY", "KEY", meta_value ) ;
+
+describe_snapshot
+                 = "DESCRIBE", "SNAPSHOT", [ as_of_clause ] ;
+
+describe_capsule = "DESCRIBE", "CAPSULE", meta_value ;
+
+describe_epistemic_policy
+                 = "DESCRIBE", "EPISTEMIC", "POLICY",
+                   [ meta_value ] ;
+
+describe_projection_capability
+                 = "DESCRIBE", "PROJECTION", "CAPABILITY" ;
+
+describe_access  = "DESCRIBE", "ACCESS",
+                   [ "WITH", object_literal ] ;
+
+(* ------------------------------------------------------------------------- *)
+(* LIST                                                                      *)
+(* ------------------------------------------------------------------------- *)
+
+list_statement   = list_spaces
+                 | list_schema_packages
+                 | list_types
+                 | list_predicates
+                 | list_facets
+                 | list_structural_fields
+                 | list_epistemic_policies ;
+
+list_spaces      = "LIST", "SPACES", [ paging_clauses ] ;
+
+list_schema_packages
+                 = "LIST", "SCHEMA", "PACKAGES",
+                   [ "STATUS", meta_value ],
+                   [ paging_clauses ] ;
+
+list_types       = "LIST", "TYPES", [ paging_clauses ] ;
+list_predicates  = "LIST", "PREDICATES", [ paging_clauses ] ;
+list_facets      = "LIST", "FACETS", [ paging_clauses ] ;
+list_structural_fields
+                 = "LIST", "STRUCTURAL", "FIELDS", [ paging_clauses ] ;
+list_epistemic_policies
+                 = "LIST", "EPISTEMIC", "POLICIES",
+                   [ paging_clauses ] ;
+
+paging_clauses   = "LIMIT", meta_value, [ "CURSOR", meta_value ]
+                 | "CURSOR", meta_value ;
+
+(* ------------------------------------------------------------------------- *)
+(* SEARCH                                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+search_statement = "SEARCH", search_kind, meta_value,
+                   [ "WITH", "TYPE", meta_value ],
+                   [ "WITH", "PREDICATE", meta_value ],
+                   [ "MODE", search_mode ],
+                   [ "THRESHOLD", meta_value ],
+                   [ historical_search_clause ],
+                   [ "LIMIT", meta_value ],
+                   [ "CURSOR", meta_value ] ;
+
+search_kind      = "CONCEPT"
+                 | "PROPOSITION"
+                 | "ASSERTION"
+                 | "EVIDENCE"
+                 | "ACTIVITY"
+                 | "COGNITION" ;
+
+search_mode      = '"keyword"'
+                 | '"semantic"'
+                 | '"hybrid"'
+                 | parameter ;
+
+historical_search_clause
+                 = "AS", "OF", "SEQ", meta_value ;
+
+(* ------------------------------------------------------------------------- *)
+(* VERIFY                                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+verify_statement = "VERIFY", verify_target, meta_value ;
+
+verify_target    = "CAPSULE"
+                 | "SCHEMA", "PACKAGE"
+                 | "RECEIPT"
+                 | "BLOB"
+                 | "CHECKPOINT" ;
+
+(* ------------------------------------------------------------------------- *)
+(* VALIDATE                                                                  *)
+(* ------------------------------------------------------------------------- *)
+
+validate_statement
+                 = "VALIDATE", validate_target, meta_value,
+                   [ "WITH", validation_options ] ;
+
+validate_target  = "KQL"
+                 | "KML"
+                 | "CAPSULE"
+                 | "SCHEMA", "PACKAGE"
+                 | "IMPORT", "PLAN" ;
+
+validation_options
+                 = object_literal ;
+
+(* ------------------------------------------------------------------------- *)
+(* PREVIEW                                                                   *)
+(* ------------------------------------------------------------------------- *)
+
+preview_statement
+                 = preview_kml
+                 | preview_import_capsule ;
+
+preview_kml      = "PREVIEW", "KML", meta_value ;
+
+preview_import_capsule
+                 = "PREVIEW", "IMPORT", "CAPSULE", meta_value,
+                   "INTO", meta_value ;
+
+(* ------------------------------------------------------------------------- *)
+(* HISTORY / CHANGES / SNAPSHOT                                              *)
+(* ------------------------------------------------------------------------- *)
+
+history_statement
+                 = history_element | history_space ;
+
+history_element  = "HISTORY", "ELEMENT", meta_value,
+                   [ "FROM", "SEQ", meta_value ],
+                   [ "TO", "SEQ", meta_value ],
+                   [ "LIMIT", meta_value ],
+                   [ "CURSOR", meta_value ] ;
+
+history_space    = "HISTORY", "SPACE",
+                   [ "FROM", "SEQ", meta_value ],
+                   [ "TO", "SEQ", meta_value ],
+                   [ "LIMIT", meta_value ],
+                   [ "CURSOR", meta_value ] ;
+
+changes_statement
+                 = "CHANGES",
+                   ( "SINCE", meta_value,
+                     [ "LIMIT", meta_value ]
+                   | "AFTER", "SEQ", meta_value,
+                     [ "LIMIT", meta_value ] ) ;
+
+snapshot_statement
+                 = "SNAPSHOT", [ as_of_clause ] ;
+
+(* ------------------------------------------------------------------------- *)
+(* EXPORT CAPSULE                                                            *)
+(* ------------------------------------------------------------------------- *)
+
+export_capsule_statement
+                 = "EXPORT", "CAPSULE", target_ref,
+                   "WHERE", export_where_block,
+                   [ "WITH", object_literal ],
+                   [ as_of_clause ] ;
+
+(* EXPORT uses raw KQL selection syntax. BELIEF remains an interpretation
+   primitive, not an export selector in this baseline grammar. *)
+
+export_where_block
+                 = "{", { export_where_clause }, "}" ;
+
+export_where_clause
+                 = concept_pattern
+                 | proposition_pattern
+                 | assertion_pattern
+                 | evidence_pattern
+                 | activity_pattern
+                 | structural_pattern
+                 | filter_clause
+                 | not_export_clause
+                 | optional_export_clause
+                 | union_export_clause ;
+
+concept_pattern  = variable, [ "CONCEPT" ], object_pattern ;
+
+proposition_pattern
+                 = [ variable ], [ "PROPOSITION" ], proposition_tuple ;
+
+assertion_pattern
+                 = variable, "ASSERTION", object_pattern ;
+
+evidence_pattern = variable, "EVIDENCE", object_pattern ;
+
+activity_pattern = variable, "ACTIVITY", object_pattern ;
+
+structural_pattern
+                 = [ variable ], "STRUCTURAL", "(",
+                   term, ",", schema_symbol, ",", term, ")" ;
+
+filter_clause    = "FILTER", "(", expression, ")" ;
+not_export_clause
+                 = "NOT", export_where_block ;
+optional_export_clause
+                 = "OPTIONAL", export_where_block ;
+union_export_clause
+                 = "UNION", export_where_block ;
+
+(* ------------------------------------------------------------------------- *)
+(* Shared terms                                                              *)
+(* ------------------------------------------------------------------------- *)
+
+meta_value       = parameter | literal ;
+target_ref       = variable | parameter | string_literal ;
+
+as_of_clause     = "AS", "OF",
+                   ( "SEQ", meta_value
+                   | "TX", meta_value
+                   | "TIME", meta_value ) ;
+
+proposition_tuple
+                 = "(", term, ",", predicate_atom, ",", term, ")" ;
+
+predicate_atom   = string_literal | parameter | variable ;
+
+term             = variable
+                 | parameter
+                 | literal
+                 | object_pattern
+                 | proposition_tuple ;
+
+object_pattern   = "{",
+                   [ pattern_member, { ",", pattern_member } ],
+                   "}" ;
+
+pattern_member   = field_name, ":", pattern_value ;
+
+pattern_value    = variable
+                 | parameter
+                 | literal
+                 | array_pattern
+                 | object_pattern
+                 | proposition_tuple ;
+
+array_pattern    = "[",
+                   [ pattern_value, { ",", pattern_value } ],
+                   "]" ;

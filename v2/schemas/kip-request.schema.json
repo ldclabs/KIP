@@ -1,0 +1,409 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:kip:2.0:schema:request",
+  "title": "KIP 2.0 Request Envelope",
+  "description": "JSON Schema for the logical KIP 2.0 request envelope. This schema validates static wire structure only. Runtime semantics such as command classification, Governance authorization, Schema resolution, idempotency digest equivalence, snapshot alignment, and commit-time revalidation remain runtime invariants.",
+  "type": "object",
+  "required": [
+    "kip",
+    "operations"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "kip": {
+      "const": "2.0",
+      "description": "Requested KIP protocol major/minor profile."
+    },
+    "request_id": {
+      "$ref": "#/$defs/RequestId"
+    },
+    "space": {
+      "$ref": "#/$defs/SpaceSelector"
+    },
+    "compatibility_profile": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Explicit compatibility profile, for example kip-1-compat."
+    },
+    "execution": {
+      "$ref": "#/$defs/Execution"
+    },
+    "read": {
+      "$ref": "#/$defs/ReadBinding"
+    },
+    "preconditions": {
+      "$ref": "#/$defs/Preconditions"
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/Operation"
+      },
+      "$comment": "If op_id values are supplied, the runtime should require them to be unique within the request."
+    },
+    "parameters": {
+      "$ref": "#/$defs/Parameters"
+    },
+    "context": {
+      "$ref": "#/$defs/RequestContext"
+    },
+    "requires": {
+      "$ref": "#/$defs/CapabilityRequirements"
+    },
+    "options": {
+      "$ref": "#/$defs/RequestOptions"
+    },
+    "extensions": {
+      "$ref": "#/$defs/Extensions"
+    }
+  },
+  "allOf": [
+    {
+      "$comment": "Native multi-operation requests must explicitly declare execution.mode.",
+      "if": {
+        "properties": {
+          "operations": {
+            "minItems": 2
+          }
+        },
+        "required": [
+          "operations"
+        ]
+      },
+      "then": {
+        "required": [
+          "execution"
+        ]
+      }
+    },
+    {
+      "$comment": "Atomic execution cannot use on_error=continue.",
+      "if": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "mode": {
+                "const": "atomic"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          }
+        },
+        "required": [
+          "execution"
+        ]
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "not": {
+              "properties": {
+                "on_error": {
+                  "const": "continue"
+                }
+              },
+              "required": [
+                "on_error"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "RequestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "Client-visible transport/execution attempt identifier; not an idempotency key or tx_id."
+    },
+    "OpaqueToken": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192,
+      "description": "Opaque runtime token. Clients must not parse or modify it."
+    },
+    "IdempotencyKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Logical mutation-intent key scoped by runtime to Space, authenticated authority namespace, and operation/endpoint class."
+    },
+    "SpaceSelector": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "uri": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048,
+          "format": "uri"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "id"
+          ]
+        },
+        {
+          "required": [
+            "uri"
+          ]
+        }
+      ],
+      "$comment": "If both id and uri are supplied, the runtime must verify that they resolve to the same authorized MemorySpace."
+    },
+    "Execution": {
+      "type": "object",
+      "required": [
+        "mode"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "independent",
+            "sequence",
+            "atomic"
+          ]
+        },
+        "on_error": {
+          "type": "string",
+          "enum": [
+            "stop",
+            "continue"
+          ],
+          "description": "Meaningful primarily for sequence execution."
+        },
+        "isolation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "examples": [
+            "serializable"
+          ],
+          "description": "Requested isolation guarantee. Unsupported stronger guarantees must fail explicitly rather than silently downgrade."
+        },
+        "idempotency_key": {
+          "$ref": "#/$defs/IdempotencyKey"
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      }
+    },
+    "ReadBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "snapshot_token": {
+          "$ref": "#/$defs/OpaqueToken"
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      }
+    },
+    "Preconditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "space_seq": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Optional Space commit-sequence precondition."
+        },
+        "schema_environment_version": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Optional exact Schema Environment version precondition."
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      }
+    },
+    "Operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "op_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Request-local operation correlation identifier."
+        },
+        "language": {
+          "type": "string",
+          "enum": [
+            "KQL",
+            "KML",
+            "META"
+          ],
+          "description": "Optional declared language. The parsed command remains authoritative for security classification."
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "KIP textual command."
+        },
+        "ast": {
+          "type": "object",
+          "description": "Optional structured AST when the runtime advertises a compatible AST capability.",
+          "additionalProperties": true
+        },
+        "parameters": {
+          "$ref": "#/$defs/Parameters"
+        },
+        "idempotency_key": {
+          "$ref": "#/$defs/IdempotencyKey"
+        },
+        "options": {
+          "$ref": "#/$defs/OperationOptions"
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "command"
+          ],
+          "not": {
+            "required": [
+              "ast"
+            ]
+          }
+        },
+        {
+          "required": [
+            "ast"
+          ],
+          "not": {
+            "required": [
+              "command"
+            ]
+          }
+        }
+      ],
+      "$comment": "The runtime must parse/classify the actual operation, structurally bind parameters, and reject a supplied language label that conflicts with parsed semantics."
+    },
+    "Parameters": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": true,
+      "description": "Typed JSON values structurally bound to complete grammar value positions; never naive string interpolation."
+    },
+    "RequestContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "purpose": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "risk": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "locale": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "client": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "$comment": "Context is non-authoritative. purpose, risk, locale, and client cannot grant identity, data access, actor representation, or Governance authority."
+    },
+    "CapabilityRequirements": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"
+      },
+      "additionalProperties": true,
+      "examples": [
+        {
+          "serializable_transactions": true,
+          "belief_slot": true
+        }
+      ],
+      "description": "Fail-fast semantic capability preconditions. Unsupported required guarantees must fail explicitly."
+    },
+    "RequestOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dry_run": {
+          "type": "boolean",
+          "description": "Request validation/preview mode. A dry run must not establish a durable cognitive commit."
+        },
+        "deadline_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807,
+          "description": "Client execution window in milliseconds; expiry is not proof that a transaction aborted."
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      }
+    },
+    "OperationOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "description": "Reserved operation-local options container. Standard option fields are added only by later protocol revisions."
+    },
+    "ExtensionValue": {
+      "type": "object",
+      "properties": {
+        "critical": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true,
+      "description": "Namespaced extension payload. If critical=true and unsupported, the runtime must fail rather than silently ignore it."
+    },
+    "Extensions": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._/-]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/ExtensionValue"
+      },
+      "description": "Namespaced extension registry. Unnamespaced vendor semantic fields are not allowed at the top level."
+    }
+  }
+}
