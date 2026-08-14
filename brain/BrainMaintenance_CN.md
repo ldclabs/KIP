@@ -219,7 +219,7 @@ UPSERT {
 | `archive`                 | 移至 Archived Domain                                          |
 | `merge_duplicates`        | 合并两个相似概念                                              |
 | `reclassify`              | 移至更合适的 Domain                                           |
-| `review`                  | 重新评估 Skill 的适用范围、失败信号、效用或成熟度             |
+| `review`                  | 评估并记录发现而不做修改；目标为 Skill 时重新评估其适用范围、失败信号、效用或成熟度 |
 | `resolve_contradiction`   | 调和冲突事实：标记旧事实 superseded，强化当前事实（见阶段 9） |
 
 ```prolog
@@ -546,7 +546,7 @@ WITH METADATA {
 尽可能比较目标和初始状态相似、但结果不同的 Experience。
 
 ```prolog
-SEARCH CONCEPT :goal MODE "semantic" WITH TYPE "Experience" THRESHOLD 0.70 LIMIT 20
+SEARCH CONCEPT :goal WITH TYPE "Experience" MODE "semantic" THRESHOLD 0.70 LIMIT 20
 ```
 
 比较：
@@ -616,6 +616,8 @@ WHERE {
   ?link (?s, "prefers", ?o)
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
   FILTER(IS_NULL(?link.metadata.observed_at) || ?link.metadata.observed_at < :stale_cutoff)
+  // 下限：跳过已完全衰减的链接，让清扫收敛
+  FILTER(IS_NULL(?link.metadata.memory_strength) || ?link.metadata.memory_strength > 0.05)
   FILTER(IS_NULL(?link.metadata.strength_decay_applied_at) ||
          ?link.metadata.strength_decay_applied_at < :cycle_start)
 }

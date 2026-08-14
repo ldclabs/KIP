@@ -325,20 +325,25 @@ LIMIT N                                          // optional blast-radius cap
 Atomic: all matched elements update or none. **Update expressions** (numeric, computed per element from `?target`'s *own* state only): `ADD(a, b)`, `MUL(a, b)`, `CLAMP(x, lo, hi)`, `COALESCE(x, default)`. A `null`/non-number expression skips that key for that element. **Scan bounds**: `LIMIT` caps updates, not the scan — a fully unconstrained `(?s, ?p, ?o)` pattern is a full-graph scan the engine may reject on large graphs (`KIP_4002`); shard sweeps by predicate, endpoint type, or domain. The memory-metabolism workhorse:
 
 ```prolog
-// Confidence decay across all predicates, one command — small graphs only:
-// past the engine's scan cap, shard per predicate ((?s, :predicate, ?o)) instead
-// (spare structural links and axiomatic 1.0 truths)
+// Memory-strength decay across all predicates, one command — small graphs only:
+// past the engine's scan cap, shard per predicate ((?s, "prefers", ?o)) instead
+// (spare structural links). Disuse decays metadata.memory_strength (accessibility);
+// metadata.confidence (epistemic support) changes only on evidence, contradiction, or retraction.
 UPDATE ?link
-SET METADATA { confidence: CLAMP(MUL(?link.metadata.confidence, :factor), 0.0, 1.0), decay_applied_at: :now }
+SET METADATA {
+  memory_strength: CLAMP(MUL(COALESCE(?link.metadata.memory_strength, 0.7), :factor), 0.0, 1.0),
+  strength_decay_applied_at: :now
+}
 WHERE {
   ?link (?s, ?p, ?o)
   FILTER(?p != "belongs_to_domain")
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
-  FILTER(?link.metadata.created_at < :threshold)
-  FILTER(?link.metadata.confidence > 0.3 && ?link.metadata.confidence < 1.0)
+  FILTER(IS_NULL(?link.metadata.observed_at) || ?link.metadata.observed_at < :stale_cutoff)
+  // Floor: skip fully decayed links so the sweep converges
+  FILTER(IS_NULL(?link.metadata.memory_strength) || ?link.metadata.memory_strength > 0.05)
   // Idempotency guard: one decay per link per cycle; re-run until updated < LIMIT,
   // reusing the same :cycle_start across re-runs and crash-retries
-  FILTER(IS_NULL(?link.metadata.decay_applied_at) || ?link.metadata.decay_applied_at < :cycle_start)
+  FILTER(IS_NULL(?link.metadata.strength_decay_applied_at) || ?link.metadata.strength_decay_applied_at < :cycle_start)
 } LIMIT 500
 
 // Reinforce without read-modify-write
@@ -524,8 +529,9 @@ Serializes matched concepts/propositions into an idempotent `UPSERT` capsule for
 | ------------ | --------------- | ------------------------------------------ |
 | `source`     | string \| array | Origin (conversation id, document id, url) |
 | `author`     | string          | Asserter (`$self`, `$system`, user id)     |
-| `confidence` | number          | `[0, 1]`                                   |
+| `confidence` | number          | `[0, 1]` — epistemic support; changes on evidence, not disuse |
 | `evidence`   | array\<string\> | References supporting the assertion        |
+| `memory_strength` | number     | `[0, 1]`, optional — mnemonic accessibility; reinforcement raises, disuse decays; never a truth proxy |
 
 **Temporality / Lifecycle**
 

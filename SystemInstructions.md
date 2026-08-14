@@ -92,10 +92,11 @@ WITH METADATA { source: "SleepCycle", author: "$system" }
 
 ```prolog
 // Step 2: execute requested action — e.g., consolidate Event → Preference.
-// The "prefers" link is the trust home (its metadata.confidence is what
-// reinforcement raises and Phase 7 decay lowers) — without it the new
-// Preference never enters the homeostatic loop. :holder_name = the source
-// Event's primary `involves` participant.
+// The "prefers" link is the assertion home: its metadata.confidence carries
+// epistemic support, and its metadata.memory_strength is what reinforcement
+// raises and Phase 7 decay lowers — without it the new Preference never
+// enters the homeostatic loop. :holder_name = the source Event's primary
+// `involves` participant.
 UPSERT {
   CONCEPT ?preference {
     {type: "Preference", name: :preference_name}
@@ -224,31 +225,32 @@ WHERE {
 
 `MERGE` repoints all incident links (IDs and higher-order references preserved), unions `aliases` (the duplicate's `name` included), fills missing attributes, records `_merged_from` provenance, and removes the duplicate — one transaction.
 
-### Phase 7 — Confidence Decay
+### Phase 7 — Memory-Strength Decay
 
-Apply formula `new_confidence = old_confidence * decay_factor` (e.g., 0.95 per week) as **one bulk `UPDATE` per predicate shard** — iterate `:predicate` over the Primer's registered predicates, skipping `belongs_to_domain` (on small graphs a predicate variable `(?s, ?p, ?o)` covers all predicates in one statement, but past the engine's scan cap that is rejected with `KIP_4002`):
+`confidence` (epistemic support) and `memory_strength` (mnemonic accessibility) are independent axes. Disuse decays `memory_strength` only; change `confidence` solely on epistemic grounds (new evidence, verification, contradiction, retraction, source-quality reassessment). Mere passage of time does not make a timeless fact less true.
+
+Apply `new_strength = old_strength * decay_factor` (e.g., 0.95 per week) as **one bulk `UPDATE` per predicate shard** — replace the quoted predicate literal below with each registered predicate from the Primer, skipping `belongs_to_domain`; predicate positions do not accept value parameters (on small graphs a predicate variable `(?s, ?p, ?o)` covers all predicates in one statement, but past the engine's scan cap that is rejected with `KIP_4002`):
 
 ```prolog
 UPDATE ?link
 SET METADATA {
-  confidence: CLAMP(MUL(?link.metadata.confidence, :decay_factor), 0.0, 1.0),
-  decay_applied_at: :timestamp
+  memory_strength: CLAMP(MUL(COALESCE(?link.metadata.memory_strength, 0.7), :decay_factor), 0.0, 1.0),
+  strength_decay_applied_at: :timestamp
 }
 WHERE {
-  ?link (?s, :predicate, ?o)
+  ?link (?s, "prefers", ?o)
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
-  FILTER(IS_NOT_NULL(?link.metadata.created_at))
-  FILTER(?link.metadata.created_at < :decay_threshold)
-  FILTER(?link.metadata.confidence > 0.3 && ?link.metadata.confidence < 1.0)
+  // Floor: skip fully decayed links so the sweep converges
+  FILTER(IS_NULL(?link.metadata.memory_strength) || ?link.metadata.memory_strength > 0.05)
   // Idempotency guard: at most one decay per link per cycle
-  FILTER(IS_NULL(?link.metadata.decay_applied_at) || ?link.metadata.decay_applied_at < :cycle_start)
+  FILTER(IS_NULL(?link.metadata.strength_decay_applied_at) || ?link.metadata.strength_decay_applied_at < :cycle_start)
   // Reinforcement exemption: reinforcement stamps observed_at on the link itself
   FILTER(IS_NULL(?link.metadata.observed_at) || ?link.metadata.observed_at < :stale_cutoff)
 }
 LIMIT 500
 ```
 
-Re-run each shard until `updated < LIMIT` — the `decay_applied_at` guard makes iteration safe (without it, a re-run double-decays the same links). Bind `:cycle_start` **once** at the start of the sweep and reuse it across re-runs and crash-retries; `:stale_cutoff` ≈ cycle start − 14d. Asymmetric factors per shard: for **assertion predicates** (`prefers`, `learned`) run a slow pass (factor `0.98`) for strong memories (`?o.attributes.evidence_count >= 3`) and a fast pass (factor `0.90`) for never-reinforced facts (`IS_NULL(?o.attributes.evidence_count) || ?o.attributes.evidence_count < 3`) — disjoint filters, both keeping the guard. For **provenance/participation predicates** (`derived_from`, `involves`, ...) whose objects never carry `evidence_count`, use only the slow factor or skip — eroding provenance severs evidence chains. Decay is asymmetric: use it or lose it.
+Re-run each shard until `updated < LIMIT` — the `strength_decay_applied_at` guard makes iteration safe (without it, a re-run double-decays the same links). Bind `:cycle_start` **once** at the start of the sweep and reuse it across re-runs and crash-retries; `:stale_cutoff` ≈ cycle start − 14d. Asymmetric factors per shard: for **assertion predicates** (`prefers`, `learned`) run a slow pass (factor `0.98`) for strong memories (`?o.attributes.evidence_count >= 3`) and a fast pass (factor `0.90`) for never-reinforced facts (`IS_NULL(?o.attributes.evidence_count) || ?o.attributes.evidence_count < 3`) — disjoint filters, both keeping the guard. For **provenance/participation predicates** (`derived_from`, `involves`, ...) whose objects never carry `evidence_count`, use only the slow factor or skip — eroding provenance severs evidence chains. Decay is asymmetric: use it or lose it.
 
 ### Phase 8 — Domain Health
 
@@ -381,7 +383,7 @@ WHERE {
 | Orphan count            | < 10   | Classify or archive                |
 | Unsorted backlog        | < 20   | Reclassify to topic Domains        |
 | Stale Events (> 7d)     | < 30   | Consolidate or archive             |
-| Average confidence      | > 0.6  | Investigate low-confidence regions |
+| Average memory strength | observe | Investigate inaccessible clutter; strength is not truth |
 | Domain size             | 5–100  | Merge small / split large          |
 | Pending SleepTasks      | < 10   | Process all pending                |
 | Superseded propositions | audit  | Verify temporal context preserved  |

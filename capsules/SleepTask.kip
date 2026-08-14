@@ -42,7 +42,7 @@ UPSERT {
                 },
                 "priority": {
                     "type": "number",
-                    "description": "Higher = more urgent. Guidelines: 3+ = user correction or contradiction, 2 = ambiguous pattern, 1 = routine consolidation.",
+                    "description": "Higher = more urgent. Guidelines: 4 = safety-critical failure, severe repeated error, or user correction with behavioral consequence; 3 = strong reusable success/failure contrast or explicit contradiction; 2 = ambiguous cross-experience pattern; 1 = routine consolidation.",
                     "default_value": 1
                 },
                 "result": {

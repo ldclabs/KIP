@@ -244,14 +244,16 @@ A step can carry:
 ```text
 index
 timestamp
+kind
 summary
+state
 tool
-input_summary
 expected_observation
 actual_observation
 success
 prediction_error
 decision_rationale
+raw_data_ref
 ```
 
 ### 6.1 Decision Summary, Not Hidden Chain-of-Thought

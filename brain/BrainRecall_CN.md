@@ -322,7 +322,7 @@ FIND(?c.name, ?c.attributes.description, ?c.attributes.beneficiary) WHERE {
 先按含义锚定：
 
 ```prolog
-SEARCH CONCEPT :goal MODE "semantic" WITH TYPE "Experience" THRESHOLD 0.65 LIMIT 10
+SEARCH CONCEPT :goal WITH TYPE "Experience" MODE "semantic" THRESHOLD 0.65 LIMIT 10
 ```
 
 该 Profile 的语义索引除了概念名，还应覆盖 `goal`、`initial_state`、`outcome`、`context` 以及所连 Step 的摘要。如果部署只索引名称，则按 Domain 做有界扫描，再由调用方依据上述字段排序：
@@ -361,10 +361,10 @@ FIND(?e, ?step) WHERE {
 #### 模式 N — 适用 Skill 回忆
 
 ```prolog
-SEARCH CONCEPT :goal MODE "semantic" WITH TYPE "Skill" THRESHOLD 0.65 LIMIT 10
+SEARCH CONCEPT :goal WITH TYPE "Skill" MODE "semantic" THRESHOLD 0.65 LIMIT 10
 ```
 
-Skill 的语义索引应覆盖 `goal_pattern`、`trigger_conditions`、`applicability_context`、`procedure` 和 `failure_signals`。如果这些字段未进入索引，则用 `FIND` 在相关 Domain 中取得有限候选集，再按下述适用性规则逐项检查。
+Skill 的语义索引应覆盖 `goal`、`trigger_conditions`、`applicability_context`、`procedure` 和 `failure_signals`。如果这些字段未进入索引，则用 `FIND` 在相关 Domain 中取得有限候选集，再按下述适用性规则逐项检查。
 
 对候选 Skill，检查：
 

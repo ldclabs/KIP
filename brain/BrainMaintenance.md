@@ -40,7 +40,6 @@ Goal: leave the Cognitive Nexus in optimal state for the next Formation and Reca
 8. **Non-destruction by default** — archive before delete; preserve provenance when merging or consolidating.
 9. **Minimal intervention** — prefer incremental fixes; if unsure, log and skip.
 10. **Transparency** — log significant operations to `$system.attributes.maintenance_log`.
----
 
 ---
 
@@ -199,7 +198,6 @@ UPSERT {
 ```
 
 > **`scope: "daydream"`**: score recent Events / Experiences and flag high-learning-value Experiences for the next full procedural consolidation cycle.
----
 
 ---
 
@@ -215,11 +213,10 @@ For each pending task: mark `in_progress` → execute `requested_action` → mar
 | --------------------------- | ------------------------------------------------------------------ |
 | `consolidate_to_semantic`   | Extract stable knowledge from an Event or Experience               |
 | `compile_to_skill`          | Compare one or more Experiences and create/update a Skill          |
-| `review`                    | Re-evaluate a Skill's scope, failure signals, utility, or maturity |
+| `review`                    | Assess and log findings without changing; for a Skill target, re-evaluate scope, failure signals, utility, or maturity |
 | `archive`                   | Move a concept to the Archived domain                              |
 | `merge_duplicates`          | Merge two similar concepts                                         |
 | `reclassify`                | Move a concept to a better domain                                  |
-| `review`                    | Assess and log findings without changing                           |
 | `resolve_contradiction`     | Reconcile conflicting facts while preserving history               |
 
 ```prolog
@@ -547,7 +544,7 @@ When possible, compare Experiences with similar goals and initial states but dif
 Retrieve a cluster:
 
 ```prolog
-SEARCH CONCEPT :goal MODE "semantic" WITH TYPE "Experience" THRESHOLD 0.70 LIMIT 20
+SEARCH CONCEPT :goal WITH TYPE "Experience" MODE "semantic" THRESHOLD 0.70 LIMIT 20
 ```
 
 Then inspect:
@@ -616,6 +613,8 @@ WHERE {
   ?link (?s, "prefers", ?o)
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
   FILTER(IS_NULL(?link.metadata.observed_at) || ?link.metadata.observed_at < :stale_cutoff)
+  // Floor: skip fully decayed links so the sweep converges
+  FILTER(IS_NULL(?link.metadata.memory_strength) || ?link.metadata.memory_strength > 0.05)
   FILTER(IS_NULL(?link.metadata.strength_decay_applied_at) ||
          ?link.metadata.strength_decay_applied_at < :cycle_start)
 }

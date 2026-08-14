@@ -319,7 +319,7 @@ Scope to one person via `(?c, "owed_to", {type: "Person", name: :person_id})`. P
 First ground by meaning:
 
 ```prolog
-SEARCH CONCEPT :goal MODE "semantic" WITH TYPE "Experience" THRESHOLD 0.65 LIMIT 10
+SEARCH CONCEPT :goal WITH TYPE "Experience" MODE "semantic" THRESHOLD 0.65 LIMIT 10
 ```
 
 The semantic index for this profile SHOULD include `goal`, `initial_state`, `outcome`, `context`, and the linked Step summaries in addition to the concept name. If the deployment indexes names only, fall back to a bounded Domain scan and rank the returned candidates in the caller by those fields:
@@ -358,10 +358,10 @@ For "what worked before?", prefer successful Experiences. For "what went wrong?"
 #### Pattern N — Applicable Skill Recall
 
 ```prolog
-SEARCH CONCEPT :goal MODE "semantic" WITH TYPE "Skill" THRESHOLD 0.65 LIMIT 10
+SEARCH CONCEPT :goal WITH TYPE "Skill" MODE "semantic" THRESHOLD 0.65 LIMIT 10
 ```
 
-The semantic index for Skills SHOULD include `goal_pattern`, `trigger_conditions`, `applicability_context`, `procedure`, and `failure_signals`. If those fields are not indexed, scan the relevant Domain with `FIND`, inspect the bounded candidate set, and apply the same applicability checks below.
+The semantic index for Skills SHOULD include `goal`, `trigger_conditions`, `applicability_context`, `procedure`, and `failure_signals`. If those fields are not indexed, scan the relevant Domain with `FIND`, inspect the bounded candidate set, and apply the same applicability checks below.
 
 For candidate Skills, inspect:
 - `maturity`;
@@ -438,7 +438,6 @@ Stop when: enough info to answer, results show diminishing returns, or the query
 7. **Acknowledge gaps** and unverified preconditions explicitly.
 8. **Default semantic state**: present current facts, excluding `superseded: true` unless the user asks for history/evolution.
 9. **Action Briefing**: do not issue an imperative solely because a past Skill exists; explain why it appears applicable and surface known failure signals.
----
 
 ---
 

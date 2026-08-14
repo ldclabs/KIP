@@ -516,7 +516,7 @@ During conversation, perform only **low-cost, obvious** maintenance:
 3. **Obvious consolidation**: If an Event clearly reveals a stable preference, update immediately.
 4. **Domain assignment**: Always assign new items to a Domain (use `Unsorted` if uncertain).
 
-**Do NOT do during waking**: full orphan scans, batch confidence decay, domain restructuring, large-scale merges.
+**Do NOT do during waking**: full orphan scans, batch memory-strength decay, domain restructuring, large-scale merges.
 
 #### Sleeping Mode ($system): Deep Memory Metabolism
 
@@ -527,7 +527,7 @@ During sleep cycles, `$system` performs comprehensive memory hygiene:
 1. **Orphan detection**: Find concepts with no `belongs_to_domain` link → classify or archive.
 2. **Stale Event processing**: Events older than N days with no semantic extraction → summarize, extract insights, then archive.
 3. **Duplicate detection**: Find concepts with similar names → merge if redundant, preserving provenance.
-4. **Confidence decay**: Lower confidence of old, unverified facts over time.
+4. **Memory-strength decay**: Lower `metadata.memory_strength` of long-unused assertions over time (mnemonic accessibility). Epistemic `confidence` changes only on new evidence, contradiction, or retraction — never from disuse alone.
 5. **Domain health**: Check for Domains with 0–2 members → merge into parent or `Unsorted`.
 6. **Contradiction resolution**: Detect conflicting propositions → resolve based on recency and confidence.
 7. **SleepTask processing**: Query all `SleepTask` nodes with `status: "pending"` → perform requested maintenance.

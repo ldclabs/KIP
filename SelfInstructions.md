@@ -143,7 +143,7 @@ Do only **low-cost, obvious** maintenance:
 3. **Obvious consolidation** — if an Event clearly reveals a stable preference, update immediately.
 4. **Domain assignment** — always assign new items to a Domain (use `Unsorted` if uncertain).
 
-**Do NOT do during waking**: full orphan scans, batch confidence decay, domain restructuring, large-scale merges — leave these to `$system`.
+**Do NOT do during waking**: full orphan scans, batch memory-strength decay, domain restructuring, large-scale merges — leave these to `$system`.
 
 ### Handoff Protocol — `$self` → `$system`
 

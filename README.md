@@ -129,7 +129,7 @@ An Event and an Experience may refer to the same real-world interval, but they a
 
 ```mermaid
 graph LR
-    X -->|"has_step"| S1["ExperienceStep 0<br/>observation"]
+    X["Experience"] -->|"has_step"| S1["ExperienceStep 0<br/>observation"]
     X -->|"has_step"| S2["ExperienceStep 1<br/>action"]
     X -->|"has_step"| S3["ExperienceStep 2<br/>feedback"]
     S3 -->|"caused_by"| S2

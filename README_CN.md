@@ -127,7 +127,7 @@ KIP Core 仍是一套通用图协议。经验学习是在它之上用普通 KIP 
 
 ```mermaid
 graph LR
-    X -->|"has_step"| S1["ExperienceStep 0<br/>观察"]
+    X["Experience"] -->|"has_step"| S1["ExperienceStep 0<br/>观察"]
     X -->|"has_step"| S2["ExperienceStep 1<br/>行动"]
     X -->|"has_step"| S3["ExperienceStep 2<br/>反馈"]
     S3 -->|"caused_by"| S2

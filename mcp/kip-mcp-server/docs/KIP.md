@@ -1,24 +1,37 @@
 # 🧬 KIP (Knowledge Interaction Protocol) Specification (Release Candidate)
 
-> **Bundled mirror — v1.0-RC10.** This document vendors the KIP specification body for offline use by the MCP server; the version-history table is omitted. The authoritative source (with full change log) is [`SPECIFICATION.md`](https://github.com/ldclabs/KIP/blob/main/SPECIFICATION.md). Keep this copy in sync on every protocol edit.
+> **Bundled mirror — v1.0-RC11.** This document vendors the KIP specification body for offline use by the MCP server; the version-history table is omitted. The authoritative source (with full change log) is [`SPECIFICATION.md`](https://github.com/ldclabs/KIP/blob/main/SPECIFICATION.md). Keep this copy in sync on every protocol edit.
 
 ## 0. Preface
 
-Large Language Models (LLMs) have demonstrated remarkable capabilities in general reasoning and generation. However, their **"Stateless"** essence results in a lack of long-term memory, while their probability-based generation mechanism often leads to uncontrollable "hallucinations" and knowledge obsolescence.
+Large Language Models (LLMs) have demonstrated remarkable capabilities in general reasoning and generation. However, their **stateless** execution model provides no durable personal memory by itself, while probabilistic generation can produce hallucinations and rapidly become detached from changing external facts.
 
-Constructing a system that leverages the powerful reasoning capabilities of LLMs while ensuring persistence, accuracy, and traceability through structured data is the core challenge in current AI Agent architecture. **Neuro-Symbolic AI** is considered the critical path to solving this problem.
+Constructing a system that combines the reasoning capabilities of LLMs with persistent, correctable, traceable state is a core challenge in AI Agent architecture. **KIP (Knowledge Interaction Protocol)** was created as a graph-oriented protocol for that external cognitive state.
 
-**KIP (Knowledge Interaction Protocol)** was born for this purpose.
+KIP bridges the **LLM (Probabilistic Reasoning Engine)** and a **Cognitive Nexus (Structured, Deterministic Memory State)**. It is not merely a database interface: it defines model-oriented primitives for grounding, querying, mutation, provenance, temporal evolution, consolidation, and forgetting.
 
-KIP defines a standard interaction protocol aimed at bridging the gap between the **LLM (Probabilistic Reasoning Engine)** and the **Knowledge Graph (Deterministic Knowledge Base)**. It is not merely a database interface, but a set of **memory and cognitive operation primitives** designed specifically for intelligent agents.
+KIP itself deliberately does not prescribe one single theory of cognition. A KIP implementation may store ordinary domain knowledge only, or adopt a richer **Cognitive Memory Profile** that distinguishes episodic events, goal-directed experience, semantic knowledge, procedural skills, prospective commitments, and self-model artifacts.
 
-Through KIP, we aim to achieve:
+A useful distinction for such systems is:
 
-1.  **Memory Persistence**: Transforming an Agent's conversations, observations, and reasoning results into structured "Knowledge Capsules," enabling atomic storage and reuse of memory.
-2.  **Knowledge Evolution**: Providing complete CRUD (Create, Read, Update, Delete) and metadata management mechanisms, empowering Agents with the ability to autonomously update their knowledge base and correct errors—true "learning."
-3.  **Explainable Interaction**: Explicitly translating implicit thought processes into KIP instructions, making every answer traceable and every decision logically transparent.
+```text
+Event       = what happened
+Experience  = the state-action-observation trajectory an actor traversed
+Knowledge   = compressed regularities of experience or evidence
+Skill       = experience compiled into an actionable procedure or policy
+Memory      = the mechanism by which past state can condition future computation
+```
 
-This specification aims to provide an open, universal standard for developers, architects, and researchers to build the next generation of agents equipped with **trusted memory** and **continuous learning capabilities**.
+Through KIP, we aim to enable:
+
+1. **Memory Persistence** — transform conversations, observations, tool results, and other durable signals into structured, addressable memory.
+2. **Knowledge Evolution** — update, correct, supersede, merge, and retire knowledge while preserving provenance and temporal history.
+3. **Experience Learning** — when a cognitive profile supports it, preserve meaningful trajectories and consolidate them into semantic knowledge and procedural Skills.
+4. **Explainable Interaction** — make external memory operations explicit and auditable through KIP instructions and provenance.
+
+KIP provides the primitives that **enable learning**, but storage mutation alone is not sufficient evidence that an Agent has learned. The strongest operational criterion for learning is that past experience causes a durable, context-appropriate change in future behavior.
+
+This specification aims to provide an open, universal standard for developers, architects, and researchers building agents with **trusted memory, continuous state evolution, and experience-driven learning**.
 
 ## 1. Introduction & Design Philosophy
 
@@ -38,7 +51,7 @@ The core objective of KIP is to establish a **unified Cognitive Nexus**, enablin
 
 ### 2.1. Cognitive Nexus
 
-A knowledge graph composed of **Concept Nodes** and **Proposition Links**, serving as the AI Agent's **unified memory brain**. It accommodates all levels of memory, from transient episodic events to persistent semantic knowledge, and implements memory **metabolism (consolidation and forgetting)** through autonomous background system processes.
+A knowledge graph composed of **Concept Nodes** and **Proposition Links**, serving as the AI Agent's **unified external cognitive state**. Depending on the adopted cognitive profile, it may accommodate episodic Events, goal-directed Experiences, semantic knowledge, procedural Skills, prospective commitments, and self-model artifacts. Memory **metabolism** such as consolidation, reinforcement, supersession, and forgetting is implemented by higher-level cognitive processes built on KIP.
 
 ### 2.2. Concept Node
 
@@ -645,13 +658,13 @@ LIMIT 20
 **Example 5 (Associative Recall & Memory Ranking)**: Starting from a person, explore every relation around them (without knowing the predicates in advance), excluding organizational links, ranked by the strength of each memory.
 
 ```prolog
-FIND(?pred, ?neighbor, ?link.metadata.confidence)
+FIND(?pred, ?neighbor, ?link.metadata.memory_strength, ?link.metadata.confidence)
 WHERE {
   ?person {type: "Person", name: "Alice"}
   ?link (?person, ?pred, ?neighbor)
   FILTER(?pred != "belongs_to_domain")
 }
-ORDER BY ?link.metadata.confidence DESC, ?link.metadata.created_at DESC
+ORDER BY ?link.metadata.memory_strength DESC, ?link.metadata.confidence DESC
 LIMIT 50
 ```
 
@@ -872,7 +885,7 @@ WHERE {
 
 ### 4.3. `UPDATE` Statement
 
-**Function**: Pattern-matched **bulk mutation** of existing concept nodes or proposition links. Where `UPSERT` addresses elements one at a time by identity, `UPDATE` mutates *every* element matched by a `WHERE` pattern in a single atomic statement. It **never creates** elements. This is the workhorse of **memory metabolism**: confidence decay, reinforcement counters, salience refresh, and status sweeps become one intent-level command instead of N identity-addressed writes.
+**Function**: Pattern-matched **bulk mutation** of existing concept nodes or proposition links. Where `UPSERT` addresses elements one at a time by identity, `UPDATE` mutates *every* element matched by a `WHERE` pattern in a single atomic statement. It **never creates** elements. This is the workhorse of **memory metabolism**: memory-strength decay, reinforcement counters, salience refresh, and status sweeps become one intent-level command instead of N identity-addressed writes.
 
 **Syntax**:
 
@@ -913,27 +926,34 @@ A value position inside `SET ATTRIBUTES` / `SET METADATA` may be a JSON value (a
 **Examples**:
 
 ```prolog
-// Sleep-cycle confidence decay across ALL predicates in one command
-// (predicate variable + bulk update; spare structural links and axiomatic 1.0 truths)
+// Sleep-cycle memory-strength decay across ALL predicates in one command
+// (predicate variable + bulk update; spare structural links)
 // Small graphs only: past the engine's materialization cap this unconstrained scan
-// is rejected (KIP_4002) — shard per predicate (?link (?s, :predicate, ?o)), endpoint
+// is rejected (KIP_4002) — shard per predicate (?link (?s, "prefers", ?o)), endpoint
 // type, or domain, iterating the shards with the same marker guard (see Scan bounds).
 UPDATE ?link
 SET METADATA {
-  confidence: CLAMP(MUL(?link.metadata.confidence, :decay_factor), 0.0, 1.0),
-  decay_applied_at: :timestamp
+  memory_strength: CLAMP(
+    MUL(COALESCE(?link.metadata.memory_strength, 0.7), :decay_factor),
+    0.0, 1.0
+  ),
+  strength_decay_applied_at: :timestamp
 }
 WHERE {
   ?link (?s, ?p, ?o)
   FILTER(?p != "belongs_to_domain")
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
-  FILTER(?link.metadata.created_at < :decay_threshold)
-  FILTER(?link.metadata.confidence > 0.3 && ?link.metadata.confidence < 1.0)
+  FILTER(IS_NULL(?link.metadata.observed_at) || ?link.metadata.observed_at < :stale_cutoff)
+  // Floor: skip links already fully decayed so the sweep converges instead of rewriting them every cycle
+  FILTER(IS_NULL(?link.metadata.memory_strength) || ?link.metadata.memory_strength > 0.05)
   // Idempotency guard: at most one decay per link per cycle; re-run until updated < LIMIT
-  FILTER(IS_NULL(?link.metadata.decay_applied_at) || ?link.metadata.decay_applied_at < :cycle_start)
+  FILTER(IS_NULL(?link.metadata.strength_decay_applied_at) ||
+         ?link.metadata.strength_decay_applied_at < :cycle_start)
 }
 LIMIT 500
 ```
+
+This example decays mnemonic accessibility, not epistemic support. Time alone SHOULD NOT reduce `confidence`; update `confidence` only when evidence, source quality, contradiction, retraction, or validity changes.
 
 ```prolog
 // Reinforcement on re-confirmation — no read-modify-write round-trip needed
@@ -1353,13 +1373,13 @@ graph TD
 4.  **Execute & Respond**:
     The generated code is sent to the Cognitive Nexus inference engine for execution, which returns structured data results or operation success status.
 
-5.  **Solidify Knowledge**:
-    If new, trusted knowledge is generated during the interaction (e.g., user confirms a new fact), the LLM should fulfill its "learning" duty:
+5.  **Store Candidate Memory**:
+    If new, trusted knowledge is generated during the interaction (e.g., the user confirms a new fact), the LLM should:
     *   Generate an `UPSERT` statement encapsulating the new knowledge.
-    *   Execute the statement to permanently solidify the new knowledge into the Cognitive Nexus, completing the learning loop.
+    *   Execute it to store a candidate durable memory in the Cognitive Nexus. Whether learning occurred is validated later by changed recall, prediction, or behavior.
 
 6.  **Synthesize Results**:
-    The LLM translates the structured data or operation receipts received from the Symbolic Core into fluent, human-friendly, and **explainable** natural language. It is recommended that the LLM explains its reasoning process (i.e., the logic represented by the KIP code) to the user to build trust.
+    The LLM translates structured data or operation receipts from the Symbolic Core into clear, **explainable** natural language. It MAY explain the retrieved evidence and executed KIP operations, but MUST NOT expose private chain-of-thought.
 
 ## Appendix 1. Metadata Field Design
 
@@ -1368,8 +1388,9 @@ Well-designed metadata is key to building a self-evolving, traceable, and audita
 ### A1.1. Provenance & Trustworthiness
 *   `source`: `String` | `Array<String>`, direct source identifier of the knowledge.
 *   `author`: `String`, entity asserting or creating the record.
-*   `confidence`: `Number`, confidence score for the truth of the knowledge (0.0-1.0). Assertion trust lives **only** here in metadata (of the node or link making the assertion); do not duplicate it as an attribute — otherwise reinforcement and decay end up acting on different copies. Reinforcement signals that are part of the knowledge itself (`evidence_count`, `first_observed` / `last_observed`) belong in attributes.
+*   `confidence`: `Number`, epistemic confidence in the truth or faithful recording of the assertion (0.0-1.0). Assertion trust lives **only** here in metadata (of the node or link making the assertion); do not duplicate it as an attribute. `confidence` SHOULD change because of evidence, verification, contradiction, retraction, or source quality — not merely because the memory has not been recalled recently.
 *   `evidence`: `Array<String>`, points to specific evidence supporting the assertion.
+*   `memory_strength`: `Number` (0.0-1.0, OPTIONAL), mnemonic accessibility / activation strength. It MAY increase through reinforcement or successful reuse and decay through disuse. It is explicitly **not** a truth probability and SHOULD NOT be substituted for `confidence`.
 
 ### A1.2. Temporality & Lifecycle
 *   `created_at` / `observed_at`: `String` (ISO 8601), timestamp of creation or observation.
@@ -1380,6 +1401,8 @@ Well-designed metadata is key to building a self-evolving, traceable, and audita
 *   `superseded`: `Boolean`, `true` when this fact is retained as historical state after a newer fact supersedes it.
 *   `superseded_by` / `supersedes`: `String`, pointers across the state-evolution chain.
 *   `superseded_at`: `String` (ISO 8601), timestamp when the assertion was superseded.
+
+> **Orthogonal memory axes**: `confidence` (epistemic support), `memory_strength` (accessibility), `memory_tier` / `expires_at` (storage lifecycle), and `superseded` / validity fields (temporal applicability) describe different properties. Implementations SHOULD avoid using one field as a proxy for another.
 
 ### A1.3. Context & Auditing
 *   `relevance_tags`: `Array<String>`, topic or domain tags.
@@ -1609,9 +1632,13 @@ WITH METADATA {
 }
 ```
 
-## Appendix 3: Core Identity & Actor Definitions (Genesis Template)
+## Appendix 3: Recommended Cognitive Memory Profile (Genesis Template)
 
-This appendix provides a recommended set of templates for defining cognitive actors within a KIP-based Cognitive Nexus. These definitions establish the concepts of "Person" (`Person`), the Agent's self-identity (`$self`), and the system guardian (`$system`). They are designed to be part of the initial "Genesis Knowledge Capsule" used to bootstrap the knowledge graph.
+This appendix provides a **recommended**, non-core cognitive memory profile for KIP-based Agent systems. Core KIP syntax does not depend on these types. Implementations may adopt all, some, or none of them.
+
+The profile defines actors and common memory products including `Event`, `Person`, `Preference`, `Insight`, `Commitment`, and `SleepTask`. Experience-learning implementations SHOULD additionally define `Experience`, `ExperienceStep`, and `Skill` as described below and in [CognitiveMemoryProfile.md](./brain/CognitiveMemoryProfile.md).
+
+The distinction is intentional: an `Event` summarizes **what happened**, while an `Experience` preserves a reusable **state-action-observation trajectory**, and a `Skill` represents a procedure compiled from one or more Experiences.
 
 ### A3.1. `Event` Concept Type
 
@@ -1639,7 +1666,7 @@ This node represents the "Superego" of the system. It is an emotionless, persona
 
 ### A3.3. `Preference` Concept Type
 
-A first-class stable preference fact — some subject reliably prefers something — connected to its subject via the `prefers` predicate and reinforced across Events (`evidence_count`, `first_observed` / `last_observed`).
+A first-class stable preference fact — some subject reliably prefers something — connected as `Person ─prefers→ Preference` and reinforced across Events (`evidence_count`, `first_observed` / `last_observed`).
 
 **[Preference.kip](./capsules/Preference.kip)**
 
@@ -1660,6 +1687,42 @@ Prospective memory: promises, reminders, follow-ups, and deadlines with a `pendi
 Background maintenance tasks flagged for `$system` and swept during sleep cycles, connected via `assigned_to`. Task instances live in the `System` domain; the `Unsorted` / `Archived` / `System` operational domains themselves are created by the Genesis Capsule (Appendix 2).
 
 **[SleepTask.kip](./capsules/SleepTask.kip)**
+
+### A3.7. `Experience` Concept Type
+
+A bounded, goal-directed trajectory whose **process itself** has future learning value. Unlike an `Event`, an `Experience` preserves relevant initial state, actions, observations, feedback, outcome, and links to ordered `ExperienceStep` nodes. Failed Experiences are first-class evidence when they reveal failure modes, diagnostic observations, or recovery strategies.
+
+Experience-learning systems SHOULD distinguish:
+- `metadata.confidence`: confidence that the recorded trace is faithful;
+- `metadata.memory_strength`: how strongly the Experience should compete for recall;
+- `attributes.learning_value` / `attributes.surprise_score`: reuse value and expectation violation;
+- `attributes.status`, `attributes.outcome`, and `attributes.success`: lifecycle, terminal result, and goal achievement.
+
+**[Experience.kip](./capsules/Experience.kip)**
+
+See [CognitiveMemoryProfile.md](./brain/CognitiveMemoryProfile.md).
+
+### A3.8. `ExperienceStep` Concept Type
+
+One ordered unit inside an `Experience`, typically an `observation`, `decision`, `action`, or `feedback` step. A step MAY record a concise `decision_rationale`, `expected_observation`, and `actual_observation`.
+
+`ExperienceStep` is intended for **observable decision traces**, not hidden model chain-of-thought. Its `index` expresses sequence. A `caused_by` proposition MUST be created only when the trace or later analysis provides evidence beyond temporal adjacency.
+
+**[ExperienceStep.kip](./capsules/ExperienceStep.kip)**
+
+See [CognitiveMemoryProfile.md](./brain/CognitiveMemoryProfile.md).
+
+### A3.9. `Skill` Concept Type
+
+Procedural memory distilled from one or more Experiences. A Skill describes **what tends to work, under which conditions**, and SHOULD include trigger conditions, applicability context, preconditions, procedure or policy, expected outcome, success criteria, known failure signals, recovery strategy, and maturity.
+
+A Skill's practical `utility` is distinct from epistemic `confidence`: repeated failure SHOULD reduce or qualify procedural utility rather than count as supporting evidence merely because the procedure was repeated.
+
+Experience-learning implementations SHOULD preserve provenance from Skill back to supporting Experiences (e.g., `derived_from`) and MAY use an explicit `compiled_to` proposition from Experience to Skill.
+
+**[Skill.kip](./capsules/Skill.kip)**
+
+See [CognitiveMemoryProfile.md](./brain/CognitiveMemoryProfile.md) and [ExperienceLearningArchitecture.md](./brain/ExperienceLearningArchitecture.md).
 
 ## Appendix 4. KIP Standard Error Codes
 

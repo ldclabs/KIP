@@ -691,7 +691,7 @@ During conversation, perform only low-cost maintenance:
 - **Obvious consolidation**: Extract stable facts immediately
 - **Domain assignment**: Always assign new items (use `Unsorted` if uncertain)
 
-**Do NOT do during waking**: full orphan scans, batch confidence decay, domain restructuring.
+**Do NOT do during waking**: full orphan scans, batch memory-strength decay, domain restructuring.
 
 ### Creating a SleepTask
 

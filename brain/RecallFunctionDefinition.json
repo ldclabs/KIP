@@ -33,6 +33,27 @@
             "description": "The topic of the current conversation, to help disambiguate the query."
           }
         }
+      },
+      "action_context": {
+        "type": "object",
+        "description": "Optional context about an action the business agent is about to take. When present, the memory system may return an Action Briefing: relevant knowledge, applicable Skills, similar successful and failed Experiences, open commitments, and warnings, assembled to inform the upcoming decision.",
+        "properties": {
+          "goal": {
+            "type": "string",
+            "description": "The outcome the business agent is trying to achieve with the upcoming action."
+          },
+          "current_state": {
+            "type": "string",
+            "description": "A compact description of the relevant current state, constraints, and known risks."
+          },
+          "available_tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Canonical names of tools or capabilities available for the upcoming action."
+          }
+        }
       }
     },
     "required": [

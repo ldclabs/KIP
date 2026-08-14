@@ -530,7 +530,7 @@ maturity 可能转为 needs_review
 ### 11.1 相似 Experience
 
 ```prolog
-SEARCH CONCEPT :goal MODE "semantic" WITH TYPE "Experience" LIMIT 10
+SEARCH CONCEPT :goal WITH TYPE "Experience" MODE "semantic" LIMIT 10
 ```
 
 语义索引应覆盖 `goal`、`initial_state`、`outcome`、`context` 和所连 Step 的摘要。如果部署只索引名称，则按相关 Domain 做有界 `FIND`，再由调用方依据上述字段排序。
@@ -540,7 +540,7 @@ SEARCH CONCEPT :goal MODE "semantic" WITH TYPE "Experience" LIMIT 10
 ### 11.2 适用 Skill
 
 ```prolog
-SEARCH CONCEPT :goal MODE "semantic" WITH TYPE "Skill" LIMIT 10
+SEARCH CONCEPT :goal WITH TYPE "Skill" MODE "semantic" LIMIT 10
 ```
 
 Skill 索引应覆盖 `goal`、`trigger_conditions`、`applicability_context`、`procedure` 和 `failure_signals`。如果这些字段未进入索引，则从相关 Domain 取得有限候选集，再由调用方执行下述检查。

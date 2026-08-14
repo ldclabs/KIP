@@ -24,6 +24,7 @@
 | v1.0-RC9    | 2026-06-11 | v1.0 Release Candidate 9: Added associative-recall and memory-metabolism primitives: predicate variables in proposition patterns (`(?s, ?p, ?o)`); multi-key `ORDER BY`; specified `SEARCH` retrieval modes (`MODE "keyword" \| "semantic" \| "hybrid"`, `THRESHOLD`, transient `_score`); new KML `UPDATE` statement (bulk pattern-matched mutation with `ADD` / `MUL` / `CLAMP` / `COALESCE` update expressions) and `MERGE CONCEPT ... INTO ...` statement (atomic entity consolidation); reserved engine-maintained `_` metadata namespace (`_version`, `_updated_at`; deliberately no read-tracking statistics); `EXPECT VERSION` optimistic concurrency with new `KIP_3005` error; added META `EXPORT` statement for knowledge-capsule round-tripping                                                                                                                                                                                                                   |
 | v1.0-RC10   | 2026-07-04 | v1.0 Release Candidate 10: Defined per-command result shapes (columnar `FIND` result model, `UPSERT` block/ID report, `DELETE` deletion/mutation counters) and solution-set deduplication; added `CURSOR` pagination to `EXPORT` and structural `(s, "p", o)` references for outside higher-order endpoints; specified `SEARCH PROPOSITION ... WITH TYPE` predicate semantics; `MERGE` now carries source `_merged_from` forward and SHOULD hint "already merged" on replay; required exactly one of `command` / `commands`; added the operational `System` domain (home of `SleepTask` instances) to the Genesis bootstrap alongside `Unsorted` / `Archived`; hardened confidence-decay examples; clarified the `EXPECT VERSION` idempotency exception, zero-hop path example, bare-variable `ORDER BY` keys, and domain-membership wording; refreshed Genesis `key_instances` and `instance_schema` meta-keys; completed the Appendix 3 capsule set and aligned EN/CN drift |
 | v1.0-RC11   | 2026-08-13 | Added the Experience Learning cognitive profile: clarified Event vs Experience vs Skill; introduced `memory_strength` as distinct from epistemic `confidence`; documented procedural memory and Experience-to-Skill consolidation without changing core KQL/KML syntax; linked the Brain Experience Learning architecture and profile documents. |
+
 **KIP Implementations**:
 - [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip): A Rust SDK for KIP-based sustainable AI knowledge memory systems.
 - [Anda Cognitive Nexus](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus): A Rust implementation of KIP based on Anda DB.
@@ -976,6 +977,8 @@ WHERE {
   FILTER(?p != "belongs_to_domain")
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
   FILTER(IS_NULL(?link.metadata.observed_at) || ?link.metadata.observed_at < :stale_cutoff)
+  // Floor: skip links already fully decayed so the sweep converges instead of rewriting them every cycle
+  FILTER(IS_NULL(?link.metadata.memory_strength) || ?link.metadata.memory_strength > 0.05)
   // Idempotency guard: at most one decay per link per cycle; re-run until updated < LIMIT
   FILTER(IS_NULL(?link.metadata.strength_decay_applied_at) ||
          ?link.metadata.strength_decay_applied_at < :cycle_start)
@@ -1728,6 +1731,8 @@ Experience-learning systems SHOULD distinguish:
 - `attributes.learning_value` / `attributes.surprise_score`: reuse value and expectation violation;
 - `attributes.status`, `attributes.outcome`, and `attributes.success`: lifecycle, terminal result, and goal achievement.
 
+**[Experience.kip](./capsules/Experience.kip)**
+
 See [CognitiveMemoryProfile.md](./brain/CognitiveMemoryProfile.md).
 
 ### A3.8. `ExperienceStep` Concept Type
@@ -1735,6 +1740,8 @@ See [CognitiveMemoryProfile.md](./brain/CognitiveMemoryProfile.md).
 One ordered unit inside an `Experience`, typically an `observation`, `decision`, `action`, or `feedback` step. A step MAY record a concise `decision_rationale`, `expected_observation`, and `actual_observation`.
 
 `ExperienceStep` is intended for **observable decision traces**, not hidden model chain-of-thought. Its `index` expresses sequence. A `caused_by` proposition MUST be created only when the trace or later analysis provides evidence beyond temporal adjacency.
+
+**[ExperienceStep.kip](./capsules/ExperienceStep.kip)**
 
 See [CognitiveMemoryProfile.md](./brain/CognitiveMemoryProfile.md).
 
@@ -1745,6 +1752,8 @@ Procedural memory distilled from one or more Experiences. A Skill describes **wh
 A Skill's practical `utility` is distinct from epistemic `confidence`: repeated failure SHOULD reduce or qualify procedural utility rather than count as supporting evidence merely because the procedure was repeated.
 
 Experience-learning implementations SHOULD preserve provenance from Skill back to supporting Experiences (e.g., `derived_from`) and MAY use an explicit `compiled_to` proposition from Experience to Skill.
+
+**[Skill.kip](./capsules/Skill.kip)**
 
 See [CognitiveMemoryProfile.md](./brain/CognitiveMemoryProfile.md) and [ExperienceLearningArchitecture.md](./brain/ExperienceLearningArchitecture.md).
 

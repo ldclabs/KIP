@@ -527,7 +527,7 @@ Do not score it as an in-scope failure. Refine `trigger_conditions`, `applicabil
 ### 11.1 Similar Experiences
 
 ```prolog
-SEARCH CONCEPT :goal MODE "semantic" WITH TYPE "Experience" LIMIT 10
+SEARCH CONCEPT :goal WITH TYPE "Experience" MODE "semantic" LIMIT 10
 ```
 
 The semantic index SHOULD cover `goal`, `initial_state`, `outcome`, `context`, and linked Step summaries. If only names are indexed, use a bounded `FIND` over the relevant Domain and rank candidates in the caller by those fields.
@@ -537,7 +537,7 @@ After grounding, inspect `success`, initial state, domain, tools, prediction err
 ### 11.2 Applicable Skills
 
 ```prolog
-SEARCH CONCEPT :goal MODE "semantic" WITH TYPE "Skill" LIMIT 10
+SEARCH CONCEPT :goal WITH TYPE "Skill" MODE "semantic" LIMIT 10
 ```
 
 The Skill index SHOULD cover `goal`, `trigger_conditions`, `applicability_context`, `procedure`, and `failure_signals`. Otherwise, obtain a bounded candidate set from the relevant Domain and apply the checks below in the caller.

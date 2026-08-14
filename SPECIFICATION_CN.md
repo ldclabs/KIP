@@ -995,6 +995,8 @@ WHERE {
   FILTER(?p != "belongs_to_domain")
   FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
   FILTER(IS_NULL(?link.metadata.observed_at) || ?link.metadata.observed_at < :stale_cutoff)
+  // 下限：跳过已完全衰减的链接，让清扫收敛，而不是每个周期重写它们
+  FILTER(IS_NULL(?link.metadata.memory_strength) || ?link.metadata.memory_strength > 0.05)
   // 幂等护栏：每条链接每周期至多衰减一次；重复执行直到 updated < LIMIT
   FILTER(IS_NULL(?link.metadata.strength_decay_applied_at) ||
          ?link.metadata.strength_decay_applied_at < :cycle_start)
@@ -1761,6 +1763,8 @@ Profile 定义 `Event`、`Person`、`Preference`、`Insight`、`Commitment` 和 
 - `attributes.learning_value` / `attributes.surprise_score`：未来复用价值和预期违背程度；
 - `attributes.status`、`attributes.outcome`、`attributes.success`：轨迹生命周期、最终结果与目标是否达成。
 
+**[Experience.kip](./capsules/Experience.kip)**
+
 详见 [CognitiveMemoryProfile_CN.md](./brain/CognitiveMemoryProfile_CN.md)。
 
 ### A3.8. `ExperienceStep` 概念类型
@@ -1768,6 +1772,8 @@ Profile 定义 `Event`、`Person`、`Preference`、`Insight`、`Commitment` 和 
 `Experience` 中的一个有序单元，通常属于 `observation`、`decision`、`action` 或 `feedback`。Step 可以记录简洁的 `decision_rationale`、`expected_observation` 和 `actual_observation`。
 
 `ExperienceStep` 用于保存**可观察的决策轨迹**，不用于保存模型内部思维链。`index` 只表示顺序；只有在轨迹或后续分析提供了超越时间相邻性的证据时，才能创建 `caused_by` 命题。
+
+**[ExperienceStep.kip](./capsules/ExperienceStep.kip)**
 
 详见 [CognitiveMemoryProfile_CN.md](./brain/CognitiveMemoryProfile_CN.md)。
 
@@ -1778,6 +1784,8 @@ Profile 定义 `Event`、`Person`、`Preference`、`Insight`、`Commitment` 和 
 Skill 的实际 `utility` 与认知 `confidence` 是两个维度：同一流程反复失败时，应降低或收窄它的程序性效用，而不能因为“重复出现”就把失败当成支持证据。
 
 经验学习实现应保留 Skill 到来源 Experience 的溯源关系（如 `derived_from`），也可以用显式 `compiled_to` 表示 Experience 到 Skill 的编译关系。
+
+**[Skill.kip](./capsules/Skill.kip)**
 
 详见 [CognitiveMemoryProfile_CN.md](./brain/CognitiveMemoryProfile_CN.md) 和 [ExperienceLearningArchitecture_CN.md](./brain/ExperienceLearningArchitecture_CN.md)。
 
