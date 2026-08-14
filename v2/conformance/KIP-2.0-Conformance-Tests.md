@@ -1179,6 +1179,19 @@ Primary profile: `KIP-Epistemic`
 ---
 
 
+## KIP2-EPI-027 — Materialized projection discloses its basis
+
+**Level:** OPTIONAL
+
+**Capabilities:** materialized_projection
+
+**Expected semantic behavior:** With projection caching enabled, a BELIEF result served from a materialization reports its Projection Policy identity/version and snapshot basis in the result context. After a relevant Change Envelope (new opposing Assertion for the same conflict set), a subsequent current-time BELIEF either reflects the new state or discloses the older snapshot basis — never a stale answer presented as current. The materialization never appears as Evidence or Assertion.
+
+**Forbidden outcome:** silent stale belief presented at current snapshot; cache written back as cognition; cache self-corroboration.
+
+---
+
+
 # 16. Governance Suite
 
 Primary profile: `KIP-Governance`
@@ -2470,6 +2483,21 @@ Primary profile: `KIP-KML`
 ---
 
 
+## KIP2-KML-031 — ASSERT sugar desugars exactly
+
+**Level:** MUST
+
+**Profiles:** KIP-KML (full)
+
+**Expected semantic behavior:** `ASSERT ?a (alice, timezone, "+08:00") {by: alice, mode: "stated", confidence: 0.9, evidence: E}` commits exactly one canonical Proposition (created or resolved), one Assertion with the declared fields and a role-support Evidence citation, and nothing else. State is element-for-element equivalent to the desugared `ENSURE PROPOSITION` + `CREATE ASSERTION` form. With `SUPERSEDING :old`, the old Assertion becomes superseded by the new one in the same transaction.
+
+**Postconditions:** canonical_proposition_count for the tuple = 1; assertion payload equals declared members; no additional Evidence/Activity is fabricated by the sugar.
+
+**Forbidden outcome:** sugar-only side effects; divergence from the normative desugaring; stance default other than support.
+
+---
+
+
 # 21. META Suite
 
 Primary profile: `KIP-META`
@@ -2998,6 +3026,23 @@ Primary profile: `KIP-Runtime`
 **Expected semantic behavior:** Cross-use KQL/SEARCH/CHANGES cursors. CursorTypeMismatch/equivalent.
 
 **Forbidden outcome:** cursor type confusion.
+
+---
+
+
+## KIP2-RT-031 — Ingestion context mints faithful Evidence
+
+**Level:** MUST
+
+**Profiles:** KIP-Runtime (full)
+
+**Capabilities:** ingestion_context
+
+**Expected semantic behavior:** A request carries `ingest.evidence[{key: "msg", payload: P, client_key: K}]` and an operation referencing `:msg`. The runtime mints exactly one Evidence element whose payload/content digest corresponds byte-for-byte to the transport-supplied P, binds `:msg` to it, and commits it atomically with the transaction. Retrying the same request with the same idempotency/client keys yields no duplicate Evidence. If the transaction aborts, no Evidence is durably created.
+
+**Postconditions:** evidence payload digest equals digest(P); change_envelope_count for the logical write = 1.
+
+**Forbidden outcome:** payload altered/truncated/paraphrased relative to transport input; Evidence surviving an aborted transaction; duplicate Evidence on retry.
 
 ---
 
@@ -3552,7 +3597,7 @@ no representation authority inferred
 
 # 27. Required Invariant Coverage Matrix
 
-The Specification defines 30 cross-cutting Required Conformance Invariants.
+The Specification defines 33 cross-cutting Required Conformance Invariants.
 
 | Invariant | Required vectors |
 |---|---|
@@ -3586,6 +3631,9 @@ The Specification defines 30 cross-cutting Required Conformance Invariants.
 | 28. Cursors are opaque/non-interchangeable | KQL-017, KQL-018, RT-016, RT-030 |
 | 29. External URLs not auto-fetched | CAP-020, RT-027 |
 | 30. External actions outside KIP rollback | X-014 |
+| 31. ASSERT commits exactly its desugaring | KML-031 |
+| 32. Materialized projection discloses policy + snapshot basis | EPI-027 |
+| 33. Ingested Evidence preserves transport payload | RT-031 |
 
 ---
 

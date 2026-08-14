@@ -2516,6 +2516,8 @@ No Brain policy is required for KIP Core conformance.
 KIP-2.0-SPECIFICATION.md
 ```
 
+A faithful LLM-facing condensation, `KIPSyntax.md`, is maintained alongside the Specification for prompt injection; on any conflict the Specification wins, and the card must be kept in sync on every protocol change.
+
 This is the normative consolidation candidate. It defines protocol-level requirements for Core cognitive elements, Epistemic Projection, Governance, Schema Packages, Transactions, Cognitive Capsules, KQL, KML, META, Protocol Runtime, historical semantics, migration invariants, and conformance invariants.
 
 If an informative design document conflicts with the Specification, the Specification wins.

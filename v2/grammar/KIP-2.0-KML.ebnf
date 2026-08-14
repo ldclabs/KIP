@@ -17,7 +17,7 @@
    Formalization decisions made here:
      1. Keywords are ASCII case-insensitive; canonical rendering is uppercase.
      2. CREATE CONCEPT/EVIDENCE/ASSERTION/ACTIVITY requires a local handle.
-        ENSURE PROPOSITION keeps the Spec's optional handle.
+        ENSURE PROPOSITION and the ASSERT sugar keep optional handles.
      3. MUTATE contains mutation clauses but cannot recursively contain MUTATE.
      4. KML WHERE uses raw KQL-visible-state patterns. BELIEF/BELIEF SLOT are
         intentionally excluded from this mutation grammar; a virtual Projection
@@ -133,6 +133,7 @@ kml_statement    = mutate_statement
                  | create_concept
                  | upsert_concept
                  | ensure_proposition
+                 | assert_statement
                  | create_evidence
                  | create_assertion
                  | create_activity
@@ -152,6 +153,7 @@ mutate_statement = "MUTATE", "{", { mutation_clause }, "}" ;
 mutation_clause  = create_concept
                  | upsert_concept
                  | ensure_proposition
+                 | assert_statement
                  | create_evidence
                  | create_assertion
                  | create_activity
@@ -198,6 +200,13 @@ ensure_proposition
                  = "ENSURE", "PROPOSITION", [ handle ],
                    proposition_tuple,
                    [ expect_version_clause ] ;
+
+(* Normative sugar (Spec §55.1): ensure Proposition + create Assertion,
+   with optional supersession. Member keys (by, mode, stance, confidence,
+   at, valid, evidence, key) are validated semantically. *)
+assert_statement = "ASSERT", [ handle ], proposition_tuple,
+                   assignment_object,
+                   [ "SUPERSEDING", target_ref ] ;
 
 create_evidence  = "CREATE", "EVIDENCE", handle,
                    "{", { record_create_clause }, "}" ;

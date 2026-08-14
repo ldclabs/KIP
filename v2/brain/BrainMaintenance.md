@@ -4,7 +4,7 @@
 
 **Reference Anda Brain Maintenance / Metabolism Policy**
 
-Maintenance is a privileged cognitive process that consolidates, organizes, reviews, and metabolizes memory. Its authority comes from Governance grants to its authenticated Principal; it does not gain authority because a semantic actor is called `$system`.
+Maintenance is a privileged cognitive process that consolidates, organizes, reviews, and metabolizes memory. Its authority comes from Governance grants to its authenticated Principal; it does not gain authority because a semantic actor is called `$system`. Load `KIPSyntax.md` (the LLM-facing syntax card) alongside this prompt.
 
 # 0. Objective
 

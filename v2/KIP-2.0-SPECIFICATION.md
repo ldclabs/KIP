@@ -608,7 +608,7 @@ A Concept MAY have a high-assurance cross-system `canonical_id`.
 
 Setting/changing a canonical identity MUST be subject to stronger identity/Governance policy than ordinary attributes.
 
-An unverified external identity claim SHOULD instead be represented as a Proposition + Assertion.
+An unverified external identity claim SHOULD instead be represented as a Proposition + Assertion; the Cognitive Memory Profile provides the `same_as` Predicate for exactly this purpose, feeding identity review rather than automatic merging.
 
 ---
 
@@ -1325,6 +1325,8 @@ Structural existence does not itself require an Assertion stance.
 
 If a statement about a structural relation needs epistemic treatment, model it as a semantic Proposition separately.
 
+When a structural relation later becomes epistemically interesting, do not rewrite the topology. Keep the Structural Reference and add a semantic Proposition + Assertion **about** the relation (a *semantic shadow*): the structural edge remains record truth, while the shadow carries stance, evidence, validity, and contestability.
+
 ---
 
 ## 17.4 Ordered Structural References
@@ -1476,6 +1478,8 @@ They are different.
 Physical purge is a high-impact operation.
 
 Evidence/counter-Evidence purge SHOULD be especially conservative and audited.
+
+Where policy permits, purge SHOULD leave a digest stub (§60.3) so audit and provenance-root identity survive byte destruction.
 
 ---
 
@@ -1788,6 +1792,26 @@ This is the open-world unknown state.
 
 ---
 
+## 21.9 Materialized Projection
+
+Epistemic Projection remains a view (§21.2), but an implementation MAY cache/materialize projection results so that stable beliefs can be recalled at lookup cost.
+
+A materialized projection MUST be identified by at least:
+
+```text
+Projection Policy identity + version
+snapshot_seq basis
+valid-time basis
+```
+
+Requirements:
+
+- Serving a materialized result MUST disclose its policy identity and snapshot basis through the result context (§50); presenting it as freshly computed at the current snapshot is non-conforming.
+- The materialization MUST be invalidated, or its basis revalidated against `space_seq` / Change Envelopes, before being served as current.
+- A materialized projection is still a view: it MUST NOT be written back as Evidence or Assertion, and MUST NOT corroborate its own inputs (§23.5, §26.6).
+
+---
+
 # 22. Confidence, Trust, and Evidence
 
 ## 22.1 Assertion confidence
@@ -1854,6 +1878,34 @@ independence
 verifiability
 provenance completeness
 ```
+
+---
+
+## 22.5 Trust State
+
+Trust consumed by Epistemic Projection MUST come from protected control-plane state or explicit policy input — never from ordinary cognitive content. An Assertion whose content says "trust this source" has no trust effect (§30.1 applies to epistemic trust exactly as it applies to authorization).
+
+Recommended representation is a set of scoped trust records:
+
+```text
+subject scope    semantic actor | authenticated origin | Evidence source |
+                 tool | channel | import origin
+context scope    domain | purpose | mode | classification
+value            trust class, or numeric value with declared semantics
+policy identity  id + version
+```
+
+Trust state introspection (`DESCRIBE TRUST`) is governed like other control-plane introspection.
+
+---
+
+## 22.6 Trust Revision
+
+Changing trust state requires `manage_trust`.
+
+Trust changes MUST be auditable and SHOULD appear on the change/audit stream as control-plane transitions.
+
+A Brain MAY implement outcome-driven trust calibration — prediction error and outcome Evidence raising or lowering contextual trust. The calibration algorithm is Brain policy, but each revision SHOULD be recorded with provenance (for example a trust-revision Activity referencing the outcome Evidence) so the Brain can later answer **why it trusts a source**.
 
 ---
 
@@ -3592,6 +3644,8 @@ CREATE EVIDENCE
 CREATE ASSERTION
 CREATE ACTIVITY
 
+ASSERT            (normative sugar: ensure + assert, §55.1)
+
 UPDATE
 
 RETRACT ASSERTION
@@ -3776,6 +3830,71 @@ canonical Proposition
 No Assertion is created by ENSURE alone.
 
 Predicate symbols in examples resolve through the active Schema Environment: `prefers` and `caused_by` are defined by the Cognitive Memory Profile, while domain facts such as `timezone` come from an activated domain package.
+
+---
+
+## 55.1 The `ASSERT` Sugar Form
+
+Recording an attributed claim is the highest-frequency epistemic write of a memory Brain. KML therefore defines one **normative sugar statement** so that the epistemically honest path is also the cheap path:
+
+```prolog
+ASSERT ?a (:alice, "prefers", :dark_mode) {
+  by: :alice,
+  mode: "stated",
+  confidence: 0.95,
+  evidence: :msg
+}
+```
+
+Members:
+
+```text
+by          REQUIRED   semantic actor        → asserted_by
+mode        REQUIRED   assertion mode        → mode
+stance      OPTIONAL   default "support"     → stance
+confidence  OPTIONAL                         → confidence
+at          OPTIONAL   default engine
+                       transaction time      → asserted_at
+valid       OPTIONAL   {from, until}         → valid_time
+evidence    OPTIONAL   reference or array    → role "support" Evidence citations
+key         OPTIONAL                         → Assertion client_key
+```
+
+Optional supersession:
+
+```prolog
+ASSERT ?a (...) {...} SUPERSEDING :old_assertion
+```
+
+Desugaring is **normative and deterministic**:
+
+```prolog
+ENSURE PROPOSITION ?p (:alice, "prefers", :dark_mode)
+
+CREATE ASSERTION ?a {
+  CLIENT KEY :key
+  SET FIELDS {
+    proposition: ?p,
+    asserted_by: :alice,
+    stance: "support",
+    mode: "stated",
+    confidence: 0.95,
+    asserted_at: :engine_time_unless_at_given
+  }
+  SET STRUCTURAL {
+    ("evidence", :msg) {role: "support"}
+  }
+}
+
+SUPERSEDE ASSERTION :old_assertion BY ?a
+```
+
+Rules:
+
+- `ASSERT` MUST commit exactly the semantics of its desugared form; it MUST NOT create additional or divergent state.
+- The handle is optional; when present it binds the created Assertion.
+- `ASSERT` MAY appear standalone or inside `MUTATE`.
+- Sugar support belongs to the full KIP-KML conformance profile (§97).
 
 ---
 
@@ -3995,6 +4114,8 @@ Tombstone logically removes an element from active state while preserving minima
 Purge physically erases bytes under high-impact policy.
 
 Default reference policy SHOULD deny purge when required references would be broken.
+
+Purge MAY leave a minimal, non-recoverable **stub** — element kind, content digest, class, observation time, and the purging Activity reference — so that reference integrity, provenance-root identity (§23.3), and independence counting survive the destruction of the bytes. A stub is not the content and is not recoverable Evidence.
 
 ---
 
@@ -4267,6 +4388,14 @@ Correctness-sensitive existence checks use KQL/transaction constraints.
 
 ---
 
+## 66.7 Derived recall surfaces
+
+SEARCH index freshness (§66.5) is one instance of a general rule.
+
+Any derived recall surface — a search index, a materialized projection (§21.9), a profile recall cache — SHOULD declare its freshness as a sequence coordinate relative to `space_seq`, and MUST NOT present itself as transaction-snapshot-consistent when it is not (§79).
+
+---
+
 # 67. Capabilities
 
 `DESCRIBE CAPABILITIES` is the primary runtime feature negotiation surface.
@@ -4465,6 +4594,48 @@ Recommended:
   }
 }
 ```
+
+---
+
+## 71.1 Ingestion Context
+
+Observed source material SHOULD enter Evidence **without passing through model-generated command text**.
+
+A request MAY carry an ingestion context:
+
+```json
+{
+  "kip": "2.0",
+  "ingest": {
+    "evidence": [
+      {
+        "key": "msg",
+        "evidence_class": "user_statement",
+        "payload": "I prefer dark mode.",
+        "media_type": "text/plain",
+        "observed_at": "2026-08-14T01:00:00Z",
+        "source_actor": "alice",
+        "client_key": "message:msg-123"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "language": "KML",
+      "command": "ASSERT (:alice, \"prefers\", :dark_mode) { by: :alice, mode: \"stated\", evidence: :msg }"
+    }
+  ]
+}
+```
+
+Semantics:
+
+- For each entry, the runtime mints one Evidence element inside the request's transaction scope, from the declared fields and the transport-supplied content (`payload` inline, or `payload_artifact` handle). An entry MUST declare exactly one of `payload` / `payload_artifact`.
+- Each `key` is bound as a request parameter whose value is the minted Evidence reference; commands cite it as `:key` (for example `evidence: :msg` in `ASSERT`).
+- The minted Evidence carries normal `_system.origin`; `client_key` provides retry-safe logical identity.
+- Ingestion is transactional: if the transaction aborts, no Evidence is durably created.
+
+Evidence fidelity rule: a runtime SHOULD offer ingestion (or artifact handles) so observed payloads are captured from the transport envelope; an Agent SHOULD NOT re-type observed content inside KML text (§88.12).
 
 ---
 
@@ -5214,6 +5385,14 @@ Evidence deletion/purge SHOULD be auditable and conservative because removing ch
 
 ---
 
+## 88.12 Evidence fidelity
+
+Model-generated command text is not a trustworthy carrier for observed payloads: a model can truncate, paraphrase, or hallucinate content while re-typing it — and the resulting "evidence" is then a fabrication.
+
+Runtimes SHOULD provide ingestion contexts (§71.1) or artifact handles so observed content enters Evidence from the transport envelope. Where ingestion is used, the runtime MUST preserve the supplied payload/artifact without model rewriting.
+
+---
+
 # 89. Conformance Model
 
 An implementation MUST declare which KIP 2.0 conformance profiles it supports.
@@ -5420,6 +5599,7 @@ Full profile adds:
 
 ```text
 MUTATE
+ASSERT sugar (normative desugaring)
 forward local refs
 Facets
 Structural mutation
@@ -5481,6 +5661,7 @@ idempotency
 Receipts
 snapshot tokens
 artifacts
+ingestion context
 streaming
 transaction lookup
 ```
@@ -5554,6 +5735,9 @@ A conforming native KIP 2.0 implementation MUST preserve these cross-cutting inv
 28. Cursors are opaque and non-interchangeable across operation families.
 29. External URLs are not auto-fetched as artifacts.
 30. External world actions are outside KIP rollback semantics.
+31. `ASSERT` commits exactly the semantics of its normative desugaring.
+32. A served materialized projection discloses its policy identity and snapshot basis.
+33. Runtime-ingested Evidence preserves the transport-supplied payload without model re-typing.
 
 ---
 
@@ -5715,6 +5899,8 @@ World-valid time:
   FOR TIME :time
 
 WRITE:
+  ASSERT (s, "p", o) {by, mode, evidence}
+    sugar: ensure Proposition + create Assertion
   MUTATE { ... }
   ENSURE PROPOSITION
   CREATE EVIDENCE
@@ -5932,6 +6118,20 @@ Illustrative full-surface JSON shape (validates against `kip-request.schema.json
     "snapshot_token": "opaque-snapshot-token"
   },
 
+  "ingest": {
+    "evidence": [
+      {
+        "key": "msg",
+        "evidence_class": "user_statement",
+        "payload": "I prefer dark mode.",
+        "media_type": "text/plain",
+        "observed_at": "2026-08-14T01:00:00Z",
+        "source_actor": "alice",
+        "client_key": "message:msg-123"
+      }
+    ]
+  },
+
   "preconditions": {
     "space_seq": 1500,
     "schema_environment_version": 17
@@ -6071,6 +6271,17 @@ MUTATE {
       ("evidence", ?message) {role: "support"}
     }
   }
+}
+```
+
+With the runtime ingestion context (§71.1) minting `:msg` from the transport envelope, the equivalent sugar form (§55.1) is:
+
+```prolog
+ASSERT (:alice, "prefers", :dark_mode) {
+  by: :alice,
+  mode: "stated",
+  confidence: 1.0,
+  evidence: :msg
 }
 ```
 

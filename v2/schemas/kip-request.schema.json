@@ -32,6 +32,9 @@
     "read": {
       "$ref": "#/$defs/ReadBinding"
     },
+    "ingest": {
+      "$ref": "#/$defs/IngestContext"
+    },
     "preconditions": {
       "$ref": "#/$defs/Preconditions"
     },
@@ -404,6 +407,96 @@
         "$ref": "#/$defs/ExtensionValue"
       },
       "description": "Namespaced extension registry. Unnamespaced vendor semantic fields are not allowed at the top level."
+    },
+    "IngestContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/IngestEvidence"
+          }
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "description": "Transport-supplied source material the runtime mints into Evidence inside the request's transaction scope. Each key is bound as a request parameter naming the minted Evidence, so commands reference it as :key without re-typing observed content."
+    },
+    "IngestEvidence": {
+      "type": "object",
+      "required": [
+        "key",
+        "evidence_class"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+          "description": "Request-local binding name; bound as a parameter whose value is the minted Evidence reference."
+        },
+        "evidence_class": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "payload": {
+          "description": "Inline transport-supplied payload. The runtime must preserve it without model rewriting."
+        },
+        "payload_artifact": {
+          "$ref": "#/$defs/OpaqueToken",
+          "description": "Runtime artifact handle carrying the payload bytes."
+        },
+        "media_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "source_actor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "description": "Semantic source actor reference; recorded as Evidence source, never as Principal identity."
+        },
+        "client_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "payload"
+          ],
+          "not": {
+            "required": [
+              "payload_artifact"
+            ]
+          }
+        },
+        {
+          "required": [
+            "payload_artifact"
+          ],
+          "not": {
+            "required": [
+              "payload"
+            ]
+          }
+        }
+      ],
+      "$comment": "Exactly one of payload / payload_artifact. Minting is transactional; on abort no Evidence is durably created."
     }
   }
 }

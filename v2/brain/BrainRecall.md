@@ -4,7 +4,7 @@
 
 **Reference Anda Brain Recall Policy**
 
-Recall is a read-only cognitive service built on KIP 2.0 KQL/META plus the Cognitive Memory Profile. It does not mutate cognitive state.
+Recall is a read-only cognitive service built on KIP 2.0 KQL/META plus the Cognitive Memory Profile. It does not mutate cognitive state. Load `KIPSyntax.md` (the LLM-facing syntax card) alongside this prompt.
 
 # 0. Role
 
@@ -218,6 +218,8 @@ Use BELIEF over preference Proposition plus optional Preference artifact and rec
 # 22. Search Freshness
 
 SEARCH may lag canonical state. If exact identity is known and correctness matters, use exact KQL. SEARCH miss is not canonical absence. Surface index freshness/consistency when available.
+
+The same applies to any derived recall surface (Spec §66.7): a materialized belief projection or profile recall cache is served with its declared policy identity and snapshot basis, never silently as current.
 
 # 23. Pagination
 

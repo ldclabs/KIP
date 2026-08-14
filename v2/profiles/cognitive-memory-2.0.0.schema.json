@@ -782,6 +782,24 @@
         "functional": false,
         "open_world": true,
         "complete": false
+      },
+      "same_as": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/same_as",
+        "kind": "PredicateType",
+        "description": "Unverified identity claim: subject and object are believed to denote the same real-world entity. Feeds identity review; it never auto-merges Concepts and never establishes canonical_id by itself.",
+        "subject": {
+          "kinds": [
+            "Concept"
+          ]
+        },
+        "object": {
+          "kinds": [
+            "Concept"
+          ]
+        },
+        "functional": false,
+        "open_world": true,
+        "complete": false
       }
     },
     "facets": {
@@ -1266,7 +1284,8 @@
       "SelfModel != Governance",
       "Structural Reference != Proposition",
       "Remote Experience != local autobiography",
-      "has_step order != caused_by"
+      "has_step order != caused_by",
+      "same_as claim != merged identity"
     ]
   },
   "canonicalization": {
@@ -1276,7 +1295,7 @@
   },
   "integrity": {
     "digest_profile": "kip-draft-canonical-json-v1",
-    "content_digest": "sha256:edeb4079dc191b536489d14a43fd1200addf6fa26b8a64492d1656c5baf30388",
+    "content_digest": "sha256:63067c486ecd3092622cdd693ccb234c6caa4675eefab3f93ec21eea0cbd7388",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

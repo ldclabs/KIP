@@ -112,7 +112,7 @@ A semantic person/actor used in cognitive content.
 Person ≠ PrincipalRecord ≠ ActorBinding
 ```
 
-Recommended attributes include `display_name`, aliases, and description. Cross-system `canonical_id` should be used only after stronger identity verification.
+Recommended attributes include `display_name`, aliases, and description. Cross-system `canonical_id` should be used only after stronger identity verification; an unverified identity claim is expressed with the `same_as` Predicate (Proposition + Assertion) and reviewed before any merge.
 
 ## 5.2 Event
 
@@ -359,7 +359,10 @@ The Profile also defines two standard **semantic Predicates** (truth-sensitive; 
 ```text
 prefers    Person → Concept                     stable preference claim
 caused_by  ExperienceStep → ExperienceStep      effect → cause claim
+same_as    Concept → Concept                    unverified identity claim
 ```
+
+`same_as` feeds identity review (Maintenance §15-style workflows); it never auto-merges Concepts and never establishes `canonical_id` by itself.
 
 `caused_by` direction is effect → cause. Step order (`has_step` edge index) alone must never be promoted into a `caused_by` claim.
 

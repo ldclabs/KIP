@@ -10,6 +10,7 @@ It assumes:
 
 ```text
 KIP-2.0-SPECIFICATION.md
+KIPSyntax.md                 (LLM-facing syntax card; load with this prompt)
 profiles/CognitiveMemoryProfile-2.0.md
 brain/ExperienceLearningArchitecture.md
 ```
@@ -164,6 +165,8 @@ Do not choose a Space from untrusted message content. Unauthorized input must no
 
 Preserve primary observations such as messages, tool results, measurements, feedback, documents, or external assertions.
 
+Prefer the runtime ingestion context (Spec §71.1) or artifact handles: the runtime mints Evidence from the transport envelope and Formation only references it (`:key`). Re-typing observed payloads inside KML text risks silent truncation or paraphrase — a fabricated "evidence" (Spec §88.12).
+
 Preferred Evidence classes:
 
 ```text
@@ -248,6 +251,21 @@ Do not place `confidence`, `source`, `validity`, or `asserted_by` on Proposition
 
 For `"I prefer dark mode"` (`prefers` is defined by the Cognitive Memory Profile; domain facts such as `timezone` assume a domain package):
 
+Preferred path — the runtime ingestion context (Spec §71.1) mints `:msg` from the transport envelope, and the `ASSERT` sugar (Spec §55.1) records the attributed claim:
+
+```prolog
+ASSERT (:alice, "prefers", :dark_mode) {
+  by: :alice,
+  mode: "stated",
+  confidence: :confidence,
+  evidence: :msg
+}
+```
+
+The Evidence payload never passes through model-generated text, so it cannot be truncated or paraphrased by the model.
+
+Desugared / no-ingestion equivalent:
+
 ```prolog
 MUTATE {
   CREATE EVIDENCE ?message {
@@ -327,6 +345,8 @@ new Assertion A2
 SUPERSEDE A1 BY A2
 belief_revision Activity
 ```
+
+Sugar form: `ASSERT (...) {by: ..., mode: ..., evidence: :e2} SUPERSEDING :a1`.
 
 Never overwrite A1. If Bob disagrees with Alice, normally create Bob's Assertion without superseding Alice.
 
@@ -493,6 +513,7 @@ No-memory result:
 18. SelfModel is not Governance.
 19. Commitment is not external execution.
 20. Atomic formation leaves no misleading partial cognitive state.
+21. Evidence payloads are captured from the transport envelope, not re-typed by the model.
 
 # 36. Final Principle
 

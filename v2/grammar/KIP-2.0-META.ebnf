@@ -166,6 +166,7 @@ describe_statement
                  | describe_capsule
                  | describe_epistemic_policy
                  | describe_projection_capability
+                 | describe_trust
                  | describe_access ;
 
 describe_primer  = "DESCRIBE", "PRIMER",
@@ -217,6 +218,8 @@ describe_epistemic_policy
 
 describe_projection_capability
                  = "DESCRIBE", "PROJECTION", "CAPABILITY" ;
+
+describe_trust   = "DESCRIBE", "TRUST", [ meta_value ] ;
 
 describe_access  = "DESCRIBE", "ACCESS",
                    [ "WITH", object_literal ] ;
