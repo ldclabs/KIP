@@ -5,43 +5,58 @@ import { Token, TokenType } from './token.js'
 import type {
   Program,
   Statement,
+  MutationClause,
   FindStatement,
-  UpsertStatement,
-  UpdateStatement,
-  MergeStatement,
-  DeleteStatement,
-  DescribeStatement,
-  SearchStatement,
-  ExportStatement,
-  ConceptBlock,
-  PropositionBlock,
-  ExpectVersion,
-  SetAttributes,
-  SetMetadata,
-  SetPropositions,
-  PropositionItem,
-  WithMetadata,
-  WhereClause,
-  WherePattern,
-  ConceptPattern,
-  PropositionPattern,
-  PropositionEndpoint,
-  PredicateExpr,
-  FilterClause,
-  NotClause,
-  OptionalClause,
-  UnionClause,
+  AsOfClause,
   OrderByClause,
   LimitClause,
   CursorClause,
-  ThresholdClause,
+  WhereClause,
+  WherePattern,
+  PropositionTuple,
+  Term,
+  RawPredicateExpression,
+  PredicateAtom,
+  ObjectPattern,
+  MutateStatement,
+  CreateConceptStatement,
+  UpsertConceptStatement,
+  EnsurePropositionStatement,
+  AssertStatement,
+  CreateEvidenceStatement,
+  CreateAssertionStatement,
+  CreateActivityStatement,
+  SetFacetClause,
+  SetStructuralClause,
+  UnsetAttributesClause,
+  UnsetFacetClause,
+  UpdateStatement,
+  UpdateAction,
+  RetractAssertionStatement,
+  SupersedeAssertionStatement,
+  CorrectEvidenceStatement,
+  TransitionActivityStatement,
+  SetRetentionStatement,
+  ArchiveStatement,
+  TombstoneStatement,
+  PurgeStatement,
+  MergeConceptStatement,
+  DescribeStatement,
+  ListStatement,
+  SearchStatement,
+  VerifyStatement,
+  ValidateStatement,
+  PreviewStatement,
+  HistoryStatement,
+  ChangesStatement,
+  SnapshotStatement,
+  ExportCapsuleStatement,
   Expression,
-  StringLiteral,
-  ParameterRef,
+  ScalarValue,
+  SchemaSymbol,
+  TargetRef,
   ObjectEntry,
-  ArrayLiteral,
-  ObjectLiteral,
-  UpsertBlock
+  ObjectLiteral
 } from './ast.js'
 
 export interface FormatOptions {
@@ -106,7 +121,6 @@ class Formatter {
     }
   }
 
-  /** Emit all remaining comments */
   private emitRemainingComments(): void {
     while (this.commentIdx < this.comments.length) {
       this.writeIndent()
@@ -121,10 +135,7 @@ class Formatter {
    * [startLine, endLine]. Used to keep a block multi-line so interior
    * comments can be preserved at their position rather than relocated.
    */
-  private hasPendingCommentInRange(
-    startLine: number,
-    endLine: number
-  ): boolean {
+  private hasPendingCommentInRange(startLine: number, endLine: number): boolean {
     for (let i = this.commentIdx; i < this.comments.length; i++) {
       const line = this.comments[i]!.line
       if (line > endLine) break
@@ -140,541 +151,202 @@ class Formatter {
       const stmt = program.statements[i]!
       // Separate statements with exactly one blank line.
       if (i > 0) this.newline()
-
-      // Emit comments that appear before this statement
       this.emitCommentsBefore(stmt.range.start.line)
-
       this.formatStatement(stmt)
     }
 
-    // Trailing comments after last statement
     this.emitRemainingComments()
-
     return this.output.trimEnd() + '\n'
   }
 
   // ────────────────────────────────────────────────────────────────────
-  //  Statements
+  //  Statement dispatch
   // ────────────────────────────────────────────────────────────────────
 
   private formatStatement(stmt: Statement): void {
     switch (stmt.kind) {
       case 'FindStatement':
-        return this.formatFind(stmt)
-      case 'UpsertStatement':
-        return this.formatUpsert(stmt)
-      case 'UpdateStatement':
-        return this.formatUpdate(stmt)
-      case 'MergeStatement':
-        return this.formatMerge(stmt)
-      case 'DeleteStatement':
-        return this.formatDelete(stmt)
+        this.formatFind(stmt)
+        break
+      case 'MutateStatement':
+        this.formatMutate(stmt)
+        break
       case 'DescribeStatement':
-        return this.formatDescribe(stmt)
+        this.formatDescribe(stmt)
+        break
+      case 'ListStatement':
+        this.formatList(stmt)
+        break
       case 'SearchStatement':
-        return this.formatSearch(stmt)
-      case 'ExportStatement':
-        return this.formatExport(stmt)
+        this.formatSearch(stmt)
+        break
+      case 'VerifyStatement':
+        this.formatVerify(stmt)
+        break
+      case 'ValidateStatement':
+        this.formatValidate(stmt)
+        break
+      case 'PreviewStatement':
+        this.formatPreview(stmt)
+        break
+      case 'HistoryStatement':
+        this.formatHistory(stmt)
+        break
+      case 'ChangesStatement':
+        this.formatChanges(stmt)
+        break
+      case 'SnapshotStatement':
+        this.formatSnapshot(stmt)
+        break
+      case 'ExportCapsuleStatement':
+        this.formatExport(stmt)
+        break
+      default:
+        this.formatMutationClause(stmt)
     }
   }
 
-  // ── FIND ───────────────────────────────────────────────────────────
+  private formatMutationClause(stmt: MutationClause): void {
+    switch (stmt.kind) {
+      case 'CreateConceptStatement':
+        this.formatCreateConcept(stmt)
+        break
+      case 'UpsertConceptStatement':
+        this.formatUpsertConcept(stmt)
+        break
+      case 'EnsurePropositionStatement':
+        this.formatEnsureProposition(stmt)
+        break
+      case 'AssertStatement':
+        this.formatAssert(stmt)
+        break
+      case 'CreateEvidenceStatement':
+        this.formatRecordCreate('EVIDENCE', stmt)
+        break
+      case 'CreateAssertionStatement':
+        this.formatRecordCreate('ASSERTION', stmt)
+        break
+      case 'CreateActivityStatement':
+        this.formatRecordCreate('ACTIVITY', stmt)
+        break
+      case 'UpdateStatement':
+        this.formatUpdate(stmt)
+        break
+      case 'RetractAssertionStatement':
+        this.formatRetract(stmt)
+        break
+      case 'SupersedeAssertionStatement':
+        this.formatSupersede(stmt)
+        break
+      case 'CorrectEvidenceStatement':
+        this.formatCorrect(stmt)
+        break
+      case 'TransitionActivityStatement':
+        this.formatTransition(stmt)
+        break
+      case 'SetRetentionStatement':
+        this.formatSetRetention(stmt)
+        break
+      case 'ArchiveStatement':
+        this.formatRemoval('ARCHIVE', stmt)
+        break
+      case 'TombstoneStatement':
+        this.formatRemoval('TOMBSTONE', stmt)
+        break
+      case 'PurgeStatement':
+        this.formatPurge(stmt)
+        break
+      case 'MergeConceptStatement':
+        this.formatMerge(stmt)
+        break
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  KQL
+  // ────────────────────────────────────────────────────────────────────
 
   private formatFind(stmt: FindStatement): void {
     this.writeIndent()
     this.write('FIND(')
-    if (
-      stmt.projections.length <= 2 &&
-      this.allSimpleExpressions(stmt.projections)
-    ) {
-      // Inline
-      this.write(
-        stmt.projections.map((p) => this.exprToString(p, 0)).join(', ')
-      )
-    } else {
-      this.newline()
-      this.indentLevel++
-      for (let i = 0; i < stmt.projections.length; i++) {
-        this.writeIndent()
-        this.write(this.exprToString(stmt.projections[i]!, 0))
-        if (i < stmt.projections.length - 1) {
-          this.write(',')
-        }
-        this.newline()
-      }
-      this.indentLevel--
-      this.writeIndent()
-    }
+    this.write(stmt.projections.map((p) => this.expr(p)).join(', '))
     this.write(')')
     this.newline()
 
-    if (stmt.where) {
-      this.formatWhere(stmt.where)
+    this.formatWhere(stmt.where, 'WHERE')
+
+    if (stmt.asOf) {
+      this.writeIndent()
+      this.write(this.asOfToString(stmt.asOf))
+      this.newline()
     }
-    if (stmt.orderBy) {
-      this.formatOrderBy(stmt.orderBy)
+    if (stmt.forTime) {
+      this.writeIndent()
+      this.write(`FOR TIME ${this.scalar(stmt.forTime.value)}`)
+      this.newline()
     }
-    if (stmt.limit) {
-      this.formatLimit(stmt.limit)
+    if (stmt.epistemic) {
+      this.writeIndent()
+      this.write('WITH EPISTEMIC ')
+      this.formatObjectBlock(stmt.epistemic.options, false)
+      this.newline()
     }
-    if (stmt.cursor) {
-      this.formatCursor(stmt.cursor)
-    }
+    if (stmt.orderBy) this.formatOrderBy(stmt.orderBy)
+    if (stmt.limit) this.formatLimit(stmt.limit)
+    if (stmt.cursor) this.formatCursor(stmt.cursor)
   }
 
-  // ── UPSERT ─────────────────────────────────────────────────────────
-
-  private formatUpsert(stmt: UpsertStatement): void {
+  private formatOrderBy(clause: OrderByClause): void {
     this.writeIndent()
-    this.write('UPSERT {')
-    this.newline()
-    this.indentLevel++
-
-    for (let i = 0; i < stmt.blocks.length; i++) {
-      const block = stmt.blocks[i]!
-      if (i > 0) this.newline()
-      // Emit comments between blocks
-      this.emitCommentsBefore(block.range.start.line)
-      this.formatUpsertBlock(block)
-    }
-
-    this.indentLevel--
-    this.writeIndent()
-    this.write('}')
-    this.newline()
-
-    if (stmt.metadata) {
-      this.formatWithMetadata(stmt.metadata)
-    }
-  }
-
-  private formatUpsertBlock(block: UpsertBlock): void {
-    if (block.kind === 'ConceptBlock') {
-      this.formatConceptBlock(block)
-    } else {
-      this.formatPropositionBlockDef(block)
-    }
-  }
-
-  private formatConceptBlock(block: ConceptBlock): void {
-    this.writeIndent()
-    this.write(block.handle ? `CONCEPT ${block.handle} {` : 'CONCEPT {')
-    this.newline()
-    this.indentLevel++
-
-    // Matcher: {type: "...", name: "..."}
-    this.emitCommentsBefore(block.matcher.range.start.line)
-    this.writeIndent()
-    this.write('{')
+    this.write('ORDER BY ')
     this.write(
-      block.matcher.entries
-        .map((e) => `${this.keyToString(e)}: ${this.exprToString(e.value, 0)}`)
+      clause.items
+        .map((item) => {
+          const expr = this.expr(item.expression)
+          return item.direction ? `${expr} ${item.direction}` : expr
+        })
         .join(', ')
     )
-    this.write('}')
     this.newline()
-
-    if (block.expectVersion) {
-      this.emitCommentsBefore(block.expectVersion.range.start.line)
-      this.formatExpectVersion(block.expectVersion)
-    }
-    if (block.setAttributes) {
-      this.emitCommentsBefore(block.setAttributes.range.start.line)
-      this.formatSetAttributes(block.setAttributes)
-    }
-    if (block.setPropositions) {
-      this.emitCommentsBefore(block.setPropositions.range.start.line)
-      this.formatSetPropositions(block.setPropositions)
-    }
-
-    this.indentLevel--
-    this.writeIndent()
-    this.write('}')
-    this.newline()
-
-    if (block.metadata) {
-      this.formatWithMetadata(block.metadata)
-    }
   }
 
-  private formatPropositionBlockDef(block: PropositionBlock): void {
+  private formatLimit(clause: LimitClause): void {
     this.writeIndent()
-    this.write('PROPOSITION')
-    if (block.handle) this.write(` ${block.handle}`)
-    this.write(' {')
+    this.write(`LIMIT ${this.scalar(clause.value)}`)
+    this.newline()
+  }
+
+  private formatCursor(clause: CursorClause): void {
+    this.writeIndent()
+    this.write(`CURSOR ${this.scalar(clause.value)}`)
+    this.newline()
+  }
+
+  private asOfToString(clause: AsOfClause): string {
+    return `AS OF ${clause.basis} ${this.scalar(clause.value)}`
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  WHERE
+  // ────────────────────────────────────────────────────────────────────
+
+  private formatWhere(clause: WhereClause, keyword: string): void {
+    this.writeIndent()
+    this.write(`${keyword} {`)
     this.newline()
     this.indentLevel++
-
-    this.writeIndent()
-    this.write(this.propositionBlockPatternToString(block))
-    this.newline()
-
-    if (block.expectVersion) {
-      this.emitCommentsBefore(block.expectVersion.range.start.line)
-      this.formatExpectVersion(block.expectVersion)
+    for (const pattern of clause.patterns) {
+      this.emitCommentsBefore(pattern.range.start.line)
+      this.formatWherePattern(pattern)
     }
-    if (block.setAttributes) {
-      this.emitCommentsBefore(block.setAttributes.range.start.line)
-      this.formatSetAttributes(block.setAttributes)
-    }
-
-    this.indentLevel--
-    this.writeIndent()
-    this.write('}')
-    this.newline()
-
-    if (block.metadata) {
-      this.formatWithMetadata(block.metadata)
-    }
-  }
-
-  private formatSetAttributes(sa: SetAttributes): void {
-    this.formatEntryBlock('SET ATTRIBUTES', sa.entries, sa.range, {
-      inlineMax: 3,
-      sort: this.opts.sortAttributes
-    })
-  }
-
-  private formatSetMetadata(sm: SetMetadata): void {
-    this.formatEntryBlock('SET METADATA', sm.entries, sm.range, {
-      inlineMax: 3,
-      sort: false
-    })
-  }
-
-  /**
-   * Render a `HEADER { ... }` key/value block. Collapses to a single line when
-   * all values are primitive, there are few of them, and no comment sits inside
-   * the block; otherwise emits one entry per line, preserving interior comments
-   * at their source position. Sorting is skipped whenever interior comments are
-   * present, since reordering would detach comments from their keys.
-   */
-  private formatEntryBlock(
-    header: string,
-    entries: ObjectEntry[],
-    range: { start: { line: number }; end: { line: number } },
-    opts: { inlineMax: number; sort: boolean }
-  ): void {
-    this.writeIndent()
-    this.write(`${header} {`)
-
-    if (entries.length === 0) {
-      this.write('}')
-      this.newline()
-      return
-    }
-
-    const hasComments = this.hasPendingCommentInRange(
-      range.start.line,
-      range.end.line
-    )
-    const ordered =
-      opts.sort && !hasComments ? this.sortObjectEntries(entries) : entries
-    const allSimple = ordered.every((e) => this.isSimpleValue(e.value))
-
-    if (allSimple && ordered.length <= opts.inlineMax && !hasComments) {
-      this.write(' ')
-      this.write(
-        ordered
-          .map(
-            (e) => `${this.keyToString(e)}: ${this.exprToString(e.value, 0)}`
-          )
-          .join(', ')
-      )
-      this.write(' }')
-      this.newline()
-      return
-    }
-
-    this.newline()
-    this.indentLevel++
-    for (let i = 0; i < ordered.length; i++) {
-      this.emitCommentsBefore(ordered[i]!.range.start.line)
-      this.formatObjectEntry(ordered[i]!)
-      if (i < ordered.length - 1) {
-        this.write(',')
-      }
-      this.newline()
-    }
-    this.emitCommentsBefore(range.end.line)
+    this.emitCommentsBefore(clause.range.end.line)
     this.indentLevel--
     this.writeIndent()
     this.write('}')
     this.newline()
   }
 
-  private formatExpectVersion(ev: ExpectVersion): void {
-    this.writeIndent()
-    this.write(`EXPECT VERSION ${this.numberOrParameterValueToString(ev.value)}`)
-    this.newline()
-  }
-
-  private formatSetPropositions(sp: SetPropositions): void {
-    this.writeIndent()
-    this.write('SET PROPOSITIONS {')
-    this.newline()
-    this.indentLevel++
-
-    for (const item of sp.items) {
-      this.emitCommentsBefore(item.range.start.line)
-      this.formatPropositionItem(item)
-    }
-    this.emitCommentsBefore(sp.range.end.line)
-
-    this.indentLevel--
-    this.writeIndent()
-    this.write('}')
-    this.newline()
-  }
-
-  private formatPropositionItem(item: PropositionItem): void {
-    this.writeIndent()
-    this.write(
-      `("${this.escapeString(item.predicate)}", ${this.endpointToString(item.target)})`
-    )
-    if (item.metadata) {
-      this.write(' ')
-      this.write('WITH METADATA { ')
-      this.write(
-        item.metadata.entries
-          .map(
-            (e) => `${this.keyToString(e)}: ${this.exprToString(e.value, 0)}`
-          )
-          .join(', ')
-      )
-      this.write(' }')
-    }
-    this.newline()
-  }
-
-  private formatWithMetadata(wm: WithMetadata): void {
-    this.writeIndent()
-    this.write('WITH METADATA {')
-
-    if (wm.entries.length === 0) {
-      this.write('}')
-      this.newline()
-      return
-    }
-
-    // Metadata blocks are conventionally one entry per line.
-    this.newline()
-    this.indentLevel++
-    for (let i = 0; i < wm.entries.length; i++) {
-      this.emitCommentsBefore(wm.entries[i]!.range.start.line)
-      this.formatObjectEntry(wm.entries[i]!)
-      if (i < wm.entries.length - 1) {
-        this.write(',')
-      }
-      this.newline()
-    }
-    this.emitCommentsBefore(wm.range.end.line)
-    this.indentLevel--
-    this.writeIndent()
-    this.write('}')
-    this.newline()
-  }
-
-  // ── UPDATE ─────────────────────────────────────────────────────────
-
-  private formatUpdate(stmt: UpdateStatement): void {
-    this.writeIndent()
-    this.write(`UPDATE ${stmt.target}`)
-    this.newline()
-
-    if (stmt.setAttributes) {
-      this.formatSetAttributes(stmt.setAttributes)
-    }
-    if (stmt.setMetadata) {
-      this.formatSetMetadata(stmt.setMetadata)
-    }
-
-    this.formatWhere(stmt.where)
-    if (stmt.limit) {
-      this.formatLimit(stmt.limit)
-    }
-  }
-
-  // ── MERGE ──────────────────────────────────────────────────────────
-
-  private formatMerge(stmt: MergeStatement): void {
-    this.writeIndent()
-    this.write(`MERGE CONCEPT ${stmt.source} INTO ${stmt.target}`)
-    this.newline()
-    this.formatWhere(stmt.where)
-  }
-
-  // ── DELETE ─────────────────────────────────────────────────────────
-
-  private formatDelete(stmt: DeleteStatement): void {
-    this.writeIndent()
-    if (stmt.deleteType === 'ATTRIBUTES' || stmt.deleteType === 'METADATA') {
-      this.write(`DELETE ${stmt.deleteType} {`)
-      if (stmt.keys) {
-        this.write(stmt.keys.map((k) => `"${this.escapeString(k)}"`).join(', '))
-      }
-      this.write(`} FROM ${stmt.target}`)
-    } else if (stmt.deleteType === 'PROPOSITIONS') {
-      this.write(`DELETE PROPOSITIONS ${stmt.target}`)
-    } else {
-      this.write(`DELETE CONCEPT ${stmt.target} DETACH`)
-    }
-    this.newline()
-
-    this.formatWhere(stmt.where)
-  }
-
-  // ── DESCRIBE ───────────────────────────────────────────────────────
-
-  private formatDescribe(stmt: DescribeStatement): void {
-    this.writeIndent()
-    switch (stmt.describeType) {
-      case 'PRIMER':
-        this.write('DESCRIBE PRIMER')
-        break
-      case 'DOMAINS':
-        this.write('DESCRIBE DOMAINS')
-        break
-      case 'CONCEPT_TYPES':
-        this.write('DESCRIBE CONCEPT TYPES')
-        break
-      case 'CONCEPT_TYPE':
-        this.write(
-          `DESCRIBE CONCEPT TYPE ${this.quotedOrParameterValueToString(stmt.typeNameValue, stmt.typeName ?? '')}`
-        )
-        break
-      case 'PROPOSITION_TYPES':
-        this.write('DESCRIBE PROPOSITION TYPES')
-        break
-      case 'PROPOSITION_TYPE':
-        this.write(
-          `DESCRIBE PROPOSITION TYPE ${this.quotedOrParameterValueToString(stmt.typeNameValue, stmt.typeName ?? '')}`
-        )
-        break
-    }
-
-    if (stmt.limit) {
-      this.write(` LIMIT ${this.limitValueToString(stmt.limit)}`)
-    }
-    if (stmt.cursor) {
-      this.write(` CURSOR ${this.cursorValueToString(stmt.cursor)}`)
-    }
-  }
-
-  // ── SEARCH ─────────────────────────────────────────────────────────
-
-  private formatSearch(stmt: SearchStatement): void {
-    this.writeIndent()
-    this.write(
-      `SEARCH ${stmt.searchTarget} ${this.quotedOrParameterValueToString(stmt.termValue, stmt.term)}`
-    )
-    if (stmt.withTypeValue || stmt.withType !== undefined) {
-      this.write(
-        ` WITH TYPE ${this.quotedOrParameterValueToString(stmt.withTypeValue, stmt.withType ?? '')}`
-      )
-    }
-    if (stmt.modeValue || stmt.mode !== undefined) {
-      this.write(
-        ` MODE ${this.quotedOrParameterValueToString(stmt.modeValue, stmt.mode ?? '')}`
-      )
-    }
-    if (stmt.threshold) {
-      this.write(` THRESHOLD ${this.thresholdValueToString(stmt.threshold)}`)
-    }
-    if (stmt.limit) {
-      this.write(` LIMIT ${this.limitValueToString(stmt.limit)}`)
-    }
-  }
-
-  // ── EXPORT ─────────────────────────────────────────────────────────
-
-  private formatExport(stmt: ExportStatement): void {
-    this.writeIndent()
-    this.write(`EXPORT ${stmt.target}`)
-    this.newline()
-    this.formatWhere(stmt.where)
-    if (stmt.limit) {
-      this.formatLimit(stmt.limit)
-    }
-  }
-
-  // ── WHERE ──────────────────────────────────────────────────────────
-
-  private formatWhere(where: WhereClause): void {
-    this.writeIndent()
-    this.write('WHERE {')
-    this.newline()
-    this.indentLevel++
-
-    for (const p of where.patterns) {
-      this.formatWherePattern(p)
-    }
-    this.emitCommentsBefore(where.range.end.line)
-
-    this.indentLevel--
-    this.writeIndent()
-    this.write('}')
-    this.newline()
-  }
-
-  private formatWherePattern(p: WherePattern): void {
-    this.emitCommentsBefore(p.range.start.line)
-    switch (p.kind) {
-      case 'ConceptPattern':
-        return this.formatConceptPattern(p)
-      case 'PropositionPattern':
-        return this.formatPropositionPattern(p)
-      case 'FilterClause':
-        return this.formatFilterClause(p)
-      case 'NotClause':
-        return this.formatNotClause(p)
-      case 'OptionalClause':
-        return this.formatOptionalClause(p)
-      case 'UnionClause':
-        return this.formatUnionClause(p)
-    }
-  }
-
-  private formatConceptPattern(p: ConceptPattern): void {
-    this.writeIndent()
-    if (p.variable) this.write(`${p.variable} `)
-    this.write('{')
-    this.write(
-      p.matcher.entries
-        .map((e) => `${this.keyToString(e)}: ${this.exprToString(e.value, 0)}`)
-        .join(', ')
-    )
-    this.write('}')
-    this.newline()
-  }
-
-  private formatPropositionPattern(p: PropositionPattern): void {
-    this.writeIndent()
-    if (p.variable) this.write(`${p.variable} `)
-    this.write(this.propositionPatternToString(p))
-    this.newline()
-  }
-
-  private formatFilterClause(f: FilterClause): void {
-    this.writeIndent()
-    this.write(`FILTER(${this.exprToString(f.expression, 0)})`)
-    this.newline()
-  }
-
-  private formatNotClause(n: NotClause): void {
-    this.formatBlockClause('NOT', n.patterns, n.range.end.line)
-  }
-
-  private formatOptionalClause(o: OptionalClause): void {
-    this.formatBlockClause('OPTIONAL', o.patterns, o.range.end.line)
-  }
-
-  private formatUnionClause(u: UnionClause): void {
-    this.formatBlockClause('UNION', u.patterns, u.range.end.line)
-  }
-
-  /** Shared rendering for NOT / OPTIONAL / UNION blocks (consistent styling). */
-  private formatBlockClause(
+  private formatNestedBlock(
     keyword: string,
     patterns: WherePattern[],
     endLine: number
@@ -683,8 +355,9 @@ class Formatter {
     this.write(`${keyword} {`)
     this.newline()
     this.indentLevel++
-    for (const p of patterns) {
-      this.formatWherePattern(p)
+    for (const pattern of patterns) {
+      this.emitCommentsBefore(pattern.range.start.line)
+      this.formatWherePattern(pattern)
     }
     this.emitCommentsBefore(endLine)
     this.indentLevel--
@@ -693,203 +366,706 @@ class Formatter {
     this.newline()
   }
 
-  private formatOrderBy(ob: OrderByClause): void {
-    this.writeIndent()
-    const keys =
-      ob.keys && ob.keys.length > 0
-        ? ob.keys
-        : [{ expression: ob.expression, direction: ob.direction }]
-    this.write(
-      `ORDER BY ${keys
-        .map((key) => `${this.exprToString(key.expression, 0)} ${key.direction}`)
-        .join(', ')}`
-    )
-    this.newline()
-  }
+  private formatWherePattern(pattern: WherePattern): void {
+    switch (pattern.kind) {
+      case 'ConceptPattern':
+        this.writeIndent()
+        this.write(pattern.variable.name)
+        if (pattern.explicit) this.write(' CONCEPT')
+        this.write(' ')
+        this.write(this.objectPatternToString(pattern.matcher))
+        this.newline()
+        break
 
-  private formatLimit(lim: LimitClause): void {
-    this.writeIndent()
-    this.write(`LIMIT ${this.limitValueToString(lim)}`)
-    this.newline()
-  }
+      case 'PropositionPattern':
+        this.writeIndent()
+        if (pattern.variable) this.write(`${pattern.variable.name} `)
+        if (pattern.explicit) this.write('PROPOSITION ')
+        this.write(this.tupleToString(pattern.tuple))
+        this.newline()
+        break
 
-  private formatCursor(cur: CursorClause): void {
-    this.writeIndent()
-    this.write(`CURSOR ${this.cursorValueToString(cur)}`)
-    this.newline()
-  }
-
-  // ────────────────────────────────────────────────────────────────────
-  //  Expression → string (depth-aware for nested indentation)
-  // ────────────────────────────────────────────────────────────────────
-
-  private exprToString(expr: Expression, depth: number): string {
-    switch (expr.kind) {
-      case 'VariableRef':
-        return expr.name
-      case 'ParameterRef':
-        return expr.name
-      case 'DotExpression':
-        return `${this.exprToString(expr.object, depth)}.${expr.property}`
-      case 'StringLiteral':
-        return expr.value
-      case 'NumberLiteral':
-        return expr.raw
-      case 'BooleanLiteral':
-        return String(expr.value)
-      case 'NullLiteral':
-        return 'null'
-      case 'ArrayLiteral':
-        return this.arrayToString(expr, depth)
-      case 'ObjectLiteral':
-        return this.objectToString(expr, depth)
-      case 'BinaryExpression':
-        return `${this.exprToString(expr.left, depth)} ${expr.operator} ${this.exprToString(expr.right, depth)}`
-      case 'UnaryExpression':
-        return `${expr.operator}${this.exprToString(expr.operand, depth)}`
-      case 'FunctionCallExpr':
-        if (expr.name === 'DISTINCT' && expr.args.length === 1) {
-          return `DISTINCT ${this.exprToString(expr.args[0]!, depth)}`
-        }
-        return `${expr.name}(${expr.args.map((a) => this.exprToString(a, depth)).join(', ')})`
-    }
-  }
-
-  private arrayToString(arr: ArrayLiteral, depth: number): string {
-    if (arr.elements.length === 0) return '[]'
-    const inner = arr.elements.map((e) => this.exprToString(e, depth + 1))
-    const singleLine = `[${inner.join(', ')}]`
-    if (singleLine.length <= 80 && !inner.some((s) => s.includes('\n'))) {
-      return singleLine
-    }
-    const baseIndent = this.indentAt(this.indentLevel + depth)
-    const innerIndent = this.indentAt(this.indentLevel + depth + 1)
-    return `[\n${inner.map((s) => `${innerIndent}${s}`).join(',\n')}\n${baseIndent}]`
-  }
-
-  private objectToString(obj: ObjectLiteral, depth: number): string {
-    if (obj.entries.length === 0) return '{}'
-    const entries = obj.entries.map(
-      (e) => `${this.keyToString(e)}: ${this.exprToString(e.value, depth + 1)}`
-    )
-    const singleLine = `{${entries.join(', ')}}`
-    if (singleLine.length <= 80 && !entries.some((s) => s.includes('\n'))) {
-      return singleLine
-    }
-    const baseIndent = this.indentAt(this.indentLevel + depth)
-    const innerIndent = this.indentAt(this.indentLevel + depth + 1)
-    return `{\n${entries.map((s) => `${innerIndent}${s}`).join(',\n')}\n${baseIndent}}`
-  }
-
-  private formatObjectEntry(entry: ObjectEntry): void {
-    this.writeIndent()
-    const valStr = this.exprToString(entry.value, 0)
-    this.write(`${this.keyToString(entry)}: ${valStr}`)
-  }
-
-  // ────────────────────────────────────────────────────────────────────
-  //  Helpers
-  // ────────────────────────────────────────────────────────────────────
-
-  private keyToString(entry: ObjectEntry): string {
-    if (entry.isQuoted) {
-      return `"${this.escapeString(entry.key)}"`
-    }
-    return entry.key
-  }
-
-  private endpointToString(ep: PropositionEndpoint): string {
-    switch (ep.kind) {
-      case 'VariableRef':
-        return ep.name
-      case 'ConceptPattern': {
-        const entries = ep.matcher.entries
-          .map(
-            (e) => `${this.keyToString(e)}: ${this.exprToString(e.value, 0)}`
-          )
-          .join(', ')
-        const prefix = ep.variable ? `${ep.variable} ` : ''
-        return `${prefix}{${entries}}`
+      case 'AssertionPattern':
+      case 'EvidencePattern':
+      case 'ActivityPattern': {
+        const keyword = {
+          AssertionPattern: 'ASSERTION',
+          EvidencePattern: 'EVIDENCE',
+          ActivityPattern: 'ACTIVITY'
+        }[pattern.kind]
+        this.writeIndent()
+        this.write(`${pattern.variable.name} ${keyword} `)
+        this.write(this.objectPatternToString(pattern.matcher))
+        this.newline()
+        break
       }
-      case 'PropositionPattern': {
-        const prefix = ep.variable ? `${ep.variable} ` : ''
-        return `${prefix}${this.propositionPatternToString(ep)}`
-      }
-      default:
-        return '?unknown'
-    }
-  }
 
-  private propositionBlockPatternToString(block: PropositionBlock): string {
-    if (block.id) {
-      return `(id: ${this.idValueToString(block.id)})`
-    }
-    return `(${this.endpointToString(block.subject!)}, ${this.predicateToString(block.predicate!)}, ${this.endpointToString(block.object!)})`
-  }
+      case 'StructuralPattern':
+        this.writeIndent()
+        if (pattern.variable) this.write(`${pattern.variable.name} `)
+        this.write(
+          `STRUCTURAL (${this.term(pattern.subject)}, ${this.symbol(pattern.field)}, ${this.term(pattern.object)})`
+        )
+        this.newline()
+        break
 
-  private propositionPatternToString(pattern: PropositionPattern): string {
-    if (pattern.id) {
-      return `(id: ${this.idValueToString(pattern.id)})`
-    }
-    return `(${this.endpointToString(pattern.subject!)}, ${this.predicateToString(pattern.predicate!)}, ${this.endpointToString(pattern.object!)})`
-  }
-
-  private idValueToString(id: PropositionPattern['id']): string {
-    if (!id) return '""'
-    if (id.kind === 'StringLiteral') return id.value
-    return id.name
-  }
-
-  private predicateToString(pred: PredicateExpr): string {
-    if (pred.kind === 'PredicateVariable') {
-      return pred.name
-    }
-    if (pred.kind === 'PredicateLiteral') {
-      let s = `"${this.escapeString(pred.value)}"`
-      if (pred.hopRange) {
-        if (pred.hopRange.max === undefined) {
-          s += `{${pred.hopRange.min},}`
-        } else if (pred.hopRange.max === pred.hopRange.min) {
-          s += `{${pred.hopRange.min}}`
+      case 'BeliefPattern':
+        this.writeIndent()
+        this.write(`${pattern.variable.name} BELIEF (`)
+        if (pattern.proposition) {
+          this.write(pattern.proposition.name)
         } else {
-          s += `{${pred.hopRange.min},${pred.hopRange.max}}`
+          this.write(
+            `${this.term(pattern.subject!)}, ${this.predAtom(pattern.predicate!)}, ${this.term(pattern.object!)}`
+          )
+        }
+        this.write(')')
+        this.newline()
+        break
+
+      case 'BeliefSlotPattern':
+        this.writeIndent()
+        this.write(
+          `${pattern.variable.name} BELIEF SLOT (${this.term(pattern.subject)}, ${this.predAtom(pattern.predicate)})`
+        )
+        this.newline()
+        break
+
+      case 'FilterClause':
+        this.writeIndent()
+        this.write(`FILTER(${this.expr(pattern.expression)})`)
+        this.newline()
+        break
+
+      case 'NotClause':
+        this.formatNestedBlock('NOT', pattern.patterns, pattern.range.end.line)
+        break
+
+      case 'OptionalClause':
+        this.formatNestedBlock(
+          'OPTIONAL',
+          pattern.patterns,
+          pattern.range.end.line
+        )
+        break
+
+      case 'UnionClause':
+        this.formatNestedBlock('UNION', pattern.patterns, pattern.range.end.line)
+        break
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  KML
+  // ────────────────────────────────────────────────────────────────────
+
+  private formatMutate(stmt: MutateStatement): void {
+    this.writeIndent()
+    this.write('MUTATE {')
+    this.newline()
+    this.indentLevel++
+    for (let i = 0; i < stmt.clauses.length; i++) {
+      const clause = stmt.clauses[i]!
+      if (i > 0) this.newline()
+      this.emitCommentsBefore(clause.range.start.line)
+      this.formatMutationClause(clause)
+    }
+    this.emitCommentsBefore(stmt.range.end.line)
+    this.indentLevel--
+    this.writeIndent()
+    this.write('}')
+    this.newline()
+  }
+
+  private formatCreateConcept(stmt: CreateConceptStatement): void {
+    this.writeIndent()
+    this.write(`CREATE CONCEPT ${stmt.handle.name} {`)
+    this.newline()
+    this.indentLevel++
+
+    if (stmt.type) {
+      this.writeIndent()
+      this.write(`TYPE ${this.symbol(stmt.type.value)}`)
+      this.newline()
+    }
+    if (stmt.clientKey) {
+      this.writeIndent()
+      this.write(`CLIENT KEY ${this.scalar(stmt.clientKey.value)}`)
+      this.newline()
+    }
+    if (stmt.name) {
+      this.writeIndent()
+      this.write(`NAME ${this.scalar(stmt.name.value)}`)
+      this.newline()
+    }
+    if (stmt.setFields) this.formatAssignmentClause('SET FIELDS', stmt.setFields.assignments, false)
+    if (stmt.setAttributes) {
+      this.formatAssignmentClause(
+        'SET ATTRIBUTES',
+        stmt.setAttributes.assignments,
+        this.opts.sortAttributes
+      )
+    }
+    for (const facet of stmt.setFacets) this.formatFacet(facet)
+    if (stmt.setStructural) this.formatStructural(stmt.setStructural)
+
+    this.indentLevel--
+    this.writeIndent()
+    this.write('}')
+    this.newline()
+  }
+
+  private formatUpsertConcept(stmt: UpsertConceptStatement): void {
+    this.writeIndent()
+    this.write(`UPSERT CONCEPT ${stmt.handle.name} {`)
+    this.newline()
+    this.indentLevel++
+
+    if (stmt.match) {
+      this.writeIndent()
+      this.write('MATCH ')
+      this.write(this.objectPatternToString(stmt.match.pattern))
+      this.newline()
+    }
+    if (stmt.expectVersion) {
+      this.writeIndent()
+      this.write(`EXPECT VERSION ${this.scalar(stmt.expectVersion.value)}`)
+      this.newline()
+    }
+    if (stmt.setFields) this.formatAssignmentClause('SET FIELDS', stmt.setFields.assignments, false)
+    if (stmt.setAttributes) {
+      this.formatAssignmentClause(
+        'SET ATTRIBUTES',
+        stmt.setAttributes.assignments,
+        this.opts.sortAttributes
+      )
+    }
+    for (const facet of stmt.setFacets) this.formatFacet(facet)
+    if (stmt.unsetAttributes) this.formatUnsetAttributes(stmt.unsetAttributes)
+    for (const facet of stmt.unsetFacets) this.formatUnsetFacet(facet)
+    if (stmt.setStructural) this.formatStructural(stmt.setStructural)
+
+    this.indentLevel--
+    this.writeIndent()
+    this.write('}')
+    this.newline()
+  }
+
+  private formatRecordCreate(
+    keyword: string,
+    stmt:
+      | CreateEvidenceStatement
+      | CreateAssertionStatement
+      | CreateActivityStatement
+  ): void {
+    this.writeIndent()
+    this.write(`CREATE ${keyword} ${stmt.handle.name} {`)
+    this.newline()
+    this.indentLevel++
+
+    if (stmt.clientKey) {
+      this.writeIndent()
+      this.write(`CLIENT KEY ${this.scalar(stmt.clientKey.value)}`)
+      this.newline()
+    }
+    if (stmt.setFields) this.formatAssignmentClause('SET FIELDS', stmt.setFields.assignments, false)
+    for (const facet of stmt.setFacets) this.formatFacet(facet)
+    if (stmt.setStructural) this.formatStructural(stmt.setStructural)
+
+    this.indentLevel--
+    this.writeIndent()
+    this.write('}')
+    this.newline()
+  }
+
+  private formatEnsureProposition(stmt: EnsurePropositionStatement): void {
+    this.writeIndent()
+    this.write('ENSURE PROPOSITION ')
+    if (stmt.handle) this.write(`${stmt.handle.name} `)
+    this.write(this.tupleToString(stmt.tuple))
+    if (stmt.expectVersion) {
+      this.write(` EXPECT VERSION ${this.scalar(stmt.expectVersion.value)}`)
+    }
+    this.newline()
+  }
+
+  private formatAssert(stmt: AssertStatement): void {
+    this.writeIndent()
+    this.write('ASSERT ')
+    if (stmt.handle) this.write(`${stmt.handle.name} `)
+    this.write(this.tupleToString(stmt.tuple))
+    this.write(' ')
+    this.formatObjectBlock(stmt.assignments, false)
+    if (stmt.superseding) {
+      this.newline()
+      this.indentLevel++
+      this.writeIndent()
+      this.write(`SUPERSEDING ${this.targetRef(stmt.superseding)}`)
+      this.indentLevel--
+    }
+    this.newline()
+  }
+
+  private formatUpdate(stmt: UpdateStatement): void {
+    this.writeIndent()
+    this.write(`UPDATE ${this.targetRef(stmt.target)}`)
+    this.newline()
+
+    if (stmt.expectVersion) {
+      this.writeIndent()
+      this.write(`EXPECT VERSION ${this.scalar(stmt.expectVersion.value)}`)
+      this.newline()
+    }
+    for (const action of stmt.actions) this.formatUpdateAction(action)
+    this.formatWhere(stmt.where, 'WHERE')
+    if (stmt.limit) this.formatLimit(stmt.limit)
+  }
+
+  private formatUpdateAction(action: UpdateAction): void {
+    switch (action.kind) {
+      case 'SetFieldsClause':
+        this.formatAssignmentClause('SET FIELDS', action.assignments, false)
+        break
+      case 'SetAttributesClause':
+        this.formatAssignmentClause(
+          'SET ATTRIBUTES',
+          action.assignments,
+          this.opts.sortAttributes
+        )
+        break
+      case 'SetFacetClause':
+        this.formatFacet(action)
+        break
+      case 'UnsetAttributesClause':
+        this.formatUnsetAttributes(action)
+        break
+      case 'UnsetFacetClause':
+        this.formatUnsetFacet(action)
+        break
+      case 'SetStructuralClause':
+        this.formatStructural(action)
+        break
+    }
+  }
+
+  private formatRetract(stmt: RetractAssertionStatement): void {
+    this.writeIndent()
+    this.write(`RETRACT ASSERTION ${this.targetRef(stmt.target)}`)
+    if (!stmt.where && !stmt.limit && stmt.expectState) {
+      this.write(` EXPECT STATE ${this.scalar(stmt.expectState.value)}`)
+      this.newline()
+      return
+    }
+    this.newline()
+    if (stmt.where) this.formatWhere(stmt.where, 'WHERE')
+    if (stmt.limit) this.formatLimit(stmt.limit)
+    if (stmt.expectState) {
+      this.writeIndent()
+      this.write(`EXPECT STATE ${this.scalar(stmt.expectState.value)}`)
+      this.newline()
+    }
+  }
+
+  private formatSupersede(stmt: SupersedeAssertionStatement): void {
+    this.writeIndent()
+    this.write(
+      `SUPERSEDE ASSERTION ${this.targetRef(stmt.target)} BY ${this.targetRef(stmt.by)}`
+    )
+    if (stmt.expectState) {
+      this.write(` EXPECT STATE ${this.scalar(stmt.expectState.value)}`)
+    }
+    this.newline()
+  }
+
+  private formatCorrect(stmt: CorrectEvidenceStatement): void {
+    this.writeIndent()
+    this.write(
+      `CORRECT EVIDENCE ${this.targetRef(stmt.target)} BY ${this.targetRef(stmt.by)}`
+    )
+    if (stmt.expectState) {
+      this.write(` EXPECT STATE ${this.scalar(stmt.expectState.value)}`)
+    }
+    this.newline()
+  }
+
+  private formatTransition(stmt: TransitionActivityStatement): void {
+    this.writeIndent()
+    this.write(
+      `TRANSITION ACTIVITY ${this.targetRef(stmt.target)} TO ${this.scalar(stmt.to)}`
+    )
+    this.newline()
+    if (stmt.finalize.length > 0) {
+      this.indentLevel++
+      for (const clause of stmt.finalize) {
+        if (clause.kind === 'SetFieldsClause') {
+          this.formatAssignmentClause('SET FIELDS', clause.assignments, false)
+        } else {
+          this.formatStructural(clause)
         }
       }
-      return s
+      this.indentLevel--
     }
-    // Alternation
-    return pred.predicates.map((p) => this.predicateToString(p)).join(' | ')
+    if (stmt.expectState) {
+      this.indentLevel++
+      this.writeIndent()
+      this.write(`EXPECT STATE ${this.scalar(stmt.expectState.value)}`)
+      this.newline()
+      this.indentLevel--
+    }
   }
 
-  private limitValueToString(lim: LimitClause): string {
-    return this.numberOrParameterValueToString(lim.value)
+  private formatSetRetention(stmt: SetRetentionStatement): void {
+    this.writeIndent()
+    this.write(`SET RETENTION ${this.targetRef(stmt.target)} `)
+    this.formatObjectBlock(stmt.assignments, false)
+    this.newline()
+    if (stmt.where) this.formatWhere(stmt.where, 'WHERE')
+    if (stmt.limit) this.formatLimit(stmt.limit)
+    if (stmt.expectVersion) {
+      this.writeIndent()
+      this.write(`EXPECT VERSION ${this.scalar(stmt.expectVersion.value)}`)
+      this.newline()
+    }
   }
 
-  private thresholdValueToString(threshold: ThresholdClause): string {
-    return this.numberOrParameterValueToString(threshold.value)
+  private formatRemoval(
+    keyword: string,
+    stmt: ArchiveStatement | TombstoneStatement
+  ): void {
+    this.writeIndent()
+    this.write(`${keyword} ${this.targetRef(stmt.target)}`)
+    if (!stmt.where && !stmt.limit) {
+      if (stmt.expectState) {
+        this.write(` EXPECT STATE ${this.scalar(stmt.expectState.value)}`)
+      }
+      this.newline()
+      return
+    }
+    this.newline()
+    if (stmt.where) this.formatWhere(stmt.where, 'WHERE')
+    if (stmt.limit) this.formatLimit(stmt.limit)
+    if (stmt.expectState) {
+      this.writeIndent()
+      this.write(`EXPECT STATE ${this.scalar(stmt.expectState.value)}`)
+      this.newline()
+    }
   }
 
-  private numberOrParameterValueToString(
-    value: LimitClause['value'] | ThresholdClause['value']
-  ): string {
-    if (value.kind === 'NumberLiteral') return value.raw
-    return value.name
+  private formatPurge(stmt: PurgeStatement): void {
+    this.writeIndent()
+    this.write(`PURGE ${this.targetRef(stmt.target)}`)
+    this.newline()
+    if (stmt.where) this.formatWhere(stmt.where, 'WHERE')
+    if (stmt.limit) this.formatLimit(stmt.limit)
+    this.indentLevel++
+    if (stmt.referencePolicy) {
+      this.writeIndent()
+      this.write(`REFERENCE POLICY ${this.scalar(stmt.referencePolicy)}`)
+      this.newline()
+    }
+    this.writeIndent()
+    this.write(`CONFIRM ${stmt.confirm.value}`)
+    this.newline()
+    this.indentLevel--
   }
 
-  private cursorValueToString(cur: CursorClause): string {
-    if (cur.value.kind === 'StringLiteral') return cur.value.value
-    return cur.value.name
+  private formatMerge(stmt: MergeConceptStatement): void {
+    this.writeIndent()
+    this.write(
+      `MERGE CONCEPT ${this.targetRef(stmt.source)} INTO ${this.targetRef(stmt.into)}`
+    )
+    this.newline()
+    if (stmt.where) this.formatWhere(stmt.where, 'WHERE')
+    if (stmt.expectVersion) {
+      this.writeIndent()
+      this.write(`EXPECT VERSION ${this.scalar(stmt.expectVersion.value)}`)
+      this.newline()
+    }
   }
 
-  private quotedOrParameterValueToString(
-    value: StringLiteral | ParameterRef | undefined,
-    fallback: string
-  ): string {
-    if (value?.kind === 'StringLiteral') return value.value
-    if (value?.kind === 'ParameterRef') return value.name
-    return fallback.startsWith(':')
-      ? fallback
-      : `"${this.escapeString(fallback)}"`
+  // ────────────────────────────────────────────────────────────────────
+  //  KML clause bodies
+  // ────────────────────────────────────────────────────────────────────
+
+  private formatAssignmentClause(
+    keyword: string,
+    assignments: ObjectLiteral,
+    sort: boolean
+  ): void {
+    this.writeIndent()
+    this.write(`${keyword} `)
+    this.formatObjectBlock(assignments, sort)
+    this.newline()
+  }
+
+  private formatFacet(clause: SetFacetClause): void {
+    this.writeIndent()
+    this.write(`SET FACET ${this.symbol(clause.facet)} `)
+    this.formatObjectBlock(clause.assignments, false)
+    this.newline()
+  }
+
+  private formatUnsetAttributes(clause: UnsetAttributesClause): void {
+    this.writeIndent()
+    this.write(
+      `UNSET ATTRIBUTES { ${clause.fields.map((f) => this.fieldName(f.name, f.isQuoted)).join(', ')} }`
+    )
+    this.newline()
+  }
+
+  private formatUnsetFacet(clause: UnsetFacetClause): void {
+    this.writeIndent()
+    this.write(
+      `UNSET FACET ${this.symbol(clause.facet)} { ${clause.fields.map((f) => this.fieldName(f.name, f.isQuoted)).join(', ')} }`
+    )
+    this.newline()
+  }
+
+  private formatStructural(clause: SetStructuralClause): void {
+    this.writeIndent()
+    this.write('SET STRUCTURAL {')
+    this.newline()
+    this.indentLevel++
+    for (const assignment of clause.assignments) {
+      this.emitCommentsBefore(assignment.range.start.line)
+      this.writeIndent()
+      this.write(
+        `(${this.symbol(assignment.field)}, ${this.expr(assignment.value)})`
+      )
+      if (assignment.options) {
+        this.write(` ${this.objectLiteralToString(assignment.options)}`)
+      }
+      this.newline()
+    }
+    this.emitCommentsBefore(clause.range.end.line)
+    this.indentLevel--
+    this.writeIndent()
+    this.write('}')
+    this.newline()
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  META
+  // ────────────────────────────────────────────────────────────────────
+
+  private formatDescribe(stmt: DescribeStatement): void {
+    this.writeIndent()
+    const words: Record<DescribeStatement['target'], string> = {
+      PRIMER: 'PRIMER',
+      PROTOCOL: 'PROTOCOL',
+      EXECUTION_CONTEXT: 'EXECUTION CONTEXT',
+      CAPABILITIES: 'CAPABILITIES',
+      SPACE: 'SPACE',
+      SCHEMA_ENVIRONMENT: 'SCHEMA ENVIRONMENT',
+      PACKAGE: 'PACKAGE',
+      TYPE: 'TYPE',
+      PREDICATE: 'PREDICATE',
+      FACET: 'FACET',
+      STRUCTURAL_FIELD: 'STRUCTURAL FIELD',
+      COMPATIBILITY: 'COMPATIBILITY',
+      ERROR: 'ERROR',
+      TRANSACTION: 'TRANSACTION',
+      TRANSACTION_BY_IDEMPOTENCY_KEY: 'TRANSACTION BY IDEMPOTENCY KEY',
+      SNAPSHOT: 'SNAPSHOT',
+      CAPSULE: 'CAPSULE',
+      EPISTEMIC_POLICY: 'EPISTEMIC POLICY',
+      PROJECTION_CAPABILITY: 'PROJECTION CAPABILITY',
+      TRUST: 'TRUST',
+      ACCESS: 'ACCESS'
+    }
+    this.write(`DESCRIBE ${words[stmt.target]}`)
+
+    if (stmt.target === 'COMPATIBILITY' && stmt.from && stmt.to) {
+      this.write(` FROM ${this.scalar(stmt.from)} TO ${this.scalar(stmt.to)}`)
+    } else if (stmt.value) {
+      this.write(` ${this.scalar(stmt.value)}`)
+    }
+    if (stmt.mode) this.write(` MODE ${this.scalar(stmt.mode)}`)
+    if (stmt.asOf) this.write(` ${this.asOfToString(stmt.asOf)}`)
+    if (stmt.with) this.write(` WITH ${this.objectLiteralToString(stmt.with)}`)
+    this.newline()
+  }
+
+  private formatList(stmt: ListStatement): void {
+    this.writeIndent()
+    const words: Record<ListStatement['target'], string> = {
+      SPACES: 'SPACES',
+      SCHEMA_PACKAGES: 'SCHEMA PACKAGES',
+      TYPES: 'TYPES',
+      PREDICATES: 'PREDICATES',
+      FACETS: 'FACETS',
+      STRUCTURAL_FIELDS: 'STRUCTURAL FIELDS',
+      EPISTEMIC_POLICIES: 'EPISTEMIC POLICIES'
+    }
+    this.write(`LIST ${words[stmt.target]}`)
+    if (stmt.status) this.write(` STATUS ${this.scalar(stmt.status)}`)
+    if (stmt.limit) this.write(` LIMIT ${this.scalar(stmt.limit.value)}`)
+    if (stmt.cursor) this.write(` CURSOR ${this.scalar(stmt.cursor.value)}`)
+    this.newline()
+  }
+
+  private formatSearch(stmt: SearchStatement): void {
+    this.writeIndent()
+    this.write(`SEARCH ${stmt.searchKind} ${this.scalar(stmt.term)}`)
+    if (stmt.withType) this.write(` WITH TYPE ${this.scalar(stmt.withType)}`)
+    if (stmt.withPredicate) {
+      this.write(` WITH PREDICATE ${this.scalar(stmt.withPredicate)}`)
+    }
+    if (stmt.mode) this.write(` MODE ${this.scalar(stmt.mode)}`)
+    if (stmt.threshold) this.write(` THRESHOLD ${this.scalar(stmt.threshold)}`)
+    if (stmt.asOfSeq) this.write(` AS OF SEQ ${this.scalar(stmt.asOfSeq)}`)
+    if (stmt.limit) this.write(` LIMIT ${this.scalar(stmt.limit.value)}`)
+    if (stmt.cursor) this.write(` CURSOR ${this.scalar(stmt.cursor.value)}`)
+    this.newline()
+  }
+
+  private formatVerify(stmt: VerifyStatement): void {
+    const words: Record<VerifyStatement['target'], string> = {
+      CAPSULE: 'CAPSULE',
+      SCHEMA_PACKAGE: 'SCHEMA PACKAGE',
+      RECEIPT: 'RECEIPT',
+      BLOB: 'BLOB',
+      CHECKPOINT: 'CHECKPOINT'
+    }
+    this.writeIndent()
+    this.write(`VERIFY ${words[stmt.target]} ${this.scalar(stmt.value)}`)
+    this.newline()
+  }
+
+  private formatValidate(stmt: ValidateStatement): void {
+    const words: Record<ValidateStatement['target'], string> = {
+      KQL: 'KQL',
+      KML: 'KML',
+      CAPSULE: 'CAPSULE',
+      SCHEMA_PACKAGE: 'SCHEMA PACKAGE',
+      IMPORT_PLAN: 'IMPORT PLAN'
+    }
+    this.writeIndent()
+    this.write(`VALIDATE ${words[stmt.target]} ${this.scalar(stmt.value)}`)
+    if (stmt.options) {
+      this.write(` WITH ${this.objectLiteralToString(stmt.options)}`)
+    }
+    this.newline()
+  }
+
+  private formatPreview(stmt: PreviewStatement): void {
+    this.writeIndent()
+    if (stmt.target === 'KML') {
+      this.write(`PREVIEW KML ${this.scalar(stmt.value)}`)
+    } else {
+      this.write(
+        `PREVIEW IMPORT CAPSULE ${this.scalar(stmt.value)} INTO ${this.scalar(stmt.into!)}`
+      )
+    }
+    this.newline()
+  }
+
+  private formatHistory(stmt: HistoryStatement): void {
+    this.writeIndent()
+    this.write(`HISTORY ${stmt.target}`)
+    if (stmt.value) this.write(` ${this.scalar(stmt.value)}`)
+    if (stmt.fromSeq) this.write(` FROM SEQ ${this.scalar(stmt.fromSeq)}`)
+    if (stmt.toSeq) this.write(` TO SEQ ${this.scalar(stmt.toSeq)}`)
+    if (stmt.limit) this.write(` LIMIT ${this.scalar(stmt.limit.value)}`)
+    if (stmt.cursor) this.write(` CURSOR ${this.scalar(stmt.cursor.value)}`)
+    this.newline()
+  }
+
+  private formatChanges(stmt: ChangesStatement): void {
+    this.writeIndent()
+    const keyword = stmt.mode === 'SINCE' ? 'SINCE' : 'AFTER SEQ'
+    this.write(`CHANGES ${keyword} ${this.scalar(stmt.value)}`)
+    if (stmt.limit) this.write(` LIMIT ${this.scalar(stmt.limit.value)}`)
+    this.newline()
+  }
+
+  private formatSnapshot(stmt: SnapshotStatement): void {
+    this.writeIndent()
+    this.write('SNAPSHOT')
+    if (stmt.asOf) this.write(` ${this.asOfToString(stmt.asOf)}`)
+    this.newline()
+  }
+
+  private formatExport(stmt: ExportCapsuleStatement): void {
+    this.writeIndent()
+    this.write(`EXPORT CAPSULE ${this.targetRef(stmt.target)}`)
+    this.newline()
+    this.formatWhere(stmt.where, 'WHERE')
+    if (stmt.options) {
+      this.writeIndent()
+      this.write(`WITH ${this.objectLiteralToString(stmt.options)}`)
+      this.newline()
+    }
+    if (stmt.asOf) {
+      this.writeIndent()
+      this.write(this.asOfToString(stmt.asOf))
+      this.newline()
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  Objects
+  // ────────────────────────────────────────────────────────────────────
+
+  /**
+   * Emits `{...}` on one line when it is short and comment-free, otherwise
+   * one entry per line. A block holding a comment always stays multi-line, so
+   * the comment keeps the key it was written against.
+   */
+  private formatObjectBlock(object: ObjectLiteral, sort: boolean): void {
+    const entries = object.entries
+    if (entries.length === 0) {
+      this.write('{}')
+      return
+    }
+
+    const hasComments = this.hasPendingCommentInRange(
+      object.range.start.line,
+      object.range.end.line
+    )
+    const inline = this.objectLiteralToString(object, sort)
+    if (
+      !hasComments &&
+      inline.length + this.indentLevel * this.opts.indentSize <= 78 &&
+      !inline.includes('\n')
+    ) {
+      this.write(inline)
+      return
+    }
+
+    const ordered = sort && !hasComments ? this.sortObjectEntries(entries) : entries
+    this.write('{')
+    this.newline()
+    this.indentLevel++
+    for (let i = 0; i < ordered.length; i++) {
+      const entry = ordered[i]!
+      this.emitCommentsBefore(entry.range.start.line)
+      this.writeIndent()
+      this.write(`${this.fieldName(entry.key, entry.isQuoted)}: ${this.expr(entry.value)}`)
+      if (i < ordered.length - 1) this.write(',')
+      this.newline()
+    }
+    this.emitCommentsBefore(object.range.end.line)
+    this.indentLevel--
+    this.writeIndent()
+    this.write('}')
+  }
+
+  private objectLiteralToString(object: ObjectLiteral, sort = false): string {
+    if (object.entries.length === 0) return '{}'
+    const entries = sort ? this.sortObjectEntries(object.entries) : object.entries
+    const inner = entries
+      .map((e) => `${this.fieldName(e.key, e.isQuoted)}: ${this.expr(e.value)}`)
+      .join(', ')
+    return `{${inner}}`
+  }
+
+  private objectPatternToString(pattern: ObjectPattern): string {
+    if (pattern.members.length === 0) return '{}'
+    const inner = pattern.members
+      .map((e) => `${this.fieldName(e.key, e.isQuoted)}: ${this.expr(e.value)}`)
+      .join(', ')
+    return `{${inner}}`
   }
 
   private sortObjectEntries(entries: ObjectEntry[]): ObjectEntry[] {
@@ -897,24 +1073,95 @@ class Formatter {
     return [...entries].sort((a, b) => a.key.localeCompare(b.key))
   }
 
-  private isSimpleValue(expr: Expression): boolean {
-    return (
-      expr.kind === 'StringLiteral' ||
-      expr.kind === 'NumberLiteral' ||
-      expr.kind === 'BooleanLiteral' ||
-      expr.kind === 'NullLiteral' ||
-      expr.kind === 'VariableRef' ||
-      expr.kind === 'ParameterRef'
-    )
+  private fieldName(key: string, isQuoted: boolean): string {
+    return isQuoted ? `"${this.escapeString(key)}"` : key
   }
 
-  private allSimpleExpressions(exprs: Expression[]): boolean {
-    return exprs.every(
-      (e) =>
-        e.kind === 'VariableRef' ||
-        e.kind === 'DotExpression' ||
-        e.kind === 'FunctionCallExpr'
-    )
+  // ────────────────────────────────────────────────────────────────────
+  //  Terms and expressions
+  // ────────────────────────────────────────────────────────────────────
+
+  private tupleToString(tuple: PropositionTuple): string {
+    if (tuple.id) return `(id: ${this.scalar(tuple.id)})`
+    return `(${this.term(tuple.subject!)}, ${this.predicate(tuple.predicate!)}, ${this.term(tuple.object!)})`
+  }
+
+  private term(term: Term): string {
+    if (term.kind === 'ObjectPattern') return this.objectPatternToString(term)
+    if (term.kind === 'PropositionTuple') return this.tupleToString(term)
+    return this.expr(term)
+  }
+
+  private predicate(expr: RawPredicateExpression): string {
+    return expr.atoms
+      .map((atom) => {
+        const base = this.predAtom(atom.atom)
+        if (!atom.quantifier) return base
+        const q = atom.quantifier
+        if (!q.hasComma) return `${base}{${q.min}}`
+        return q.max === undefined
+          ? `${base}{${q.min},}`
+          : `${base}{${q.min},${q.max}}`
+      })
+      .join(' | ')
+  }
+
+  private predAtom(atom: PredicateAtom): string {
+    return this.expr(atom)
+  }
+
+  private symbol(symbol: SchemaSymbol): string {
+    return symbol.kind === 'ParameterRef' ? symbol.name : symbol.value
+  }
+
+  private scalar(value: ScalarValue): string {
+    return this.expr(value)
+  }
+
+  private targetRef(ref: TargetRef): string {
+    return this.expr(ref)
+  }
+
+  private expr(expr: Expression): string {
+    switch (expr.kind) {
+      case 'StringLiteral':
+        return expr.value
+      case 'NumberLiteral':
+        return expr.raw
+      case 'BooleanLiteral':
+        return expr.value ? 'true' : 'false'
+      case 'NullLiteral':
+        return 'null'
+      case 'VariableRef':
+        return expr.name
+      case 'ParameterRef':
+        return expr.name
+      case 'FieldAccess':
+        return (
+          expr.base.name +
+          expr.steps
+            .map((step) =>
+              step.kind === 'DotStep' ? `.${step.name}` : `[${step.key.value}]`
+            )
+            .join('')
+        )
+      case 'FunctionCallExpr':
+        return `${expr.name.toUpperCase()}(${expr.args.map((a) => this.expr(a)).join(', ')})`
+      case 'AggregateExpr':
+        return `${expr.name}(${expr.distinct ? 'DISTINCT ' : ''}${this.expr(expr.argument)})`
+      case 'BinaryExpression':
+        return `${this.expr(expr.left)} ${expr.operator} ${this.expr(expr.right)}`
+      case 'UnaryExpression':
+        return `${expr.operator}${this.expr(expr.operand)}`
+      case 'ArrayLiteral':
+        return `[${expr.elements.map((e) => this.expr(e)).join(', ')}]`
+      case 'ObjectLiteral':
+        return this.objectLiteralToString(expr)
+      case 'ObjectPattern':
+        return this.objectPatternToString(expr)
+      case 'PropositionTuple':
+        return this.tupleToString(expr)
+    }
   }
 
   private escapeString(s: string): string {
@@ -924,10 +1171,6 @@ class Formatter {
       .replace(/\n/g, '\\n')
       .replace(/\t/g, '\\t')
       .replace(/\r/g, '\\r')
-  }
-
-  private indentAt(level: number): string {
-    return ' '.repeat(level * this.opts.indentSize)
   }
 
   private indent(): string {

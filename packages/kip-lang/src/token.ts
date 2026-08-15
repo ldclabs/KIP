@@ -14,72 +14,128 @@ export enum TokenType {
   Identifier = 'Identifier',
   Variable = 'Variable', // ?foo
   Parameter = 'Parameter', // :foo
-  SystemIdent = 'SystemIdent', // $foo
 
-  // Keywords - KQL
+  // ── Keywords — KQL ────────────────────────────────────────────────
   Find = 'FIND',
   Where = 'WHERE',
-  OrderBy = 'ORDER_BY', // matched as two tokens then merged
-  Limit = 'LIMIT',
-  Cursor = 'CURSOR',
   Filter = 'FILTER',
   Not = 'NOT',
   Optional = 'OPTIONAL',
   Union = 'UNION',
-  Asc = 'ASC',
-  Desc = 'DESC',
-
-  // Keywords - KML
-  Upsert = 'UPSERT',
-  Update = 'UPDATE',
-  Merge = 'MERGE',
-  Delete = 'DELETE',
-  Concept = 'CONCEPT',
-  Proposition = 'PROPOSITION',
-  Set = 'SET',
-  Attributes = 'ATTRIBUTES',
-  Propositions = 'PROPOSITIONS',
-  With = 'WITH',
-  Metadata = 'METADATA',
-  Detach = 'DETACH',
-  From = 'FROM',
-  Into = 'INTO',
-  Expect = 'EXPECT',
-  Version = 'VERSION',
-
-  // Keywords - META
-  Describe = 'DESCRIBE',
-  Search = 'SEARCH',
-  Export = 'EXPORT',
-  Primer = 'PRIMER',
-  Domains = 'DOMAINS',
-  Type = 'TYPE',
-  Types = 'TYPES',
-  Mode = 'MODE',
-  Threshold = 'THRESHOLD',
-
-  // Keywords - common
+  Belief = 'BELIEF',
+  Slot = 'SLOT',
   Order = 'ORDER',
   By = 'BY',
-
-  // Built-in functions
-  Count = 'COUNT',
-  Sum = 'SUM',
-  Avg = 'AVG',
-  Min = 'MIN',
-  Max = 'MAX',
-  Contains = 'CONTAINS',
-  StartsWith = 'STARTS_WITH',
-  EndsWith = 'ENDS_WITH',
-  Regex = 'REGEX',
-  In = 'IN',
-  IsNull = 'IS_NULL',
-  IsNotNull = 'IS_NOT_NULL',
+  Asc = 'ASC',
+  Desc = 'DESC',
+  Limit = 'LIMIT',
+  Cursor = 'CURSOR',
   Distinct = 'DISTINCT',
-  Add = 'ADD',
-  Mul = 'MUL',
-  Clamp = 'CLAMP',
-  Coalesce = 'COALESCE',
+  As = 'AS',
+  Of = 'OF',
+  Seq = 'SEQ',
+  Tx = 'TX',
+  Time = 'TIME',
+  For = 'FOR',
+  Epistemic = 'EPISTEMIC',
+
+  // ── Keywords — element kinds (shared KQL/KML/META) ────────────────
+  Concept = 'CONCEPT',
+  Proposition = 'PROPOSITION',
+  Assertion = 'ASSERTION',
+  Evidence = 'EVIDENCE',
+  Activity = 'ACTIVITY',
+  Structural = 'STRUCTURAL',
+
+  // ── Keywords — KML ────────────────────────────────────────────────
+  Mutate = 'MUTATE',
+  Create = 'CREATE',
+  Upsert = 'UPSERT',
+  Ensure = 'ENSURE',
+  Assert = 'ASSERT',
+  Superseding = 'SUPERSEDING',
+  Update = 'UPDATE',
+  Retract = 'RETRACT',
+  Supersede = 'SUPERSEDE',
+  Correct = 'CORRECT',
+  Transition = 'TRANSITION',
+  Set = 'SET',
+  Unset = 'UNSET',
+  Retention = 'RETENTION',
+  Archive = 'ARCHIVE',
+  Tombstone = 'TOMBSTONE',
+  Purge = 'PURGE',
+  Confirm = 'CONFIRM',
+  Reference = 'REFERENCE',
+  Policy = 'POLICY',
+  Merge = 'MERGE',
+  Into = 'INTO',
+  To = 'TO',
+  Type = 'TYPE',
+  Client = 'CLIENT',
+  Key = 'KEY',
+  Name = 'NAME',
+  Match = 'MATCH',
+  Fields = 'FIELDS',
+  Attributes = 'ATTRIBUTES',
+  Facet = 'FACET',
+  Expect = 'EXPECT',
+  Version = 'VERSION',
+  State = 'STATE',
+
+  // ── Keywords — META ───────────────────────────────────────────────
+  Describe = 'DESCRIBE',
+  List = 'LIST',
+  Search = 'SEARCH',
+  Verify = 'VERIFY',
+  Validate = 'VALIDATE',
+  Preview = 'PREVIEW',
+  History = 'HISTORY',
+  Changes = 'CHANGES',
+  Snapshot = 'SNAPSHOT',
+  Export = 'EXPORT',
+  Primer = 'PRIMER',
+  Mode = 'MODE',
+  Protocol = 'PROTOCOL',
+  Execution = 'EXECUTION',
+  Context = 'CONTEXT',
+  Capabilities = 'CAPABILITIES',
+  Capability = 'CAPABILITY',
+  Space = 'SPACE',
+  Spaces = 'SPACES',
+  Schema = 'SCHEMA',
+  Environment = 'ENVIRONMENT',
+  Package = 'PACKAGE',
+  Packages = 'PACKAGES',
+  Predicate = 'PREDICATE',
+  Predicates = 'PREDICATES',
+  Field = 'FIELD',
+  Facets = 'FACETS',
+  Types = 'TYPES',
+  Policies = 'POLICIES',
+  Compatibility = 'COMPATIBILITY',
+  From = 'FROM',
+  Error = 'ERROR',
+  Transaction = 'TRANSACTION',
+  Idempotency = 'IDEMPOTENCY',
+  Capsule = 'CAPSULE',
+  Projection = 'PROJECTION',
+  Trust = 'TRUST',
+  Access = 'ACCESS',
+  With = 'WITH',
+  Status = 'STATUS',
+  Cognition = 'COGNITION',
+  Threshold = 'THRESHOLD',
+  Receipt = 'RECEIPT',
+  Blob = 'BLOB',
+  Checkpoint = 'CHECKPOINT',
+  Kql = 'KQL',
+  Kml = 'KML',
+  Import = 'IMPORT',
+  Plan = 'PLAN',
+  Element = 'ELEMENT',
+  Since = 'SINCE',
+  After = 'AFTER',
 
   // Operators
   Eq = '==',
@@ -91,6 +147,7 @@ export enum TokenType {
   And = '&&',
   Or = '||',
   Bang = '!',
+  Minus = '-',
 
   // Punctuation
   LBrace = '{',
@@ -130,78 +187,194 @@ export interface Token {
   column: number
 }
 
-/** Set of all KIP keywords (uppercase) mapped to their TokenType */
+/**
+ * Every KIP 2.0 protocol keyword, keyed by its canonical uppercase spelling.
+ *
+ * KIP 2.0 keywords are ASCII case-insensitive (canonical rendering is
+ * uppercase), so the lexer looks names up here after upper-casing. Schema
+ * symbols and string values keep their own case-sensitive contracts.
+ */
 export const KEYWORDS: ReadonlyMap<string, TokenType> = new Map([
+  // KQL
   ['FIND', TokenType.Find],
   ['WHERE', TokenType.Where],
-  ['ORDER', TokenType.Order],
-  ['BY', TokenType.By],
-  ['LIMIT', TokenType.Limit],
-  ['CURSOR', TokenType.Cursor],
   ['FILTER', TokenType.Filter],
   ['NOT', TokenType.Not],
   ['OPTIONAL', TokenType.Optional],
   ['UNION', TokenType.Union],
+  ['BELIEF', TokenType.Belief],
+  ['SLOT', TokenType.Slot],
+  ['ORDER', TokenType.Order],
+  ['BY', TokenType.By],
   ['ASC', TokenType.Asc],
   ['DESC', TokenType.Desc],
-  ['UPSERT', TokenType.Upsert],
-  ['UPDATE', TokenType.Update],
-  ['MERGE', TokenType.Merge],
-  ['DELETE', TokenType.Delete],
+  ['LIMIT', TokenType.Limit],
+  ['CURSOR', TokenType.Cursor],
+  ['DISTINCT', TokenType.Distinct],
+  ['AS', TokenType.As],
+  ['OF', TokenType.Of],
+  ['SEQ', TokenType.Seq],
+  ['TX', TokenType.Tx],
+  ['TIME', TokenType.Time],
+  ['FOR', TokenType.For],
+  ['EPISTEMIC', TokenType.Epistemic],
+
+  // Element kinds
   ['CONCEPT', TokenType.Concept],
   ['PROPOSITION', TokenType.Proposition],
+  ['ASSERTION', TokenType.Assertion],
+  ['EVIDENCE', TokenType.Evidence],
+  ['ACTIVITY', TokenType.Activity],
+  ['STRUCTURAL', TokenType.Structural],
+
+  // KML
+  ['MUTATE', TokenType.Mutate],
+  ['CREATE', TokenType.Create],
+  ['UPSERT', TokenType.Upsert],
+  ['ENSURE', TokenType.Ensure],
+  ['ASSERT', TokenType.Assert],
+  ['SUPERSEDING', TokenType.Superseding],
+  ['UPDATE', TokenType.Update],
+  ['RETRACT', TokenType.Retract],
+  ['SUPERSEDE', TokenType.Supersede],
+  ['CORRECT', TokenType.Correct],
+  ['TRANSITION', TokenType.Transition],
   ['SET', TokenType.Set],
-  ['ATTRIBUTES', TokenType.Attributes],
-  ['PROPOSITIONS', TokenType.Propositions],
-  ['WITH', TokenType.With],
-  ['METADATA', TokenType.Metadata],
-  ['DETACH', TokenType.Detach],
-  ['FROM', TokenType.From],
+  ['UNSET', TokenType.Unset],
+  ['RETENTION', TokenType.Retention],
+  ['ARCHIVE', TokenType.Archive],
+  ['TOMBSTONE', TokenType.Tombstone],
+  ['PURGE', TokenType.Purge],
+  ['CONFIRM', TokenType.Confirm],
+  ['REFERENCE', TokenType.Reference],
+  ['POLICY', TokenType.Policy],
+  ['MERGE', TokenType.Merge],
   ['INTO', TokenType.Into],
+  ['TO', TokenType.To],
+  ['TYPE', TokenType.Type],
+  ['CLIENT', TokenType.Client],
+  ['KEY', TokenType.Key],
+  ['NAME', TokenType.Name],
+  ['MATCH', TokenType.Match],
+  ['FIELDS', TokenType.Fields],
+  ['ATTRIBUTES', TokenType.Attributes],
+  ['FACET', TokenType.Facet],
   ['EXPECT', TokenType.Expect],
   ['VERSION', TokenType.Version],
+  ['STATE', TokenType.State],
+
+  // META
   ['DESCRIBE', TokenType.Describe],
+  ['LIST', TokenType.List],
   ['SEARCH', TokenType.Search],
+  ['VERIFY', TokenType.Verify],
+  ['VALIDATE', TokenType.Validate],
+  ['PREVIEW', TokenType.Preview],
+  ['HISTORY', TokenType.History],
+  ['CHANGES', TokenType.Changes],
+  ['SNAPSHOT', TokenType.Snapshot],
   ['EXPORT', TokenType.Export],
   ['PRIMER', TokenType.Primer],
-  ['DOMAINS', TokenType.Domains],
-  ['TYPE', TokenType.Type],
-  ['TYPES', TokenType.Types],
   ['MODE', TokenType.Mode],
-  ['THRESHOLD', TokenType.Threshold]
+  ['PROTOCOL', TokenType.Protocol],
+  ['EXECUTION', TokenType.Execution],
+  ['CONTEXT', TokenType.Context],
+  ['CAPABILITIES', TokenType.Capabilities],
+  ['CAPABILITY', TokenType.Capability],
+  ['SPACE', TokenType.Space],
+  ['SPACES', TokenType.Spaces],
+  ['SCHEMA', TokenType.Schema],
+  ['ENVIRONMENT', TokenType.Environment],
+  ['PACKAGE', TokenType.Package],
+  ['PACKAGES', TokenType.Packages],
+  ['PREDICATE', TokenType.Predicate],
+  ['PREDICATES', TokenType.Predicates],
+  ['FIELD', TokenType.Field],
+  ['FACETS', TokenType.Facets],
+  ['TYPES', TokenType.Types],
+  ['POLICIES', TokenType.Policies],
+  ['COMPATIBILITY', TokenType.Compatibility],
+  ['FROM', TokenType.From],
+  ['ERROR', TokenType.Error],
+  ['TRANSACTION', TokenType.Transaction],
+  ['IDEMPOTENCY', TokenType.Idempotency],
+  ['CAPSULE', TokenType.Capsule],
+  ['PROJECTION', TokenType.Projection],
+  ['TRUST', TokenType.Trust],
+  ['ACCESS', TokenType.Access],
+  ['WITH', TokenType.With],
+  ['STATUS', TokenType.Status],
+  ['COGNITION', TokenType.Cognition],
+  ['THRESHOLD', TokenType.Threshold],
+  ['RECEIPT', TokenType.Receipt],
+  ['BLOB', TokenType.Blob],
+  ['CHECKPOINT', TokenType.Checkpoint],
+  ['KQL', TokenType.Kql],
+  ['KML', TokenType.Kml],
+  ['IMPORT', TokenType.Import],
+  ['PLAN', TokenType.Plan],
+  ['ELEMENT', TokenType.Element],
+  ['SINCE', TokenType.Since],
+  ['AFTER', TokenType.After]
 ])
 
-/** Set of built-in function names mapped to their TokenType */
-export const FUNCTIONS: ReadonlyMap<string, TokenType> = new Map([
-  ['COUNT', TokenType.Count],
-  ['SUM', TokenType.Sum],
-  ['AVG', TokenType.Avg],
-  ['MIN', TokenType.Min],
-  ['MAX', TokenType.Max],
-  ['CONTAINS', TokenType.Contains],
-  ['STARTS_WITH', TokenType.StartsWith],
-  ['ENDS_WITH', TokenType.EndsWith],
-  ['REGEX', TokenType.Regex],
-  ['IN', TokenType.In],
-  ['IS_NULL', TokenType.IsNull],
-  ['IS_NOT_NULL', TokenType.IsNotNull],
-  ['DISTINCT', TokenType.Distinct],
-  ['ADD', TokenType.Add],
-  ['MUL', TokenType.Mul],
-  ['CLAMP', TokenType.Clamp],
-  ['COALESCE', TokenType.Coalesce]
+/**
+ * Aggregate names legal in `aggregate_expression`.
+ *
+ * The grammar spells these as terminals, but `function_call` is an open
+ * `identifier, "(" ...`, so they stay lexical identifiers and the parser
+ * recognizes them by name. That keeps one rule for every call shape.
+ */
+export const AGGREGATES: ReadonlySet<string> = new Set([
+  'COUNT',
+  'SUM',
+  'AVG',
+  'MIN',
+  'MAX'
 ])
 
-/** Reverse lookup sets, built once, so membership tests are O(1). */
+/**
+ * Runtime functions KIP 2.0 registers by name.
+ *
+ * `function_call` is syntactically open so namespaced and future functions
+ * still parse; this set is what the semantic layer and editor tooling treat
+ * as known. Membership is not a parse-time gate.
+ */
+export const FUNCTIONS: ReadonlySet<string> = new Set([
+  // Filter predicates
+  'IN',
+  'CONTAINS',
+  'STARTS_WITH',
+  'ENDS_WITH',
+  'REGEX',
+  'IS_NULL',
+  'IS_NOT_NULL',
+  'IS_LITERAL',
+  'IS_ELEMENT',
+  'IS_KIND',
+  'LITERAL_TYPE',
+  // Deterministic update expressions
+  'ADD',
+  'MUL',
+  'CLAMP',
+  'COALESCE',
+  // Aggregates
+  ...AGGREGATES
+])
+
+/** Reverse lookup set, built once, so membership tests are O(1). */
 const KEYWORD_TYPES: ReadonlySet<TokenType> = new Set(KEYWORDS.values())
-const FUNCTION_TYPES: ReadonlySet<TokenType> = new Set(FUNCTIONS.values())
 
 export function isKeyword(type: TokenType): boolean {
   return KEYWORD_TYPES.has(type)
 }
 
-export function isFunction(type: TokenType): boolean {
-  return FUNCTION_TYPES.has(type)
+export function isFunction(name: string): boolean {
+  return FUNCTIONS.has(name.toUpperCase())
+}
+
+export function isAggregate(name: string): boolean {
+  return AGGREGATES.has(name.toUpperCase())
 }
 
 export function isLiteral(type: TokenType): boolean {
@@ -219,4 +392,17 @@ export function isTrivia(type: TokenType): boolean {
     type === TokenType.Newline ||
     type === TokenType.Comment
   )
+}
+
+/**
+ * True when a token may stand where the grammar writes `identifier`.
+ *
+ * KIP 2.0 keywords are contextual, not reserved: the Spec's own examples use
+ * `by`, `mode`, `at`, `key`, `name`, `type` and `status` as object keys, and
+ * `?a.lifecycle.status` as a dot path. Rejecting a keyword in those positions
+ * would make the normative examples unparseable, so every keyword doubles as
+ * an identifier outside the position that gives it meaning.
+ */
+export function isIdentifierLike(type: TokenType): boolean {
+  return type === TokenType.Identifier || isKeyword(type)
 }

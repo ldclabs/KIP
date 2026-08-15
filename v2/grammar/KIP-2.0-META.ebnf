@@ -424,7 +424,8 @@ as_of_clause     = "AS", "OF",
                    | "TIME", meta_value ) ;
 
 proposition_tuple
-                 = "(", term, ",", predicate_atom, ",", term, ")" ;
+                 = "(", term, ",", predicate_atom, ",", term, ")"
+                 | "(", "id", ":", meta_value, ")" ;
 
 predicate_atom   = string_literal | parameter | variable ;
 

@@ -3217,6 +3217,29 @@ Explicit:
 ?p PROPOSITION (?subject, "works_for", ?org)
 ```
 
+A Proposition already known by identity is addressed by id **in the same slot**:
+
+```prolog
+?p PROPOSITION (id: :proposition_id)
+```
+
+The parentheses are not decoration. `( ... )` is the Proposition expression
+slot, so the id form is usable everywhere the triple is — including as a `term`
+endpoint, which is how a statement about a statement names an existing
+Proposition:
+
+```prolog
+?meta (?p, "contradicts", (id: :other_proposition_id))
+```
+
+A Proposition is not a field-matched record: its canonical identity is the
+tuple (§12.3) and it carries no other native fields (§12.6). The id form is
+therefore an alternative *reference*, not an object pattern.
+
+The id form is **match-only**. A statement whose job is to resolve-or-create by
+structure — `ENSURE PROPOSITION`, and the `ASSERT` sugar that desugars through
+it — MUST reject it, because no structure can be created from an id alone.
+
 ---
 
 ## 43.3 Predicate variable
@@ -3716,6 +3739,33 @@ Performs non-destructive Concept identity consolidation.
 
 ---
 
+## 52.7 Bounded selection
+
+A mutation whose `WHERE` block can select an unbounded set accepts an optional
+`LIMIT` immediately after that `WHERE`:
+
+```text
+UPDATE
+RETRACT ASSERTION
+SET RETENTION
+ARCHIVE
+TOMBSTONE
+PURGE
+```
+
+A maintenance sweep that matches more elements than its author expected is a
+cognitive-state change, and under `PURGE` an irreversible one. Such a sweep
+SHOULD therefore be bounded.
+
+`MERGE CONCEPT` takes no `LIMIT`: its source and target are already named, and
+its `WHERE` only guards them.
+
+`LIMIT` bounds how many elements are affected. It is not a selection order, so
+a bounded sweep over a larger match set MUST NOT be assumed to be deterministic
+unless the runtime documents an order.
+
+---
+
 # 53. MUTATE Block
 
 ## 53.1 Syntax
@@ -4133,6 +4183,14 @@ Purge MAY leave a minimal, non-recoverable **stub** — element kind, content di
 ## 60.4 No destructive cascade default
 
 Native KIP 2.0 MUST NOT make v1-style destructive `DETACH` cascade the default deletion behavior.
+
+---
+
+## 60.5 Bounded removal
+
+All three removal families accept an optional `LIMIT` after their `WHERE`
+(§52.7). A removal sweep SHOULD be bounded, and a `PURGE` sweep SHOULD be
+bounded in addition to its required `CONFIRM "PURGE"`.
 
 ---
 
@@ -5974,8 +6032,11 @@ concept_pattern :=
     variable ("CONCEPT")? object_pattern
 
 proposition_pattern :=
-    variable? ("PROPOSITION")?
-    "(" term "," predicate_term "," term ")"
+    variable? ("PROPOSITION")? proposition_tuple
+
+proposition_tuple :=
+      "(" term "," predicate_term "," term ")"
+    | "(" "id" ":" scalar ")"
 
 assertion_pattern :=
     variable "ASSERTION" object_pattern

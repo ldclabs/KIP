@@ -1,4 +1,4 @@
-import { Token, TokenType, KEYWORDS, FUNCTIONS } from './token.js'
+import { Token, TokenType, KEYWORDS } from './token.js'
 
 /**
  * Characters that continue a word for boundary purposes. Unicode-aware on
@@ -100,12 +100,6 @@ class Lexer {
       return
     }
 
-    // System identifiers: $identifier
-    if (ch === '$') {
-      this.scanSystemIdent()
-      return
-    }
-
     // Identifiers and keywords
     if (this.isIdentStart(ch)) {
       this.scanIdentifier()
@@ -138,7 +132,12 @@ class Lexer {
       return
     }
 
-    // Single-character operators
+    // Single-character operators. A `-` that did not start a number is the
+    // unary negation of `unary_expression`, e.g. `FILTER(-?x < 0)`.
+    if (ch === '-') {
+      this.scanFixedToken(TokenType.Minus, 1)
+      return
+    }
     if (ch === '<') {
       this.scanFixedToken(TokenType.Lt, 1)
       return
@@ -361,28 +360,6 @@ class Lexer {
     )
   }
 
-  private scanSystemIdent(): void {
-    const start = this.pos
-    const startLine = this.line
-    const startCol = this.column
-    this.advance() // skip $
-
-    if (this.isIdentStart(this.peek())) {
-      while (this.pos < this.source.length && this.isIdentPart(this.peek())) {
-        this.advance()
-      }
-      this.pushToken(
-        TokenType.SystemIdent,
-        this.source.slice(start, this.pos),
-        start,
-        startLine,
-        startCol
-      )
-    } else {
-      this.pushToken(TokenType.Unknown, '$', start, startLine, startCol)
-    }
-  }
-
   private scanIdentifier(): void {
     const start = this.pos
     const startLine = this.line
@@ -410,18 +387,14 @@ class Lexer {
     // `FROM?x` and `TYPE"Drug"` are not `FROM ?x` and `TYPE "Drug"` written
     // tersely, they are unparseable — and accepting them here would let a
     // command run on this parser that a spec-conformant engine rejects.
+    //
+    // KIP 2.0 keywords are ASCII case-insensitive, so `find`, `Find` and
+    // `FIND` are one token; the original spelling is kept in `value` so the
+    // formatter can canonicalize it to uppercase without losing the source.
     if (this.atWordBoundary()) {
-      // Check keywords (case-sensitive — KIP keywords are uppercase)
       const kwType = KEYWORDS.get(upper)
-      if (kwType && value === upper) {
+      if (kwType) {
         this.pushToken(kwType, value, start, startLine, startCol)
-        return
-      }
-
-      // Check functions
-      const fnType = FUNCTIONS.get(upper)
-      if (fnType && value === upper) {
-        this.pushToken(fnType, value, start, startLine, startCol)
         return
       }
     }

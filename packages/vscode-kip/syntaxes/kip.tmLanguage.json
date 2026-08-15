@@ -25,16 +25,19 @@
       "include": "#parameter"
     },
     {
-      "include": "#system-ident"
-    },
-    {
       "include": "#function"
     },
     {
       "include": "#keyword-compound"
     },
     {
-      "include": "#keyword"
+      "include": "#keyword-element"
+    },
+    {
+      "include": "#keyword-statement"
+    },
+    {
+      "include": "#keyword-modifier"
     },
     {
       "include": "#operator"
@@ -74,6 +77,7 @@
       "match": "-?\\b\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?\\b"
     },
     "boolean": {
+      "comment": "JSON literals, not protocol keywords: these stay case-sensitive.",
       "name": "constant.language.boolean.kip",
       "match": "\\b(true|false)\\b"
     },
@@ -90,77 +94,170 @@
       "comment": "A placeholder occupies a full value position, so it never directly follows an identifier/quote/closing bracket (that colon is a key separator).",
       "match": "(?<![A-Za-z0-9_\"'\\]\\})]):[a-zA-Z_][a-zA-Z0-9_]*"
     },
-    "system-ident": {
-      "name": "constant.other.system.kip",
-      "match": "\\$[a-zA-Z_][a-zA-Z0-9_]*"
-    },
     "function": {
+      "comment": "Function names are ASCII case-insensitive, like every other KIP 2.0 name. The guards keep `?a.count` and `{in: 1}` out.",
       "name": "support.function.kip",
-      "match": "\\b(COUNT|SUM|AVG|MIN|MAX|CONTAINS|STARTS_WITH|ENDS_WITH|REGEX|IN|IS_NULL|IS_NOT_NULL|DISTINCT|ADD|MUL|CLAMP|COALESCE)\\b"
+      "match": "(?i)(?<![\\w.])(?:COUNT|SUM|AVG|MIN|MAX|DISTINCT|CONTAINS|STARTS_WITH|ENDS_WITH|REGEX|IN|IS_NULL|IS_NOT_NULL|IS_LITERAL|IS_ELEMENT|IS_KIND|LITERAL_TYPE|ADD|MUL|CLAMP|COALESCE)\\b(?!:)"
     },
     "keyword-compound": {
+      "comment": "Two- and three-word keywords, highlighted as one unit. Listed before the single-word rules so the longer spelling wins.",
       "patterns": [
         {
           "name": "keyword.other.kip",
-          "match": "\\bSET\\s+ATTRIBUTES\\b"
+          "match": "(?i)\\bSET\\s+FIELDS\\b"
         },
         {
           "name": "keyword.other.kip",
-          "match": "\\bSET\\s+PROPOSITIONS\\b"
+          "match": "(?i)\\bSET\\s+ATTRIBUTES\\b"
         },
         {
           "name": "keyword.other.kip",
-          "match": "\\bWITH\\s+METADATA\\b"
+          "match": "(?i)\\bSET\\s+FACET\\b"
         },
         {
           "name": "keyword.other.kip",
-          "match": "\\bWITH\\s+TYPE\\b"
+          "match": "(?i)\\bSET\\s+STRUCTURAL\\b"
         },
         {
           "name": "keyword.other.kip",
-          "match": "\\bORDER\\s+BY\\b"
+          "match": "(?i)\\bSET\\s+RETENTION\\b"
         },
         {
           "name": "keyword.other.kip",
-          "match": "\\bCONCEPT\\s+TYPES?\\b"
+          "match": "(?i)\\bUNSET\\s+ATTRIBUTES\\b"
         },
         {
           "name": "keyword.other.kip",
-          "match": "\\bPROPOSITION\\s+TYPES?\\b"
+          "match": "(?i)\\bUNSET\\s+FACET\\b"
         },
         {
           "name": "keyword.other.kip",
-          "match": "\\bDELETE\\s+ATTRIBUTES\\b"
+          "match": "(?i)\\bCLIENT\\s+KEY\\b"
         },
         {
           "name": "keyword.other.kip",
-          "match": "\\bDELETE\\s+METADATA\\b"
+          "match": "(?i)\\bEXPECT\\s+VERSION\\b"
         },
         {
           "name": "keyword.other.kip",
-          "match": "\\bDELETE\\s+PROPOSITIONS\\b"
+          "match": "(?i)\\bEXPECT\\s+STATE\\b"
         },
         {
           "name": "keyword.other.kip",
-          "match": "\\bDELETE\\s+CONCEPT\\b"
+          "match": "(?i)\\bAS\\s+OF\\b"
         },
         {
           "name": "keyword.other.kip",
-          "match": "\\bSET\\s+METADATA\\b"
+          "match": "(?i)\\bFOR\\s+TIME\\b"
         },
         {
           "name": "keyword.other.kip",
-          "match": "\\bMERGE\\s+CONCEPT\\b"
+          "match": "(?i)\\bWITH\\s+EPISTEMIC\\b"
         },
         {
           "name": "keyword.other.kip",
-          "match": "\\bEXPECT\\s+VERSION\\b"
+          "match": "(?i)\\bWITH\\s+TYPE\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "(?i)\\bWITH\\s+PREDICATE\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "(?i)\\bORDER\\s+BY\\b"
+        },
+        {
+          "name": "storage.type.kip",
+          "match": "(?i)\\bBELIEF\\s+SLOT\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "(?i)\\bREFERENCE\\s+POLICY\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "(?i)\\bBY\\s+IDEMPOTENCY\\s+KEY\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "(?i)\\bSTRUCTURAL\\s+FIELDS?\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "(?i)\\bSCHEMA\\s+ENVIRONMENT\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "(?i)\\bSCHEMA\\s+PACKAGES?\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "(?i)\\bEXECUTION\\s+CONTEXT\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "(?i)\\bEPISTEMIC\\s+(?:POLICIES|POLICY)\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "(?i)\\bPROJECTION\\s+CAPABILITY\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "(?i)\\bIMPORT\\s+CAPSULE\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "(?i)\\bIMPORT\\s+PLAN\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "(?i)\\bFROM\\s+SEQ\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "(?i)\\bTO\\s+SEQ\\b"
+        },
+        {
+          "name": "keyword.other.kip",
+          "match": "(?i)\\bAFTER\\s+SEQ\\b"
+        },
+        {
+          "name": "keyword.control.kip",
+          "match": "(?i)\\bCHANGES\\s+SINCE\\b"
+        },
+        {
+          "name": "keyword.control.kip",
+          "match": "(?i)\\bHISTORY\\s+ELEMENT\\b"
+        },
+        {
+          "name": "keyword.control.kip",
+          "match": "(?i)\\bHISTORY\\s+SPACE\\b"
+        },
+        {
+          "name": "keyword.control.kip",
+          "match": "(?i)\\bPREVIEW\\s+KML\\b"
+        },
+        {
+          "name": "keyword.control.kip",
+          "match": "(?i)\\bVALIDATE\\s+(?:KQL|KML)\\b"
         }
       ]
     },
-    "keyword": {
+    "keyword-element": {
+      "comment": "The five Core element kinds plus the Projection pattern kinds and CAPSULE.",
+      "name": "storage.type.kip",
+      "match": "(?i)(?<![\\w.])(?:CONCEPT|PROPOSITION|ASSERTION|EVIDENCE|ACTIVITY|STRUCTURAL|BELIEF|SLOT|CAPSULE)\\b(?!:)"
+    },
+    "keyword-statement": {
+      "comment": "Statement verbs and clause heads of KQL, KML and META. Keywords are ASCII case-insensitive; the lookbehind keeps `?a.find` and the negative lookahead keeps `{by: ...}` uncolored, since keywords are contextual, not reserved.",
       "name": "keyword.control.kip",
-      "match": "\\b(FIND|WHERE|UPSERT|UPDATE|MERGE|INTO|DELETE|CONCEPT|PROPOSITION|SET|ATTRIBUTES|PROPOSITIONS|WITH|METADATA|ORDER|BY|LIMIT|CURSOR|FILTER|NOT|OPTIONAL|UNION|DETACH|FROM|ASC|DESC|DESCRIBE|SEARCH|EXPORT|PRIMER|DOMAINS|TYPE|TYPES|MODE|THRESHOLD|EXPECT|VERSION)\\b"
+      "match": "(?i)(?<![\\w.])(?:FIND|MUTATE|CREATE|UPSERT|ENSURE|ASSERT|SUPERSEDING|SUPERSEDE|UPDATE|RETRACT|CORRECT|TRANSITION|ARCHIVE|TOMBSTONE|PURGE|MERGE|DESCRIBE|LIST|SEARCH|VERIFY|VALIDATE|PREVIEW|HISTORY|CHANGES|SNAPSHOT|EXPORT|WHERE|FILTER|NOT|OPTIONAL|UNION)\\b(?!:)"
+    },
+    "keyword-modifier": {
+      "comment": "Clause modifiers and operand keywords. Plural spellings precede their singular prefix so the longer one wins.",
+      "name": "keyword.other.kip",
+      "match": "(?i)(?<![\\w.])(?:ASC|AS|OF|SEQ|TX|TIME|FOR|EPISTEMIC|ORDER|BY|DESC|LIMIT|CURSOR|SET|UNSET|RETENTION|CONFIRM|REFERENCE|POLICIES|POLICY|INTO|TO|TYPES|TYPE|CLIENT|KEY|NAME|MATCH|FIELDS|FIELD|ATTRIBUTES|FACETS|FACET|EXPECT|VERSION|STATE|STATUS|WITH|MODE|THRESHOLD|PRIMER|PROTOCOL|EXECUTION|CONTEXT|CAPABILITIES|CAPABILITY|SPACES|SPACE|SCHEMA|ENVIRONMENT|PACKAGES|PACKAGE|PREDICATES|PREDICATE|COMPATIBILITY|FROM|ERROR|TRANSACTION|IDEMPOTENCY|PROJECTION|TRUST|ACCESS|COGNITION|RECEIPT|BLOB|CHECKPOINT|KQL|KML|IMPORT|PLAN|ELEMENT|SINCE|AFTER)\\b(?!:)"
     },
     "operator": {
       "patterns": [
@@ -171,6 +268,10 @@
         {
           "name": "keyword.operator.logical.kip",
           "match": "&&|\\|\\||!"
+        },
+        {
+          "name": "keyword.operator.arithmetic.kip",
+          "match": "-"
         }
       ]
     },

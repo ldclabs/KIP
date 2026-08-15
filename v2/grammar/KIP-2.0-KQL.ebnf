@@ -20,6 +20,12 @@
      3. WHERE items are whitespace-delimited; commas are used only inside
         tuples, objects, arrays, argument lists, and projection/sort lists.
      4. Raw path quantifiers are syntax only for raw Proposition predicates.
+     4a. `proposition_tuple` also admits `( "id" ":" <scalar> )`. The id form
+        occupies the same slot as the triple, so it is usable wherever a
+        Proposition expression is — including as a `term` endpoint, which is
+        how a statement about a statement names an existing Proposition. It
+        is match-only: semantic validation rejects it where the statement's
+        job is to resolve-or-create by structure (ENSURE PROPOSITION, ASSERT).
      5. UNION retains the KIP 1.x syntax `UNION { ... }`: it forms an
         independent alternative branch relative to the surrounding block.
      6. Two shared rule names intentionally diverge from KML/META:
@@ -207,7 +213,8 @@ union_clause     = "UNION", where_block ;
 (* ------------------------------------------------------------------------- *)
 
 proposition_tuple
-                 = "(", term, ",", raw_predicate_expression, ",", term, ")" ;
+                 = "(", term, ",", raw_predicate_expression, ",", term, ")"
+                 | "(", "id", ":", scalar_value, ")" ;
 
 term             = variable
                  | parameter

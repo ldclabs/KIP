@@ -1,59 +1,110 @@
 import { tokenize } from './lexer.js'
-import { Token, TokenType, isTrivia } from './token.js'
+import {
+  Token,
+  TokenType,
+  isTrivia,
+  isIdentifierLike,
+  isAggregate
+} from './token.js'
 import type { Range, Position } from './token.js'
 import type {
   Program,
   Statement,
+  MutationClause,
   FindStatement,
-  UpsertStatement,
-  UpdateStatement,
-  MergeStatement,
-  DeleteStatement,
-  DescribeStatement,
-  SearchStatement,
-  ExportStatement,
+  AsOfClause,
+  ForTimeClause,
+  EpistemicClause,
+  OrderByClause,
+  OrderItem,
+  LimitClause,
+  CursorClause,
   WhereClause,
   WherePattern,
   ConceptPattern,
-  ConceptMatcher,
   PropositionPattern,
-  PropositionEndpoint,
-  PredicateExpr,
-  PredicateLiteral,
-  PredicateVariable,
-  HopRange,
+  AssertionPattern,
+  EvidencePattern,
+  ActivityPattern,
+  StructuralPattern,
+  BeliefPattern,
+  BeliefSlotPattern,
   FilterClause,
   NotClause,
   OptionalClause,
   UnionClause,
-  ConceptBlock,
-  PropositionBlock,
-  ExpectVersion,
-  SetAttributes,
-  SetMetadata,
-  SetPropositions,
-  PropositionItem,
-  WithMetadata,
-  OrderByClause,
-  OrderByKey,
-  LimitClause,
-  CursorClause,
-  ThresholdClause,
+  PropositionTuple,
+  Term,
+  PredicateAtom,
+  RawPredicateExpression,
+  PredicatePathAtom,
+  PathQuantifier,
+  ObjectPattern,
+  MutateStatement,
+  CreateConceptStatement,
+  UpsertConceptStatement,
+  EnsurePropositionStatement,
+  AssertStatement,
+  CreateEvidenceStatement,
+  CreateAssertionStatement,
+  CreateActivityStatement,
+  TypeClause,
+  ClientKeyClause,
+  NameClause,
+  MatchClause,
+  SetFieldsClause,
+  SetAttributesClause,
+  SetFacetClause,
+  UnsetAttributesClause,
+  UnsetFacetClause,
+  UnsetField,
+  SetStructuralClause,
+  StructuralAssignment,
+  ExpectVersionClause,
+  ExpectStateClause,
+  UpdateStatement,
+  UpdateAction,
+  RetractAssertionStatement,
+  SupersedeAssertionStatement,
+  CorrectEvidenceStatement,
+  TransitionActivityStatement,
+  SetRetentionStatement,
+  ArchiveStatement,
+  TombstoneStatement,
+  PurgeStatement,
+  MergeConceptStatement,
+  DescribeStatement,
+  DescribeTargetKind,
+  ListStatement,
+  ListTargetKind,
+  SearchStatement,
+  SearchKind,
+  VerifyStatement,
+  VerifyTargetKind,
+  ValidateStatement,
+  ValidateTargetKind,
+  PreviewStatement,
+  HistoryStatement,
+  ChangesStatement,
+  SnapshotStatement,
+  ExportCapsuleStatement,
   Expression,
-  BinaryExpression,
-  UnaryExpression,
   FunctionCallExpr,
-  DotExpression,
+  AggregateExpr,
+  FieldAccess,
+  FieldStep,
   VariableRef,
   ParameterRef,
   StringLiteral,
   NumberLiteral,
   BooleanLiteral,
   NullLiteral,
+  ScalarValue,
+  SchemaSymbol,
+  TargetRef,
   ArrayLiteral,
   ObjectLiteral,
-  ObjectEntry,
-  UpsertBlock
+  ObjectEntry
 } from './ast.js'
 import type { Diagnostic } from './diagnostics.js'
 
@@ -61,6 +112,23 @@ export interface ParseResult {
   ast: Program
   diagnostics: Diagnostic[]
 }
+
+/**
+ * Which grammar owns the WHERE block being parsed.
+ *
+ * KQL owns the two reviewed divergences: `proposition_tuple` accepts raw
+ * predicate path expressions, and `where_clause` additionally accepts
+ * BELIEF / BELIEF SLOT. KML and META EXPORT get neither — a virtual
+ * Projection can never be a mutation target or an export selector.
+ */
+type Dialect = 'kql' | 'raw'
+
+/** The four baseline scalar types; arrays and objects are not Core Literals. */
+type LiteralNode =
+  | StringLiteral
+  | NumberLiteral
+  | BooleanLiteral
+  | NullLiteral
 
 export function parse(source: string): ParseResult {
   const allTokens = tokenize(source)
@@ -73,6 +141,7 @@ class Parser {
   private pos: number = 0
   private diagnostics: Diagnostic[] = []
   private source: string
+  private dialect: Dialect = 'kql'
 
   constructor(tokens: Token[], source: string) {
     // Filter out trivia for parsing, but keep comments for attachment later
@@ -116,1011 +185,535 @@ class Parser {
   private parseStatement(): Statement | null {
     const tok = this.current()
     switch (tok.type) {
+      // KQL
       case TokenType.Find:
         return this.parseFindStatement()
+
+      // KML
+      case TokenType.Mutate:
+        return this.parseMutateStatement()
+      case TokenType.Create:
       case TokenType.Upsert:
-        return this.parseUpsertStatement()
+      case TokenType.Ensure:
+      case TokenType.Assert:
       case TokenType.Update:
-        return this.parseUpdateStatement()
+      case TokenType.Retract:
+      case TokenType.Supersede:
+      case TokenType.Correct:
+      case TokenType.Transition:
+      case TokenType.Set:
+      case TokenType.Archive:
+      case TokenType.Tombstone:
+      case TokenType.Purge:
       case TokenType.Merge:
-        return this.parseMergeStatement()
-      case TokenType.Delete:
-        return this.parseDeleteStatement()
+        return this.parseMutationClause()
+
+      // META
       case TokenType.Describe:
         return this.parseDescribeStatement()
+      case TokenType.List:
+        return this.parseListStatement()
       case TokenType.Search:
         return this.parseSearchStatement()
+      case TokenType.Verify:
+        return this.parseVerifyStatement()
+      case TokenType.Validate:
+        return this.parseValidateStatement()
+      case TokenType.Preview:
+        return this.parsePreviewStatement()
+      case TokenType.History:
+        return this.parseHistoryStatement()
+      case TokenType.Changes:
+        return this.parseChangesStatement()
+      case TokenType.Snapshot:
+        return this.parseSnapshotStatement()
       case TokenType.Export:
-        return this.parseExportStatement()
+        return this.parseExportCapsuleStatement()
+
       default:
         this.error(
-          `Unexpected token '${tok.value}', expected a statement keyword (FIND, UPSERT, UPDATE, MERGE, DELETE, DESCRIBE, SEARCH, EXPORT)`,
+          `Unexpected token '${tok.value}': expected a KQL, KML or META statement`,
           tok
         )
-        this.advance()
         return null
     }
   }
 
+  /** Every mutation legal at statement level and inside `MUTATE { ... }`. */
+  private parseMutationClause(): MutationClause {
+    const tok = this.current()
+    switch (tok.type) {
+      case TokenType.Create:
+        return this.parseCreateStatement()
+      case TokenType.Upsert:
+        return this.parseUpsertConcept()
+      case TokenType.Ensure:
+        return this.parseEnsureProposition()
+      case TokenType.Assert:
+        return this.parseAssertStatement()
+      case TokenType.Update:
+        return this.parseUpdateStatement()
+      case TokenType.Retract:
+        return this.parseRetractAssertion()
+      case TokenType.Supersede:
+        return this.parseSupersedeAssertion()
+      case TokenType.Correct:
+        return this.parseCorrectEvidence()
+      case TokenType.Transition:
+        return this.parseTransitionActivity()
+      case TokenType.Set:
+        return this.parseSetRetention()
+      case TokenType.Archive:
+        return this.parseArchiveStatement()
+      case TokenType.Tombstone:
+        return this.parseTombstoneStatement()
+      case TokenType.Purge:
+        return this.parsePurgeStatement()
+      case TokenType.Merge:
+        return this.parseMergeConcept()
+      default:
+        this.error(`Unexpected token '${tok.value}': expected a KML mutation`, tok)
+        throw new ParseAbort()
+    }
+  }
+
   // ────────────────────────────────────────────────────────────────────
-  //  FIND
+  //  KQL — FIND
   // ────────────────────────────────────────────────────────────────────
 
   private parseFindStatement(): FindStatement {
+    const leadingComments = this.collectLeadingComments()
     const start = this.currentPos()
-    const comments = this.collectLeadingComments()
+    this.dialect = 'kql'
     this.expect(TokenType.Find)
-    const lparen = this.current()
     this.expect(TokenType.LParen)
 
     const projections: Expression[] = []
     if (!this.check(TokenType.RParen)) {
-      projections.push(this.parseExpression())
-      while (this.match(TokenType.Comma)) {
-        projections.push(this.parseExpression())
-      }
+      do {
+        projections.push(this.parseProjectionExpression())
+      } while (this.match(TokenType.Comma))
     }
     if (projections.length === 0) {
-      this.error(
-        `FIND must declare at least one output expression, e.g. FIND(?var)`,
-        lparen
-      )
+      this.error('FIND requires at least one projection', this.current())
     }
     this.expect(TokenType.RParen)
 
-    let where: WhereClause | undefined
+    this.expectKeywordWithSpace(TokenType.Where)
+    const where = this.parseWhereClause()
+
+    let asOf: AsOfClause | undefined
+    let forTime: ForTimeClause | undefined
+    let epistemic: EpistemicClause | undefined
     let orderBy: OrderByClause | undefined
     let limit: LimitClause | undefined
     let cursor: CursorClause | undefined
 
-    if (this.check(TokenType.Where)) {
-      where = this.parseWhereClause()
-    }
-    if (this.check(TokenType.Order)) {
-      orderBy = this.parseOrderBy()
-    }
-    if (this.check(TokenType.Limit)) {
-      limit = this.parseLimitClause()
-    }
-    if (this.check(TokenType.Cursor)) {
-      cursor = this.parseCursorClause()
+    // The grammar fixes this order. Accepting any order here would let a
+    // command run on this parser that a conformant engine rejects, so each
+    // clause is taken once and out-of-order repeats are reported.
+    for (;;) {
+      const tok = this.current()
+      if (this.check(TokenType.As)) {
+        this.rejectRepeat(asOf, 'AS OF', tok)
+        asOf = this.parseAsOfClause()
+      } else if (this.check(TokenType.For)) {
+        this.rejectRepeat(forTime, 'FOR TIME', tok)
+        forTime = this.parseForTimeClause()
+      } else if (this.check(TokenType.With)) {
+        this.rejectRepeat(epistemic, 'WITH EPISTEMIC', tok)
+        epistemic = this.parseEpistemicClause()
+      } else if (this.check(TokenType.Order)) {
+        this.rejectRepeat(orderBy, 'ORDER BY', tok)
+        orderBy = this.parseOrderBy()
+      } else if (this.check(TokenType.Limit)) {
+        this.rejectRepeat(limit, 'LIMIT', tok)
+        limit = this.parseLimitClause()
+      } else if (this.check(TokenType.Cursor)) {
+        this.rejectRepeat(cursor, 'CURSOR', tok)
+        cursor = this.parseCursorClause()
+      } else {
+        break
+      }
     }
 
     return {
       kind: 'FindStatement',
       projections,
       where,
+      asOf,
+      forTime,
+      epistemic,
       orderBy,
       limit,
       cursor,
-      range: { start, end: this.currentPos() },
-      leadingComments: comments.length > 0 ? comments : undefined
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
     }
   }
 
-  // ────────────────────────────────────────────────────────────────────
-  //  UPSERT
-  // ────────────────────────────────────────────────────────────────────
-
-  private parseUpsertStatement(): UpsertStatement {
-    const start = this.currentPos()
-    const comments = this.collectLeadingComments()
-    this.expectKeywordWithSpace(TokenType.Upsert)
-    this.expect(TokenType.LBrace)
-
-    const blocks: UpsertBlock[] = []
-    this.skipComments()
-    while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
-      const before = this.pos
-      this.skipComments()
-      if (this.check(TokenType.Concept)) {
-        blocks.push(this.parseConceptBlock())
-      } else if (this.check(TokenType.Proposition)) {
-        blocks.push(this.parsePropositionBlock())
-      } else if (this.check(TokenType.RBrace)) {
-        break
-      } else {
-        this.error(
-          `Expected CONCEPT or PROPOSITION inside UPSERT block`,
-          this.current()
-        )
-        this.advance()
-      }
-      this.skipComments()
-      // A sub-parser that rejects its first token reports and returns
-      // without consuming it, so a loop keyed on that token would spin
-      // forever building diagnostics. Stop as soon as nothing moved.
-      if (this.pos === before) break
-    }
-    this.expect(TokenType.RBrace)
-
-    let metadata: WithMetadata | undefined
-    if (this.check(TokenType.With)) {
-      metadata = this.parseWithMetadata()
-    }
-
-    return {
-      kind: 'UpsertStatement',
-      blocks,
-      metadata,
-      range: { start, end: this.currentPos() },
-      leadingComments: comments.length > 0 ? comments : undefined
-    }
+  /** `projection_expression = aggregate_expression | expression` */
+  private parseProjectionExpression(): Expression {
+    return this.parseExpression()
   }
 
-  private parseConceptBlock(): ConceptBlock {
+  private parseAsOfClause(): AsOfClause {
     const start = this.currentPos()
-    const comments = this.collectLeadingComments()
-    this.expectKeywordWithSpace(TokenType.Concept)
+    const first = this.expect(TokenType.As)
+    this.expectSecondWord(TokenType.Of, first)
 
-    // The handle is optional: a block nothing else refers to needs no name.
-    let handle: string | undefined
-    if (this.check(TokenType.Variable)) {
-      handle = this.expectVariable()
-    }
-    this.expect(TokenType.LBrace)
-
-    const matcher = this.parseConceptMatcher()
-    let expectVersion: ExpectVersion | undefined
-    if (this.check(TokenType.Expect)) {
-      expectVersion = this.parseExpectVersion()
-    }
-
-    let setAttributes: SetAttributes | undefined
-    let setPropositions: SetPropositions | undefined
-    let metadata: WithMetadata | undefined
-
-    this.skipComments()
-    while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
-      const before = this.pos
-      this.skipComments()
-      if (this.check(TokenType.Set)) {
-        const setStart = this.currentPos()
-        const setTok = this.advance() // skip SET
-        if (this.check(TokenType.Attributes)) {
-          this.expectSecondWord(TokenType.Attributes, setTok)
-          setAttributes = this.parseSetAttributesBody(setStart)
-        } else if (this.check(TokenType.Propositions)) {
-          this.expectSecondWord(TokenType.Propositions, setTok)
-          setPropositions = this.parseSetPropositionsBody(setStart)
-        } else {
-          this.error(
-            `Expected ATTRIBUTES or PROPOSITIONS after SET`,
-            this.current()
-          )
-          this.advance()
-        }
-      } else if (this.check(TokenType.With)) {
-        metadata = this.parseWithMetadata()
-      } else if (this.check(TokenType.RBrace)) {
-        break
-      } else {
-        this.skipComments()
-        if (this.check(TokenType.RBrace)) break
-        this.error(
-          `Unexpected token '${this.current().value}' in CONCEPT block`,
-          this.current()
-        )
-        this.advance()
-      }
-      this.skipComments()
-      // A sub-parser that rejects its first token reports and returns
-      // without consuming it, so a loop keyed on that token would spin
-      // forever building diagnostics. Stop as soon as nothing moved.
-      if (this.pos === before) break
-    }
-
-    this.expect(TokenType.RBrace)
-
-    // Concept-level WITH METADATA (outside the CONCEPT braces)
-    if (!metadata && this.check(TokenType.With)) {
-      metadata = this.parseWithMetadata()
-    }
-
-    return {
-      kind: 'ConceptBlock',
-      handle,
-      matcher,
-      expectVersion,
-      setAttributes,
-      setPropositions,
-      metadata,
-      range: { start, end: this.currentPos() },
-      leadingComments: comments.length > 0 ? comments : undefined
-    }
-  }
-
-  private parsePropositionBlock(): PropositionBlock {
-    const start = this.currentPos()
-    const comments = this.collectLeadingComments()
-    this.expectKeywordWithSpace(TokenType.Proposition)
-
-    let handle: string | undefined
-    if (this.check(TokenType.Variable)) {
-      handle = this.expectVariable()
-    }
-
-    this.expect(TokenType.LBrace)
-    const proposition = this.parsePropositionPatternBody(undefined)
-    let expectVersion: ExpectVersion | undefined
-    if (this.check(TokenType.Expect)) {
-      expectVersion = this.parseExpectVersion()
-    }
-
-    let setAttributes: SetAttributes | undefined
-    let metadata: WithMetadata | undefined
-
-    this.skipComments()
-    while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
-      const before = this.pos
-      this.skipComments()
-      if (this.check(TokenType.Set)) {
-        const setStart = this.currentPos()
-        const setTok = this.advance()
-        if (this.check(TokenType.Attributes)) {
-          this.expectSecondWord(TokenType.Attributes, setTok)
-          setAttributes = this.parseSetAttributesBody(setStart)
-        } else {
-          this.error(
-            `Expected ATTRIBUTES after SET in PROPOSITION block`,
-            this.current()
-          )
-          this.advance()
-        }
-      } else if (this.check(TokenType.RBrace)) {
-        break
-      } else {
-        this.error(
-          `Unexpected token '${this.current().value}' in PROPOSITION block`,
-          this.current()
-        )
-        this.advance()
-      }
-      this.skipComments()
-      // A sub-parser that rejects its first token reports and returns
-      // without consuming it, so a loop keyed on that token would spin
-      // forever building diagnostics. Stop as soon as nothing moved.
-      if (this.pos === before) break
-    }
-
-    this.expect(TokenType.RBrace)
-
-    if (this.check(TokenType.With)) {
-      metadata = this.parseWithMetadata()
-    }
-
-    return {
-      kind: 'PropositionBlock',
-      handle,
-      id: proposition.id,
-      subject: proposition.subject,
-      predicate: proposition.predicate,
-      object: proposition.object,
-      expectVersion,
-      setAttributes,
-      metadata,
-      range: { start, end: this.currentPos() },
-      leadingComments: comments.length > 0 ? comments : undefined
-    }
-  }
-
-  // ────────────────────────────────────────────────────────────────────
-  //  UPDATE
-  // ────────────────────────────────────────────────────────────────────
-
-  private parseUpdateStatement(): UpdateStatement {
-    const start = this.currentPos()
-    const comments = this.collectLeadingComments()
-    this.expectKeywordWithSpace(TokenType.Update)
-
-    const target = this.expectVariable()
-    let setAttributes: SetAttributes | undefined
-    let setMetadata: SetMetadata | undefined
-
-    this.skipComments()
-    while (this.check(TokenType.Set) && !this.isAtEnd()) {
-      const before = this.pos
-      const setStart = this.currentPos()
-      const setTok = this.advance()
-      if (this.check(TokenType.Attributes)) {
-        this.expectSecondWord(TokenType.Attributes, setTok)
-        setAttributes = this.parseSetAttributesBody(setStart)
-      } else if (this.check(TokenType.Metadata)) {
-        this.expectSecondWord(TokenType.Metadata, setTok)
-        setMetadata = this.parseSetMetadataBody(setStart)
-      } else {
-        this.error(
-          `Expected ATTRIBUTES or METADATA after SET in UPDATE statement`,
-          this.current()
-        )
-        this.advance()
-      }
-      this.skipComments()
-      // A sub-parser that rejects its first token reports and returns
-      // without consuming it, so a loop keyed on that token would spin
-      // forever building diagnostics. Stop as soon as nothing moved.
-      if (this.pos === before) break
-    }
-
-    if (!setAttributes && !setMetadata) {
-      this.error(
-        `Expected SET ATTRIBUTES or SET METADATA in UPDATE statement`,
-        this.current()
-      )
-    }
-
-    const where = this.parseWhereClause()
-
-    let limit: LimitClause | undefined
-    if (this.check(TokenType.Limit)) {
-      limit = this.parseLimitClause()
-    }
-
-    return {
-      kind: 'UpdateStatement',
-      target,
-      setAttributes,
-      setMetadata,
-      where,
-      limit,
-      range: { start, end: this.currentPos() },
-      leadingComments: comments.length > 0 ? comments : undefined
-    }
-  }
-
-  // ────────────────────────────────────────────────────────────────────
-  //  MERGE
-  // ────────────────────────────────────────────────────────────────────
-
-  private parseMergeStatement(): MergeStatement {
-    const start = this.currentPos()
-    const comments = this.collectLeadingComments()
-    const mergeTok = this.expect(TokenType.Merge)
-    this.expectSecondWord(TokenType.Concept, mergeTok)
-    const source = this.expectVariable()
-    this.expect(TokenType.Into)
-    const target = this.expectVariable()
-    const where = this.parseWhereClause()
-
-    return {
-      kind: 'MergeStatement',
-      source,
-      target,
-      where,
-      range: { start, end: this.currentPos() },
-      leadingComments: comments.length > 0 ? comments : undefined
-    }
-  }
-
-  // ────────────────────────────────────────────────────────────────────
-  //  DELETE
-  // ────────────────────────────────────────────────────────────────────
-
-  private parseDeleteStatement(): DeleteStatement {
-    const start = this.currentPos()
-    const comments = this.collectLeadingComments()
-    this.expectKeywordWithSpace(TokenType.Delete)
-
-    let deleteType: DeleteStatement['deleteType']
-    let keys: string[] | undefined
-    let target: string
-    let detach = false
-
-    if (this.check(TokenType.Attributes)) {
-      deleteType = 'ATTRIBUTES'
-      this.advance()
-      keys = this.parseDeleteKeySet()
-      this.expect(TokenType.From)
-      target = this.expectVariable()
-    } else if (this.check(TokenType.Metadata)) {
-      deleteType = 'METADATA'
-      this.advance()
-      keys = this.parseDeleteKeySet()
-      this.expect(TokenType.From)
-      target = this.expectVariable()
-    } else if (this.check(TokenType.Propositions)) {
-      deleteType = 'PROPOSITIONS'
-      this.advance()
-      target = this.expectVariable()
-    } else if (this.check(TokenType.Concept)) {
-      deleteType = 'CONCEPT'
-      this.advance()
-      target = this.expectVariable()
-      if (this.check(TokenType.Detach)) {
-        detach = true
-        this.advance()
-      } else {
-        this.error(
-          `Expected DETACH after DELETE CONCEPT target '${target}'`,
-          this.current()
-        )
-      }
+    let basis: 'SEQ' | 'TX' | 'TIME'
+    if (this.match(TokenType.Seq)) {
+      basis = 'SEQ'
+    } else if (this.match(TokenType.Tx)) {
+      basis = 'TX'
+    } else if (this.match(TokenType.Time)) {
+      basis = 'TIME'
     } else {
       this.error(
-        `Expected ATTRIBUTES, METADATA, PROPOSITIONS, or CONCEPT after DELETE`,
+        `Expected SEQ, TX or TIME after AS OF but got '${this.current().value}'`,
         this.current()
       )
-      deleteType = 'ATTRIBUTES'
-      target = '?unknown'
+      basis = 'SEQ'
     }
-
-    const where = this.parseWhereClause()
-
+    const value = this.parseScalarValue()
     return {
-      kind: 'DeleteStatement',
-      deleteType,
-      keys,
-      target,
-      detach: detach || undefined,
-      where,
-      range: { start, end: this.currentPos() },
-      leadingComments: comments.length > 0 ? comments : undefined
+      kind: 'AsOfClause',
+      basis,
+      value,
+      range: { start, end: this.endPos() }
     }
   }
 
-  private parseDeleteKeySet(): string[] {
-    this.expect(TokenType.LBrace)
-    const keys: string[] = []
-    if (!this.check(TokenType.RBrace)) {
-      keys.push(this.expectString())
-      while (this.match(TokenType.Comma)) {
-        if (this.check(TokenType.RBrace)) break
-        keys.push(this.expectString())
-      }
-    }
-    this.expect(TokenType.RBrace)
-    return keys
-  }
-
-  // ────────────────────────────────────────────────────────────────────
-  //  DESCRIBE
-  // ────────────────────────────────────────────────────────────────────
-
-  private parseDescribeStatement(): DescribeStatement {
+  private parseForTimeClause(): ForTimeClause {
     const start = this.currentPos()
-    const comments = this.collectLeadingComments()
-    this.expectKeywordWithSpace(TokenType.Describe)
-
-    let describeType: DescribeStatement['describeType']
-    let typeName: string | undefined
-    let typeNameValue: StringLiteral | ParameterRef | undefined
-    let limit: LimitClause | undefined
-    let cursor: CursorClause | undefined
-
-    if (this.check(TokenType.Primer)) {
-      describeType = 'PRIMER'
-      this.advance()
-    } else if (this.check(TokenType.Domains)) {
-      describeType = 'DOMAINS'
-      this.advance()
-    } else if (this.check(TokenType.Concept)) {
-      const headTok = this.advance()
-      if (this.check(TokenType.Types)) {
-        describeType = 'CONCEPT_TYPES'
-        this.expectSecondWord(TokenType.Types, headTok)
-      } else if (this.check(TokenType.Type)) {
-        describeType = 'CONCEPT_TYPE'
-        this.expectSecondWord(TokenType.Type, headTok)
-        typeNameValue = this.parseStringOrParameterValue(
-          'DESCRIBE CONCEPT TYPE'
-        )
-        typeName =
-          typeNameValue.kind === 'StringLiteral'
-            ? typeNameValue.parsed
-            : typeNameValue.name
-      } else {
-        this.error(
-          `Expected TYPE or TYPES after DESCRIBE CONCEPT`,
-          this.current()
-        )
-        describeType = 'CONCEPT_TYPES'
-      }
-    } else if (this.check(TokenType.Proposition)) {
-      const headTok = this.advance()
-      if (this.check(TokenType.Types)) {
-        describeType = 'PROPOSITION_TYPES'
-        this.expectSecondWord(TokenType.Types, headTok)
-      } else if (this.check(TokenType.Type)) {
-        describeType = 'PROPOSITION_TYPE'
-        this.expectSecondWord(TokenType.Type, headTok)
-        typeNameValue = this.parseStringOrParameterValue(
-          'DESCRIBE PROPOSITION TYPE'
-        )
-        typeName =
-          typeNameValue.kind === 'StringLiteral'
-            ? typeNameValue.parsed
-            : typeNameValue.name
-      } else {
-        this.error(
-          `Expected TYPE or TYPES after DESCRIBE PROPOSITION`,
-          this.current()
-        )
-        describeType = 'PROPOSITION_TYPES'
-      }
-    } else {
-      this.error(
-        `Expected PRIMER, DOMAINS, CONCEPT, or PROPOSITION after DESCRIBE`,
-        this.current()
-      )
-      describeType = 'PRIMER'
-    }
-
-    // Only the plural `... TYPES` forms are paginated (§5.1.3 / §5.1.5).
-    const paginable =
-      describeType === 'CONCEPT_TYPES' || describeType === 'PROPOSITION_TYPES'
-    if (this.check(TokenType.Limit)) {
-      if (!paginable) {
-        this.error(
-          `LIMIT is only valid on DESCRIBE CONCEPT TYPES / PROPOSITION TYPES`,
-          this.current()
-        )
-      }
-      limit = this.parseLimitClause()
-    }
-    if (this.check(TokenType.Cursor)) {
-      if (!paginable) {
-        this.error(
-          `CURSOR is only valid on DESCRIBE CONCEPT TYPES / PROPOSITION TYPES`,
-          this.current()
-        )
-      }
-      cursor = this.parseCursorClause()
-    }
-
+    const first = this.expect(TokenType.For)
+    this.expectSecondWord(TokenType.Time, first)
+    const value = this.parseScalarValue()
     return {
-      kind: 'DescribeStatement',
-      describeType,
-      typeName,
-      typeNameValue,
-      limit,
-      cursor,
-      range: { start, end: this.currentPos() },
-      leadingComments: comments.length > 0 ? comments : undefined
+      kind: 'ForTimeClause',
+      value,
+      range: { start, end: this.endPos() }
     }
   }
 
-  // ────────────────────────────────────────────────────────────────────
-  //  SEARCH
-  // ────────────────────────────────────────────────────────────────────
-
-  private parseSearchStatement(): SearchStatement {
+  private parseEpistemicClause(): EpistemicClause {
     const start = this.currentPos()
-    const comments = this.collectLeadingComments()
-    this.expectKeywordWithSpace(TokenType.Search)
-
-    let searchTarget: 'CONCEPT' | 'PROPOSITION'
-    if (this.check(TokenType.Concept)) {
-      searchTarget = 'CONCEPT'
-      this.expectKeywordWithSpace(TokenType.Concept)
-    } else if (this.check(TokenType.Proposition)) {
-      searchTarget = 'PROPOSITION'
-      this.expectKeywordWithSpace(TokenType.Proposition)
-    } else {
-      this.error(`Expected CONCEPT or PROPOSITION after SEARCH`, this.current())
-      searchTarget = 'CONCEPT'
-    }
-
-    const termValue = this.parseStringOrParameterValue('SEARCH term')
-    const term =
-      termValue.kind === 'StringLiteral' ? termValue.parsed : termValue.name
-
-    let withType: string | undefined
-    let withTypeValue: StringLiteral | ParameterRef | undefined
-    let mode: string | undefined
-    let modeValue: StringLiteral | ParameterRef | undefined
-    let threshold: ThresholdClause | undefined
-    let limit: LimitClause | undefined
-
-    // Clauses may appear in any order but each at most once — a second
-    // `LIMIT` is trailing input, not an override.
-    while (!this.isAtEnd()) {
-      const before = this.pos
-      const clause = this.current()
-      if (this.check(TokenType.With)) {
-        this.rejectRepeat(withTypeValue, 'WITH TYPE', clause)
-        const withTok = this.advance()
-        this.expectSecondWord(TokenType.Type, withTok)
-        withTypeValue = this.parseStringOrParameterValue('SEARCH WITH TYPE')
-        withType =
-          withTypeValue.kind === 'StringLiteral'
-            ? withTypeValue.parsed
-            : withTypeValue.name
-      } else if (this.check(TokenType.Mode)) {
-        this.rejectRepeat(modeValue, 'MODE', clause)
-        this.advance()
-        modeValue = this.parseStringOrParameterValue('SEARCH MODE')
-        mode =
-          modeValue.kind === 'StringLiteral' ? modeValue.parsed : modeValue.name
-      } else if (this.check(TokenType.Threshold)) {
-        this.rejectRepeat(threshold, 'THRESHOLD', clause)
-        threshold = this.parseThresholdClause()
-      } else if (this.check(TokenType.Limit)) {
-        this.rejectRepeat(limit, 'LIMIT', clause)
-        limit = this.parseLimitClause()
-      } else {
-        break
-      }
-      // A sub-parser that rejects its first token reports and returns
-      // without consuming it, so a loop keyed on that token would spin
-      // forever building diagnostics. Stop as soon as nothing moved.
-      if (this.pos === before) break
-    }
-
+    const first = this.expect(TokenType.With)
+    this.expectSecondWord(TokenType.Epistemic, first)
+    const options = this.parseObjectLiteral()
     return {
-      kind: 'SearchStatement',
-      searchTarget,
-      term,
-      termValue,
-      withType,
-      withTypeValue,
-      mode,
-      modeValue,
-      threshold,
-      limit,
-      range: { start, end: this.currentPos() },
-      leadingComments: comments.length > 0 ? comments : undefined
+      kind: 'EpistemicClause',
+      options,
+      range: { start, end: this.endPos() }
     }
   }
 
-  // ────────────────────────────────────────────────────────────────────
-  //  EXPORT
-  // ────────────────────────────────────────────────────────────────────
-
-  private parseExportStatement(): ExportStatement {
+  private parseOrderBy(): OrderByClause {
     const start = this.currentPos()
-    const comments = this.collectLeadingComments()
-    this.expectKeywordWithSpace(TokenType.Export)
-    const target = this.expectVariable()
-    const where = this.parseWhereClause()
+    const first = this.expect(TokenType.Order)
+    this.expectSecondWord(TokenType.By, first)
 
-    let limit: LimitClause | undefined
-    let cursor: CursorClause | undefined
-    if (this.check(TokenType.Limit)) {
-      limit = this.parseLimitClause()
-    }
-    if (this.check(TokenType.Cursor)) {
-      cursor = this.parseCursorClause()
-    }
+    const items: OrderItem[] = []
+    do {
+      items.push(this.parseOrderItem())
+    } while (this.match(TokenType.Comma))
 
     return {
-      kind: 'ExportStatement',
-      target,
-      where,
-      limit,
-      cursor,
-      range: { start, end: this.currentPos() },
-      leadingComments: comments.length > 0 ? comments : undefined
+      kind: 'OrderByClause',
+      items,
+      range: { start, end: this.endPos() }
+    }
+  }
+
+  private parseOrderItem(): OrderItem {
+    const start = this.currentPos()
+    const expression = this.parseProjectionExpression()
+    let direction: 'ASC' | 'DESC' | undefined
+    if (this.match(TokenType.Asc)) direction = 'ASC'
+    else if (this.match(TokenType.Desc)) direction = 'DESC'
+    return {
+      kind: 'OrderItem',
+      expression,
+      direction,
+      range: { start, end: this.endPos() }
+    }
+  }
+
+  private parseLimitClause(): LimitClause {
+    const start = this.currentPos()
+    this.expect(TokenType.Limit)
+    const value = this.parseScalarValue()
+    return {
+      kind: 'LimitClause',
+      value,
+      range: { start, end: this.endPos() }
+    }
+  }
+
+  private parseCursorClause(): CursorClause {
+    const start = this.currentPos()
+    this.expect(TokenType.Cursor)
+    const value = this.parseScalarValue()
+    return {
+      kind: 'CursorClause',
+      value,
+      range: { start, end: this.endPos() }
     }
   }
 
   // ────────────────────────────────────────────────────────────────────
-  //  WHERE clause and patterns
+  //  WHERE
   // ────────────────────────────────────────────────────────────────────
 
   private parseWhereClause(): WhereClause {
     const start = this.currentPos()
-    this.expect(TokenType.Where)
     this.expect(TokenType.LBrace)
-
     const patterns = this.parseWherePatterns()
-
     this.expect(TokenType.RBrace)
     return {
       kind: 'WhereClause',
       patterns,
-      range: { start, end: this.currentPos() }
+      range: { start, end: this.endPos() }
     }
   }
 
   private parseWherePatterns(): WherePattern[] {
     const patterns: WherePattern[] = []
-    this.skipComments()
     while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
       const before = this.pos
-      this.skipComments()
-      if (this.check(TokenType.RBrace)) break
-
       const pattern = this.parseWherePattern()
       if (pattern) patterns.push(pattern)
-      this.skipComments()
-      // A sub-parser that rejects its first token reports and returns
-      // without consuming it, so a loop keyed on that token would spin
-      // forever building diagnostics. Stop as soon as nothing moved.
       if (this.pos === before) break
+      // WHERE items are whitespace-delimited; a comma between them is not
+      // grammar, so report it rather than silently accepting both spellings.
+      if (this.check(TokenType.Comma)) {
+        this.error(
+          'WHERE items are separated by whitespace, not commas',
+          this.current()
+        )
+        this.advance()
+      }
     }
     return patterns
   }
 
   private parseWherePattern(): WherePattern | null {
-    this.skipComments()
     const tok = this.current()
-
-    if (tok.type === TokenType.Filter) {
-      return this.parseFilterClause()
-    }
-    if (tok.type === TokenType.Not) {
-      return this.parseNotClause()
-    }
-    if (tok.type === TokenType.Optional) {
-      return this.parseOptionalClause()
-    }
-    if (tok.type === TokenType.Union) {
-      return this.parseUnionClause()
-    }
-    // Variable: could be concept pattern or proposition pattern
-    if (tok.type === TokenType.Variable) {
-      return this.parseVariableLeadingPattern()
-    }
-    // Opening ( = proposition pattern without variable binding
-    if (tok.type === TokenType.LParen) {
-      return this.parsePropositionPatternBody(undefined)
-    }
-
-    this.error(`Unexpected token '${tok.value}' in WHERE clause`, tok)
-    this.advance()
-    return null
-  }
-
-  private parseVariableLeadingPattern(): WherePattern {
-    // ?var could be followed by:
-    //  { ... }  => concept pattern
-    //  ( ... )  => proposition pattern
-    const start = this.currentPos()
-    const variable = this.expectVariable()
-
-    if (this.check(TokenType.LBrace)) {
-      return this.parseConceptPatternBody(variable, start)
-    }
-    if (this.check(TokenType.LParen)) {
-      return this.parsePropositionPatternBody(variable, start)
-    }
-
-    // Just a variable reference as a standalone concept pattern without matcher
-    // This occurs in WHERE like: ?drug {type: "Drug"}
-    this.error(
-      `Expected '{' or '(' after variable '${variable}' in WHERE clause`,
-      this.current()
-    )
-    return {
-      kind: 'ConceptPattern',
-      variable,
-      matcher: {
-        kind: 'ConceptMatcher',
-        entries: [],
-        range: { start, end: this.currentPos() }
-      },
-      range: { start, end: this.currentPos() }
-    }
-  }
-
-  private parseConceptPatternBody(
-    variable: string | undefined,
-    start: Position
-  ): ConceptPattern {
-    const matcher = this.parseConceptMatcher()
-    return {
-      kind: 'ConceptPattern',
-      variable,
-      matcher,
-      range: { start, end: this.currentPos() }
-    }
-  }
-
-  private parseConceptMatcher(): ConceptMatcher {
-    const start = this.currentPos()
-    const brace = this.expect(TokenType.LBrace)
-    const seen = { trailingComma: false }
-    const entries = this.parseObjectEntries(seen)
-    if (seen.trailingComma) {
-      this.error(`A concept matcher takes no trailing comma`, brace)
-    }
-    this.expect(TokenType.RBrace)
-    return {
-      kind: 'ConceptMatcher',
-      entries,
-      range: { start, end: this.currentPos() }
-    }
-  }
-
-  private parsePropositionPatternBody(
-    variable: string | undefined,
-    start: Position = this.currentPos()
-  ): PropositionPattern {
-    this.expect(TokenType.LParen)
-
-    if (this.isIdMatcherStart()) {
-      const id = this.parseIdMatcherValue()
-      this.expect(TokenType.RParen)
-      return {
-        kind: 'PropositionPattern',
-        variable,
-        id,
-        range: { start, end: this.currentPos() }
-      }
-    }
-
-    const subject = this.parsePropositionEndpoint()
-    this.expect(TokenType.Comma)
-    const predicate = this.parsePredicateExpr()
-    this.expect(TokenType.Comma)
-    const object = this.parsePropositionEndpoint()
-
-    this.expect(TokenType.RParen)
-
-    return {
-      kind: 'PropositionPattern',
-      variable,
-      subject,
-      predicate,
-      object,
-      range: { start, end: this.currentPos() }
-    }
-  }
-
-  private parsePropositionEndpoint(): PropositionEndpoint {
-    // Could be: ?var, ?var {...}, ?var (...), {...}, or nested (...)
-    if (this.check(TokenType.Variable)) {
-      const start = this.currentPos()
-      const name = this.expectVariable()
-      if (this.check(TokenType.LBrace)) {
-        return this.parseConceptPatternBody(name, start)
-      }
-      if (this.check(TokenType.LParen)) {
-        return this.parsePropositionPatternBody(name, start)
-      }
-      return {
-        kind: 'VariableRef',
-        name,
-        range: { start, end: this.currentPos() }
-      }
-    }
-    if (this.check(TokenType.LBrace)) {
-      const start = this.currentPos()
-      const matcher = this.parseConceptMatcher()
-      return {
-        kind: 'ConceptPattern',
-        matcher,
-        range: { start, end: this.currentPos() }
-      }
-    }
-    if (this.check(TokenType.LParen)) {
-      return this.parsePropositionPatternBody(undefined)
-    }
-    this.error(
-      `Expected variable, concept pattern, or proposition pattern`,
-      this.current()
-    )
-    const start = this.currentPos()
-    return {
-      kind: 'VariableRef',
-      name: '?unknown',
-      range: { start, end: start }
-    }
-  }
-
-  private parsePredicateExpr(): PredicateExpr {
-    const start = this.currentPos()
-    if (this.check(TokenType.Variable)) {
-      const pred = this.parsePredicateVariable()
-      if (this.check(TokenType.LBrace)) {
-        this.error(
-          `Predicate variables cannot use hop ranges; use a quoted predicate literal for path traversal`,
-          this.current()
-        )
-        this.parseHopRange()
-      }
-      if (this.check(TokenType.Pipe)) {
-        this.error(
-          `Predicate variables cannot be used in predicate alternations`,
-          this.current()
-        )
-        while (this.match(TokenType.Pipe)) {
-          if (this.check(TokenType.String)) {
-            this.parsePredicateLiteral()
-          } else if (this.check(TokenType.Variable)) {
-            this.parsePredicateVariable()
-          } else {
-            break
-          }
-        }
-      }
-      return {
-        ...pred,
-        range: { start, end: this.currentPos() }
-      }
-    }
-
-    const first = this.parsePredicateLiteral()
-
-    // Check for alternation: "pred1" | "pred2"
-    if (this.check(TokenType.Pipe)) {
-      const predicates: PredicateLiteral[] = [first]
-      while (this.match(TokenType.Pipe)) {
-        predicates.push(this.parsePredicateLiteral())
-      }
-      return {
-        kind: 'PredicateAlternation',
-        predicates,
-        range: { start, end: this.currentPos() }
-      }
-    }
-
-    return first
-  }
-
-  private parsePredicateVariable(): PredicateVariable {
-    const start = this.currentPos()
-    const name = this.expectVariable()
-    return {
-      kind: 'PredicateVariable',
-      name,
-      range: { start, end: this.currentPos() }
-    }
-  }
-
-  private parsePredicateLiteral(): PredicateLiteral {
-    const start = this.currentPos()
-    const value = this.expectStringValue()
-
-    // Check for hop range: {m,n} {m,} {m}
-    let hopRange: HopRange | undefined
-    if (this.check(TokenType.LBrace)) {
-      hopRange = this.parseHopRange()
-    }
-
-    return {
-      kind: 'PredicateLiteral',
-      value,
-      hopRange,
-      range: { start, end: this.currentPos() }
-    }
-  }
-
-  private parseHopRange(): HopRange {
-    const start = this.currentPos()
-    this.expect(TokenType.LBrace)
-
-    const min = this.expectHopCount()
-
-    let max: number | undefined
-    if (this.match(TokenType.Comma)) {
-      if (this.check(TokenType.Number)) {
-        max = this.expectHopCount()
-      }
-      // else: {m,} means unbounded
-    } else {
-      max = min // {m} means exactly m
-    }
-
-    this.expect(TokenType.RBrace)
-    return {
-      kind: 'HopRange',
-      min,
-      max,
-      range: { start, end: this.currentPos() }
+    switch (tok.type) {
+      case TokenType.Variable:
+        return this.parseVariableLeadingPattern()
+      case TokenType.LParen:
+      case TokenType.Proposition:
+        return this.parsePropositionPattern(undefined)
+      case TokenType.Structural:
+        return this.parseStructuralPattern(undefined)
+      case TokenType.Filter:
+        return this.parseFilterClause()
+      case TokenType.Not:
+        return this.parseNotClause()
+      case TokenType.Optional:
+        return this.parseOptionalClause()
+      case TokenType.Union:
+        return this.parseUnionClause()
+      default:
+        this.error(`Unexpected token '${tok.value}' in WHERE block`, tok)
+        this.advance()
+        return null
     }
   }
 
   /**
-   * Reads one bound of a `{m,n}` hop quantifier.
+   * Disambiguates the pattern families that all begin with a variable.
    *
-   * A hop count is a plain 16-bit integer — no sign, no decimal point, no
-   * exponent. `"p"{1e9,}` is not an enormous traversal, it is a typo, and
-   * accepting it would hand the engine a bound it cannot honour.
+   * `?x {`/`?x CONCEPT {` is a Concept, `?x (`/`?x PROPOSITION (` a raw
+   * Proposition, and the remaining families name their kind outright.
    */
-  private expectHopCount(): number {
+  private parseVariableLeadingPattern(): WherePattern {
+    const variable = this.parseVariableRef()
     const tok = this.current()
-    if (tok.type !== TokenType.Number || !/^[0-9]+$/.test(tok.value)) {
-      this.error(`Expected a whole number in a hop range`, tok)
-      this.advance()
-      return 0
+
+    switch (tok.type) {
+      case TokenType.LBrace:
+      case TokenType.Concept:
+        return this.parseConceptPattern(variable)
+      case TokenType.LParen:
+      case TokenType.Proposition:
+        return this.parsePropositionPattern(variable)
+      case TokenType.Assertion:
+        return this.parseAssertionPattern(variable)
+      case TokenType.Evidence:
+        return this.parseEvidencePattern(variable)
+      case TokenType.Activity:
+        return this.parseActivityPattern(variable)
+      case TokenType.Structural:
+        return this.parseStructuralPattern(variable)
+      case TokenType.Belief:
+        return this.parseBeliefPattern(variable)
+      default:
+        this.error(
+          `Expected a pattern body after ${variable.name} but got '${tok.value}'`,
+          tok
+        )
+        throw new ParseAbort()
     }
-    const value = Number(tok.value)
-    if (value > 0xffff) {
-      this.error(`Hop count ${tok.value} exceeds the maximum of 65535`, tok)
+  }
+
+  private parseConceptPattern(variable: VariableRef): ConceptPattern {
+    const explicit = this.match(TokenType.Concept)
+    const matcher = this.parseObjectPattern()
+    return {
+      kind: 'ConceptPattern',
+      variable,
+      explicit,
+      matcher,
+      range: { start: variable.range.start, end: this.endPos() }
     }
-    this.advance()
-    return value
+  }
+
+  private parsePropositionPattern(
+    variable: VariableRef | undefined
+  ): PropositionPattern {
+    const start = variable ? variable.range.start : this.currentPos()
+    const explicit = this.match(TokenType.Proposition)
+    const tuple = this.parsePropositionTuple()
+    return {
+      kind: 'PropositionPattern',
+      variable,
+      explicit,
+      tuple,
+      range: { start, end: this.endPos() }
+    }
+  }
+
+  private parseAssertionPattern(variable: VariableRef): AssertionPattern {
+    this.expect(TokenType.Assertion)
+    const matcher = this.parseObjectPattern()
+    return {
+      kind: 'AssertionPattern',
+      variable,
+      matcher,
+      range: { start: variable.range.start, end: this.endPos() }
+    }
+  }
+
+  private parseEvidencePattern(variable: VariableRef): EvidencePattern {
+    this.expect(TokenType.Evidence)
+    const matcher = this.parseObjectPattern()
+    return {
+      kind: 'EvidencePattern',
+      variable,
+      matcher,
+      range: { start: variable.range.start, end: this.endPos() }
+    }
+  }
+
+  private parseActivityPattern(variable: VariableRef): ActivityPattern {
+    this.expect(TokenType.Activity)
+    const matcher = this.parseObjectPattern()
+    return {
+      kind: 'ActivityPattern',
+      variable,
+      matcher,
+      range: { start: variable.range.start, end: this.endPos() }
+    }
+  }
+
+  private parseStructuralPattern(
+    variable: VariableRef | undefined
+  ): StructuralPattern {
+    const start = variable ? variable.range.start : this.currentPos()
+    this.expect(TokenType.Structural)
+    this.expect(TokenType.LParen)
+    const subject = this.parseTerm()
+    this.expect(TokenType.Comma)
+    const field = this.parseSchemaSymbol()
+    this.expect(TokenType.Comma)
+    const object = this.parseTerm()
+    this.expect(TokenType.RParen)
+    return {
+      kind: 'StructuralPattern',
+      variable,
+      subject,
+      field,
+      object,
+      range: { start, end: this.endPos() }
+    }
+  }
+
+  private parseBeliefPattern(
+    variable: VariableRef
+  ): BeliefPattern | BeliefSlotPattern {
+    const start = variable.range.start
+    const beliefTok = this.expect(TokenType.Belief)
+
+    // `BELIEF SLOT (...)` — the whole functional slot, not one tuple.
+    if (this.check(TokenType.Slot)) {
+      this.expectSecondWord(TokenType.Slot, beliefTok)
+      this.expect(TokenType.LParen)
+      const subject = this.parseTerm()
+      this.expect(TokenType.Comma)
+      const predicate = this.parsePredicateAtom()
+      this.expect(TokenType.RParen)
+      this.rejectBeliefInRawDialect(start)
+      return {
+        kind: 'BeliefSlotPattern',
+        variable,
+        subject,
+        predicate,
+        range: { start, end: this.endPos() }
+      }
+    }
+
+    this.expect(TokenType.LParen)
+
+    // `BELIEF (?p)` projects an already-bound Proposition; `BELIEF (s, p, o)`
+    // projects a tuple. Only a lone variable followed by `)` is the former.
+    if (this.check(TokenType.Variable) && this.peekPast(1)?.type === TokenType.RParen) {
+      const proposition = this.parseVariableRef()
+      this.expect(TokenType.RParen)
+      this.rejectBeliefInRawDialect(start)
+      return {
+        kind: 'BeliefPattern',
+        variable,
+        proposition,
+        range: { start, end: this.endPos() }
+      }
+    }
+
+    const subject = this.parseTerm()
+    this.expect(TokenType.Comma)
+    const predicate = this.parsePredicateAtom()
+    this.expect(TokenType.Comma)
+    const object = this.parseTerm()
+    this.expect(TokenType.RParen)
+    this.rejectBeliefInRawDialect(start)
+    return {
+      kind: 'BeliefPattern',
+      variable,
+      subject,
+      predicate,
+      object,
+      range: { start, end: this.endPos() }
+    }
+  }
+
+  /**
+   * BELIEF is an Epistemic Projection: virtual, read-only, and derived from a
+   * policy. KML excludes it because a Projection can never be a mutation
+   * target; EXPORT excludes it because a capsule carries records, not
+   * interpretations.
+   */
+  private rejectBeliefInRawDialect(start: Position): void {
+    if (this.dialect === 'raw') {
+      this.diagnostics.push({
+        range: { start, end: this.endPos() },
+        severity: 'error',
+        message:
+          'BELIEF is a read-only Epistemic Projection and cannot appear in a mutation or export selection',
+        code: 'KIP_1001'
+      })
+    }
   }
 
   private parseFilterClause(): FilterClause {
@@ -1132,7 +725,7 @@ class Parser {
     return {
       kind: 'FilterClause',
       expression,
-      range: { start, end: this.currentPos() }
+      range: { start, end: this.endPos() }
     }
   }
 
@@ -1145,7 +738,7 @@ class Parser {
     return {
       kind: 'NotClause',
       patterns,
-      range: { start, end: this.currentPos() }
+      range: { start, end: this.endPos() }
     }
   }
 
@@ -1158,7 +751,7 @@ class Parser {
     return {
       kind: 'OptionalClause',
       patterns,
-      range: { start, end: this.currentPos() }
+      range: { start, end: this.endPos() }
     }
   }
 
@@ -1171,325 +764,1683 @@ class Parser {
     return {
       kind: 'UnionClause',
       patterns,
-      range: { start, end: this.currentPos() }
+      range: { start, end: this.endPos() }
     }
   }
 
   // ────────────────────────────────────────────────────────────────────
-  //  SET ATTRIBUTES / SET PROPOSITIONS / WITH METADATA
+  //  Raw semantic tuples
   // ────────────────────────────────────────────────────────────────────
 
-  private parseSetAttributesBody(start: Position): SetAttributes {
-    this.expect(TokenType.LBrace)
-    const entries = this.parseObjectEntries()
-    this.expect(TokenType.RBrace)
+  private parsePropositionTuple(): PropositionTuple {
+    const start = this.currentPos()
+    this.expect(TokenType.LParen)
+
+    // `(id: ...)` addresses the same slot by record identity. `id` is a field
+    // name, not a keyword, so it is matched on its exact lowercase text and
+    // only when a `:` follows — `(id, "p", ?o)` is still a triple whose
+    // subject happens to be a variable-free term.
+    if (this.isPropositionIdStart()) {
+      this.advance() // id
+      this.advance() // :
+      const id = this.parseScalarValue()
+      this.expect(TokenType.RParen)
+      return {
+        kind: 'PropositionTuple',
+        id,
+        range: { start, end: this.endPos() }
+      }
+    }
+
+    const subject = this.parseTerm()
+    this.expect(TokenType.Comma)
+    const predicate = this.parseRawPredicateExpression()
+    this.expect(TokenType.Comma)
+    const object = this.parseTerm()
+    this.expect(TokenType.RParen)
     return {
-      kind: 'SetAttributes',
-      entries,
-      range: { start, end: this.currentPos() }
+      kind: 'PropositionTuple',
+      subject,
+      predicate,
+      object,
+      range: { start, end: this.endPos() }
     }
   }
 
-  private parseSetMetadataBody(start: Position): SetMetadata {
-    this.expect(TokenType.LBrace)
-    const entries = this.parseObjectEntries()
-    this.expect(TokenType.RBrace)
-    return {
-      kind: 'SetMetadata',
-      entries,
-      range: { start, end: this.currentPos() }
+  /**
+   * True when the cursor sits on the `id :` of a `(id: ...)` reference.
+   *
+   * Field names are case-sensitive, so only the exact spelling `id` counts;
+   * `ID` is an ordinary identifier and would not parse as a term anyway.
+   */
+  private isPropositionIdStart(): boolean {
+    const tok = this.current()
+    if (tok.type !== TokenType.Identifier || tok.value !== 'id') return false
+    const next = this.peekPast(1)
+    // `(id: :p)` lexes the separator as its own colon; `(id:"P")` likewise,
+    // because a parameter needs an identifier start after the colon.
+    return next?.type === TokenType.Colon
+  }
+
+  private parseTerm(): Term {
+    const tok = this.current()
+    switch (tok.type) {
+      case TokenType.Variable:
+        return this.parseVariableRef()
+      case TokenType.Parameter:
+        return this.parseParameterRef()
+      case TokenType.LBrace:
+        return this.parseObjectPattern()
+      case TokenType.LParen:
+        return this.parsePropositionTuple()
+      case TokenType.String:
+      case TokenType.Number:
+      case TokenType.Boolean:
+      case TokenType.Null:
+        return this.parseLiteral()
+      default:
+        this.error(
+          `Expected a term (variable, parameter, literal, {...} or a tuple) but got '${tok.value}'`,
+          tok
+        )
+        throw new ParseAbort()
     }
   }
 
-  private parseSetPropositionsBody(start: Position): SetPropositions {
+  /** `predicate_atom = string_literal | parameter | variable` */
+  private parsePredicateAtom(): PredicateAtom {
+    const tok = this.current()
+    if (tok.type === TokenType.String) {
+      return this.parseStringLiteral()
+    }
+    if (tok.type === TokenType.Parameter) {
+      return this.parseParameterRef()
+    }
+    if (tok.type === TokenType.Variable) {
+      return this.parseVariableRef()
+    }
+    this.error(
+      `Expected a predicate (quoted symbol, :parameter or ?variable) but got '${tok.value}'`,
+      tok
+    )
+    throw new ParseAbort()
+  }
+
+  /**
+   * `raw_predicate_expression` — path atoms joined by `|`.
+   *
+   * Alternation and hop quantifiers are traversal syntax owned by KQL. KML
+   * and META spell the same slot as a bare `predicate_atom`, so in the raw
+   * dialect anything beyond one plain atom is reported here.
+   */
+  private parseRawPredicateExpression(): RawPredicateExpression {
+    const start = this.currentPos()
+    const atoms: PredicatePathAtom[] = [this.parsePredicatePathAtom()]
+    while (this.check(TokenType.Pipe)) {
+      const pipe = this.current()
+      if (this.dialect === 'raw') {
+        this.error(
+          'Predicate alternation is a KQL traversal form and is not allowed here',
+          pipe
+        )
+      }
+      this.advance()
+      atoms.push(this.parsePredicatePathAtom())
+    }
+    return {
+      kind: 'RawPredicateExpression',
+      atoms,
+      range: { start, end: this.endPos() }
+    }
+  }
+
+  private parsePredicatePathAtom(): PredicatePathAtom {
+    const start = this.currentPos()
+    const atom = this.parsePredicateAtom()
+    let quantifier: PathQuantifier | undefined
+    if (this.check(TokenType.LBrace)) {
+      const brace = this.current()
+      if (this.dialect === 'raw') {
+        this.error(
+          'Path quantifiers are a KQL traversal form and are not allowed here',
+          brace
+        )
+      }
+      quantifier = this.parsePathQuantifier()
+    }
+    return {
+      kind: 'PredicatePathAtom',
+      atom,
+      quantifier,
+      range: { start, end: this.endPos() }
+    }
+  }
+
+  private parsePathQuantifier(): PathQuantifier {
+    const start = this.currentPos()
     this.expect(TokenType.LBrace)
-    const items: PropositionItem[] = []
-    this.skipComments()
+    const min = this.expectHopCount()
+    let max: number | undefined
+    let hasComma = false
+    if (this.match(TokenType.Comma)) {
+      hasComma = true
+      if (!this.check(TokenType.RBrace)) {
+        max = this.expectHopCount()
+      }
+    } else {
+      max = min
+    }
+    this.expect(TokenType.RBrace)
+    if (max !== undefined && max < min) {
+      this.error(
+        `Hop range {${min},${max}} is empty: the maximum is below the minimum`,
+        this.current()
+      )
+    }
+    return {
+      kind: 'PathQuantifier',
+      min,
+      max,
+      hasComma,
+      range: { start, end: this.endPos() }
+    }
+  }
+
+  /**
+   * A hop count is a plain unsigned integer.
+   *
+   * `{1.5}`, `{-1}` and `{1e3}` all lex as one number token, so the check is
+   * on the token text, not on the parsed value.
+   */
+  private expectHopCount(): number {
+    const tok = this.current()
+    if (tok.type !== TokenType.Number || !/^\d+$/.test(tok.value)) {
+      this.error(
+        `Expected an unsigned integer hop count but got '${tok.value}'`,
+        tok
+      )
+      this.advance()
+      return 0
+    }
+    const value = Number(tok.value)
+    if (value > 65535) {
+      this.error(`Hop count ${value} exceeds the 16-bit maximum 65535`, tok)
+    }
+    this.advance()
+    return value
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  KML — MUTATE
+  // ────────────────────────────────────────────────────────────────────
+
+  private parseMutateStatement(): MutateStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    this.expectKeywordWithSpace(TokenType.Mutate)
+    this.expect(TokenType.LBrace)
+
+    const clauses: MutationClause[] = []
     while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
       const before = this.pos
       this.skipComments()
-      if (this.check(TokenType.RBrace)) break
-      items.push(this.parsePropositionItem())
+      if (this.check(TokenType.RBrace) || this.isAtEnd()) break
+      // A nested MUTATE is not a smaller transaction, it is a different
+      // statement; the grammar forbids it outright.
+      if (this.check(TokenType.Mutate)) {
+        this.error('MUTATE cannot contain another MUTATE', this.current())
+        this.advance()
+        continue
+      }
+      try {
+        clauses.push(this.parseMutationClause())
+      } catch {
+        this.recoverToMutationBoundary()
+      }
+      if (this.pos === before) break
+    }
+    this.expect(TokenType.RBrace)
+
+    return {
+      kind: 'MutateStatement',
+      clauses,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  KML — CREATE / UPSERT / ENSURE / ASSERT
+  // ────────────────────────────────────────────────────────────────────
+
+  private parseCreateStatement():
+    | CreateConceptStatement
+    | CreateEvidenceStatement
+    | CreateAssertionStatement
+    | CreateActivityStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const create = this.expectKeywordWithSpace(TokenType.Create)
+
+    const tok = this.current()
+    switch (tok.type) {
+      case TokenType.Concept:
+        this.expectSecondWord(TokenType.Concept, create)
+        return this.parseCreateConceptBody(start, leadingComments)
+      case TokenType.Evidence:
+        this.expectSecondWord(TokenType.Evidence, create)
+        return this.parseRecordCreateBody(
+          'CreateEvidenceStatement',
+          start,
+          leadingComments
+        ) as CreateEvidenceStatement
+      case TokenType.Assertion:
+        this.expectSecondWord(TokenType.Assertion, create)
+        return this.parseRecordCreateBody(
+          'CreateAssertionStatement',
+          start,
+          leadingComments
+        ) as CreateAssertionStatement
+      case TokenType.Activity:
+        this.expectSecondWord(TokenType.Activity, create)
+        return this.parseRecordCreateBody(
+          'CreateActivityStatement',
+          start,
+          leadingComments
+        ) as CreateActivityStatement
+      default:
+        this.error(
+          `Expected CONCEPT, EVIDENCE, ASSERTION or ACTIVITY after CREATE but got '${tok.value}'`,
+          tok
+        )
+        throw new ParseAbort()
+    }
+  }
+
+  private parseCreateConceptBody(
+    start: Position,
+    leadingComments: string[]
+  ): CreateConceptStatement {
+    const handle = this.expectHandle()
+    this.expect(TokenType.LBrace)
+
+    const stmt: CreateConceptStatement = {
+      kind: 'CreateConceptStatement',
+      handle,
+      setFacets: [],
+      range: { start, end: start },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+
+    while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
+      const before = this.pos
       this.skipComments()
-      // Items are juxtaposed, but a separating comma — including a trailing
-      // one — is tolerated. Generated KML reaches for it constantly, and the
-      // reference grammar accepts it.
-      this.match(TokenType.Comma)
+      if (this.check(TokenType.RBrace) || this.isAtEnd()) break
+      const tok = this.current()
+      switch (tok.type) {
+        case TokenType.Type:
+          this.rejectRepeat(stmt.type, 'TYPE', tok)
+          stmt.type = this.parseTypeClause()
+          break
+        case TokenType.Client:
+          this.rejectRepeat(stmt.clientKey, 'CLIENT KEY', tok)
+          stmt.clientKey = this.parseClientKeyClause()
+          break
+        case TokenType.Name:
+          this.rejectRepeat(stmt.name, 'NAME', tok)
+          stmt.name = this.parseNameClause()
+          break
+        case TokenType.Set:
+          this.applyCreateSetClause(stmt, tok)
+          break
+        default:
+          this.error(`Unexpected token '${tok.value}' in CREATE CONCEPT`, tok)
+          this.advance()
+      }
+      if (this.pos === before) break
+    }
+    this.expect(TokenType.RBrace)
+    stmt.range = { start, end: this.endPos() }
+    return stmt
+  }
+
+  private applyCreateSetClause(stmt: CreateConceptStatement, tok: Token): void {
+    const clause = this.parseSetClause()
+    switch (clause.kind) {
+      case 'SetFieldsClause':
+        this.rejectRepeat(stmt.setFields, 'SET FIELDS', tok)
+        stmt.setFields = clause
+        break
+      case 'SetAttributesClause':
+        this.rejectRepeat(stmt.setAttributes, 'SET ATTRIBUTES', tok)
+        stmt.setAttributes = clause
+        break
+      case 'SetFacetClause':
+        stmt.setFacets.push(clause)
+        break
+      case 'SetStructuralClause':
+        this.rejectRepeat(stmt.setStructural, 'SET STRUCTURAL', tok)
+        stmt.setStructural = clause
+        break
+      default:
+        this.error(`'SET ${clause.kind}' is not allowed in CREATE CONCEPT`, tok)
+    }
+  }
+
+  /** CREATE EVIDENCE / ASSERTION / ACTIVITY share one clause vocabulary. */
+  private parseRecordCreateBody(
+    kind:
+      | 'CreateEvidenceStatement'
+      | 'CreateAssertionStatement'
+      | 'CreateActivityStatement',
+    start: Position,
+    leadingComments: string[]
+  ): CreateEvidenceStatement | CreateAssertionStatement | CreateActivityStatement {
+    const handle = this.expectHandle()
+    this.expect(TokenType.LBrace)
+
+    const stmt = {
+      kind,
+      handle,
+      setFacets: [] as SetFacetClause[],
+      clientKey: undefined as ClientKeyClause | undefined,
+      setFields: undefined as SetFieldsClause | undefined,
+      setStructural: undefined as SetStructuralClause | undefined,
+      range: { start, end: start },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+
+    while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
+      const before = this.pos
       this.skipComments()
-      // A sub-parser that rejects its first token reports and returns
-      // without consuming it, so a loop keyed on that token would spin
-      // forever building diagnostics. Stop as soon as nothing moved.
+      if (this.check(TokenType.RBrace) || this.isAtEnd()) break
+      const tok = this.current()
+      if (tok.type === TokenType.Client) {
+        this.rejectRepeat(stmt.clientKey, 'CLIENT KEY', tok)
+        stmt.clientKey = this.parseClientKeyClause()
+      } else if (tok.type === TokenType.Set) {
+        const clause = this.parseSetClause()
+        if (clause.kind === 'SetFieldsClause') {
+          this.rejectRepeat(stmt.setFields, 'SET FIELDS', tok)
+          stmt.setFields = clause
+        } else if (clause.kind === 'SetFacetClause') {
+          stmt.setFacets.push(clause)
+        } else if (clause.kind === 'SetStructuralClause') {
+          this.rejectRepeat(stmt.setStructural, 'SET STRUCTURAL', tok)
+          stmt.setStructural = clause
+        } else {
+          this.error(
+            `'SET ${clause.kind}' is not allowed in ${kind.replace('Statement', '')}`,
+            tok
+          )
+        }
+      } else {
+        this.error(`Unexpected token '${tok.value}' in ${kind}`, tok)
+        this.advance()
+      }
+      if (this.pos === before) break
+    }
+    this.expect(TokenType.RBrace)
+    stmt.range = { start, end: this.endPos() }
+    return stmt as
+      | CreateEvidenceStatement
+      | CreateAssertionStatement
+      | CreateActivityStatement
+  }
+
+  private parseUpsertConcept(): UpsertConceptStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const upsert = this.expectKeywordWithSpace(TokenType.Upsert)
+    this.expectSecondWord(TokenType.Concept, upsert)
+    const handle = this.expectHandle()
+    this.expect(TokenType.LBrace)
+
+    const stmt: UpsertConceptStatement = {
+      kind: 'UpsertConceptStatement',
+      handle,
+      setFacets: [],
+      unsetFacets: [],
+      range: { start, end: start },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+
+    while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
+      const before = this.pos
+      this.skipComments()
+      if (this.check(TokenType.RBrace) || this.isAtEnd()) break
+      const tok = this.current()
+      switch (tok.type) {
+        case TokenType.Match:
+          this.rejectRepeat(stmt.match, 'MATCH', tok)
+          stmt.match = this.parseMatchClause()
+          break
+        case TokenType.Expect:
+          this.rejectRepeat(stmt.expectVersion, 'EXPECT VERSION', tok)
+          stmt.expectVersion = this.parseExpectVersionClause()
+          break
+        case TokenType.Set: {
+          const clause = this.parseSetClause()
+          if (clause.kind === 'SetFieldsClause') {
+            this.rejectRepeat(stmt.setFields, 'SET FIELDS', tok)
+            stmt.setFields = clause
+          } else if (clause.kind === 'SetAttributesClause') {
+            this.rejectRepeat(stmt.setAttributes, 'SET ATTRIBUTES', tok)
+            stmt.setAttributes = clause
+          } else if (clause.kind === 'SetFacetClause') {
+            stmt.setFacets.push(clause)
+          } else if (clause.kind === 'SetStructuralClause') {
+            this.rejectRepeat(stmt.setStructural, 'SET STRUCTURAL', tok)
+            stmt.setStructural = clause
+          } else {
+            this.error(`'SET RETENTION' is not a clause of UPSERT CONCEPT`, tok)
+          }
+          break
+        }
+        case TokenType.Unset: {
+          const clause = this.parseUnsetClause()
+          if (clause.kind === 'UnsetAttributesClause') {
+            this.rejectRepeat(stmt.unsetAttributes, 'UNSET ATTRIBUTES', tok)
+            stmt.unsetAttributes = clause
+          } else {
+            stmt.unsetFacets.push(clause)
+          }
+          break
+        }
+        default:
+          this.error(`Unexpected token '${tok.value}' in UPSERT CONCEPT`, tok)
+          this.advance()
+      }
+      if (this.pos === before) break
+    }
+    this.expect(TokenType.RBrace)
+    stmt.range = { start, end: this.endPos() }
+    return stmt
+  }
+
+  private parseEnsureProposition(): EnsurePropositionStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const ensure = this.expectKeywordWithSpace(TokenType.Ensure)
+    this.expectSecondWord(TokenType.Proposition, ensure)
+
+    const handle = this.check(TokenType.Variable)
+      ? this.parseVariableRef()
+      : undefined
+    this.dialect = 'raw'
+    const tuple = this.parsePropositionTuple()
+    const expectVersion = this.check(TokenType.Expect)
+      ? this.parseExpectVersionClause()
+      : undefined
+
+    return {
+      kind: 'EnsurePropositionStatement',
+      handle,
+      tuple,
+      expectVersion,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
+  private parseAssertStatement(): AssertStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    this.expectKeywordWithSpace(TokenType.Assert)
+
+    const handle = this.check(TokenType.Variable)
+      ? this.parseVariableRef()
+      : undefined
+    this.dialect = 'raw'
+    const tuple = this.parsePropositionTuple()
+    const assignments = this.parseAssignmentObject()
+
+    let superseding: TargetRef | undefined
+    if (this.match(TokenType.Superseding)) {
+      superseding = this.parseTargetRef()
+    }
+
+    return {
+      kind: 'AssertStatement',
+      handle,
+      tuple,
+      assignments,
+      superseding,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  KML — clause vocabulary
+  // ────────────────────────────────────────────────────────────────────
+
+  private parseTypeClause(): TypeClause {
+    const start = this.currentPos()
+    this.expect(TokenType.Type)
+    const value = this.parseSchemaSymbol()
+    return { kind: 'TypeClause', value, range: { start, end: this.endPos() } }
+  }
+
+  private parseClientKeyClause(): ClientKeyClause {
+    const start = this.currentPos()
+    const client = this.expect(TokenType.Client)
+    this.expectSecondWord(TokenType.Key, client)
+    const value = this.parseScalarValue()
+    return {
+      kind: 'ClientKeyClause',
+      value,
+      range: { start, end: this.endPos() }
+    }
+  }
+
+  private parseNameClause(): NameClause {
+    const start = this.currentPos()
+    this.expect(TokenType.Name)
+    const value = this.parseScalarValue()
+    return { kind: 'NameClause', value, range: { start, end: this.endPos() } }
+  }
+
+  private parseMatchClause(): MatchClause {
+    const start = this.currentPos()
+    this.expect(TokenType.Match)
+    const pattern = this.parseObjectPattern()
+    return {
+      kind: 'MatchClause',
+      pattern,
+      range: { start, end: this.endPos() }
+    }
+  }
+
+  /** Dispatches every `SET ...` form; callers reject the ones they disallow. */
+  private parseSetClause():
+    | SetFieldsClause
+    | SetAttributesClause
+    | SetFacetClause
+    | SetStructuralClause
+    | { kind: 'SetRetentionMarker' } {
+    const start = this.currentPos()
+    const set = this.expect(TokenType.Set)
+    const tok = this.current()
+
+    switch (tok.type) {
+      case TokenType.Fields: {
+        this.expectSecondWord(TokenType.Fields, set)
+        const assignments = this.parseAssignmentObject()
+        return {
+          kind: 'SetFieldsClause',
+          assignments,
+          range: { start, end: this.endPos() }
+        }
+      }
+      case TokenType.Attributes: {
+        this.expectSecondWord(TokenType.Attributes, set)
+        const assignments = this.parseAssignmentObject()
+        return {
+          kind: 'SetAttributesClause',
+          assignments,
+          range: { start, end: this.endPos() }
+        }
+      }
+      case TokenType.Facet: {
+        this.expectSecondWord(TokenType.Facet, set)
+        const facet = this.parseSchemaSymbol()
+        const assignments = this.parseAssignmentObject()
+        return {
+          kind: 'SetFacetClause',
+          facet,
+          assignments,
+          range: { start, end: this.endPos() }
+        }
+      }
+      case TokenType.Structural: {
+        this.expectSecondWord(TokenType.Structural, set)
+        return this.parseSetStructuralBody(start)
+      }
+      case TokenType.Retention:
+        return { kind: 'SetRetentionMarker' }
+      default:
+        this.error(
+          `Expected FIELDS, ATTRIBUTES, FACET, STRUCTURAL or RETENTION after SET but got '${tok.value}'`,
+          tok
+        )
+        throw new ParseAbort()
+    }
+  }
+
+  private parseSetStructuralBody(start: Position): SetStructuralClause {
+    this.expect(TokenType.LBrace)
+    const assignments: StructuralAssignment[] = []
+    while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
+      const before = this.pos
+      this.skipComments()
+      if (this.check(TokenType.RBrace) || this.isAtEnd()) break
+      assignments.push(this.parseStructuralAssignment())
       if (this.pos === before) break
     }
     this.expect(TokenType.RBrace)
     return {
-      kind: 'SetPropositions',
-      items,
-      range: { start, end: this.currentPos() }
+      kind: 'SetStructuralClause',
+      assignments,
+      range: { start, end: this.endPos() }
     }
   }
 
-  private parsePropositionItem(): PropositionItem {
+  private parseStructuralAssignment(): StructuralAssignment {
     const start = this.currentPos()
     this.expect(TokenType.LParen)
-    const predicate = this.expectStringValue()
+    const field = this.parseSchemaSymbol()
     this.expect(TokenType.Comma)
-    const target = this.parsePropositionEndpoint()
+    const value = this.parseMutationValue()
     this.expect(TokenType.RParen)
 
-    let metadata: WithMetadata | undefined
-    if (this.check(TokenType.With)) {
-      metadata = this.parseWithMetadata()
-    }
+    const options = this.check(TokenType.LBrace)
+      ? this.parseObjectLiteral()
+      : undefined
 
     return {
-      kind: 'PropositionItem',
-      predicate,
-      target,
-      metadata,
-      range: { start, end: this.currentPos() }
+      kind: 'StructuralAssignment',
+      field,
+      value,
+      options,
+      range: { start, end: this.endPos() }
     }
   }
 
-  private isIdMatcherStart(): boolean {
-    if (!this.isIdKeyToken(this.current())) return false
-    const next = this.peekPast(this.pos + 1)
-    // `(id: "...")` may be written with a comment between the key and the
-    // colon; comments are trivia everywhere else, so they are here too.
-    return (
-      next?.type === TokenType.Colon ||
-      (next?.type === TokenType.Parameter && next.value.startsWith(':'))
-    )
-  }
-
-  /** The first non-comment token at or after `i`. */
-  private peekPast(i: number): Token | undefined {
-    while (this.tokens[i]?.type === TokenType.Comment) i++
-    return this.tokens[i]
-  }
-
-  private parseIdMatcherValue(): StringLiteral | ParameterRef {
-    const keyTok = this.current()
-    if (!this.isIdKeyToken(keyTok)) {
-      this.error(`Expected id matcher key but got '${keyTok.value}'`, keyTok)
-    }
-    this.advance()
-    this.expect(TokenType.Colon)
-    return this.parseStringOrParameterValue('proposition id')
-  }
-
-  private parseStringOrParameterValue(
-    context: string
-  ): StringLiteral | ParameterRef {
+  private parseUnsetClause(): UnsetAttributesClause | UnsetFacetClause {
+    const start = this.currentPos()
+    const unset = this.expect(TokenType.Unset)
     const tok = this.current()
-    const start = this.currentPos()
 
-    if (tok.type === TokenType.String) {
-      this.advance()
+    if (tok.type === TokenType.Attributes) {
+      this.expectSecondWord(TokenType.Attributes, unset)
+      const fields = this.parseUnsetFieldSet()
       return {
-        kind: 'StringLiteral',
-        value: tok.value,
-        parsed: this.unescapeString(tok.value, tok),
-        range: { start, end: this.currentPos() }
+        kind: 'UnsetAttributesClause',
+        fields,
+        range: { start, end: this.endPos() }
       }
     }
-
-    if (tok.type === TokenType.Parameter) {
-      this.advance()
+    if (tok.type === TokenType.Facet) {
+      this.expectSecondWord(TokenType.Facet, unset)
+      const facet = this.parseSchemaSymbol()
+      const fields = this.parseUnsetFieldSet()
       return {
-        kind: 'ParameterRef',
-        name: tok.value,
-        range: { start, end: this.currentPos() }
+        kind: 'UnsetFacetClause',
+        facet,
+        fields,
+        range: { start, end: this.endPos() }
       }
     }
-
-    this.error(`Expected string or parameter for ${context}`, tok)
-    return {
-      kind: 'StringLiteral',
-      value: '""',
-      parsed: '',
-      range: { start, end: start }
-    }
-  }
-
-  private isIdKeyToken(tok: Token): boolean {
-    return (
-      (tok.type === TokenType.Identifier && tok.value === 'id') ||
-      (tok.type === TokenType.String && this.unescapeString(tok.value) === 'id')
+    this.error(
+      `Expected ATTRIBUTES or FACET after UNSET but got '${tok.value}'`,
+      tok
     )
+    throw new ParseAbort()
   }
 
-  private parseWithMetadata(): WithMetadata {
-    const start = this.currentPos()
-    const withTok = this.expect(TokenType.With)
-    this.expectSecondWord(TokenType.Metadata, withTok)
+  private parseUnsetFieldSet(): UnsetField[] {
     this.expect(TokenType.LBrace)
-    const entries = this.parseObjectEntries()
+    const fields: UnsetField[] = []
+    if (!this.check(TokenType.RBrace)) {
+      do {
+        if (this.check(TokenType.RBrace)) break
+        const start = this.currentPos()
+        const { key, isQuoted } = this.expectKeyWithQuoting()
+        fields.push({
+          kind: 'UnsetField',
+          name: key,
+          isQuoted,
+          range: { start, end: this.endPos() }
+        })
+      } while (this.match(TokenType.Comma))
+    }
     this.expect(TokenType.RBrace)
+    return fields
+  }
+
+  private parseExpectVersionClause(): ExpectVersionClause {
+    const start = this.currentPos()
+    const expect = this.expect(TokenType.Expect)
+    this.expectSecondWord(TokenType.Version, expect)
+    const value = this.parseScalarValue()
     return {
-      kind: 'WithMetadata',
-      entries,
-      range: { start, end: this.currentPos() }
+      kind: 'ExpectVersionClause',
+      value,
+      range: { start, end: this.endPos() }
     }
   }
 
-  private parseExpectVersion(): ExpectVersion {
+  private parseExpectStateClause(): ExpectStateClause {
     const start = this.currentPos()
-    const expectTok = this.expect(TokenType.Expect)
-    this.expectSecondWord(TokenType.Version, expectTok)
-    const value = this.parseNumberOrParameterValue('EXPECT VERSION')
+    const expect = this.expect(TokenType.Expect)
+    this.expectSecondWord(TokenType.State, expect)
+    const value = this.parseScalarValue()
     return {
-      kind: 'ExpectVersion',
+      kind: 'ExpectStateClause',
       value,
-      range: { start, end: this.currentPos() }
+      range: { start, end: this.endPos() }
     }
   }
 
   // ────────────────────────────────────────────────────────────────────
-  //  ORDER BY, LIMIT, CURSOR
+  //  KML — UPDATE
   // ────────────────────────────────────────────────────────────────────
 
-  private parseOrderBy(): OrderByClause {
+  private parseUpdateStatement(): UpdateStatement {
+    const leadingComments = this.collectLeadingComments()
     const start = this.currentPos()
-    const orderTok = this.expect(TokenType.Order)
-    this.expectSecondWord(TokenType.By, orderTok)
-    const keys: OrderByKey[] = []
+    this.expectKeywordWithSpace(TokenType.Update)
+    const target = this.parseTargetRef()
 
-    keys.push(this.parseOrderByKey())
-    while (this.match(TokenType.Comma)) {
-      keys.push(this.parseOrderByKey())
+    const expectVersion = this.check(TokenType.Expect)
+      ? this.parseExpectVersionClause()
+      : undefined
+
+    const actions: UpdateAction[] = []
+    for (;;) {
+      if (this.check(TokenType.Set)) {
+        const clause = this.parseSetClause()
+        if (clause.kind === 'SetRetentionMarker') {
+          this.error(
+            'SET RETENTION is its own statement, not an UPDATE action',
+            this.current()
+          )
+          break
+        }
+        actions.push(clause)
+      } else if (this.check(TokenType.Unset)) {
+        actions.push(this.parseUnsetClause())
+      } else {
+        break
+      }
+    }
+    if (actions.length === 0) {
+      this.error('UPDATE requires at least one SET or UNSET action', this.current())
     }
 
-    const first = keys[0]!
+    this.expectKeywordWithSpace(TokenType.Where)
+    this.dialect = 'raw'
+    const where = this.parseWhereClause()
+    const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
+
     return {
-      kind: 'OrderByClause',
-      keys,
-      expression: first.expression,
-      direction: first.direction,
-      range: { start, end: this.currentPos() }
+      kind: 'UpdateStatement',
+      target,
+      expectVersion,
+      actions,
+      where,
+      limit,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
     }
   }
 
-  private parseOrderByKey(): OrderByKey {
+  // ────────────────────────────────────────────────────────────────────
+  //  KML — lifecycle and correction
+  // ────────────────────────────────────────────────────────────────────
+
+  private parseRetractAssertion(): RetractAssertionStatement {
+    const leadingComments = this.collectLeadingComments()
     const start = this.currentPos()
-    const expression = this.parseExpression()
-    let direction: 'ASC' | 'DESC' = 'ASC'
-    if (this.check(TokenType.Asc)) {
-      this.advance()
-      direction = 'ASC'
-    } else if (this.check(TokenType.Desc)) {
-      this.advance()
-      direction = 'DESC'
+    const retract = this.expectKeywordWithSpace(TokenType.Retract)
+    this.expectSecondWord(TokenType.Assertion, retract)
+    const target = this.parseTargetRef()
+
+    let where: WhereClause | undefined
+    if (this.check(TokenType.Where)) {
+      this.expectKeywordWithSpace(TokenType.Where)
+      this.dialect = 'raw'
+      where = this.parseWhereClause()
     }
+    const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
+    const expectState = this.check(TokenType.Expect)
+      ? this.parseExpectStateClause()
+      : undefined
+
     return {
-      kind: 'OrderByKey',
-      expression,
-      direction,
-      range: { start, end: this.currentPos() }
+      kind: 'RetractAssertionStatement',
+      target,
+      where,
+      limit,
+      expectState,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
     }
   }
 
-  private parseThresholdClause(): ThresholdClause {
+  private parseSupersedeAssertion(): SupersedeAssertionStatement {
+    const leadingComments = this.collectLeadingComments()
     const start = this.currentPos()
-    this.expectKeywordWithSpace(TokenType.Threshold)
-    const value = this.parseNumberOrParameterValue('THRESHOLD')
+    const supersede = this.expectKeywordWithSpace(TokenType.Supersede)
+    this.expectSecondWord(TokenType.Assertion, supersede)
+    const target = this.parseTargetRef()
+    this.expect(TokenType.By)
+    const by = this.parseTargetRef()
+    const expectState = this.check(TokenType.Expect)
+      ? this.parseExpectStateClause()
+      : undefined
+
     return {
-      kind: 'ThresholdClause',
-      value,
-      range: { start, end: this.currentPos() }
+      kind: 'SupersedeAssertionStatement',
+      target,
+      by,
+      expectState,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
     }
   }
 
-  private parseNumberOrParameterValue(
-    context: string
-  ): NumberLiteral | ParameterRef {
+  private parseCorrectEvidence(): CorrectEvidenceStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const correct = this.expectKeywordWithSpace(TokenType.Correct)
+    this.expectSecondWord(TokenType.Evidence, correct)
+    const target = this.parseTargetRef()
+    this.expect(TokenType.By)
+    const by = this.parseTargetRef()
+    const expectState = this.check(TokenType.Expect)
+      ? this.parseExpectStateClause()
+      : undefined
+
+    return {
+      kind: 'CorrectEvidenceStatement',
+      target,
+      by,
+      expectState,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
+  private parseTransitionActivity(): TransitionActivityStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const transition = this.expectKeywordWithSpace(TokenType.Transition)
+    this.expectSecondWord(TokenType.Activity, transition)
+    const target = this.parseTargetRef()
+    this.expect(TokenType.To)
+    const to = this.parseScalarValue()
+
+    // Terminal outputs and ended_at may be finalized in the same statement
+    // that moves the Activity to its terminal state.
+    const finalize: (SetFieldsClause | SetStructuralClause)[] = []
+    while (this.check(TokenType.Set)) {
+      const clause = this.parseSetClause()
+      if (clause.kind === 'SetFieldsClause' || clause.kind === 'SetStructuralClause') {
+        finalize.push(clause)
+      } else {
+        this.error(
+          'TRANSITION ACTIVITY accepts only SET FIELDS and SET STRUCTURAL',
+          this.current()
+        )
+        break
+      }
+    }
+
+    const expectState = this.check(TokenType.Expect)
+      ? this.parseExpectStateClause()
+      : undefined
+
+    return {
+      kind: 'TransitionActivityStatement',
+      target,
+      to,
+      finalize,
+      expectState,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  KML — retention and removal
+  // ────────────────────────────────────────────────────────────────────
+
+  private parseSetRetention(): SetRetentionStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const set = this.expectKeywordWithSpace(TokenType.Set)
+    this.expectSecondWord(TokenType.Retention, set)
+    const target = this.parseTargetRef()
+    const assignments = this.parseAssignmentObject()
+
+    let where: WhereClause | undefined
+    if (this.check(TokenType.Where)) {
+      this.expectKeywordWithSpace(TokenType.Where)
+      this.dialect = 'raw'
+      where = this.parseWhereClause()
+    }
+    const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
+    const expectVersion = this.check(TokenType.Expect)
+      ? this.parseExpectVersionClause()
+      : undefined
+
+    return {
+      kind: 'SetRetentionStatement',
+      target,
+      assignments,
+      where,
+      limit,
+      expectVersion,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
+  private parseArchiveStatement(): ArchiveStatement {
+    const { start, target, where, limit, expectState, leadingComments } =
+      this.parseRemovalBody(TokenType.Archive)
+    return {
+      kind: 'ArchiveStatement',
+      target,
+      where,
+      limit,
+      expectState,
+      range: { start, end: this.endPos() },
+      leadingComments
+    }
+  }
+
+  private parseTombstoneStatement(): TombstoneStatement {
+    const { start, target, where, limit, expectState, leadingComments } =
+      this.parseRemovalBody(TokenType.Tombstone)
+    return {
+      kind: 'TombstoneStatement',
+      target,
+      where,
+      limit,
+      expectState,
+      range: { start, end: this.endPos() },
+      leadingComments
+    }
+  }
+
+  /** ARCHIVE and TOMBSTONE share one shape; PURGE adds its confirmation. */
+  private parseRemovalBody(keyword: TokenType): {
+    start: Position
+    target: TargetRef
+    where?: WhereClause
+    limit?: LimitClause
+    expectState?: ExpectStateClause
+    leadingComments?: string[]
+  } {
+    const comments = this.collectLeadingComments()
+    const start = this.currentPos()
+    this.expectKeywordWithSpace(keyword)
+    const target = this.parseTargetRef()
+
+    let where: WhereClause | undefined
+    if (this.check(TokenType.Where)) {
+      this.expectKeywordWithSpace(TokenType.Where)
+      this.dialect = 'raw'
+      where = this.parseWhereClause()
+    }
+    const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
+    const expectState = this.check(TokenType.Expect)
+      ? this.parseExpectStateClause()
+      : undefined
+
+    return {
+      start,
+      target,
+      where,
+      limit,
+      expectState,
+      leadingComments: comments.length ? comments : undefined
+    }
+  }
+
+  private parsePurgeStatement(): PurgeStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    this.expectKeywordWithSpace(TokenType.Purge)
+    const target = this.parseTargetRef()
+
+    let where: WhereClause | undefined
+    if (this.check(TokenType.Where)) {
+      this.expectKeywordWithSpace(TokenType.Where)
+      this.dialect = 'raw'
+      where = this.parseWhereClause()
+    }
+
+    const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
+
+    let referencePolicy: ScalarValue | undefined
+    if (this.check(TokenType.Reference)) {
+      const reference = this.expect(TokenType.Reference)
+      this.expectSecondWord(TokenType.Policy, reference)
+      referencePolicy = this.parseScalarValue()
+    }
+
+    // The grammar freezes the confirmation spelling. Physical erasure is
+    // exceptional, so the literal is required and checked here rather than
+    // left for the engine to discover.
+    this.expect(TokenType.Confirm)
+    const confirmTok = this.current()
+    const confirm = this.parseStringLiteral()
+    if (confirm.parsed !== 'PURGE') {
+      this.error(
+        `PURGE must be confirmed with the exact literal "PURGE", got ${confirmTok.value}`,
+        confirmTok
+      )
+    }
+
+    return {
+      kind: 'PurgeStatement',
+      target,
+      where,
+      limit,
+      referencePolicy,
+      confirm,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
+  private parseMergeConcept(): MergeConceptStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const merge = this.expectKeywordWithSpace(TokenType.Merge)
+    this.expectSecondWord(TokenType.Concept, merge)
+    const source = this.parseTargetRef()
+    this.expect(TokenType.Into)
+    const into = this.parseTargetRef()
+
+    let where: WhereClause | undefined
+    if (this.check(TokenType.Where)) {
+      this.expectKeywordWithSpace(TokenType.Where)
+      this.dialect = 'raw'
+      where = this.parseWhereClause()
+    }
+    const expectVersion = this.check(TokenType.Expect)
+      ? this.parseExpectVersionClause()
+      : undefined
+
+    return {
+      kind: 'MergeConceptStatement',
+      source,
+      into,
+      where,
+      expectVersion,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  META — DESCRIBE
+  // ────────────────────────────────────────────────────────────────────
+
+  private parseDescribeStatement(): DescribeStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const describe = this.expectKeywordWithSpace(TokenType.Describe)
     const tok = this.current()
-    const start = this.currentPos()
-    let value: NumberLiteral | ParameterRef
 
-    if (tok.type === TokenType.Number) {
-      value = {
-        kind: 'NumberLiteral',
-        value: Number(tok.value),
-        raw: tok.value,
-        range: { start, end: start }
+    const stmt = (
+      target: DescribeTargetKind,
+      extra: Partial<DescribeStatement> = {}
+    ): DescribeStatement => ({
+      kind: 'DescribeStatement',
+      target,
+      ...extra,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    })
+
+    switch (tok.type) {
+      case TokenType.Primer: {
+        this.expectSecondWord(TokenType.Primer, describe)
+        let mode: ScalarValue | undefined
+        if (this.match(TokenType.Mode)) mode = this.parseScalarValue()
+        return stmt('PRIMER', { mode })
       }
-      this.advance()
-      value.range.end = this.currentPos()
-      return value
-    }
-
-    if (tok.type === TokenType.Parameter) {
-      value = {
-        kind: 'ParameterRef',
-        name: tok.value,
-        range: { start, end: start }
+      case TokenType.Protocol:
+        this.expectSecondWord(TokenType.Protocol, describe)
+        return stmt('PROTOCOL')
+      case TokenType.Execution: {
+        const exec = this.expectSecondWord(TokenType.Execution, describe)
+        this.expectSecondWord(TokenType.Context, exec)
+        return stmt('EXECUTION_CONTEXT')
       }
-      this.advance()
-      value.range.end = this.currentPos()
-      return value
-    }
-
-    this.error(`Expected number or parameter after ${context}`, tok)
-    return {
-      kind: 'NumberLiteral',
-      value: 0,
-      raw: '0',
-      range: { start, end: start }
+      case TokenType.Capabilities:
+        this.expectSecondWord(TokenType.Capabilities, describe)
+        return stmt('CAPABILITIES')
+      case TokenType.Space: {
+        this.expectSecondWord(TokenType.Space, describe)
+        const value = this.isMetaValueStart() ? this.parseScalarValue() : undefined
+        return stmt('SPACE', { value })
+      }
+      case TokenType.Schema: {
+        const schema = this.expectSecondWord(TokenType.Schema, describe)
+        this.expectSecondWord(TokenType.Environment, schema)
+        const asOf = this.check(TokenType.As) ? this.parseAsOfClause() : undefined
+        return stmt('SCHEMA_ENVIRONMENT', { asOf })
+      }
+      case TokenType.Package:
+        this.expectSecondWord(TokenType.Package, describe)
+        return stmt('PACKAGE', { value: this.parseScalarValue() })
+      case TokenType.Type:
+        this.expectSecondWord(TokenType.Type, describe)
+        return stmt('TYPE', { value: this.parseScalarValue() })
+      case TokenType.Predicate:
+        this.expectSecondWord(TokenType.Predicate, describe)
+        return stmt('PREDICATE', { value: this.parseScalarValue() })
+      case TokenType.Facet:
+        this.expectSecondWord(TokenType.Facet, describe)
+        return stmt('FACET', { value: this.parseScalarValue() })
+      case TokenType.Structural: {
+        const structural = this.expectSecondWord(TokenType.Structural, describe)
+        this.expectSecondWord(TokenType.Field, structural)
+        return stmt('STRUCTURAL_FIELD', { value: this.parseScalarValue() })
+      }
+      case TokenType.Compatibility: {
+        this.expectSecondWord(TokenType.Compatibility, describe)
+        this.expect(TokenType.From)
+        const from = this.parseScalarValue()
+        this.expect(TokenType.To)
+        const to = this.parseScalarValue()
+        return stmt('COMPATIBILITY', { from, to })
+      }
+      case TokenType.Error:
+        this.expectSecondWord(TokenType.Error, describe)
+        return stmt('ERROR', { value: this.parseScalarValue() })
+      case TokenType.Transaction: {
+        const transaction = this.expectSecondWord(TokenType.Transaction, describe)
+        if (this.check(TokenType.By)) {
+          const by = this.expectSecondWord(TokenType.By, transaction)
+          const idem = this.expectSecondWord(TokenType.Idempotency, by)
+          this.expectSecondWord(TokenType.Key, idem)
+          return stmt('TRANSACTION_BY_IDEMPOTENCY_KEY', {
+            value: this.parseScalarValue()
+          })
+        }
+        return stmt('TRANSACTION', { value: this.parseScalarValue() })
+      }
+      case TokenType.Snapshot: {
+        this.expectSecondWord(TokenType.Snapshot, describe)
+        const asOf = this.check(TokenType.As) ? this.parseAsOfClause() : undefined
+        return stmt('SNAPSHOT', { asOf })
+      }
+      case TokenType.Capsule:
+        this.expectSecondWord(TokenType.Capsule, describe)
+        return stmt('CAPSULE', { value: this.parseScalarValue() })
+      case TokenType.Epistemic: {
+        const epistemic = this.expectSecondWord(TokenType.Epistemic, describe)
+        this.expectSecondWord(TokenType.Policy, epistemic)
+        const value = this.isMetaValueStart() ? this.parseScalarValue() : undefined
+        return stmt('EPISTEMIC_POLICY', { value })
+      }
+      case TokenType.Projection: {
+        const projection = this.expectSecondWord(TokenType.Projection, describe)
+        this.expectSecondWord(TokenType.Capability, projection)
+        return stmt('PROJECTION_CAPABILITY')
+      }
+      case TokenType.Trust: {
+        this.expectSecondWord(TokenType.Trust, describe)
+        const value = this.isMetaValueStart() ? this.parseScalarValue() : undefined
+        return stmt('TRUST', { value })
+      }
+      case TokenType.Access: {
+        this.expectSecondWord(TokenType.Access, describe)
+        const withOptions = this.match(TokenType.With)
+          ? this.parseObjectLiteral()
+          : undefined
+        return stmt('ACCESS', { with: withOptions })
+      }
+      default:
+        this.error(`Unknown DESCRIBE target '${tok.value}'`, tok)
+        throw new ParseAbort()
     }
   }
 
-  private parseLimitClause(): LimitClause {
-    const start = this.currentPos()
-    this.expectKeywordWithSpace(TokenType.Limit)
-    const value = this.parseNumberOrParameterValue('LIMIT')
-    return {
-      kind: 'LimitClause',
-      value,
-      range: { start, end: this.currentPos() }
-    }
-  }
+  // ────────────────────────────────────────────────────────────────────
+  //  META — LIST
+  // ────────────────────────────────────────────────────────────────────
 
-  private parseCursorClause(): CursorClause {
+  private parseListStatement(): ListStatement {
+    const leadingComments = this.collectLeadingComments()
     const start = this.currentPos()
-    this.expectKeywordWithSpace(TokenType.Cursor)
+    const list = this.expectKeywordWithSpace(TokenType.List)
     const tok = this.current()
-    let value: StringLiteral | ParameterRef
-    if (tok.type === TokenType.String) {
-      value = {
-        kind: 'StringLiteral',
-        value: tok.value,
-        parsed: this.unescapeString(tok.value, tok),
-        range: { start: this.currentPos(), end: this.currentPos() }
+
+    let target: ListTargetKind
+    let status: ScalarValue | undefined
+
+    switch (tok.type) {
+      case TokenType.Spaces:
+        this.expectSecondWord(TokenType.Spaces, list)
+        target = 'SPACES'
+        break
+      case TokenType.Schema: {
+        const schema = this.expectSecondWord(TokenType.Schema, list)
+        this.expectSecondWord(TokenType.Packages, schema)
+        target = 'SCHEMA_PACKAGES'
+        if (this.match(TokenType.Status)) status = this.parseScalarValue()
+        break
       }
-      this.advance()
-      value.range.end = this.currentPos()
-    } else if (tok.type === TokenType.Parameter) {
-      value = {
-        kind: 'ParameterRef',
-        name: tok.value,
-        range: { start: this.currentPos(), end: this.currentPos() }
+      case TokenType.Types:
+        this.expectSecondWord(TokenType.Types, list)
+        target = 'TYPES'
+        break
+      case TokenType.Predicates:
+        this.expectSecondWord(TokenType.Predicates, list)
+        target = 'PREDICATES'
+        break
+      case TokenType.Facets:
+        this.expectSecondWord(TokenType.Facets, list)
+        target = 'FACETS'
+        break
+      case TokenType.Structural: {
+        const structural = this.expectSecondWord(TokenType.Structural, list)
+        this.expectSecondWord(TokenType.Fields, structural)
+        target = 'STRUCTURAL_FIELDS'
+        break
       }
-      this.advance()
-      value.range.end = this.currentPos()
+      case TokenType.Epistemic: {
+        const epistemic = this.expectSecondWord(TokenType.Epistemic, list)
+        this.expectSecondWord(TokenType.Policies, epistemic)
+        target = 'EPISTEMIC_POLICIES'
+        break
+      }
+      default:
+        this.error(`Unknown LIST target '${tok.value}'`, tok)
+        throw new ParseAbort()
+    }
+
+    const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
+    const cursor = this.check(TokenType.Cursor)
+      ? this.parseCursorClause()
+      : undefined
+
+    return {
+      kind: 'ListStatement',
+      target,
+      status,
+      limit,
+      cursor,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  META — SEARCH
+  // ────────────────────────────────────────────────────────────────────
+
+  private parseSearchStatement(): SearchStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const search = this.expectKeywordWithSpace(TokenType.Search)
+
+    const kindTok = this.current()
+    let searchKind: SearchKind
+    switch (kindTok.type) {
+      case TokenType.Concept:
+        searchKind = 'CONCEPT'
+        break
+      case TokenType.Proposition:
+        searchKind = 'PROPOSITION'
+        break
+      case TokenType.Assertion:
+        searchKind = 'ASSERTION'
+        break
+      case TokenType.Evidence:
+        searchKind = 'EVIDENCE'
+        break
+      case TokenType.Activity:
+        searchKind = 'ACTIVITY'
+        break
+      case TokenType.Cognition:
+        searchKind = 'COGNITION'
+        break
+      default:
+        this.error(
+          `Expected CONCEPT, PROPOSITION, ASSERTION, EVIDENCE, ACTIVITY or COGNITION after SEARCH but got '${kindTok.value}'`,
+          kindTok
+        )
+        throw new ParseAbort()
+    }
+    this.expectSecondWord(kindTok.type, search)
+
+    const term = this.parseScalarValue()
+
+    let withType: ScalarValue | undefined
+    let withPredicate: ScalarValue | undefined
+    let mode: ScalarValue | undefined
+    let threshold: ScalarValue | undefined
+    let asOfSeq: ScalarValue | undefined
+
+    // The grammar fixes this order; each modifier is taken at most once.
+    while (this.check(TokenType.With)) {
+      const withTok = this.expect(TokenType.With)
+      if (this.check(TokenType.Type)) {
+        this.expectSecondWord(TokenType.Type, withTok)
+        this.rejectRepeat(withType, 'WITH TYPE', withTok)
+        withType = this.parseScalarValue()
+      } else if (this.check(TokenType.Predicate)) {
+        this.expectSecondWord(TokenType.Predicate, withTok)
+        this.rejectRepeat(withPredicate, 'WITH PREDICATE', withTok)
+        withPredicate = this.parseScalarValue()
+      } else {
+        this.error(
+          `Expected TYPE or PREDICATE after WITH but got '${this.current().value}'`,
+          this.current()
+        )
+        break
+      }
+    }
+
+    if (this.match(TokenType.Mode)) mode = this.parseScalarValue()
+    if (this.match(TokenType.Threshold)) threshold = this.parseScalarValue()
+
+    if (this.check(TokenType.As)) {
+      const as = this.expect(TokenType.As)
+      const of = this.expectSecondWord(TokenType.Of, as)
+      this.expectSecondWord(TokenType.Seq, of)
+      asOfSeq = this.parseScalarValue()
+    }
+
+    const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
+    const cursor = this.check(TokenType.Cursor)
+      ? this.parseCursorClause()
+      : undefined
+
+    return {
+      kind: 'SearchStatement',
+      searchKind,
+      term,
+      withType,
+      withPredicate,
+      mode,
+      threshold,
+      asOfSeq,
+      limit,
+      cursor,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  META — VERIFY / VALIDATE / PREVIEW
+  // ────────────────────────────────────────────────────────────────────
+
+  private parseVerifyStatement(): VerifyStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const verify = this.expectKeywordWithSpace(TokenType.Verify)
+    const tok = this.current()
+
+    let target: VerifyTargetKind
+    switch (tok.type) {
+      case TokenType.Capsule:
+        this.expectSecondWord(TokenType.Capsule, verify)
+        target = 'CAPSULE'
+        break
+      case TokenType.Schema: {
+        const schema = this.expectSecondWord(TokenType.Schema, verify)
+        this.expectSecondWord(TokenType.Package, schema)
+        target = 'SCHEMA_PACKAGE'
+        break
+      }
+      case TokenType.Receipt:
+        this.expectSecondWord(TokenType.Receipt, verify)
+        target = 'RECEIPT'
+        break
+      case TokenType.Blob:
+        this.expectSecondWord(TokenType.Blob, verify)
+        target = 'BLOB'
+        break
+      case TokenType.Checkpoint:
+        this.expectSecondWord(TokenType.Checkpoint, verify)
+        target = 'CHECKPOINT'
+        break
+      default:
+        this.error(`Unknown VERIFY target '${tok.value}'`, tok)
+        throw new ParseAbort()
+    }
+
+    return {
+      kind: 'VerifyStatement',
+      target,
+      value: this.parseScalarValue(),
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
+  private parseValidateStatement(): ValidateStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const validate = this.expectKeywordWithSpace(TokenType.Validate)
+    const tok = this.current()
+
+    let target: ValidateTargetKind
+    switch (tok.type) {
+      case TokenType.Kql:
+        this.expectSecondWord(TokenType.Kql, validate)
+        target = 'KQL'
+        break
+      case TokenType.Kml:
+        this.expectSecondWord(TokenType.Kml, validate)
+        target = 'KML'
+        break
+      case TokenType.Capsule:
+        this.expectSecondWord(TokenType.Capsule, validate)
+        target = 'CAPSULE'
+        break
+      case TokenType.Schema: {
+        const schema = this.expectSecondWord(TokenType.Schema, validate)
+        this.expectSecondWord(TokenType.Package, schema)
+        target = 'SCHEMA_PACKAGE'
+        break
+      }
+      case TokenType.Import: {
+        const importTok = this.expectSecondWord(TokenType.Import, validate)
+        this.expectSecondWord(TokenType.Plan, importTok)
+        target = 'IMPORT_PLAN'
+        break
+      }
+      default:
+        this.error(`Unknown VALIDATE target '${tok.value}'`, tok)
+        throw new ParseAbort()
+    }
+
+    const value = this.parseScalarValue()
+    const options = this.match(TokenType.With)
+      ? this.parseObjectLiteral()
+      : undefined
+
+    return {
+      kind: 'ValidateStatement',
+      target,
+      value,
+      options,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
+  private parsePreviewStatement(): PreviewStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const preview = this.expectKeywordWithSpace(TokenType.Preview)
+    const tok = this.current()
+
+    if (tok.type === TokenType.Kml) {
+      this.expectSecondWord(TokenType.Kml, preview)
+      return {
+        kind: 'PreviewStatement',
+        target: 'KML',
+        value: this.parseScalarValue(),
+        range: { start, end: this.endPos() },
+        leadingComments: leadingComments.length ? leadingComments : undefined
+      }
+    }
+    if (tok.type === TokenType.Import) {
+      const importTok = this.expectSecondWord(TokenType.Import, preview)
+      this.expectSecondWord(TokenType.Capsule, importTok)
+      const value = this.parseScalarValue()
+      this.expect(TokenType.Into)
+      const into = this.parseScalarValue()
+      return {
+        kind: 'PreviewStatement',
+        target: 'IMPORT_CAPSULE',
+        value,
+        into,
+        range: { start, end: this.endPos() },
+        leadingComments: leadingComments.length ? leadingComments : undefined
+      }
+    }
+
+    this.error(
+      `Expected KML or IMPORT CAPSULE after PREVIEW but got '${tok.value}'`,
+      tok
+    )
+    throw new ParseAbort()
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  META — HISTORY / CHANGES / SNAPSHOT
+  // ────────────────────────────────────────────────────────────────────
+
+  private parseHistoryStatement(): HistoryStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const history = this.expectKeywordWithSpace(TokenType.History)
+    const tok = this.current()
+
+    let target: 'ELEMENT' | 'SPACE'
+    let value: ScalarValue | undefined
+
+    if (tok.type === TokenType.Element) {
+      this.expectSecondWord(TokenType.Element, history)
+      target = 'ELEMENT'
+      value = this.parseScalarValue()
+    } else if (tok.type === TokenType.Space) {
+      this.expectSecondWord(TokenType.Space, history)
+      target = 'SPACE'
     } else {
-      this.error(`Expected string or parameter after CURSOR`, tok)
-      value = {
-        kind: 'StringLiteral',
-        value: '""',
-        parsed: '',
-        range: { start: this.currentPos(), end: this.currentPos() }
-      }
+      this.error(
+        `Expected ELEMENT or SPACE after HISTORY but got '${tok.value}'`,
+        tok
+      )
+      throw new ParseAbort()
     }
+
+    let fromSeq: ScalarValue | undefined
+    let toSeq: ScalarValue | undefined
+    if (this.check(TokenType.From)) {
+      const from = this.expect(TokenType.From)
+      this.expectSecondWord(TokenType.Seq, from)
+      fromSeq = this.parseScalarValue()
+    }
+    if (this.check(TokenType.To)) {
+      const to = this.expect(TokenType.To)
+      this.expectSecondWord(TokenType.Seq, to)
+      toSeq = this.parseScalarValue()
+    }
+    const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
+    const cursor = this.check(TokenType.Cursor)
+      ? this.parseCursorClause()
+      : undefined
+
     return {
-      kind: 'CursorClause',
+      kind: 'HistoryStatement',
+      target,
       value,
-      range: { start, end: this.currentPos() }
+      fromSeq,
+      toSeq,
+      limit,
+      cursor,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
+  private parseChangesStatement(): ChangesStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const changes = this.expectKeywordWithSpace(TokenType.Changes)
+
+    let mode: 'SINCE' | 'AFTER_SEQ'
+    if (this.check(TokenType.Since)) {
+      this.expectSecondWord(TokenType.Since, changes)
+      mode = 'SINCE'
+    } else if (this.check(TokenType.After)) {
+      const after = this.expectSecondWord(TokenType.After, changes)
+      this.expectSecondWord(TokenType.Seq, after)
+      mode = 'AFTER_SEQ'
+    } else {
+      this.error(
+        `Expected SINCE or AFTER SEQ after CHANGES but got '${this.current().value}'`,
+        this.current()
+      )
+      throw new ParseAbort()
+    }
+
+    const value = this.parseScalarValue()
+    const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
+
+    return {
+      kind: 'ChangesStatement',
+      mode,
+      value,
+      limit,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
+  private parseSnapshotStatement(): SnapshotStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    this.expect(TokenType.Snapshot)
+    const asOf = this.check(TokenType.As) ? this.parseAsOfClause() : undefined
+    return {
+      kind: 'SnapshotStatement',
+      asOf,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
     }
   }
 
   // ────────────────────────────────────────────────────────────────────
-  //  Expressions (for FILTER and FIND projections)
+  //  META — EXPORT CAPSULE
+  // ────────────────────────────────────────────────────────────────────
+
+  private parseExportCapsuleStatement(): ExportCapsuleStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const exportTok = this.expectKeywordWithSpace(TokenType.Export)
+    this.expectSecondWord(TokenType.Capsule, exportTok)
+    const target = this.parseTargetRef()
+
+    this.expectKeywordWithSpace(TokenType.Where)
+    // A capsule carries records, not interpretations: BELIEF is excluded.
+    this.dialect = 'raw'
+    const where = this.parseWhereClause()
+
+    const options = this.match(TokenType.With)
+      ? this.parseObjectLiteral()
+      : undefined
+    const asOf = this.check(TokenType.As) ? this.parseAsOfClause() : undefined
+
+    return {
+      kind: 'ExportCapsuleStatement',
+      target,
+      where,
+      options,
+      asOf,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  Expressions
   // ────────────────────────────────────────────────────────────────────
 
   private parseExpression(): Expression {
@@ -1507,65 +2458,108 @@ class Parser {
         operator: '||',
         left,
         right,
-        range: { start, end: right.range.end }
+        range: { start, end: this.endPos() }
       }
     }
     return left
   }
 
   private parseAndExpression(): Expression {
-    let left = this.parseComparisonExpression()
+    let left = this.parseEqualityExpression()
     while (this.check(TokenType.And)) {
       const start = left.range.start
       this.advance()
-      const right = this.parseComparisonExpression()
+      const right = this.parseEqualityExpression()
       left = {
         kind: 'BinaryExpression',
         operator: '&&',
         left,
         right,
-        range: { start, end: right.range.end }
+        range: { start, end: this.endPos() }
       }
     }
     return left
   }
 
-  private parseComparisonExpression(): Expression {
-    let left = this.parseUnaryExpression()
-    const compOps = [
-      TokenType.Eq,
-      TokenType.NotEq,
-      TokenType.Lt,
-      TokenType.Gt,
-      TokenType.LtEq,
-      TokenType.GtEq
-    ]
-    if (compOps.includes(this.current().type)) {
+  private parseEqualityExpression(): Expression {
+    let left = this.parseRelationalExpression()
+    while (this.check(TokenType.Eq) || this.check(TokenType.NotEq)) {
       const start = left.range.start
-      const op = this.current().value
-      this.advance()
-      const right = this.parseUnaryExpression()
+      const op = this.advance().type
+      const right = this.parseRelationalExpression()
       left = {
         kind: 'BinaryExpression',
-        operator: op,
+        operator: op === TokenType.Eq ? '==' : '!=',
         left,
         right,
-        range: { start, end: right.range.end }
+        range: { start, end: this.endPos() }
       }
     }
     return left
+  }
+
+  /**
+   * `relational_expression` takes at most one comparison.
+   *
+   * `a < b < c` is not chained comparison in KIP, it is a grammar error, and
+   * accepting it here would give the parser a meaning the reference grammar
+   * does not define.
+   */
+  private parseRelationalExpression(): Expression {
+    const left = this.parseUnaryExpression()
+    const tok = this.current()
+    let operator: string | undefined
+    switch (tok.type) {
+      case TokenType.Lt:
+        operator = '<'
+        break
+      case TokenType.Gt:
+        operator = '>'
+        break
+      case TokenType.LtEq:
+        operator = '<='
+        break
+      case TokenType.GtEq:
+        operator = '>='
+        break
+      default:
+        return left
+    }
+    this.advance()
+    const right = this.parseUnaryExpression()
+    const result: Expression = {
+      kind: 'BinaryExpression',
+      operator,
+      left,
+      right,
+      range: { start: left.range.start, end: this.endPos() }
+    }
+    const next = this.current()
+    if (
+      next.type === TokenType.Lt ||
+      next.type === TokenType.Gt ||
+      next.type === TokenType.LtEq ||
+      next.type === TokenType.GtEq
+    ) {
+      this.error(
+        `Chained comparison '${next.value}' is not allowed; use && between comparisons`,
+        next
+      )
+    }
+    return result
   }
 
   private parseUnaryExpression(): Expression {
-    if (this.check(TokenType.Bang)) {
+    const tok = this.current()
+    if (tok.type === TokenType.Bang || tok.type === TokenType.Minus) {
       const start = this.currentPos()
       this.advance()
-      const operand = this.parseUnaryExpression()
+      const operand = this.parsePrimaryExpression()
       return {
         kind: 'UnaryExpression',
-        operator: '!',
+        operator: tok.type === TokenType.Bang ? '!' : '-',
         operand,
-        range: { start, end: operand.range.end }
+        range: { start, end: this.endPos() }
       }
     }
     return this.parsePrimaryExpression()
@@ -1573,225 +2567,441 @@ class Parser {
 
   private parsePrimaryExpression(): Expression {
     const tok = this.current()
-    const start = this.currentPos()
 
-    // Function call: NAME(...)
-    if (this.isFunctionToken(tok.type)) {
-      return this.parseFunctionCall()
-    }
-
-    // Variable (may have dot access)
-    if (tok.type === TokenType.Variable) {
-      const name = tok.value
-      this.advance()
-      let expr: Expression = {
-        kind: 'VariableRef',
-        name,
-        range: { start, end: this.currentPos() }
-      }
-      // Dot access chain. A dot path is written with no whitespace anywhere
-      // inside it: `?x.name` is a path, but `?x. name` is a path followed by
-      // stray input, and reading them alike would let `ORDER BY ?x.name. ASC`
-      // silently sort by a field named `ASC` with no direction.
-      let prevEnd = tok.offset + tok.value.length
-      while (this.check(TokenType.Dot)) {
-        const dotTok = this.current()
-        if (dotTok.offset !== prevEnd) {
-          this.error(`Unexpected whitespace before '.' in a dot path`, dotTok)
-          break
-        }
+    switch (tok.type) {
+      case TokenType.Variable:
+        return this.parseFieldAccessOrVariable()
+      case TokenType.Parameter:
+        return this.parseParameterRef()
+      case TokenType.String:
+      case TokenType.Number:
+      case TokenType.Boolean:
+      case TokenType.Null:
+        return this.parseLiteral()
+      case TokenType.LBracket:
+        return this.parseArrayLiteral()
+      case TokenType.LBrace:
+        return this.parseObjectLiteral()
+      case TokenType.LParen: {
         this.advance()
-        const propTok = this.current()
-        if (propTok.offset !== dotTok.offset + 1) {
-          this.error(`Expected property name after '.'`, propTok)
-          break
+        const inner = this.parseExpression()
+        this.expect(TokenType.RParen)
+        return inner
+      }
+      default:
+        // `function_call` is an open `identifier "("`, and KIP 2.0 keywords
+        // are contextual, so any identifier-like token may name a function.
+        if (isIdentifierLike(tok.type) && this.peekPast(1)?.type === TokenType.LParen) {
+          return this.parseCallExpression()
         }
-        if (
-          propTok.type === TokenType.Identifier ||
-          this.isNonAmbiguousKeyword(propTok.type)
-        ) {
-          const prop = propTok.value
-          prevEnd = propTok.offset + propTok.value.length
-          this.advance()
-          expr = {
-            kind: 'DotExpression',
-            object: expr,
-            property: prop,
-            range: { start, end: this.currentPos() }
-          }
-        } else {
-          this.error(`Expected property name after '.'`, propTok)
-          break
+        this.error(`Unexpected token '${tok.value}' in expression`, tok)
+        this.advance()
+        return {
+          kind: 'NullLiteral',
+          range: { start: this.currentPos(), end: this.endPos() }
         }
-      }
-      return expr
     }
-
-    // Parameter ref
-    if (tok.type === TokenType.Parameter) {
-      this.advance()
-      return {
-        kind: 'ParameterRef',
-        name: tok.value,
-        range: { start, end: this.currentPos() }
-      }
-    }
-
-    // String literal
-    if (tok.type === TokenType.String) {
-      this.advance()
-      return {
-        kind: 'StringLiteral',
-        value: tok.value,
-        parsed: this.unescapeString(tok.value, tok),
-        range: { start, end: this.currentPos() }
-      }
-    }
-
-    // Number literal
-    if (tok.type === TokenType.Number) {
-      this.advance()
-      return {
-        kind: 'NumberLiteral',
-        value: Number(tok.value),
-        raw: tok.value,
-        range: { start, end: this.currentPos() }
-      }
-    }
-
-    // Boolean
-    if (tok.type === TokenType.Boolean) {
-      this.advance()
-      return {
-        kind: 'BooleanLiteral',
-        value: tok.value === 'true',
-        range: { start, end: this.currentPos() }
-      }
-    }
-
-    // Null
-    if (tok.type === TokenType.Null) {
-      this.advance()
-      return { kind: 'NullLiteral', range: { start, end: this.currentPos() } }
-    }
-
-    // Array
-    if (tok.type === TokenType.LBracket) {
-      return this.parseArrayLiteral()
-    }
-
-    // Object
-    if (tok.type === TokenType.LBrace) {
-      return this.parseObjectLiteral()
-    }
-
-    // Parenthesized expression
-    if (tok.type === TokenType.LParen) {
-      this.advance()
-      const expr = this.parseExpression()
-      this.expect(TokenType.RParen)
-      return expr
-    }
-
-    // System identifier as literal
-    if (tok.type === TokenType.SystemIdent) {
-      this.error(
-        `Unquoted value '${tok.value}': KIP values are JSON values, so write "${tok.value}"`,
-        tok
-      )
-      this.advance()
-      return {
-        kind: 'StringLiteral',
-        value: `"${tok.value}"`,
-        parsed: tok.value,
-        range: { start, end: this.currentPos() }
-      }
-    }
-
-    // A bare word is not a KIP value — only object *keys* may go unquoted, and
-    // those never reach here. Recover as a string so the tree stays usable in
-    // an editor, and report it: `lower` sees only the tree, so it is the
-    // caller's error-diagnostic check that keeps this reading off the wire.
-    if (tok.type === TokenType.Identifier) {
-      this.error(
-        `Unquoted value '${tok.value}': KIP values are JSON values, so write "${tok.value}"`,
-        tok
-      )
-      this.advance()
-      return {
-        kind: 'StringLiteral',
-        value: `"${tok.value}"`,
-        parsed: tok.value,
-        range: { start, end: this.currentPos() }
-      }
-    }
-
-    this.error(`Unexpected token '${tok.value}' in expression`, tok)
-    this.advance()
-    return { kind: 'NullLiteral', range: { start, end: this.currentPos() } }
   }
 
-  private parseFunctionCall(): FunctionCallExpr {
+  /** `COUNT(DISTINCT ?x)` where the name is an aggregate, else a plain call. */
+  private parseCallExpression(): FunctionCallExpr | AggregateExpr {
     const start = this.currentPos()
-    const name = this.current().value
-    this.advance()
+    const nameTok = this.advance()
+    const name = nameTok.value
     this.expect(TokenType.LParen)
+
+    if (isAggregate(name)) {
+      const distinct = this.match(TokenType.Distinct)
+      const argument = this.parseExpression()
+      this.expect(TokenType.RParen)
+      return {
+        kind: 'AggregateExpr',
+        name: name.toUpperCase(),
+        distinct,
+        argument,
+        range: { start, end: this.endPos() }
+      }
+    }
 
     const args: Expression[] = []
     if (!this.check(TokenType.RParen)) {
-      // Handle DISTINCT keyword inside COUNT
-      if (this.current().type === TokenType.Distinct) {
-        const dStart = this.currentPos()
-        this.advance()
-        const innerArg = this.parseExpression()
-        args.push({
-          kind: 'FunctionCallExpr',
-          name: 'DISTINCT',
-          args: [innerArg],
-          range: { start: dStart, end: this.currentPos() }
-        })
-      } else {
+      do {
         args.push(this.parseExpression())
-      }
-      while (this.match(TokenType.Comma)) {
-        args.push(this.parseExpression())
-      }
+      } while (this.match(TokenType.Comma))
     }
-
     this.expect(TokenType.RParen)
-
     return {
       kind: 'FunctionCallExpr',
       name,
       args,
-      range: { start, end: this.currentPos() }
+      range: { start, end: this.endPos() }
     }
   }
 
+  /**
+   * `field_access = variable, { field_step }`.
+   *
+   * A dot path carries no whitespace: `?x . name` is three tokens to a
+   * conformant engine, not one path, so the gap is checked here.
+   */
+  private parseFieldAccessOrVariable(): VariableRef | FieldAccess {
+    const base = this.parseVariableRef()
+    if (!this.isTightFieldStepStart()) return base
+
+    const steps: FieldStep[] = []
+    while (this.isTightFieldStepStart()) {
+      const start = this.currentPos()
+      if (this.check(TokenType.Dot)) {
+        this.advance()
+        const nameTok = this.current()
+        if (!isIdentifierLike(nameTok.type)) {
+          this.error(
+            `Expected a field name after '.' but got '${nameTok.value}'`,
+            nameTok
+          )
+          break
+        }
+        this.advance()
+        steps.push({
+          kind: 'DotStep',
+          name: nameTok.value,
+          range: { start, end: this.endPos() }
+        })
+      } else {
+        this.advance() // [
+        const key = this.parseStringLiteral()
+        this.expect(TokenType.RBracket)
+        steps.push({
+          kind: 'IndexStep',
+          key,
+          range: { start, end: this.endPos() }
+        })
+      }
+    }
+
+    return {
+      kind: 'FieldAccess',
+      base,
+      steps,
+      range: { start: base.range.start, end: this.endPos() }
+    }
+  }
+
+  /** True when a `.`/`[` follows with no gap, i.e. continues the path. */
+  private isTightFieldStepStart(): boolean {
+    const tok = this.current()
+    if (tok.type !== TokenType.Dot && tok.type !== TokenType.LBracket) {
+      return false
+    }
+    const prev = this.tokens[this.pos - 1]
+    if (!prev) return false
+    return prev.offset + prev.value.length === tok.offset
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  //  Values, objects, arrays
+  // ────────────────────────────────────────────────────────────────────
+
+  private parseVariableRef(): VariableRef {
+    const tok = this.current()
+    if (tok.type !== TokenType.Variable) {
+      this.error(`Expected a variable (e.g. ?name) but got '${tok.value}'`, tok)
+      return {
+        kind: 'VariableRef',
+        name: '?unknown',
+        range: { start: this.currentPos(), end: this.endPos() }
+      }
+    }
+    const start = this.currentPos()
+    this.advance()
+    return {
+      kind: 'VariableRef',
+      name: tok.value,
+      range: { start, end: this.endPos() }
+    }
+  }
+
+  private parseParameterRef(): ParameterRef {
+    const tok = this.current()
+    const start = this.currentPos()
+    this.advance()
+    return {
+      kind: 'ParameterRef',
+      name: tok.value,
+      range: { start, end: this.endPos() }
+    }
+  }
+
+  private parseStringLiteral(): StringLiteral {
+    const tok = this.current()
+    if (tok.type !== TokenType.String) {
+      this.error(`Expected a quoted string but got '${tok.value}'`, tok)
+      return {
+        kind: 'StringLiteral',
+        value: '""',
+        parsed: '',
+        range: { start: this.currentPos(), end: this.endPos() }
+      }
+    }
+    const start = this.currentPos()
+    this.advance()
+    return {
+      kind: 'StringLiteral',
+      value: tok.value,
+      parsed: this.unescapeString(tok.value, tok),
+      range: { start, end: this.endPos() }
+    }
+  }
+
+  private parseLiteral(): LiteralNode {
+    const tok = this.current()
+    const start = this.currentPos()
+    switch (tok.type) {
+      case TokenType.String:
+        return this.parseStringLiteral()
+      case TokenType.Number: {
+        this.advance()
+        const value = Number(tok.value)
+        if (!Number.isFinite(value)) {
+          this.error(
+            `Only finite numbers are valid KIP literals, got '${tok.value}'`,
+            tok
+          )
+        }
+        return {
+          kind: 'NumberLiteral',
+          value,
+          raw: tok.value,
+          range: { start, end: this.endPos() }
+        }
+      }
+      case TokenType.Boolean:
+        this.advance()
+        return {
+          kind: 'BooleanLiteral',
+          value: tok.value === 'true',
+          range: { start, end: this.endPos() }
+        }
+      case TokenType.Null:
+        this.advance()
+        return { kind: 'NullLiteral', range: { start, end: this.endPos() } }
+      default:
+        this.error(`Expected a literal but got '${tok.value}'`, tok)
+        this.advance()
+        return { kind: 'NullLiteral', range: { start, end: this.endPos() } }
+    }
+  }
+
+  /** `scalar_value` / `meta_value` = `parameter | literal` */
+  private parseScalarValue(): ScalarValue {
+    const tok = this.current()
+    if (tok.type === TokenType.Parameter) {
+      return this.parseParameterRef()
+    }
+    if (
+      tok.type === TokenType.String ||
+      tok.type === TokenType.Number ||
+      tok.type === TokenType.Boolean ||
+      tok.type === TokenType.Null
+    ) {
+      return this.parseLiteral() as ScalarValue
+    }
+    this.error(
+      `Expected a literal or :parameter but got '${tok.value}'`,
+      tok
+    )
+    this.advance()
+    return {
+      kind: 'NullLiteral',
+      range: { start: this.currentPos(), end: this.endPos() }
+    }
+  }
+
+  /** True when the next token could begin a `meta_value`. */
+  private isMetaValueStart(): boolean {
+    const t = this.current().type
+    return (
+      t === TokenType.Parameter ||
+      t === TokenType.String ||
+      t === TokenType.Number ||
+      t === TokenType.Boolean ||
+      t === TokenType.Null
+    )
+  }
+
+  /** `schema_symbol = string_literal | parameter` */
+  private parseSchemaSymbol(): SchemaSymbol {
+    const tok = this.current()
+    if (tok.type === TokenType.Parameter) {
+      return this.parseParameterRef()
+    }
+    if (tok.type === TokenType.String) {
+      return this.parseStringLiteral()
+    }
+    this.error(
+      `Expected a schema symbol (quoted name or :parameter) but got '${tok.value}'`,
+      tok
+    )
+    this.advance()
+    return {
+      kind: 'StringLiteral',
+      value: '""',
+      parsed: '',
+      range: { start: this.currentPos(), end: this.endPos() }
+    }
+  }
+
+  /** `target_ref = variable | parameter | string_literal` */
+  private parseTargetRef(): TargetRef {
+    const tok = this.current()
+    if (tok.type === TokenType.Variable) return this.parseVariableRef()
+    if (tok.type === TokenType.Parameter) return this.parseParameterRef()
+    if (tok.type === TokenType.String) return this.parseStringLiteral()
+    this.error(
+      `Expected a target (?variable, :parameter or quoted id) but got '${tok.value}'`,
+      tok
+    )
+    this.advance()
+    return {
+      kind: 'StringLiteral',
+      value: '""',
+      parsed: '',
+      range: { start: this.currentPos(), end: this.endPos() }
+    }
+  }
+
+  private expectHandle(): VariableRef {
+    const tok = this.current()
+    if (tok.type !== TokenType.Variable) {
+      this.error(
+        `Expected a local handle (e.g. ?e) but got '${tok.value}'`,
+        tok
+      )
+      return {
+        kind: 'VariableRef',
+        name: '?unknown',
+        range: { start: this.currentPos(), end: this.endPos() }
+      }
+    }
+    return this.parseVariableRef()
+  }
+
+  /** `mutation_value` — everything a KML assignment may hold. */
+  private parseMutationValue(): Expression {
+    const tok = this.current()
+    switch (tok.type) {
+      case TokenType.Variable:
+        return this.parseFieldAccessOrVariable()
+      case TokenType.Parameter:
+        return this.parseParameterRef()
+      case TokenType.LBracket:
+        return this.parseArrayLiteral()
+      case TokenType.LBrace:
+        return this.parseObjectLiteral()
+      case TokenType.String:
+      case TokenType.Number:
+      case TokenType.Boolean:
+      case TokenType.Null:
+        return this.parseLiteral()
+      default:
+        if (isIdentifierLike(tok.type) && this.peekPast(1)?.type === TokenType.LParen) {
+          return this.parseCallExpression()
+        }
+        this.error(`Unexpected token '${tok.value}' in assignment value`, tok)
+        this.advance()
+        return {
+          kind: 'NullLiteral',
+          range: { start: this.currentPos(), end: this.endPos() }
+        }
+    }
+  }
+
+  /** `assignment_object = "{" [assignment_member {"," assignment_member}] "}"` */
+  private parseAssignmentObject(): ObjectLiteral {
+    const start = this.currentPos()
+    this.expect(TokenType.LBrace)
+    const seen = { trailingComma: false }
+    const entries = this.parseEntries(seen, () => this.parseMutationValue())
+    this.expect(TokenType.RBrace)
+    return {
+      kind: 'ObjectLiteral',
+      entries,
+      trailingComma: seen.trailingComma || undefined,
+      range: { start, end: this.endPos() }
+    }
+  }
+
+  /** `object_pattern` — `{...}` in matching position. */
+  private parseObjectPattern(): ObjectPattern {
+    const start = this.currentPos()
+    this.expect(TokenType.LBrace)
+    const seen = { trailingComma: false }
+    const members = this.parseEntries(seen, () => this.parsePatternValue())
+    this.expect(TokenType.RBrace)
+    return {
+      kind: 'ObjectPattern',
+      members,
+      trailingComma: seen.trailingComma || undefined,
+      range: { start, end: this.endPos() }
+    }
+  }
+
+  private parsePatternValue(): Expression {
+    const tok = this.current()
+    switch (tok.type) {
+      case TokenType.Variable:
+        return this.parseVariableRef()
+      case TokenType.Parameter:
+        return this.parseParameterRef()
+      case TokenType.LBracket:
+        return this.parseArrayPattern()
+      case TokenType.LBrace:
+        return this.parseObjectPattern()
+      case TokenType.LParen:
+        return this.parsePropositionTuple()
+      case TokenType.String:
+      case TokenType.Number:
+      case TokenType.Boolean:
+      case TokenType.Null:
+        return this.parseLiteral()
+      default:
+        this.error(`Unexpected token '${tok.value}' in match pattern`, tok)
+        this.advance()
+        return {
+          kind: 'NullLiteral',
+          range: { start: this.currentPos(), end: this.endPos() }
+        }
+    }
+  }
+
+  private parseArrayPattern(): ArrayLiteral {
+    return this.parseArrayWith(() => this.parsePatternValue())
+  }
+
   private parseArrayLiteral(): ArrayLiteral {
+    return this.parseArrayWith(() => this.parseExpression())
+  }
+
+  private parseArrayWith(parseElement: () => Expression): ArrayLiteral {
     const start = this.currentPos()
     this.expect(TokenType.LBracket)
     const elements: Expression[] = []
     let trailingComma = false
-    this.skipComments()
     if (!this.check(TokenType.RBracket)) {
-      elements.push(this.parseExpression())
-      while (this.match(TokenType.Comma)) {
-        this.skipComments()
+      do {
         if (this.check(TokenType.RBracket)) {
           trailingComma = true
           break
         }
-        elements.push(this.parseExpression())
-      }
+        elements.push(parseElement())
+      } while (this.match(TokenType.Comma))
     }
-    this.skipComments()
     this.expect(TokenType.RBracket)
     return {
       kind: 'ArrayLiteral',
       elements,
-      trailingComma,
-      range: { start, end: this.currentPos() }
+      trailingComma: trailingComma || undefined,
+      range: { start, end: this.endPos() }
     }
   }
 
@@ -1799,54 +3009,47 @@ class Parser {
     const start = this.currentPos()
     this.expect(TokenType.LBrace)
     const seen = { trailingComma: false }
-    const entries = this.parseObjectEntries(seen)
+    const entries = this.parseEntries(seen, () => this.parseExpression())
     this.expect(TokenType.RBrace)
     return {
       kind: 'ObjectLiteral',
       entries,
-      trailingComma: seen.trailingComma,
-      range: { start, end: this.currentPos() }
+      trailingComma: seen.trailingComma || undefined,
+      range: { start, end: this.endPos() }
     }
   }
 
-  private parseObjectEntries(seen?: { trailingComma: boolean }): ObjectEntry[] {
+  private parseEntries(
+    seen: { trailingComma: boolean },
+    parseValue: () => Expression
+  ): ObjectEntry[] {
     const entries: ObjectEntry[] = []
-    this.skipComments()
-    while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
-      const before = this.pos
-      this.skipComments()
-      if (this.check(TokenType.RBrace)) break
+    if (this.check(TokenType.RBrace)) return entries
 
-      const entryStart = this.currentPos()
+    do {
+      this.skipComments()
+      if (this.check(TokenType.RBrace)) {
+        seen.trailingComma = entries.length > 0
+        break
+      }
+      const start = this.currentPos()
       const { key, isQuoted } = this.expectKeyWithQuoting()
       this.expectObjectColon(key)
-      const value = this.parseExpression()
+      const value = parseValue()
       entries.push({
         kind: 'ObjectEntry',
         key,
         isQuoted,
         value,
-        range: { start: entryStart, end: this.currentPos() }
+        range: { start, end: this.endPos() }
       })
+    } while (this.match(TokenType.Comma))
 
-      this.skipComments()
-      if (this.check(TokenType.RBrace)) break
-      if (this.match(TokenType.Comma)) {
-        this.skipComments()
-        if (seen && this.check(TokenType.RBrace)) seen.trailingComma = true
-        continue
-      }
-      this.error(`Expected ',' or '}' after object entry`, this.current())
-      // A sub-parser that rejects its first token reports and returns
-      // without consuming it, so a loop keyed on that token would spin
-      // forever building diagnostics. Stop as soon as nothing moved.
-      if (this.pos === before) break
-    }
     return entries
   }
 
   // ────────────────────────────────────────────────────────────────────
-  //  Helpers
+  //  Token helpers
   // ────────────────────────────────────────────────────────────────────
 
   private current(): Token {
@@ -1864,6 +3067,23 @@ class Parser {
   private currentPos(): Position {
     const tok = this.current()
     return { line: tok.line, column: tok.column }
+  }
+
+  /**
+   * The end of the most recently consumed token — where a node actually ends.
+   *
+   * `currentPos()` points at the *next* token, so using it as `range.end`
+   * stretches every node to the start of whatever follows. An editor folding
+   * on that range would hide the first line of the next clause, so the end is
+   * measured from the last token the node consumed. Comments are skipped
+   * because `advance()` steps over them without them belonging to the node.
+   */
+  private endPos(): Position {
+    let i = this.pos - 1
+    while (i >= 0 && this.tokens[i]!.type === TokenType.Comment) i--
+    const tok = this.tokens[i]
+    if (!tok) return this.currentPos()
+    return { line: tok.line, column: tok.column + tok.value.length }
   }
 
   private isAtEnd(): boolean {
@@ -1891,6 +3111,11 @@ class Parser {
     return tok
   }
 
+  /** The token `i` positions ahead, skipping nothing. */
+  private peekPast(i: number): Token | undefined {
+    return this.tokens[this.pos + i]
+  }
+
   private expect(type: TokenType): Token {
     const tok = this.current()
     if (tok.type !== type) {
@@ -1906,7 +3131,7 @@ class Parser {
    * Most KIP keywords only need a word boundary, so `WHERE{...}` is legal.
    * A handful — the statement introducers and the clause keywords whose
    * operand may itself start with a brace or a quote — require real
-   * whitespace, which is what keeps `UPSERT{` from reading as a statement.
+   * whitespace, which is what keeps `MUTATE{` from reading as a statement.
    * The distinction is per-keyword-position, not per-keyword, so it lives at
    * the call site rather than in the lexer.
    */
@@ -1918,43 +3143,30 @@ class Parser {
     }
     const after = this.source[tok.offset + tok.value.length] ?? ''
     if (after !== ' ' && after !== '\t' && after !== '\r' && after !== '\n') {
-      this.error(
-        `'${tok.value}' must be followed by whitespace`,
-        tok,
-        'KIP_1001'
-      )
+      this.error(`'${tok.value}' must be followed by whitespace`, tok, 'KIP_1001')
     }
     return this.advance()
   }
 
-  private expectVariable(): string {
+  /**
+   * Consumes the second word of a multi-word keyword (`SET FIELDS`,
+   * `AS OF`, `EXPECT VERSION`, `BELIEF SLOT`, ...).
+   *
+   * The grammar joins these with whitespace only. A comment between the words
+   * is not a smaller gap, it is a different token sequence, and reading
+   * `SET//c\nFIELDS` as `SET FIELDS` would accept text the reference grammar
+   * rejects.
+   */
+  private expectSecondWord(type: TokenType, first: Token): Token {
     const tok = this.current()
-    if (tok.type !== TokenType.Variable) {
-      this.error(`Expected variable (e.g., ?name) but got '${tok.value}'`, tok)
-      return '?unknown'
+    const gap = this.source.slice(first.offset + first.value.length, tok.offset)
+    if (tok.type === type && !/^\s+$/.test(gap)) {
+      this.error(
+        `'${first.value} ${tok.value}' must be separated by whitespace only`,
+        tok
+      )
     }
-    this.advance()
-    return tok.value
-  }
-
-  private expectString(): string {
-    const tok = this.current()
-    if (tok.type !== TokenType.String) {
-      this.error(`Expected string literal but got '${tok.value}'`, tok)
-      return ''
-    }
-    this.advance()
-    return this.unescapeString(tok.value, tok)
-  }
-
-  private expectStringValue(): string {
-    const tok = this.current()
-    if (tok.type !== TokenType.String) {
-      this.error(`Expected quoted string but got '${tok.value}'`, tok)
-      return ''
-    }
-    this.advance()
-    return this.unescapeString(tok.value, tok)
+    return this.expect(type)
   }
 
   private expectKeyWithQuoting(): { key: string; isQuoted: boolean } {
@@ -1963,10 +3175,10 @@ class Parser {
       this.advance()
       return { key: this.unescapeString(tok.value, tok), isQuoted: true }
     }
-    if (
-      tok.type === TokenType.Identifier ||
-      this.isNonAmbiguousKeyword(tok.type)
-    ) {
+    // `field_name = identifier | string_literal`, and KIP 2.0 keywords are
+    // contextual: the Spec's own ASSERT sugar writes `by:`, `mode:`, `at:`
+    // and `key:` as object keys.
+    if (isIdentifierLike(tok.type)) {
       this.advance()
       return { key: tok.value, isQuoted: false }
     }
@@ -2005,30 +3217,8 @@ class Parser {
   /**
    * Consume the `:` separating an object key from its value. A colon written
    * with no space before an identifier value (e.g. `status:active`) is lexed as
-   * a single parameter placeholder token (`:active`), so surface a targeted hint
-   * instead of the generic "Expected ':'" message.
+   * a single parameter placeholder token (`:active`), so split it back apart.
    */
-  /**
-   * Consumes the second word of a two-word keyword (`SET ATTRIBUTES`,
-   * `ORDER BY`, `EXPECT VERSION`, ...).
-   *
-   * The grammar joins these with whitespace only. A comment between the words
-   * is not a smaller gap, it is a different token sequence, and reading
-   * `SET//c\nMETADATA` as `SET METADATA` would accept text the reference
-   * grammar rejects.
-   */
-  private expectSecondWord(type: TokenType, first: Token): Token {
-    const tok = this.current()
-    const gap = this.source.slice(first.offset + first.value.length, tok.offset)
-    if (tok.type === type && !/^\s+$/.test(gap)) {
-      this.error(
-        `'${first.value} ${tok.value}' must be separated by whitespace only`,
-        tok
-      )
-    }
-    return this.expect(type)
-  }
-
   private expectObjectColon(_key: string): void {
     if (this.check(TokenType.Colon)) {
       this.advance()
@@ -2062,54 +3252,6 @@ class Parser {
         column: tok.column + 1 + t.column
       }))
     this.tokens.splice(this.pos, 1, ...retoken)
-  }
-
-  private isFunctionToken(type: TokenType): boolean {
-    return (
-      type === TokenType.Count ||
-      type === TokenType.Sum ||
-      type === TokenType.Avg ||
-      type === TokenType.Min ||
-      type === TokenType.Max ||
-      type === TokenType.Contains ||
-      type === TokenType.StartsWith ||
-      type === TokenType.EndsWith ||
-      type === TokenType.Regex ||
-      type === TokenType.In ||
-      type === TokenType.IsNull ||
-      type === TokenType.IsNotNull ||
-      type === TokenType.Add ||
-      type === TokenType.Mul ||
-      type === TokenType.Clamp ||
-      type === TokenType.Coalesce
-    )
-  }
-
-  /** Keywords that can also serve as property names in dot notation or object keys */
-  private isNonAmbiguousKeyword(type: TokenType): boolean {
-    return (
-      type === TokenType.Type ||
-      type === TokenType.Types ||
-      type === TokenType.Attributes ||
-      type === TokenType.Metadata ||
-      type === TokenType.Propositions ||
-      type === TokenType.Identifier ||
-      // Allow most keywords as property names since KIP uses snake_case for attrs
-      type === TokenType.Asc ||
-      type === TokenType.Desc ||
-      type === TokenType.Primer ||
-      type === TokenType.Domains ||
-      type === TokenType.From ||
-      type === TokenType.By ||
-      type === TokenType.Order ||
-      type === TokenType.Set ||
-      type === TokenType.With ||
-      type === TokenType.Into ||
-      type === TokenType.Expect ||
-      type === TokenType.Version ||
-      type === TokenType.Mode ||
-      type === TokenType.Threshold
-    )
   }
 
   /**
@@ -2170,20 +3312,66 @@ class Parser {
     })
   }
 
+  private static readonly STATEMENT_STARTERS: ReadonlySet<TokenType> = new Set([
+    TokenType.Find,
+    TokenType.Mutate,
+    TokenType.Create,
+    TokenType.Upsert,
+    TokenType.Ensure,
+    TokenType.Assert,
+    TokenType.Update,
+    TokenType.Retract,
+    TokenType.Supersede,
+    TokenType.Correct,
+    TokenType.Transition,
+    TokenType.Set,
+    TokenType.Archive,
+    TokenType.Tombstone,
+    TokenType.Purge,
+    TokenType.Merge,
+    TokenType.Describe,
+    TokenType.List,
+    TokenType.Search,
+    TokenType.Verify,
+    TokenType.Validate,
+    TokenType.Preview,
+    TokenType.History,
+    TokenType.Changes,
+    TokenType.Snapshot,
+    TokenType.Export,
+    TokenType.EOF
+  ])
+
   private recoverToNextStatement(): void {
-    const stmtStarters = new Set([
-      TokenType.Find,
-      TokenType.Upsert,
-      TokenType.Update,
-      TokenType.Merge,
-      TokenType.Delete,
-      TokenType.Describe,
-      TokenType.Search,
-      TokenType.Export,
-      TokenType.EOF
-    ])
-    while (!this.isAtEnd() && !stmtStarters.has(this.current().type)) {
+    while (
+      !this.isAtEnd() &&
+      !Parser.STATEMENT_STARTERS.has(this.current().type)
+    ) {
       this.pos++
     }
+  }
+
+  /** Inside MUTATE, recovery stops at the next clause or the closing brace. */
+  private recoverToMutationBoundary(): void {
+    let depth = 0
+    while (!this.isAtEnd()) {
+      const type = this.current().type
+      if (type === TokenType.LBrace) depth++
+      else if (type === TokenType.RBrace) {
+        if (depth === 0) return
+        depth--
+      } else if (depth === 0 && Parser.STATEMENT_STARTERS.has(type)) {
+        return
+      }
+      this.pos++
+    }
+  }
+}
+
+/** Unwinds a sub-parser that cannot produce a node; `parse` recovers. */
+class ParseAbort extends Error {
+  constructor() {
+    super('parse aborted')
+    this.name = 'ParseAbort'
   }
 }

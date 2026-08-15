@@ -4000,7 +4000,7 @@ FULFILL COMMITMENT
 ---
 # 228. `ASSERT` 易用性语法糖 (`ASSERT` Ergonomic Sugar)
 
-KML 2.0 可以 (MAY) 对以下语法进行标准化：
+已在规范中标准化为规范性语法糖（§55.1）。下列成员名为最终定名；本文档早期草案曾写作 `asserted_by` / `asserted_at` / `client_key`，最终文法将其缩短：
 
 ```prolog
 ASSERT ?a (
@@ -4008,19 +4008,21 @@ ASSERT ?a (
   "timezone",
   "+08:00"
 ) {
-  asserted_by: :alice,
+  by: :alice,
   stance: "support",
   mode: "stated",
   confidence: 1.0,
-  asserted_at: :time,
+  at: :time,
 
   evidence: [
     {ref: ?e, role: "support"}
   ],
 
-  client_key: :assertion_key
+  key: :assertion_key
 }
 ```
+
+`by` 与 `mode` **必须**书写，其余为可选。`by` 成为断言的 `asserted_by`，`at` 成为其 `asserted_at`，`key` 成为其 `client_key`。
 
 ---
 # 229. ASSERT 的语法糖脱敏展开 (ASSERT Desugaring)

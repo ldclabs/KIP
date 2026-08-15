@@ -1,7 +1,7 @@
 {
   "name": "@ldclabs/kip-lang",
-  "version": "0.4.0",
-  "description": "KIP (Knowledge Interaction Protocol) language toolkit: lexer, parser, formatter, diagnostics, and lowering to the executable AST",
+  "version": "2.0.0",
+  "description": "Language toolkit for KIP 2.0 (Knowledge Interaction Protocol): lexer, parser, formatter, diagnostics, and lowering of KQL/KML/META to the executable AST",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -26,7 +26,12 @@
   },
   "keywords": [
     "kip",
+    "kql",
+    "kml",
+    "meta",
     "knowledge-graph",
+    "agent-memory",
+    "cognitive-nexus",
     "parser",
     "formatter",
     "lexer"

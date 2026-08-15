@@ -2,16 +2,25 @@ import * as vscode from 'vscode'
 import { parse } from '@ldclabs/kip-lang'
 import type {
   Program,
-  UpsertStatement,
-  UpdateStatement,
-  MergeStatement,
+  Statement,
+  MutateStatement,
+  MutationClause,
   FindStatement,
-  DeleteStatement,
-  ExportStatement,
-  WherePattern,
-  ConceptBlock,
-  PropositionBlock
+  CreateConceptStatement,
+  UpsertConceptStatement,
+  CreateEvidenceStatement,
+  CreateAssertionStatement,
+  CreateActivityStatement,
+  UpdateStatement,
+  WhereClause,
+  WherePattern
 } from '@ldclabs/kip-lang'
+
+/** `CREATE EVIDENCE|ASSERTION|ACTIVITY` — one clause vocabulary, three kinds. */
+type RecordCreateStatement =
+  | CreateEvidenceStatement
+  | CreateAssertionStatement
+  | CreateActivityStatement
 
 export class KipFoldingProvider implements vscode.FoldingRangeProvider {
   provideFoldingRanges(document: vscode.TextDocument): vscode.FoldingRange[] {
@@ -42,107 +51,166 @@ export class KipFoldingProvider implements vscode.FoldingRangeProvider {
   ): void {
     for (const stmt of program.statements) {
       this.addRange(stmt.range, ranges)
-
-      switch (stmt.kind) {
-        case 'UpsertStatement':
-          this.collectFromUpsert(stmt, ranges)
-          break
-        case 'UpdateStatement':
-          this.collectFromUpdate(stmt, ranges)
-          break
-        case 'MergeStatement':
-          this.collectFromMerge(stmt, ranges)
-          break
-        case 'FindStatement':
-          this.collectFromFind(stmt, ranges)
-          break
-        case 'DeleteStatement':
-          this.collectFromDelete(stmt, ranges)
-          break
-        case 'ExportStatement':
-          this.collectFromExport(stmt, ranges)
-          break
-      }
+      this.collectFromStatement(stmt, ranges)
     }
   }
 
-  private collectFromUpsert(
-    stmt: UpsertStatement,
+  /**
+   * One statement: a KQL `FIND`, a KML mutation, or a META command.
+   *
+   * Every KML mutation may stand alone or sit inside `MUTATE { ... }`, so the
+   * mutation cases route through {@link collectFromMutation}.
+   */
+  private collectFromStatement(
+    stmt: Statement,
     ranges: vscode.FoldingRange[]
   ): void {
-    for (const block of stmt.blocks) {
-      this.addRange(block.range, ranges)
-      if (block.kind === 'ConceptBlock') {
-        this.collectFromConceptBlock(block, ranges)
-      } else {
-        this.collectFromPropositionBlock(block, ranges)
-      }
+    switch (stmt.kind) {
+      case 'FindStatement':
+        this.collectFromFind(stmt, ranges)
+        break
+      case 'MutateStatement':
+        this.collectFromMutate(stmt, ranges)
+        break
+
+      // META — only the forms carrying a block have anything nested to fold
+      case 'ExportCapsuleStatement':
+        this.collectFromWhere(stmt.where, ranges)
+        if (stmt.options) this.addRange(stmt.options.range, ranges)
+        break
+      case 'DescribeStatement':
+        if (stmt.with) this.addRange(stmt.with.range, ranges)
+        break
+      case 'ValidateStatement':
+        if (stmt.options) this.addRange(stmt.options.range, ranges)
+        break
+      case 'ListStatement':
+      case 'SearchStatement':
+      case 'VerifyStatement':
+      case 'PreviewStatement':
+      case 'HistoryStatement':
+      case 'ChangesStatement':
+      case 'SnapshotStatement':
+        break
+
+      default:
+        this.collectFromMutation(stmt, ranges)
     }
-    if (stmt.metadata) this.addRange(stmt.metadata.range, ranges)
-  }
-
-  private collectFromConceptBlock(
-    block: ConceptBlock,
-    ranges: vscode.FoldingRange[]
-  ): void {
-    if (block.setAttributes) this.addRange(block.setAttributes.range, ranges)
-    if (block.setPropositions)
-      this.addRange(block.setPropositions.range, ranges)
-    if (block.metadata) this.addRange(block.metadata.range, ranges)
-  }
-
-  private collectFromPropositionBlock(
-    block: PropositionBlock,
-    ranges: vscode.FoldingRange[]
-  ): void {
-    if (block.setAttributes) this.addRange(block.setAttributes.range, ranges)
-    if (block.metadata) this.addRange(block.metadata.range, ranges)
   }
 
   private collectFromFind(
     stmt: FindStatement,
     ranges: vscode.FoldingRange[]
   ): void {
-    if (stmt.where) {
-      this.addRange(stmt.where.range, ranges)
-      this.collectFromPatterns(stmt.where.patterns, ranges)
+    this.collectFromWhere(stmt.where, ranges)
+    if (stmt.epistemic) this.addRange(stmt.epistemic.options.range, ranges)
+  }
+
+  /** `MUTATE { ... }` — the statement range folds the transaction body. */
+  private collectFromMutate(
+    stmt: MutateStatement,
+    ranges: vscode.FoldingRange[]
+  ): void {
+    for (const clause of stmt.clauses) {
+      this.addRange(clause.range, ranges)
+      this.collectFromMutation(clause, ranges)
     }
+  }
+
+  private collectFromMutation(
+    clause: MutationClause,
+    ranges: vscode.FoldingRange[]
+  ): void {
+    switch (clause.kind) {
+      case 'CreateConceptStatement':
+        this.collectFromConceptCreate(clause, ranges)
+        break
+      case 'UpsertConceptStatement':
+        this.collectFromUpsert(clause, ranges)
+        break
+      case 'CreateEvidenceStatement':
+      case 'CreateAssertionStatement':
+      case 'CreateActivityStatement':
+        this.collectFromRecordCreate(clause, ranges)
+        break
+      case 'AssertStatement':
+        // The `{ by: ..., mode: ... }` stance object of the ASSERT sugar
+        this.addRange(clause.assignments.range, ranges)
+        break
+      case 'UpdateStatement':
+        this.collectFromUpdate(clause, ranges)
+        break
+      case 'TransitionActivityStatement':
+        for (const action of clause.finalize) {
+          this.addRange(action.range, ranges)
+        }
+        break
+      case 'SetRetentionStatement':
+        this.addRange(clause.assignments.range, ranges)
+        if (clause.where) this.collectFromWhere(clause.where, ranges)
+        break
+      case 'RetractAssertionStatement':
+      case 'ArchiveStatement':
+      case 'TombstoneStatement':
+      case 'PurgeStatement':
+      case 'MergeConceptStatement':
+        if (clause.where) this.collectFromWhere(clause.where, ranges)
+        break
+      case 'EnsurePropositionStatement':
+      case 'SupersedeAssertionStatement':
+      case 'CorrectEvidenceStatement':
+        // Single-line by construction — nothing nested to fold
+        break
+    }
+  }
+
+  private collectFromConceptCreate(
+    stmt: CreateConceptStatement,
+    ranges: vscode.FoldingRange[]
+  ): void {
+    if (stmt.setFields) this.addRange(stmt.setFields.range, ranges)
+    if (stmt.setAttributes) this.addRange(stmt.setAttributes.range, ranges)
+    for (const facet of stmt.setFacets) this.addRange(facet.range, ranges)
+    if (stmt.setStructural) this.addRange(stmt.setStructural.range, ranges)
+  }
+
+  private collectFromUpsert(
+    stmt: UpsertConceptStatement,
+    ranges: vscode.FoldingRange[]
+  ): void {
+    if (stmt.match) this.addRange(stmt.match.range, ranges)
+    if (stmt.setFields) this.addRange(stmt.setFields.range, ranges)
+    if (stmt.setAttributes) this.addRange(stmt.setAttributes.range, ranges)
+    for (const facet of stmt.setFacets) this.addRange(facet.range, ranges)
+    if (stmt.unsetAttributes) this.addRange(stmt.unsetAttributes.range, ranges)
+    for (const facet of stmt.unsetFacets) this.addRange(facet.range, ranges)
+    if (stmt.setStructural) this.addRange(stmt.setStructural.range, ranges)
+  }
+
+  private collectFromRecordCreate(
+    stmt: RecordCreateStatement,
+    ranges: vscode.FoldingRange[]
+  ): void {
+    if (stmt.setFields) this.addRange(stmt.setFields.range, ranges)
+    for (const facet of stmt.setFacets) this.addRange(facet.range, ranges)
+    if (stmt.setStructural) this.addRange(stmt.setStructural.range, ranges)
   }
 
   private collectFromUpdate(
     stmt: UpdateStatement,
     ranges: vscode.FoldingRange[]
   ): void {
-    if (stmt.setAttributes) this.addRange(stmt.setAttributes.range, ranges)
-    if (stmt.setMetadata) this.addRange(stmt.setMetadata.range, ranges)
-    this.addRange(stmt.where.range, ranges)
-    this.collectFromPatterns(stmt.where.patterns, ranges)
+    // SET FIELDS / SET ATTRIBUTES / SET FACET / SET STRUCTURAL / UNSET ...
+    for (const action of stmt.actions) this.addRange(action.range, ranges)
+    this.collectFromWhere(stmt.where, ranges)
   }
 
-  private collectFromMerge(
-    stmt: MergeStatement,
+  private collectFromWhere(
+    where: WhereClause,
     ranges: vscode.FoldingRange[]
   ): void {
-    this.addRange(stmt.where.range, ranges)
-    this.collectFromPatterns(stmt.where.patterns, ranges)
-  }
-
-  private collectFromDelete(
-    stmt: DeleteStatement,
-    ranges: vscode.FoldingRange[]
-  ): void {
-    if (stmt.where) {
-      this.addRange(stmt.where.range, ranges)
-      this.collectFromPatterns(stmt.where.patterns, ranges)
-    }
-  }
-
-  private collectFromExport(
-    stmt: ExportStatement,
-    ranges: vscode.FoldingRange[]
-  ): void {
-    this.addRange(stmt.where.range, ranges)
-    this.collectFromPatterns(stmt.where.patterns, ranges)
+    this.addRange(where.range, ranges)
+    this.collectFromPatterns(where.patterns, ranges)
   }
 
   private collectFromPatterns(
@@ -165,9 +233,14 @@ export class KipFoldingProvider implements vscode.FoldingRangeProvider {
     range: { start: { line: number }; end: { line: number } },
     ranges: vscode.FoldingRange[]
   ): void {
-    if (range.end.line > range.start.line) {
-      ranges.push(new vscode.FoldingRange(range.start.line, range.end.line))
-    }
+    if (range.end.line <= range.start.line) return
+    // A node and the block it wraps can span the same lines — an `ASSERT` and
+    // its stance object do — and VS Code would draw two markers on one region.
+    const duplicate = ranges.some(
+      (r) => r.start === range.start.line && r.end === range.end.line
+    )
+    if (duplicate) return
+    ranges.push(new vscode.FoldingRange(range.start.line, range.end.line))
   }
 
   private collectBraceFolding(

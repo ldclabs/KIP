@@ -102,6 +102,7 @@ WHERE { <patterns and filters> }
 ?person {type: "Person", name: "Alice"}              // Concept (type = schema sugar)
 ?p (?person, "works_for", ?org)                      // raw Proposition — existence, NOT belief
 ?p (?s, ?predicate, ?o)                              // predicate variable → binds exact predicate ref
+?p (id: :prop_id)                                    // same slot, addressed by id — usable as a term too
 ?a ASSERTION {proposition: ?p, asserted_by: ?actor, stance: "support", mode: "stated"}
 ?e EVIDENCE {evidence_class: "tool_result"}
 ?act ACTIVITY {activity_class: "inference", status: "completed"}
@@ -240,12 +241,14 @@ Update expressions: `ADD` `MUL` `CLAMP` `COALESCE` (deterministic, per-target). 
 ```prolog
 RETRACT ASSERTION :a EXPECT STATE "active"   // the assertor withdraws their own claim
 SUPERSEDE ASSERTION :old BY ?new             // same actor/lineage revision — not disagreement
-ARCHIVE :target WHERE {...}                  // out of ordinary recall; history preserved
-TOMBSTONE :target WHERE {...}                // logical deletion; identity/audit preserved
-PURGE :target WHERE {...}                    // physical erasure; exceptional
+ARCHIVE :target WHERE {...} [LIMIT :n]       // out of ordinary recall; history preserved
+TOMBSTONE :target WHERE {...} [LIMIT :n]     // logical deletion; identity/audit preserved
+PURGE :target WHERE {...} [LIMIT :n]         // physical erasure; exceptional
   REFERENCE POLICY "deny_if_referenced" CONFIRM "PURGE"
-SET RETENTION :target { retention_class: "standard", expires_at: :t }
+SET RETENTION :target { retention_class: "standard", expires_at: :t } [LIMIT :n]
 ```
+
+Every mutation whose `WHERE` can select an unbounded set takes an optional `LIMIT` right after it (`UPDATE`, `RETRACT ASSERTION`, `SET RETENTION`, `ARCHIVE`, `TOMBSTONE`, `PURGE`) — bound your sweeps. `LIMIT` caps how many are affected, not which: don't assume an order. `MERGE CONCEPT` takes none.
 
 `MERGE CONCEPT ?src INTO ?tgt WHERE {...}` — non-destructive: source stays addressable as merged history; future writes canonicalize to target. Cycle-creating merges (target already resolves back to source) are rejected.
 

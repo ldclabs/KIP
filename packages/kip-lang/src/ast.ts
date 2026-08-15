@@ -16,50 +16,122 @@ export interface Program extends BaseNode {
   statements: Statement[]
 }
 
-export type Statement =
-  | FindStatement
-  | UpsertStatement
-  | UpdateStatement
-  | MergeStatement
-  | DeleteStatement
-  | DescribeStatement
-  | SearchStatement
-  | ExportStatement
+export type Statement = KqlStatement | KmlStatement | MetaStatement
 
-// ─── FIND ────────────────────────────────────────────────────────────
+/** KQL — the read language. */
+export type KqlStatement = FindStatement
+
+/** KML — the cognitive mutation language. */
+export type KmlStatement = MutateStatement | MutationClause
+
+/**
+ * Every mutation that may stand alone or inside `MUTATE { ... }`.
+ *
+ * `MUTATE` itself is excluded: the grammar forbids nesting one mutation
+ * transaction inside another.
+ */
+export type MutationClause =
+  | CreateConceptStatement
+  | UpsertConceptStatement
+  | EnsurePropositionStatement
+  | AssertStatement
+  | CreateEvidenceStatement
+  | CreateAssertionStatement
+  | CreateActivityStatement
+  | UpdateStatement
+  | RetractAssertionStatement
+  | SupersedeAssertionStatement
+  | CorrectEvidenceStatement
+  | TransitionActivityStatement
+  | SetRetentionStatement
+  | ArchiveStatement
+  | TombstoneStatement
+  | PurgeStatement
+  | MergeConceptStatement
+
+/** META — introspection, grounding, verification, history, export. */
+export type MetaStatement =
+  | DescribeStatement
+  | ListStatement
+  | SearchStatement
+  | VerifyStatement
+  | ValidateStatement
+  | PreviewStatement
+  | HistoryStatement
+  | ChangesStatement
+  | SnapshotStatement
+  | ExportCapsuleStatement
+
+// ─── Shared operand shapes ───────────────────────────────────────────
+
+/** `schema_symbol = string_literal | parameter` */
+export type SchemaSymbol = StringLiteral | ParameterRef
+
+/** `scalar_value` / `scalar_or_parameter` / `meta_value` = `parameter | literal` */
+export type ScalarValue =
+  | ParameterRef
+  | StringLiteral
+  | NumberLiteral
+  | BooleanLiteral
+  | NullLiteral
+
+/** `target_ref = variable | parameter | string_literal` */
+export type TargetRef = VariableRef | ParameterRef | StringLiteral
+
+/** `handle = variable` — a block-local name bound by a KML mutation. */
+export type Handle = VariableRef
+
+// ─── KQL: FIND ───────────────────────────────────────────────────────
 
 export interface FindStatement extends BaseNode {
   kind: 'FindStatement'
   projections: Expression[]
-  where?: WhereClause
+  where: WhereClause
+  asOf?: AsOfClause
+  forTime?: ForTimeClause
+  epistemic?: EpistemicClause
   orderBy?: OrderByClause
   limit?: LimitClause
   cursor?: CursorClause
 }
 
-export interface OrderByClause extends BaseNode {
-  kind: 'OrderByClause'
-  keys: OrderByKey[]
-  /** First sort key, preserved for compatibility with pre-RC9 consumers. */
-  expression: Expression
-  /** First sort direction, preserved for compatibility with pre-RC9 consumers. */
-  direction: 'ASC' | 'DESC'
+/** `AS OF SEQ|TX|TIME` — which cognitive history the read runs against. */
+export interface AsOfClause extends BaseNode {
+  kind: 'AsOfClause'
+  basis: 'SEQ' | 'TX' | 'TIME'
+  value: ScalarValue
 }
 
-export interface OrderByKey extends BaseNode {
-  kind: 'OrderByKey'
+/** `FOR TIME` — world-valid time, an axis independent of {@link AsOfClause}. */
+export interface ForTimeClause extends BaseNode {
+  kind: 'ForTimeClause'
+  value: ScalarValue
+}
+
+export interface EpistemicClause extends BaseNode {
+  kind: 'EpistemicClause'
+  options: ObjectLiteral
+}
+
+export interface OrderByClause extends BaseNode {
+  kind: 'OrderByClause'
+  items: OrderItem[]
+}
+
+export interface OrderItem extends BaseNode {
+  kind: 'OrderItem'
   expression: Expression
-  direction: 'ASC' | 'DESC'
+  direction?: 'ASC' | 'DESC'
 }
 
 export interface LimitClause extends BaseNode {
   kind: 'LimitClause'
-  value: NumberLiteral | ParameterRef
+  value: ScalarValue
 }
 
 export interface CursorClause extends BaseNode {
   kind: 'CursorClause'
-  value: StringLiteral | ParameterRef
+  value: ScalarValue
 }
 
 // ─── WHERE ───────────────────────────────────────────────────────────
@@ -72,6 +144,12 @@ export interface WhereClause extends BaseNode {
 export type WherePattern =
   | ConceptPattern
   | PropositionPattern
+  | AssertionPattern
+  | EvidencePattern
+  | ActivityPattern
+  | StructuralPattern
+  | BeliefPattern
+  | BeliefSlotPattern
   | FilterClause
   | NotClause
   | OptionalClause
@@ -79,55 +157,75 @@ export type WherePattern =
 
 export interface ConceptPattern extends BaseNode {
   kind: 'ConceptPattern'
-  variable?: string // ?var name (including ?)
-  matcher: ConceptMatcher
-}
-
-export interface ConceptMatcher extends BaseNode {
-  kind: 'ConceptMatcher'
-  entries: ObjectEntry[] // {id: "...", type: "...", name: "..."}
+  variable: VariableRef
+  /** Whether the optional `CONCEPT` keyword was written. */
+  explicit: boolean
+  matcher: ObjectPattern
 }
 
 export interface PropositionPattern extends BaseNode {
   kind: 'PropositionPattern'
-  variable?: string // ?link
-  /** Match by proposition link id: (id: "...") */
-  id?: StringLiteral | ParameterRef
-  subject?: PropositionEndpoint
-  predicate?: PredicateExpr
-  object?: PropositionEndpoint
+  variable?: VariableRef
+  /** Whether the optional `PROPOSITION` keyword was written. */
+  explicit: boolean
+  tuple: PropositionTuple
 }
 
-export type PropositionEndpoint =
-  | VariableRef
-  | ConceptPattern
-  | PropositionPattern
-
-export type PredicateExpr =
-  | PredicateLiteral
-  | PredicateVariable
-  | PredicateAlternation
-
-export interface PredicateVariable extends BaseNode {
-  kind: 'PredicateVariable'
-  name: string // ?predicate variable name (including ?)
+export interface AssertionPattern extends BaseNode {
+  kind: 'AssertionPattern'
+  variable: VariableRef
+  matcher: ObjectPattern
 }
 
-export interface PredicateLiteral extends BaseNode {
-  kind: 'PredicateLiteral'
-  value: string // the string value without quotes
-  hopRange?: HopRange
+export interface EvidencePattern extends BaseNode {
+  kind: 'EvidencePattern'
+  variable: VariableRef
+  matcher: ObjectPattern
 }
 
-export interface PredicateAlternation extends BaseNode {
-  kind: 'PredicateAlternation'
-  predicates: PredicateLiteral[]
+export interface ActivityPattern extends BaseNode {
+  kind: 'ActivityPattern'
+  variable: VariableRef
+  matcher: ObjectPattern
 }
 
-export interface HopRange extends BaseNode {
-  kind: 'HopRange'
-  min: number
-  max?: number // undefined means unbounded
+/**
+ * `?edge STRUCTURAL (?src, "has_step", ?dst)` — record topology.
+ *
+ * Never a semantic Proposition: a claim *about* a structural relation is a
+ * separate Proposition + Assertion (Spec §17.3).
+ */
+export interface StructuralPattern extends BaseNode {
+  kind: 'StructuralPattern'
+  variable?: VariableRef
+  subject: Term
+  field: SchemaSymbol
+  object: Term
+}
+
+/**
+ * `?b BELIEF (...)` — an Epistemic Projection, virtual and read-only.
+ *
+ * Admitted by KQL only. A Projection can never be a mutation target, so the
+ * KML and EXPORT grammars exclude it.
+ */
+export interface BeliefPattern extends BaseNode {
+  kind: 'BeliefPattern'
+  variable: VariableRef
+  /** `BELIEF (?p)` — project an already-bound Proposition. */
+  proposition?: VariableRef
+  /** `BELIEF (?s, "pred", ?o)` — project a tuple. */
+  subject?: Term
+  predicate?: PredicateAtom
+  object?: Term
+}
+
+/** `?slot BELIEF SLOT (?s, "pred")` — candidates and conflicts for one slot. */
+export interface BeliefSlotPattern extends BaseNode {
+  kind: 'BeliefSlotPattern'
+  variable: VariableRef
+  subject: Term
+  predicate: PredicateAtom
 }
 
 export interface FilterClause extends BaseNode {
@@ -150,156 +248,511 @@ export interface UnionClause extends BaseNode {
   patterns: WherePattern[]
 }
 
-// ─── UPSERT ──────────────────────────────────────────────────────────
+// ─── Raw semantic tuples ─────────────────────────────────────────────
 
-export interface UpsertStatement extends BaseNode {
-  kind: 'UpsertStatement'
-  blocks: UpsertBlock[]
-  metadata?: WithMetadata
+/**
+ * The Proposition expression slot, in either of its two spellings (Spec §43.2).
+ *
+ * `(subject, predicate, object)` addresses a Proposition by structure;
+ * `(id: ...)` addresses the same slot by record identity. Both are tuples on
+ * purpose: a Proposition is not a field-matched record, and keeping one slot
+ * is what lets an id reference stand as a `term` endpoint — how a statement
+ * about a statement names an existing Proposition.
+ *
+ * `id` is present exactly when the triple fields are absent.
+ */
+export interface PropositionTuple extends BaseNode {
+  kind: 'PropositionTuple'
+  /** `(id: "P-1")` — match-only; never resolves-or-creates. */
+  id?: ScalarValue
+  subject?: Term
+  predicate?: RawPredicateExpression
+  object?: Term
 }
 
-export type UpsertBlock = ConceptBlock | PropositionBlock
+export type Term =
+  | VariableRef
+  | ParameterRef
+  | StringLiteral
+  | NumberLiteral
+  | BooleanLiteral
+  | NullLiteral
+  | ObjectPattern
+  | PropositionTuple
 
-export interface ConceptBlock extends BaseNode {
-  kind: 'ConceptBlock'
-  /** `?local_handle`, absent when the block is not referenced elsewhere. */
-  handle?: string
-  matcher: ConceptMatcher
-  expectVersion?: ExpectVersion
-  setAttributes?: SetAttributes
-  setPropositions?: SetPropositions
-  metadata?: WithMetadata
+/** `predicate_atom = string_literal | parameter | variable` */
+export type PredicateAtom = StringLiteral | ParameterRef | VariableRef
+
+/**
+ * `raw_predicate_expression` — one or more path atoms joined by `|`.
+ *
+ * Path quantifiers and alternation are traversal syntax owned by KQL; KML
+ * and META require a bare {@link PredicateAtom}, which the parser enforces
+ * by position.
+ */
+export interface RawPredicateExpression extends BaseNode {
+  kind: 'RawPredicateExpression'
+  atoms: PredicatePathAtom[]
 }
 
-export interface PropositionBlock extends BaseNode {
-  kind: 'PropositionBlock'
-  handle?: string
-  /** Match an existing proposition by id: (id: "...") */
-  id?: StringLiteral | ParameterRef
-  subject?: PropositionEndpoint
-  predicate?: PredicateExpr
-  object?: PropositionEndpoint
-  expectVersion?: ExpectVersion
-  setAttributes?: SetAttributes
-  metadata?: WithMetadata
+export interface PredicatePathAtom extends BaseNode {
+  kind: 'PredicatePathAtom'
+  atom: PredicateAtom
+  quantifier?: PathQuantifier
 }
 
-export interface ExpectVersion extends BaseNode {
-  kind: 'ExpectVersion'
-  value: NumberLiteral | ParameterRef
+/** `{n}` / `{n,}` / `{n,m}` — raw traversal only, never belief propagation. */
+export interface PathQuantifier extends BaseNode {
+  kind: 'PathQuantifier'
+  min: number
+  /** Absent means unbounded. */
+  max?: number
+  /** Whether a comma was written, distinguishing `{2}` from `{2,}`. */
+  hasComma: boolean
 }
 
-export interface SetAttributes extends BaseNode {
-  kind: 'SetAttributes'
-  entries: ObjectEntry[]
+// ─── Match objects ───────────────────────────────────────────────────
+
+/**
+ * `object_pattern` — the `{...}` used to match, not to assign.
+ *
+ * Shares its node shape with {@link ObjectLiteral} on purpose: the syntax
+ * tree stays deliberately loose (an editor wants the loosest tree it can
+ * get) and `lower` closes it to the one form each position means.
+ */
+export interface ObjectPattern extends BaseNode {
+  kind: 'ObjectPattern'
+  members: ObjectEntry[]
+  trailingComma?: boolean
 }
 
-export interface SetPropositions extends BaseNode {
-  kind: 'SetPropositions'
-  items: PropositionItem[]
+// ─── KML: create / ensure / upsert ───────────────────────────────────
+
+export interface MutateStatement extends BaseNode {
+  kind: 'MutateStatement'
+  clauses: MutationClause[]
 }
 
-export interface PropositionItem extends BaseNode {
-  kind: 'PropositionItem'
-  predicate: string
-  target: PropositionEndpoint
-  metadata?: WithMetadata
+export interface CreateConceptStatement extends BaseNode {
+  kind: 'CreateConceptStatement'
+  handle: Handle
+  type?: TypeClause
+  clientKey?: ClientKeyClause
+  name?: NameClause
+  setFields?: SetFieldsClause
+  setAttributes?: SetAttributesClause
+  setFacets: SetFacetClause[]
+  setStructural?: SetStructuralClause
 }
 
-export interface WithMetadata extends BaseNode {
-  kind: 'WithMetadata'
-  entries: ObjectEntry[]
+export interface UpsertConceptStatement extends BaseNode {
+  kind: 'UpsertConceptStatement'
+  handle: Handle
+  match?: MatchClause
+  expectVersion?: ExpectVersionClause
+  setFields?: SetFieldsClause
+  setAttributes?: SetAttributesClause
+  setFacets: SetFacetClause[]
+  unsetAttributes?: UnsetAttributesClause
+  unsetFacets: UnsetFacetClause[]
+  setStructural?: SetStructuralClause
 }
 
-export interface SetMetadata extends BaseNode {
-  kind: 'SetMetadata'
-  entries: ObjectEntry[]
+export interface EnsurePropositionStatement extends BaseNode {
+  kind: 'EnsurePropositionStatement'
+  handle?: Handle
+  tuple: PropositionTuple
+  expectVersion?: ExpectVersionClause
 }
 
-// ─── UPDATE ──────────────────────────────────────────────────────────
+/**
+ * `ASSERT (s, p, o) { by:, mode:, ... } [SUPERSEDING ref]`.
+ *
+ * Normative sugar (Spec §55.1) for `ENSURE PROPOSITION` + `CREATE ASSERTION`
+ * (+ `SUPERSEDE`). `lower` performs that desugaring; it never fabricates
+ * state beyond those parts.
+ */
+export interface AssertStatement extends BaseNode {
+  kind: 'AssertStatement'
+  handle?: Handle
+  tuple: PropositionTuple
+  assignments: ObjectLiteral
+  superseding?: TargetRef
+}
 
+export interface CreateEvidenceStatement extends BaseNode {
+  kind: 'CreateEvidenceStatement'
+  handle: Handle
+  clientKey?: ClientKeyClause
+  setFields?: SetFieldsClause
+  setFacets: SetFacetClause[]
+  setStructural?: SetStructuralClause
+}
+
+export interface CreateAssertionStatement extends BaseNode {
+  kind: 'CreateAssertionStatement'
+  handle: Handle
+  clientKey?: ClientKeyClause
+  setFields?: SetFieldsClause
+  setFacets: SetFacetClause[]
+  setStructural?: SetStructuralClause
+}
+
+export interface CreateActivityStatement extends BaseNode {
+  kind: 'CreateActivityStatement'
+  handle: Handle
+  clientKey?: ClientKeyClause
+  setFields?: SetFieldsClause
+  setFacets: SetFacetClause[]
+  setStructural?: SetStructuralClause
+}
+
+// ─── KML: clause vocabulary ──────────────────────────────────────────
+
+export interface TypeClause extends BaseNode {
+  kind: 'TypeClause'
+  value: SchemaSymbol
+}
+
+export interface ClientKeyClause extends BaseNode {
+  kind: 'ClientKeyClause'
+  value: ScalarValue
+}
+
+export interface NameClause extends BaseNode {
+  kind: 'NameClause'
+  value: ScalarValue
+}
+
+export interface MatchClause extends BaseNode {
+  kind: 'MatchClause'
+  pattern: ObjectPattern
+}
+
+export interface SetFieldsClause extends BaseNode {
+  kind: 'SetFieldsClause'
+  assignments: ObjectLiteral
+}
+
+export interface SetAttributesClause extends BaseNode {
+  kind: 'SetAttributesClause'
+  assignments: ObjectLiteral
+}
+
+export interface SetFacetClause extends BaseNode {
+  kind: 'SetFacetClause'
+  facet: SchemaSymbol
+  assignments: ObjectLiteral
+}
+
+export interface UnsetAttributesClause extends BaseNode {
+  kind: 'UnsetAttributesClause'
+  fields: UnsetField[]
+}
+
+export interface UnsetFacetClause extends BaseNode {
+  kind: 'UnsetFacetClause'
+  facet: SchemaSymbol
+  fields: UnsetField[]
+}
+
+export interface UnsetField extends BaseNode {
+  kind: 'UnsetField'
+  name: string
+  isQuoted: boolean
+}
+
+export interface SetStructuralClause extends BaseNode {
+  kind: 'SetStructuralClause'
+  assignments: StructuralAssignment[]
+}
+
+/**
+ * `("has_step", ?step) {index: 0}` — one structural edge, optionally placed.
+ *
+ * The trailing object carries edge options; `index` is meaningful only on a
+ * field declared ordered, and index order is never causality (Spec §17.4).
+ */
+export interface StructuralAssignment extends BaseNode {
+  kind: 'StructuralAssignment'
+  field: SchemaSymbol
+  value: Expression
+  options?: ObjectLiteral
+}
+
+export interface ExpectVersionClause extends BaseNode {
+  kind: 'ExpectVersionClause'
+  value: ScalarValue
+}
+
+export interface ExpectStateClause extends BaseNode {
+  kind: 'ExpectStateClause'
+  value: ScalarValue
+}
+
+// ─── KML: update ─────────────────────────────────────────────────────
+
+/**
+ * `UPDATE` reaches mutable state only.
+ *
+ * Proposition tuples, Assertion epistemic payload, Evidence payload, terminal
+ * Activity topology, `_system` and Governance are all out of reach; `lower`
+ * rejects those targets rather than letting an engine discover them.
+ */
 export interface UpdateStatement extends BaseNode {
   kind: 'UpdateStatement'
-  target: string
-  setAttributes?: SetAttributes
-  setMetadata?: SetMetadata
+  target: TargetRef
+  expectVersion?: ExpectVersionClause
+  actions: UpdateAction[]
   where: WhereClause
   limit?: LimitClause
 }
 
-// ─── MERGE ───────────────────────────────────────────────────────────
+export type UpdateAction =
+  | SetFieldsClause
+  | SetAttributesClause
+  | SetFacetClause
+  | UnsetAttributesClause
+  | UnsetFacetClause
+  | SetStructuralClause
 
-export interface MergeStatement extends BaseNode {
-  kind: 'MergeStatement'
-  source: string
-  target: string
-  where: WhereClause
+// ─── KML: lifecycle and correction ───────────────────────────────────
+
+export interface RetractAssertionStatement extends BaseNode {
+  kind: 'RetractAssertionStatement'
+  target: TargetRef
+  where?: WhereClause
+  limit?: LimitClause
+  expectState?: ExpectStateClause
 }
 
-// ─── DELETE ──────────────────────────────────────────────────────────
-
-export interface DeleteStatement extends BaseNode {
-  kind: 'DeleteStatement'
-  deleteType: 'ATTRIBUTES' | 'METADATA' | 'PROPOSITIONS' | 'CONCEPT'
-  /** For ATTRIBUTES/METADATA: the set of keys to delete */
-  keys?: string[]
-  /** The target variable */
-  target: string
-  /** DETACH flag for CONCEPT deletion */
-  detach?: boolean
-  where: WhereClause
+export interface SupersedeAssertionStatement extends BaseNode {
+  kind: 'SupersedeAssertionStatement'
+  target: TargetRef
+  by: TargetRef
+  expectState?: ExpectStateClause
 }
 
-// ─── DESCRIBE ────────────────────────────────────────────────────────
+export interface CorrectEvidenceStatement extends BaseNode {
+  kind: 'CorrectEvidenceStatement'
+  target: TargetRef
+  by: TargetRef
+  expectState?: ExpectStateClause
+}
+
+export interface TransitionActivityStatement extends BaseNode {
+  kind: 'TransitionActivityStatement'
+  target: TargetRef
+  to: ScalarValue
+  finalize: (SetFieldsClause | SetStructuralClause)[]
+  expectState?: ExpectStateClause
+}
+
+// ─── KML: retention and removal ──────────────────────────────────────
+
+export interface SetRetentionStatement extends BaseNode {
+  kind: 'SetRetentionStatement'
+  target: TargetRef
+  assignments: ObjectLiteral
+  where?: WhereClause
+  limit?: LimitClause
+  expectVersion?: ExpectVersionClause
+}
+
+export interface ArchiveStatement extends BaseNode {
+  kind: 'ArchiveStatement'
+  target: TargetRef
+  where?: WhereClause
+  limit?: LimitClause
+  expectState?: ExpectStateClause
+}
+
+export interface TombstoneStatement extends BaseNode {
+  kind: 'TombstoneStatement'
+  target: TargetRef
+  where?: WhereClause
+  limit?: LimitClause
+  expectState?: ExpectStateClause
+}
+
+/** Physical erasure. The grammar freezes the confirmation as `CONFIRM "PURGE"`. */
+export interface PurgeStatement extends BaseNode {
+  kind: 'PurgeStatement'
+  target: TargetRef
+  where?: WhereClause
+  limit?: LimitClause
+  referencePolicy?: ScalarValue
+  confirm: StringLiteral
+}
+
+/** Non-destructive: the source stays addressable as merged history. */
+export interface MergeConceptStatement extends BaseNode {
+  kind: 'MergeConceptStatement'
+  source: TargetRef
+  into: TargetRef
+  where?: WhereClause
+  expectVersion?: ExpectVersionClause
+}
+
+// ─── META: DESCRIBE ──────────────────────────────────────────────────
+
+export type DescribeTargetKind =
+  | 'PRIMER'
+  | 'PROTOCOL'
+  | 'EXECUTION_CONTEXT'
+  | 'CAPABILITIES'
+  | 'SPACE'
+  | 'SCHEMA_ENVIRONMENT'
+  | 'PACKAGE'
+  | 'TYPE'
+  | 'PREDICATE'
+  | 'FACET'
+  | 'STRUCTURAL_FIELD'
+  | 'COMPATIBILITY'
+  | 'ERROR'
+  | 'TRANSACTION'
+  | 'TRANSACTION_BY_IDEMPOTENCY_KEY'
+  | 'SNAPSHOT'
+  | 'CAPSULE'
+  | 'EPISTEMIC_POLICY'
+  | 'PROJECTION_CAPABILITY'
+  | 'TRUST'
+  | 'ACCESS'
 
 export interface DescribeStatement extends BaseNode {
   kind: 'DescribeStatement'
-  describeType:
-    | 'PRIMER'
-    | 'DOMAINS'
-    | 'CONCEPT_TYPES'
-    | 'CONCEPT_TYPE'
-    | 'PROPOSITION_TYPES'
-    | 'PROPOSITION_TYPE'
-  /** The type/predicate name for specific describe */
-  typeName?: string
-  /** Raw type/predicate value, preserving either quoted string or :parameter syntax. */
-  typeNameValue?: StringLiteral | ParameterRef
+  target: DescribeTargetKind
+  /** The single operand, where the target takes one. */
+  value?: ScalarValue
+  /** `DESCRIBE PRIMER MODE ...` */
+  mode?: ScalarValue
+  /** `DESCRIBE COMPATIBILITY FROM ... TO ...` */
+  from?: ScalarValue
+  to?: ScalarValue
+  /** `DESCRIBE SCHEMA ENVIRONMENT` / `DESCRIBE SNAPSHOT` */
+  asOf?: AsOfClause
+  /** `DESCRIBE ACCESS WITH {...}` */
+  with?: ObjectLiteral
+}
+
+// ─── META: LIST ──────────────────────────────────────────────────────
+
+export type ListTargetKind =
+  | 'SPACES'
+  | 'SCHEMA_PACKAGES'
+  | 'TYPES'
+  | 'PREDICATES'
+  | 'FACETS'
+  | 'STRUCTURAL_FIELDS'
+  | 'EPISTEMIC_POLICIES'
+
+export interface ListStatement extends BaseNode {
+  kind: 'ListStatement'
+  target: ListTargetKind
+  /** `LIST SCHEMA PACKAGES STATUS ...` */
+  status?: ScalarValue
   limit?: LimitClause
   cursor?: CursorClause
 }
 
-// ─── SEARCH ──────────────────────────────────────────────────────────
+// ─── META: SEARCH ────────────────────────────────────────────────────
 
+export type SearchKind =
+  | 'CONCEPT'
+  | 'PROPOSITION'
+  | 'ASSERTION'
+  | 'EVIDENCE'
+  | 'ACTIVITY'
+  | 'COGNITION'
+
+/**
+ * Grounding only: a SEARCH score is not confidence, and a miss is not absence.
+ * The golden path is SEARCH → exact id → BELIEF/FIND.
+ */
 export interface SearchStatement extends BaseNode {
   kind: 'SearchStatement'
-  searchTarget: 'CONCEPT' | 'PROPOSITION'
-  term: string
-  /** Raw term value, preserving either quoted string or :parameter syntax. */
-  termValue?: StringLiteral | ParameterRef
-  withType?: string
-  /** Raw WITH TYPE value, preserving either quoted string or :parameter syntax. */
-  withTypeValue?: StringLiteral | ParameterRef
-  mode?: string
-  /** Raw MODE value, preserving either quoted string or :parameter syntax. */
-  modeValue?: StringLiteral | ParameterRef
-  threshold?: ThresholdClause
-  limit?: LimitClause
-}
-
-export interface ThresholdClause extends BaseNode {
-  kind: 'ThresholdClause'
-  value: NumberLiteral | ParameterRef
-}
-
-// ─── EXPORT ──────────────────────────────────────────────────────────
-
-export interface ExportStatement extends BaseNode {
-  kind: 'ExportStatement'
-  target: string
-  where: WhereClause
+  searchKind: SearchKind
+  term: ScalarValue
+  withType?: ScalarValue
+  withPredicate?: ScalarValue
+  mode?: ScalarValue
+  threshold?: ScalarValue
+  /** `AS OF SEQ ...` — historical index basis. */
+  asOfSeq?: ScalarValue
   limit?: LimitClause
   cursor?: CursorClause
+}
+
+// ─── META: VERIFY / VALIDATE / PREVIEW ───────────────────────────────
+
+export type VerifyTargetKind =
+  | 'CAPSULE'
+  | 'SCHEMA_PACKAGE'
+  | 'RECEIPT'
+  | 'BLOB'
+  | 'CHECKPOINT'
+
+export interface VerifyStatement extends BaseNode {
+  kind: 'VerifyStatement'
+  target: VerifyTargetKind
+  value: ScalarValue
+}
+
+export type ValidateTargetKind =
+  | 'KQL'
+  | 'KML'
+  | 'CAPSULE'
+  | 'SCHEMA_PACKAGE'
+  | 'IMPORT_PLAN'
+
+export interface ValidateStatement extends BaseNode {
+  kind: 'ValidateStatement'
+  target: ValidateTargetKind
+  value: ScalarValue
+  options?: ObjectLiteral
+}
+
+export interface PreviewStatement extends BaseNode {
+  kind: 'PreviewStatement'
+  target: 'KML' | 'IMPORT_CAPSULE'
+  value: ScalarValue
+  /** `PREVIEW IMPORT CAPSULE ... INTO ...` */
+  into?: ScalarValue
+}
+
+// ─── META: HISTORY / CHANGES / SNAPSHOT ──────────────────────────────
+
+export interface HistoryStatement extends BaseNode {
+  kind: 'HistoryStatement'
+  target: 'ELEMENT' | 'SPACE'
+  /** Present for `HISTORY ELEMENT`. */
+  value?: ScalarValue
+  fromSeq?: ScalarValue
+  toSeq?: ScalarValue
+  limit?: LimitClause
+  cursor?: CursorClause
+}
+
+export interface ChangesStatement extends BaseNode {
+  kind: 'ChangesStatement'
+  mode: 'SINCE' | 'AFTER_SEQ'
+  value: ScalarValue
+  limit?: LimitClause
+}
+
+export interface SnapshotStatement extends BaseNode {
+  kind: 'SnapshotStatement'
+  asOf?: AsOfClause
+}
+
+// ─── META: EXPORT CAPSULE ────────────────────────────────────────────
+
+export interface ExportCapsuleStatement extends BaseNode {
+  kind: 'ExportCapsuleStatement'
+  target: TargetRef
+  where: WhereClause
+  options?: ObjectLiteral
+  asOf?: AsOfClause
 }
 
 // ─── Expressions ─────────────────────────────────────────────────────
@@ -308,7 +761,8 @@ export type Expression =
   | BinaryExpression
   | UnaryExpression
   | FunctionCallExpr
-  | DotExpression
+  | AggregateExpr
+  | FieldAccess
   | VariableRef
   | ParameterRef
   | StringLiteral
@@ -317,6 +771,8 @@ export type Expression =
   | NullLiteral
   | ArrayLiteral
   | ObjectLiteral
+  | ObjectPattern
+  | PropositionTuple
 
 export interface BinaryExpression extends BaseNode {
   kind: 'BinaryExpression'
@@ -327,7 +783,7 @@ export interface BinaryExpression extends BaseNode {
 
 export interface UnaryExpression extends BaseNode {
   kind: 'UnaryExpression'
-  operator: '!'
+  operator: '!' | '-'
   operand: Expression
 }
 
@@ -337,10 +793,36 @@ export interface FunctionCallExpr extends BaseNode {
   args: Expression[]
 }
 
-export interface DotExpression extends BaseNode {
-  kind: 'DotExpression'
-  object: Expression
-  property: string
+/** `COUNT(DISTINCT ?x)` and friends — legal in projection and sort positions. */
+export interface AggregateExpr extends BaseNode {
+  kind: 'AggregateExpr'
+  name: string
+  distinct: boolean
+  argument: Expression
+}
+
+/**
+ * `?x.facets["MnemonicState"].memory_strength` — a variable plus a dot path.
+ *
+ * Kept flat rather than as nested binary nodes because every consumer wants
+ * the path as a sequence, and `lower` emits exactly that.
+ */
+export interface FieldAccess extends BaseNode {
+  kind: 'FieldAccess'
+  base: VariableRef
+  steps: FieldStep[]
+}
+
+export type FieldStep = DotStep | IndexStep
+
+export interface DotStep extends BaseNode {
+  kind: 'DotStep'
+  name: string
+}
+
+export interface IndexStep extends BaseNode {
+  kind: 'IndexStep'
+  key: StringLiteral
 }
 
 export interface VariableRef extends BaseNode {

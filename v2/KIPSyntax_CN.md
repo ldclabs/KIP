@@ -102,6 +102,7 @@ WHERE { <patterns and filters> }
 ?person {type: "Person", name: "Alice"}              // Concept（type 为 schema 语法糖）
 ?p (?person, "works_for", ?org)                      // 原始 Proposition——仅代表存在，不代表为真
 ?p (?s, ?predicate, ?o)                              // 谓词变量 → 绑定精确谓词引用
+?p (id: :prop_id)                                    // 同一槽位、按 id 寻址——也可作为 term 端点
 ?a ASSERTION {proposition: ?p, asserted_by: ?actor, stance: "support", mode: "stated"}
 ?e EVIDENCE {evidence_class: "tool_result"}
 ?act ACTIVITY {activity_class: "inference", status: "completed"}
@@ -240,12 +241,14 @@ LIMIT :n
 ```prolog
 RETRACT ASSERTION :a EXPECT STATE "active"   // 断言者撤回自身的主张
 SUPERSEDE ASSERTION :old BY ?new             // 同一行动者/血统链的版本迭代——非分歧
-ARCHIVE :target WHERE {...}                  // 移出常规召回范围；完整保留历史
-TOMBSTONE :target WHERE {...}                // 逻辑删除；保留标识与审计记录
-PURGE :target WHERE {...}                    // 物理抹除；极端特殊操作
+ARCHIVE :target WHERE {...} [LIMIT :n]       // 移出常规召回范围；完整保留历史
+TOMBSTONE :target WHERE {...} [LIMIT :n]     // 逻辑删除；保留标识与审计记录
+PURGE :target WHERE {...} [LIMIT :n]         // 物理抹除；极端特殊操作
   REFERENCE POLICY "deny_if_referenced" CONFIRM "PURGE"
-SET RETENTION :target { retention_class: "standard", expires_at: :t }
+SET RETENTION :target { retention_class: "standard", expires_at: :t } [LIMIT :n]
 ```
+
+凡 `WHERE` 可能选中无界集合的变更语句，都在其后接受可选的 `LIMIT`（`UPDATE`、`RETRACT ASSERTION`、`SET RETENTION`、`ARCHIVE`、`TOMBSTONE`、`PURGE`）——请为你的扫描设界。`LIMIT` 限定影响的数量而非选择的对象：不要假定顺序。`MERGE CONCEPT` 不接受 `LIMIT`。
 
 `MERGE CONCEPT ?src INTO ?tgt WHERE {...}` 为非破坏性合并：源节点作为已合并历史依然可寻址；后续新写入会自动规范化到目标节点。会制造环的合并（目标已传递解析回源）将被拒绝。
 

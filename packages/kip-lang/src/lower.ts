@@ -1,74 +1,107 @@
 import type {
-  ConceptBlock as CstConceptBlock,
-  ConceptMatcher as CstConceptMatcher,
-  CursorClause,
-  DeleteStatement as CstDeleteStatement,
-  DescribeStatement,
-  ExportStatement,
-  Expression,
-  FindStatement,
-  LimitClause,
-  MergeStatement as CstMergeStatement,
-  ObjectEntry,
-  OrderByKey,
   Program,
-  PropositionBlock as CstPropositionBlock,
-  PropositionEndpoint,
-  PropositionPattern,
-  PredicateExpr,
-  SearchStatement,
-  SetAttributes,
-  SetMetadata,
   Statement,
-  UpdateStatement as CstUpdateStatement,
-  UpsertStatement,
+  MutationClause as CstMutationClause,
+  FindStatement,
+  AsOfClause,
+  OrderItem,
   WhereClause as CstWhereClause,
   WherePattern,
-  WithMetadata
+  PropositionTuple,
+  Term as CstTerm,
+  PredicateAtom,
+  RawPredicateExpression,
+  ObjectPattern,
+  ObjectLiteral,
+  ObjectEntry,
+  Expression,
+  ScalarValue,
+  SchemaSymbol,
+  TargetRef,
+  MutateStatement,
+  CreateConceptStatement,
+  UpsertConceptStatement,
+  EnsurePropositionStatement,
+  AssertStatement,
+  CreateEvidenceStatement,
+  CreateAssertionStatement,
+  CreateActivityStatement,
+  UpdateStatement as CstUpdateStatement,
+  UpdateAction as CstUpdateAction,
+  SetFacetClause,
+  SetStructuralClause,
+  UnsetField,
+  RetractAssertionStatement,
+  SupersedeAssertionStatement,
+  CorrectEvidenceStatement,
+  TransitionActivityStatement,
+  SetRetentionStatement,
+  ArchiveStatement,
+  TombstoneStatement,
+  PurgeStatement,
+  MergeConceptStatement,
+  DescribeStatement,
+  ListStatement,
+  SearchStatement,
+  VerifyStatement,
+  ValidateStatement,
+  PreviewStatement,
+  HistoryStatement,
+  ChangesStatement,
+  SnapshotStatement,
+  ExportCapsuleStatement
 } from './ast.js'
 import { invalidSyntax } from './errors.js'
 import type {
   AggregationFunction,
+  Assignments,
+  AsOf,
+  BeliefTarget,
   Command,
   ComparisonOperator,
-  ConceptBlock,
-  ConceptMatcher,
-  DeleteStatement,
+  ConceptCreate,
+  ConceptUpsert,
   DescribeTarget,
   DotPathVar,
-  ExportCommand,
+  ElementRef,
+  EnsureProposition,
+  FacetAssignment,
+  FacetUnset,
   FilterExpression,
   FilterFunction,
   FilterOperand,
   FindExpression,
-  Json,
+  HistoryCommand,
+  BoundValue,
   KipValue,
+  KmlStatement,
   KqlQuery,
+  ListTarget,
+  MatchValue,
+  MetaCommand,
+  MutationClause,
+  MutationValue,
+  ObjectMatcher,
   OrderByItem,
+  PathStep,
+  PredAtom,
+  PredPathAtom,
   PredTerm,
-  PropositionBlock,
   PropositionMatcher,
-  SearchCommand,
-  SearchMode,
-  SetProposition,
-  TargetTerm,
+  RecordCreate,
+  Scalar,
+  SearchTarget,
+  StructuralEdge,
+  SymbolRef,
+  Term,
+  UpdateAction,
   UpdateExpr,
   UpdateFunction,
-  UpdateValue,
-  UpsertItem,
+  ValidateTarget,
+  VerifyTarget,
   WhereClause
 } from './exec-ast.js'
 import type { Range } from './token.js'
-
-/**
- * `LIMIT` is a `usize` in the reference grammar, which is 32-bit on the
- * WebAssembly target every JavaScript KIP engine is compiled for.
- */
-const MAX_LIMIT = 0xffffffff
-
-/** A KIP integer is whatever an i64 or a u64 can hold, so the union of both. */
-const I64_MIN = -(2n ** 63n)
-const U64_MAX = 2n ** 64n - 1n
 
 const AGGREGATIONS = new Map<string, AggregationFunction>([
   ['COUNT', 'Count'],
@@ -85,7 +118,11 @@ const FILTER_FUNCTIONS = new Map<string, FilterFunction>([
   ['REGEX', 'Regex'],
   ['IN', 'In'],
   ['IS_NULL', 'IsNull'],
-  ['IS_NOT_NULL', 'IsNotNull']
+  ['IS_NOT_NULL', 'IsNotNull'],
+  ['IS_LITERAL', 'IsLiteral'],
+  ['IS_ELEMENT', 'IsElement'],
+  ['IS_KIND', 'IsKind'],
+  ['LITERAL_TYPE', 'LiteralType']
 ])
 
 const UPDATE_FUNCTIONS = new Map<string, UpdateFunction>([
@@ -111,13 +148,50 @@ const COMPARISONS = new Map<string, ComparisonOperator>([
   ['>=', 'GreaterEqual']
 ])
 
-const CONCEPT_IDENTITY_HELP =
-  'a concept must be addressed by {id: "<id>"} or {type: "<Type>", name: "<name>"} — ' +
-  '{type: ...} or {name: ...} alone identifies no single node'
+/**
+ * Engine-owned state no cognitive mutation may write (Spec §6.3, §2.11).
+ *
+ * These are checked by name on every mutation, not just on UPDATE: author
+ * content that could rewrite engine truth or its own authority is exactly
+ * what "external cognition cannot self-escalate authority" forbids.
+ */
+const PROTECTED_FIELDS = new Set([
+  '_system',
+  'governance',
+  'space_id',
+  'space_seq'
+])
 
-const PROPOSITION_IDENTITY_HELP =
-  'a proposition must be addressed by (id: "<id>") or by a subject, a literal ' +
-  'predicate and an object that each identify one element'
+/**
+ * Assertion payload that is immutable after creation (Spec §13.7).
+ *
+ * Changing epistemic commitment means a new Assertion plus supersession, so
+ * an UPDATE naming one of these is the `EpistemicRevisionRequired` mistake
+ * caught statically wherever the WHERE block says the target is an Assertion.
+ */
+const ASSERTION_IMMUTABLE = new Set([
+  'proposition_id',
+  'proposition',
+  'asserted_by',
+  'stance',
+  'mode',
+  'confidence',
+  'asserted_at',
+  'valid_time',
+  'evidence_refs'
+])
+
+/** Evidence payload and observation identity are immutable (Spec §15.5). */
+const EVIDENCE_IMMUTABLE = new Set([
+  'evidence_class',
+  'payload',
+  'content_digest',
+  'media_type',
+  'observed_at'
+])
+
+/** A Proposition tuple is immutable after creation (Spec §12.5). */
+const PROPOSITION_IMMUTABLE = new Set(['subject', 'predicate', 'object'])
 
 /**
  * Lowers a parsed program carrying exactly one command.
@@ -134,56 +208,58 @@ export function lower(program: Program): Command {
   if (!first) {
     throw invalidSyntax('expected a KIP command, found none')
   }
-  if (!second) return lowerStatement(first)
-
-  // Consecutive UPSERT blocks are one command, not a batch: a schema capsule
-  // is written as several `UPSERT { ... }` in sequence and applies as a unit.
-  // Anything else following a complete command is trailing content.
-  if (program.statements.every((s) => s.kind === 'UpsertStatement')) {
-    return {
-      Kml: {
-        Upsert: (program.statements as UpsertStatement[]).map(lowerUpsert)
-      }
-    }
+  if (second) {
+    throw invalidSyntax(
+      'expected one KIP command, found several: wrap consecutive mutations in ' +
+        'MUTATE { ... } to make them one transaction, or use lowerAll for a batch',
+      second.range
+    )
   }
-  throw invalidSyntax(
-    `expected a single KIP command, found ${program.statements.length}`,
-    second.range
-  )
+  return lowerStatement(first)
 }
 
-/** Lowers every command in a multi-statement program, in source order. */
+/** Lowers every statement in a multi-command source text. */
 export function lowerAll(program: Program): Command[] {
+  if (program.statements.length === 0) {
+    throw invalidSyntax('expected at least one KIP command, found none')
+  }
   return program.statements.map(lowerStatement)
 }
 
-/** Lowers one statement. */
 export function lowerStatement(stmt: Statement): Command {
   switch (stmt.kind) {
     case 'FindStatement':
       return { Kql: lowerFind(stmt) }
-    case 'UpsertStatement':
-      return { Kml: { Upsert: [lowerUpsert(stmt)] } }
+
+    case 'MutateStatement':
+      return { Kml: lowerMutate(stmt) }
+
+    case 'CreateConceptStatement':
+    case 'UpsertConceptStatement':
+    case 'EnsurePropositionStatement':
+    case 'AssertStatement':
+    case 'CreateEvidenceStatement':
+    case 'CreateAssertionStatement':
+    case 'CreateActivityStatement':
     case 'UpdateStatement':
-      return { Kml: { Update: lowerUpdate(stmt) } }
-    case 'MergeStatement':
-      return { Kml: { Merge: lowerMerge(stmt) } }
-    case 'DeleteStatement':
-      return { Kml: { Delete: lowerDelete(stmt) } }
-    case 'DescribeStatement':
-      return { Meta: { Describe: lowerDescribe(stmt) } }
-    case 'SearchStatement':
-      return { Meta: { Search: lowerSearch(stmt) } }
-    case 'ExportStatement': {
-      const exportCmd: ExportCommand = {
-        target: varName(stmt.target, stmt.range),
-        where_clauses: lowerWhere(stmt.where),
-        limit: lowerLimit(stmt.limit)
+    case 'RetractAssertionStatement':
+    case 'SupersedeAssertionStatement':
+    case 'CorrectEvidenceStatement':
+    case 'TransitionActivityStatement':
+    case 'SetRetentionStatement':
+    case 'ArchiveStatement':
+    case 'TombstoneStatement':
+    case 'PurgeStatement':
+    case 'MergeConceptStatement':
+      return {
+        Kml: {
+          explicit_transaction: false,
+          clauses: lowerMutationClause(stmt, 0)
+        }
       }
-      const cursor = lowerCursor(stmt.cursor)
-      if (cursor !== null) exportCmd.cursor = cursor
-      return { Meta: { Export: exportCmd } }
-    }
+
+    default:
+      return { Meta: lowerMeta(stmt) }
   }
 }
 
@@ -192,291 +268,331 @@ export function lowerStatement(stmt: Statement): Command {
 // ---------------------------------------------------------------------------
 
 function lowerFind(stmt: FindStatement): KqlQuery {
-  if (!stmt.where) {
-    throw invalidSyntax('FIND requires a WHERE clause', stmt.range)
+  if (stmt.projections.length === 0) {
+    throw invalidSyntax('FIND requires at least one projection', stmt.range)
   }
   return {
-    find_clause: { expressions: stmt.projections.map(lowerFindExpression) },
+    find_clause: {
+      expressions: stmt.projections.map((p) => lowerFindExpression(p))
+    },
     where_clauses: lowerWhere(stmt.where),
-    order_by: stmt.orderBy ? stmt.orderBy.keys.map(lowerOrderByKey) : null,
-    limit: lowerLimit(stmt.limit),
-    cursor: lowerCursor(stmt.cursor)
+    as_of: stmt.asOf ? lowerAsOf(stmt.asOf) : null,
+    for_time: stmt.forTime ? lowerScalar(stmt.forTime.value) : null,
+    epistemic: stmt.epistemic ? lowerBoundObject(stmt.epistemic.options) : null,
+    order_by: stmt.orderBy ? stmt.orderBy.items.map(lowerOrderItem) : null,
+    limit: stmt.limit ? lowerScalar(stmt.limit.value) : null,
+    cursor: stmt.cursor ? lowerScalar(stmt.cursor.value) : null
+  }
+}
+
+function lowerAsOf(clause: AsOfClause): AsOf {
+  const value = lowerScalar(clause.value)
+  switch (clause.basis) {
+    case 'SEQ':
+      return { Seq: value }
+    case 'TX':
+      return { Tx: value }
+    case 'TIME':
+      return { Time: value }
   }
 }
 
 function lowerFindExpression(expr: Expression): FindExpression {
-  if (expr.kind === 'FunctionCallExpr') {
-    const { func, arg, distinct } = aggregation(expr)
-    return { Aggregation: { func, var: arg, distinct } }
+  if (expr.kind === 'AggregateExpr') {
+    const func = AGGREGATIONS.get(expr.name.toUpperCase())
+    if (!func) {
+      throw invalidSyntax(`unknown aggregate ${expr.name}`, expr.range)
+    }
+    return {
+      Aggregation: {
+        func,
+        var: lowerDotPath(expr.argument),
+        distinct: expr.distinct
+      }
+    }
   }
-  return { Variable: dotPathVar(expr) }
+  return { Variable: lowerDotPath(expr) }
 }
 
-function lowerOrderByKey(key: OrderByKey): OrderByItem {
-  const direction = key.direction === 'DESC' ? 'Desc' : 'Asc'
-  if (key.expression.kind === 'FunctionCallExpr') {
-    const { func, arg, distinct } = aggregation(key.expression)
-    // A sort key carries no `distinct` flag, so accepting the modifier would
-    // sort by a different aggregate than the one projected.
-    if (distinct) {
+function lowerOrderItem(item: OrderItem): OrderByItem {
+  const direction = item.direction === 'DESC' ? 'Desc' : 'Asc'
+  if (item.expression.kind === 'AggregateExpr') {
+    const func = AGGREGATIONS.get(item.expression.name.toUpperCase())
+    if (!func) {
       throw invalidSyntax(
-        'ORDER BY takes no DISTINCT: sort by the projected aggregate instead',
-        key.expression.range
+        `unknown aggregate ${item.expression.name}`,
+        item.expression.range
       )
     }
-    return { variable: arg, direction, aggregation: func }
+    return {
+      variable: lowerDotPath(item.expression.argument),
+      direction,
+      aggregation: func
+    }
   }
   return {
-    variable: dotPathVar(key.expression),
+    variable: lowerDotPath(item.expression),
     direction,
     aggregation: null
   }
 }
 
-/** Reads `COUNT(?x)`, `COUNT(DISTINCT ?x)`, `SUM(?x.n)` and friends. */
-function aggregation(expr: Expression & { kind: 'FunctionCallExpr' }): {
-  func: AggregationFunction
-  arg: DotPathVar
-  distinct: boolean
-} {
-  // `COUNT(DISTINCT ?x)` has no separate syntax for the modifier, so it parses
-  // as a nested call `DISTINCT(?x)`. Unwrap it before looking at arity.
-  let args = expr.args
-  let distinct = false
-  const [head] = args
-  if (
-    args.length === 1 &&
-    head &&
-    head.kind === 'FunctionCallExpr' &&
-    head.name === 'DISTINCT'
-  ) {
-    distinct = true
-    args = head.args
+/** A projection or sort key must resolve to one variable plus a path. */
+function lowerDotPath(expr: Expression): DotPathVar {
+  if (expr.kind === 'VariableRef') {
+    return { var: varName(expr.name, expr.range), path: [] }
   }
-
-  const func = AGGREGATIONS.get(expr.name)
-  if (!func) {
-    throw invalidSyntax(
-      `unknown aggregation function ${expr.name}(...): expected COUNT, SUM, AVG, MIN or MAX`,
-      expr.range
+  if (expr.kind === 'FieldAccess') {
+    const path: PathStep[] = expr.steps.map((step) =>
+      step.kind === 'DotStep'
+        ? { Field: step.name }
+        : { Key: step.key.parsed }
     )
+    return { var: varName(expr.base.name, expr.base.range), path }
   }
-  if (args.length !== 1) {
-    throw invalidSyntax(
-      `${expr.name} takes exactly one argument, got ${args.length}`,
-      expr.range
-    )
-  }
-  return { func, arg: dotPathVar(args[0]!), distinct }
+  throw invalidSyntax(
+    `expected a variable or a dot path, found ${describeExpression(expr)}`,
+    expr.range
+  )
 }
 
-function lowerWhere(where: CstWhereClause): WhereClause[] {
-  const clauses = where.patterns.map(lowerWherePattern)
-  if (clauses.length === 0) {
-    throw invalidSyntax('WHERE must contain at least one clause', where.range)
-  }
-  return clauses
+function lowerWhere(clause: { patterns: WherePattern[] }): WhereClause[] {
+  return clause.patterns.map(lowerWherePattern)
 }
 
 function lowerWherePattern(pattern: WherePattern): WhereClause {
   switch (pattern.kind) {
-    case 'ConceptPattern': {
-      if (!pattern.variable) {
-        throw invalidSyntax(
-          'a concept clause in WHERE must bind a variable, e.g. ?x {type: "T"}',
-          pattern.range
-        )
-      }
+    case 'ConceptPattern':
       return {
         Concept: {
-          variable: varName(pattern.variable, pattern.range),
-          matcher: lowerConceptMatcher(pattern.matcher)
+          variable: varName(pattern.variable.name, pattern.variable.range),
+          matcher: lowerObjectMatcher(pattern.matcher)
         }
       }
-    }
+
     case 'PropositionPattern':
       return {
         Proposition: {
           variable: pattern.variable
-            ? varName(pattern.variable, pattern.range)
+            ? varName(pattern.variable.name, pattern.variable.range)
             : null,
-          matcher: lowerPropositionMatcher(pattern)
+          matcher: lowerPropositionMatcher(pattern.tuple)
         }
       }
+
+    case 'AssertionPattern':
+      return {
+        Assertion: {
+          variable: varName(pattern.variable.name, pattern.variable.range),
+          matcher: lowerObjectMatcher(pattern.matcher)
+        }
+      }
+
+    case 'EvidencePattern':
+      return {
+        Evidence: {
+          variable: varName(pattern.variable.name, pattern.variable.range),
+          matcher: lowerObjectMatcher(pattern.matcher)
+        }
+      }
+
+    case 'ActivityPattern':
+      return {
+        Activity: {
+          variable: varName(pattern.variable.name, pattern.variable.range),
+          matcher: lowerObjectMatcher(pattern.matcher)
+        }
+      }
+
+    case 'StructuralPattern':
+      return {
+        Structural: {
+          variable: pattern.variable
+            ? varName(pattern.variable.name, pattern.variable.range)
+            : null,
+          subject: lowerTerm(pattern.subject),
+          field: lowerSymbol(pattern.field),
+          object: lowerTerm(pattern.object)
+        }
+      }
+
+    case 'BeliefPattern': {
+      let target: BeliefTarget
+      if (pattern.proposition) {
+        target = {
+          Proposition: varName(
+            pattern.proposition.name,
+            pattern.proposition.range
+          )
+        }
+      } else {
+        if (!pattern.subject || !pattern.predicate || !pattern.object) {
+          throw invalidSyntax(
+            'BELIEF requires either one bound Proposition or a full (subject, predicate, object) tuple',
+            pattern.range
+          )
+        }
+        target = {
+          Tuple: {
+            subject: lowerTerm(pattern.subject),
+            predicate: { Atom: lowerPredAtom(pattern.predicate) },
+            object: lowerTerm(pattern.object)
+          }
+        }
+      }
+      return {
+        Belief: {
+          variable: varName(pattern.variable.name, pattern.variable.range),
+          target
+        }
+      }
+    }
+
+    case 'BeliefSlotPattern':
+      return {
+        BeliefSlot: {
+          variable: varName(pattern.variable.name, pattern.variable.range),
+          subject: lowerTerm(pattern.subject),
+          predicate: lowerPredAtom(pattern.predicate)
+        }
+      }
+
     case 'FilterClause':
       return { Filter: { expression: lowerFilter(pattern.expression) } }
+
     case 'NotClause':
-      return { Not: nonEmptyBlock(pattern.patterns, 'NOT', pattern.range) }
+      return { Not: pattern.patterns.map(lowerWherePattern) }
+
     case 'OptionalClause':
-      return {
-        Optional: nonEmptyBlock(pattern.patterns, 'OPTIONAL', pattern.range)
-      }
+      return { Optional: pattern.patterns.map(lowerWherePattern) }
+
     case 'UnionClause':
-      return { Union: nonEmptyBlock(pattern.patterns, 'UNION', pattern.range) }
+      return { Union: pattern.patterns.map(lowerWherePattern) }
   }
 }
 
-function nonEmptyBlock(
-  patterns: WherePattern[],
-  name: string,
-  range: Range
-): WhereClause[] {
-  if (patterns.length === 0) {
-    throw invalidSyntax(`${name} block must contain at least one clause`, range)
-  }
-  return patterns.map(lowerWherePattern)
-}
-
-/**
- * Collapses `{id: ..., type: ..., name: ...}` to the one identified form it
- * expresses.
- *
- * A duplicate or unknown key is rejected rather than resolved by precedence:
- * in generated KML both are far more often a mistake than an intent, and
- * silently keeping the last `type:` would run a different query than the one
- * written. A `null` value reads as "key absent", which is how the reference
- * grammar treats it.
- */
-function lowerConceptMatcher(matcher: CstConceptMatcher): ConceptMatcher {
-  let id: string | undefined
-  let type: string | undefined
-  let name: string | undefined
-  const seen = new Set<string>()
-
-  for (const entry of matcher.entries) {
-    if (entry.key !== 'id' && entry.key !== 'type' && entry.key !== 'name') {
-      throw invalidSyntax(
-        `invalid key in concept clause: ${entry.key} (expected id, type or name)`,
-        entry.range
-      )
-    }
-    if (seen.has(entry.key)) {
-      throw invalidSyntax(
-        `duplicate key in concept clause: ${entry.key}`,
-        entry.range
-      )
-    }
-    seen.add(entry.key)
-
-    const value = matcherString(entry)
-    if (value === undefined) continue
-    if (entry.key === 'id') id = value
-    else if (entry.key === 'type') type = value
-    else name = value
-  }
-
-  if (id !== undefined) {
-    if (type !== undefined || name !== undefined) {
-      throw invalidSyntax(
-        'a concept clause cannot combine id with type or name',
-        matcher.range
-      )
-    }
-    return { ID: id }
-  }
-  if (type !== undefined && name !== undefined) return { Object: { type, name } }
-  if (type !== undefined) return { Type: type }
-  if (name !== undefined) return { Name: name }
-  throw invalidSyntax(
-    'a concept clause must carry at least one of id, type or name',
-    matcher.range
-  )
-}
-
-function matcherString(entry: ObjectEntry): string | undefined {
-  const value = entry.value
-  if (value.kind === 'StringLiteral') return value.parsed
-  if (value.kind === 'NullLiteral') return undefined
-  throw invalidSyntax(
-    `concept clause key ${entry.key} expects a quoted string or null`,
-    value.range
-  )
-}
-
-/** A KML endpoint must address exactly one element. */
-function requireUniqueConcept(
-  matcher: ConceptMatcher,
-  range: Range
-): ConceptMatcher {
-  if ('ID' in matcher || 'Object' in matcher) return matcher
-  throw invalidSyntax(CONCEPT_IDENTITY_HELP, range)
-}
-
-function lowerPropositionMatcher(
-  pattern: PropositionPattern
-): PropositionMatcher {
-  if (pattern.id) {
-    if (pattern.id.kind !== 'StringLiteral') {
-      throw invalidSyntax(
-        'a proposition id must be a quoted string',
-        pattern.id.range
-      )
-    }
-    return { ID: pattern.id.parsed }
-  }
-  if (!pattern.subject || !pattern.predicate || !pattern.object) {
+function lowerPropositionMatcher(tuple: PropositionTuple): PropositionMatcher {
+  if (tuple.id) return { Id: lowerScalar(tuple.id) }
+  if (!tuple.subject || !tuple.predicate || !tuple.object) {
     throw invalidSyntax(
-      'a proposition clause needs a subject, a predicate and an object',
-      pattern.range
+      'a Proposition expression is either (subject, predicate, object) or (id: ...)',
+      tuple.range
     )
   }
   return {
-    Object: {
-      subject: lowerEndpoint(pattern.subject),
-      predicate: lowerPredicate(pattern.predicate),
-      object: lowerEndpoint(pattern.object)
+    Tuple: {
+      subject: lowerTerm(tuple.subject),
+      predicate: lowerPredicate(tuple.predicate),
+      object: lowerTerm(tuple.object)
     }
   }
 }
 
-function lowerEndpoint(endpoint: PropositionEndpoint): TargetTerm {
-  switch (endpoint.kind) {
+/**
+ * Resolves the tuple a resolve-or-create statement needs.
+ *
+ * `(id: ...)` is match-only: it names a Proposition that must already exist,
+ * so it cannot drive ENSURE PROPOSITION — or the ASSERT sugar that desugars
+ * through it — whose job is to create the tuple when it is absent.
+ */
+function requireStructuralTuple(
+  tuple: PropositionTuple,
+  statement: string
+): { subject: Term; predicate: PredAtom; object: Term } {
+  if (tuple.id) {
+    throw invalidSyntax(
+      `${statement} needs a (subject, predicate, object) tuple: (id: ...) only matches an ` +
+        'existing Proposition, and no structure can be created from an id',
+      tuple.range
+    )
+  }
+  const predicate = lowerPredicate(tuple.predicate!)
+  if (!('Atom' in predicate)) {
+    throw invalidSyntax(
+      `${statement} needs one exact predicate; alternation and hop quantifiers are KQL traversal forms`,
+      tuple.predicate!.range
+    )
+  }
+  return {
+    subject: lowerTerm(tuple.subject!),
+    predicate: predicate.Atom,
+    object: lowerTerm(tuple.object!)
+  }
+}
+
+function lowerPredicate(expr: RawPredicateExpression): PredTerm {
+  const [only] = expr.atoms
+  if (expr.atoms.length === 1 && only && !only.quantifier) {
+    return { Atom: lowerPredAtom(only.atom) }
+  }
+  const path: PredPathAtom[] = expr.atoms.map((atom) => ({
+    predicate: lowerPredAtom(atom.atom),
+    hops: atom.quantifier
+      ? { min: atom.quantifier.min, max: atom.quantifier.max ?? null }
+      : null
+  }))
+  return { Path: path }
+}
+
+function lowerPredAtom(atom: PredicateAtom): PredAtom {
+  switch (atom.kind) {
+    case 'StringLiteral':
+      return { Literal: atom.parsed }
+    case 'ParameterRef':
+      return { Param: paramName(atom.name) }
     case 'VariableRef':
-      return { Variable: varName(endpoint.name, endpoint.range) }
-    case 'ConceptPattern':
-      // `?s {type: "T"}` binds *and* constrains, which the executable form has
-      // no term for: an endpoint is either a reference or an inline matcher.
-      if (endpoint.variable) {
-        throw invalidSyntax(
-          'a proposition endpoint is either a variable or an inline matcher, not both',
-          endpoint.range
-        )
-      }
-      return { Concept: lowerConceptMatcher(endpoint.matcher) }
-    case 'PropositionPattern':
-      if (endpoint.variable) {
-        throw invalidSyntax(
-          'a nested proposition endpoint cannot bind a variable',
-          endpoint.range
-        )
-      }
-      return { Proposition: lowerPropositionMatcher(endpoint) }
+      return { Variable: varName(atom.name, atom.range) }
   }
 }
 
-function lowerPredicate(predicate: PredicateExpr): PredTerm {
-  switch (predicate.kind) {
-    case 'PredicateVariable':
-      return { Variable: varName(predicate.name, predicate.range) }
-    case 'PredicateAlternation':
-      return { Alternative: predicate.predicates.map((p) => p.value) }
-    case 'PredicateLiteral': {
-      const hop = predicate.hopRange
-      if (!hop) return { Literal: predicate.value }
-      const max = hop.max ?? null
-      if (max !== null && max < hop.min) {
-        throw invalidSyntax(
-          `invalid multi-hop predicate: min ${hop.min} cannot be greater than max ${max}`,
-          hop.range
-        )
-      }
-      return { MultiHop: { predicate: predicate.value, min: hop.min, max } }
+function lowerTerm(term: CstTerm): Term {
+  switch (term.kind) {
+    case 'VariableRef':
+      return { Variable: varName(term.name, term.range) }
+    case 'ParameterRef':
+      return { Param: paramName(term.name) }
+    case 'ObjectPattern':
+      return { Match: lowerObjectMatcher(term) }
+    case 'PropositionTuple':
+      return { Proposition: lowerPropositionMatcher(term) }
+    default:
+      return { Literal: lowerKipValue(term) }
+  }
+}
+
+function lowerObjectMatcher(pattern: ObjectPattern): ObjectMatcher {
+  const matcher: ObjectMatcher = {}
+  for (const member of pattern.members) {
+    if (Object.prototype.hasOwnProperty.call(matcher, member.key)) {
+      throw invalidSyntax(
+        `duplicate match field ${member.key}`,
+        member.range
+      )
     }
+    matcher[member.key] = lowerMatchValue(member.value)
+  }
+  return matcher
+}
+
+function lowerMatchValue(expr: Expression): MatchValue {
+  switch (expr.kind) {
+    case 'VariableRef':
+      return { Variable: varName(expr.name, expr.range) }
+    case 'ParameterRef':
+      return { Param: paramName(expr.name) }
+    case 'ArrayLiteral':
+      return { Array: expr.elements.map(lowerMatchValue) }
+    case 'ObjectPattern':
+      return { Match: lowerObjectMatcher(expr) }
+    case 'PropositionTuple':
+      return { Proposition: lowerPropositionMatcher(expr) }
+    default:
+      return { Literal: lowerKipValue(expr) }
   }
 }
 
 // ---------------------------------------------------------------------------
-// FILTER
+// Filters
 // ---------------------------------------------------------------------------
 
 function lowerFilter(expr: Expression): FilterExpression {
@@ -494,7 +610,7 @@ function lowerFilter(expr: Expression): FilterExpression {
       const operator = COMPARISONS.get(expr.operator)
       if (!operator) {
         throw invalidSyntax(
-          `unsupported operator ${expr.operator} in FILTER`,
+          `unknown comparison operator ${expr.operator}`,
           expr.range
         )
       }
@@ -506,660 +622,1213 @@ function lowerFilter(expr: Expression): FilterExpression {
         }
       }
     }
+
     case 'UnaryExpression':
-      return { Not: lowerFilter(expr.operand) }
+      if (expr.operator === '!') {
+        return { Not: lowerFilter(expr.operand) }
+      }
+      throw invalidSyntax(
+        'a filter must be a comparison, a logical combination, a negation or a function call',
+        expr.range
+      )
+
     case 'FunctionCallExpr': {
-      const func = FILTER_FUNCTIONS.get(expr.name)
+      const func = FILTER_FUNCTIONS.get(expr.name.toUpperCase())
       if (!func) {
         throw invalidSyntax(
-          `unknown FILTER function ${expr.name}(...): expected CONTAINS, ` +
-            `STARTS_WITH, ENDS_WITH, REGEX, IN, IS_NULL or IS_NOT_NULL`,
+          `${expr.name} is not a KIP filter function`,
           expr.range
         )
       }
-      const args = expr.args.map(lowerFilterOperand)
-      checkFilterArity(func, args, expr.range)
-      return { Function: { func, args } }
+      return {
+        Function: { func, args: expr.args.map(lowerFilterOperand) }
+      }
     }
+
+    case 'AggregateExpr':
+      // An aggregate summarizes a solution set; a filter runs per candidate
+      // row, so there is no set for it to summarize yet.
+      throw invalidSyntax(
+        `${expr.name} is an aggregate and cannot appear inside FILTER`,
+        expr.range
+      )
+
     default:
       throw invalidSyntax(
-        'FILTER takes a comparison, a logical combination, or a filter function',
+        `a filter must be a comparison, a logical combination, a negation or a function call, found ${describeExpression(expr)}`,
         expr.range
       )
   }
 }
 
-function checkFilterArity(
-  func: FilterFunction,
-  args: FilterOperand[],
-  range: Range
-): void {
-  switch (func) {
-    case 'Contains':
-    case 'StartsWith':
-    case 'EndsWith':
-    case 'Regex':
-      if (args.length !== 2) {
-        throw invalidSyntax(
-          'string filter functions require exactly 2 arguments',
-          range
-        )
-      }
-      return
-    case 'In':
-      if (args.length !== 2) {
-        throw invalidSyntax(
-          'IN requires exactly 2 arguments: IN(?expr, [values])',
-          range
-        )
-      }
-      if (!(args[1] && 'List' in args[1])) {
-        throw invalidSyntax(
-          'IN requires a literal list as its second argument',
-          range
-        )
-      }
-      return
-    case 'IsNull':
-    case 'IsNotNull':
-      if (args.length !== 1) {
-        throw invalidSyntax(
-          'IS_NULL and IS_NOT_NULL require exactly 1 argument',
-          range
-        )
-      }
-  }
-}
-
 function lowerFilterOperand(expr: Expression): FilterOperand {
-  if (expr.kind === 'VariableRef' || expr.kind === 'DotExpression') {
-    return { Variable: dotPathVar(expr) }
+  switch (expr.kind) {
+    case 'VariableRef':
+    case 'FieldAccess':
+      return { Variable: lowerDotPath(expr) }
+    case 'ParameterRef':
+      return { Param: paramName(expr.name) }
+    case 'ArrayLiteral':
+      if (expr.trailingComma) {
+        throw invalidSyntax(
+          'a filter list does not allow a trailing comma',
+          expr.range
+        )
+      }
+      return { List: expr.elements.map(lowerFilterOperand) }
+    case 'UnaryExpression':
+      if (expr.operator === '-') {
+        return { Negate: lowerFilterOperand(expr.operand) }
+      }
+      throw invalidSyntax(
+        `expected a filter operand, found ${describeExpression(expr)}`,
+        expr.range
+      )
+    case 'AggregateExpr':
+      // An aggregate summarizes a solution set; a filter runs per candidate
+      // row, so there is no set for it to summarize yet.
+      throw invalidSyntax(
+        `${expr.name} is an aggregate and cannot appear inside FILTER`,
+        expr.range
+      )
+    case 'FunctionCallExpr':
+    case 'BinaryExpression':
+      throw invalidSyntax(
+        `expected a filter operand, found ${describeExpression(expr)}`,
+        expr.range
+      )
+    default:
+      return { Literal: lowerKipValue(expr) }
   }
-  if (expr.kind === 'ArrayLiteral') {
-    if (expr.trailingComma) {
-      throw invalidSyntax('a literal list takes no trailing comma', expr.range)
-    }
-    return { List: expr.elements.map(lowerKipValue) }
-  }
-  return { Literal: lowerKipValue(expr) }
 }
 
 // ---------------------------------------------------------------------------
 // KML
 // ---------------------------------------------------------------------------
 
-function lowerUpsert(stmt: UpsertStatement): {
-  items: UpsertItem[]
-  metadata: Record<string, Json> | null
-} {
-  const items = stmt.blocks.map<UpsertItem>((block) =>
-    block.kind === 'ConceptBlock'
-      ? { Concept: lowerConceptBlock(block) }
-      : { Proposition: lowerPropositionBlock(block) }
+function lowerMutate(stmt: MutateStatement): KmlStatement {
+  if (stmt.clauses.length === 0) {
+    throw invalidSyntax('MUTATE requires at least one mutation', stmt.range)
+  }
+  const clauses = stmt.clauses.flatMap((clause, i) =>
+    lowerMutationClause(clause, i)
   )
-  if (items.length === 0) {
-    throw invalidSyntax(
-      'UPSERT must contain at least one CONCEPT or PROPOSITION block',
-      stmt.range
-    )
-  }
-  return { items, metadata: lowerMetadata(stmt.metadata) }
-}
-
-function lowerConceptBlock(block: CstConceptBlock): ConceptBlock {
-  const out: ConceptBlock = {
-    handle: block.handle ? varName(block.handle, block.range) : null,
-    concept: requireUniqueConcept(
-      lowerConceptMatcher(block.matcher),
-      block.matcher.range
-    ),
-    set_attributes: block.setAttributes
-      ? lowerJsonEntries(block.setAttributes.entries)
-      : null,
-    set_propositions: block.setPropositions
-      ? block.setPropositions.items.map<SetProposition>((item) => ({
-          predicate: item.predicate,
-          object: requireIdentityTarget(
-            lowerEndpoint(item.target),
-            item.range
-          ),
-          metadata: lowerMetadata(item.metadata)
-        }))
-      : null,
-    metadata: lowerMetadata(block.metadata)
-  }
-  const version = lowerExpectVersion(block)
-  if (version !== undefined) out.expect_version = version
-  return out
-}
-
-function lowerPropositionBlock(block: CstPropositionBlock): PropositionBlock {
-  const matcher = lowerPropositionMatcher(
-    block as unknown as PropositionPattern
-  )
-  requireIdentityProposition(matcher, block.range)
-  const out: PropositionBlock = {
-    handle: block.handle ? varName(block.handle, block.range) : null,
-    proposition: matcher,
-    set_attributes: block.setAttributes
-      ? lowerJsonEntries(block.setAttributes.entries)
-      : null,
-    metadata: lowerMetadata(block.metadata)
-  }
-  const version = lowerExpectVersion(block)
-  if (version !== undefined) out.expect_version = version
-  return out
-}
-
-function lowerExpectVersion(block: {
-  expectVersion?: { value: Expression; range: Range }
-}): number | undefined {
-  if (!block.expectVersion) return undefined
-  const value = block.expectVersion.value
-  if (value.kind !== 'NumberLiteral' || !isIntegerLiteral(value.raw)) {
-    throw invalidSyntax(
-      'EXPECT VERSION takes a non-negative integer',
-      value.range
-    )
-  }
-  const n = BigInt(value.raw)
-  if (n < 0n || n > U64_MAX) {
-    throw invalidSyntax(
-      'EXPECT VERSION takes a non-negative integer',
-      value.range
-    )
-  }
-  return Number(n)
-}
-
-/** A KML target must address exactly one existing element. */
-function requireIdentityTarget(term: TargetTerm, range: Range): TargetTerm {
-  if ('Variable' in term) return term
-  if ('Concept' in term) {
-    requireUniqueConcept(term.Concept, range)
-    return term
-  }
-  requireIdentityProposition(term.Proposition, range)
-  return term
-}
-
-function requireIdentityProposition(
-  matcher: PropositionMatcher,
-  range: Range
-): void {
-  if ('ID' in matcher) return
-  if (!('Literal' in matcher.Object.predicate)) {
-    throw invalidSyntax(PROPOSITION_IDENTITY_HELP, range)
-  }
-  requireIdentityTarget(matcher.Object.subject, range)
-  requireIdentityTarget(matcher.Object.object, range)
-}
-
-function lowerUpdate(stmt: CstUpdateStatement) {
-  const target = varName(stmt.target, stmt.range)
-  const set_attributes = lowerUpdateEntries(stmt.setAttributes, target)
-  const set_metadata = lowerUpdateEntries(stmt.setMetadata, target)
-  if (!set_attributes && !set_metadata) {
-    throw invalidSyntax(
-      'UPDATE needs at least one SET ATTRIBUTES or SET METADATA block',
-      stmt.range
-    )
-  }
-  return {
-    target,
-    set_attributes,
-    set_metadata,
-    where_clauses: lowerWhere(stmt.where),
-    limit: lowerLimit(stmt.limit)
-  }
-}
-
-function lowerUpdateEntries(
-  block: SetAttributes | SetMetadata | undefined,
-  target: string
-): [string, UpdateValue][] | null {
-  if (!block) return null
-  if (block.entries.length === 0) {
-    throw invalidSyntax(
-      'an UPDATE SET block must contain at least one `key: value` pair',
-      block.range
-    )
-  }
-  const out: [string, UpdateValue][] = []
-  const seen = new Set<string>()
-  for (const entry of block.entries) {
-    if (seen.has(entry.key)) {
-      throw invalidSyntax(
-        `duplicate key in object (keys must be unique): ${entry.key}`,
-        entry.range
-      )
-    }
-    seen.add(entry.key)
-    out.push([entry.key, lowerUpdateValue(entry.value, target, entry.key)])
-  }
-  return out
-}
-
-function lowerUpdateValue(
-  expr: Expression,
-  target: string,
-  key: string
-): UpdateValue {
-  if (expr.kind === 'FunctionCallExpr' && UPDATE_FUNCTIONS.has(expr.name)) {
-    const value = lowerUpdateExpr(expr)
-    checkUpdateExprTargets(value, target, key)
-    return { Expr: value }
-  }
-  return { Json: lowerJson(expr) }
-}
-
-function lowerUpdateExpr(expr: Expression): UpdateExpr {
-  if (expr.kind === 'FunctionCallExpr') {
-    const func = UPDATE_FUNCTIONS.get(expr.name)
-    if (!func) {
-      throw invalidSyntax(
-        `unknown UPDATE function ${expr.name}(...): expected ADD, MUL, CLAMP or COALESCE`,
-        expr.range
-      )
-    }
-    const expected = UPDATE_ARITY[func]
-    if (expr.args.length !== expected) {
-      throw invalidSyntax(
-        `${expr.name} requires exactly ${expected} arguments, got ${expr.args.length}`,
-        expr.range
-      )
-    }
-    return { Function: { func, args: expr.args.map(lowerUpdateExpr) } }
-  }
-  if (expr.kind === 'VariableRef' || expr.kind === 'DotExpression') {
-    return { Variable: dotPathVar(expr) }
-  }
-  if (expr.kind === 'NumberLiteral') {
-    return { Number: numberValue(expr.value, expr.raw, expr.range) }
-  }
-  throw invalidSyntax(
-    'an UPDATE expression operand is a number, a ?target dot-path, or a nested expression',
-    expr.range
-  )
+  assertUniqueHandles(clauses, stmt.range)
+  return { explicit_transaction: true, clauses }
 }
 
 /**
- * An UPDATE expression may only read the element it is updating.
- *
- * Reading another variable would make the new value depend on which row of the
- * join the engine happened to visit, so a bulk UPDATE would stop being
- * deterministic and order-independent.
+ * Handles are block-local names. Two clauses claiming the same handle make
+ * every forward reference to it ambiguous, so the whole plan is rejected
+ * rather than resolved by position.
  */
-function checkUpdateExprTargets(
-  expr: UpdateExpr,
-  target: string,
-  key: string
-): void {
-  if ('Variable' in expr) {
-    if (expr.Variable.var !== target) {
+function assertUniqueHandles(clauses: MutationClause[], range: Range): void {
+  const seen = new Set<string>()
+  for (const clause of clauses) {
+    const handle = handleOf(clause)
+    if (handle === null) continue
+    if (seen.has(handle)) {
       throw invalidSyntax(
-        `UPDATE expression for \`${key}\` reads ?${expr.Variable.var}, but ` +
-          `operands may only use dot-notation paths on the UPDATE target ?${target}`
+        `duplicate local handle ?${handle} in one mutation plan`,
+        range
       )
     }
-    return
+    seen.add(handle)
   }
-  if ('Function' in expr) {
-    for (const arg of expr.Function.args) {
-      checkUpdateExprTargets(arg, target, key)
+}
+
+function handleOf(clause: MutationClause): string | null {
+  if ('CreateConcept' in clause) return clause.CreateConcept.handle
+  if ('UpsertConcept' in clause) return clause.UpsertConcept.handle
+  if ('CreateEvidence' in clause) return clause.CreateEvidence.handle
+  if ('CreateAssertion' in clause) return clause.CreateAssertion.handle
+  if ('CreateActivity' in clause) return clause.CreateActivity.handle
+  if ('EnsureProposition' in clause) return clause.EnsureProposition.handle
+  return null
+}
+
+/**
+  * One source statement may lower to several clauses; `ASSERT` is the case.
+  *
+  * `seq` is the clause's position in its plan, used only to keep synthetic
+  * handles distinct between two handle-less ASSERTs in the same transaction.
+  */
+function lowerMutationClause(
+  stmt: CstMutationClause,
+  seq: number
+): MutationClause[] {
+  switch (stmt.kind) {
+    case 'CreateConceptStatement':
+      return [{ CreateConcept: lowerCreateConcept(stmt) }]
+    case 'UpsertConceptStatement':
+      return [{ UpsertConcept: lowerUpsertConcept(stmt) }]
+    case 'EnsurePropositionStatement':
+      return [{ EnsureProposition: lowerEnsureProposition(stmt) }]
+    case 'AssertStatement':
+      return lowerAssertSugar(stmt, seq)
+    case 'CreateEvidenceStatement':
+      return [{ CreateEvidence: lowerRecordCreate(stmt) }]
+    case 'CreateAssertionStatement':
+      return [{ CreateAssertion: lowerRecordCreate(stmt) }]
+    case 'CreateActivityStatement':
+      return [{ CreateActivity: lowerRecordCreate(stmt) }]
+    case 'UpdateStatement':
+      return [{ Update: lowerUpdate(stmt) }]
+    case 'RetractAssertionStatement':
+      return [
+        {
+          RetractAssertion: {
+            target: lowerElementRef(stmt.target),
+            where_clauses: stmt.where ? lowerWhere(stmt.where) : null,
+            limit: stmt.limit ? lowerScalar(stmt.limit.value) : null,
+            expect_state: stmt.expectState
+              ? lowerScalar(stmt.expectState.value)
+              : null
+          }
+        }
+      ]
+    case 'SupersedeAssertionStatement':
+      return [
+        {
+          SupersedeAssertion: {
+            target: lowerElementRef(stmt.target),
+            by: lowerElementRef(stmt.by),
+            expect_state: stmt.expectState
+              ? lowerScalar(stmt.expectState.value)
+              : null
+          }
+        }
+      ]
+    case 'CorrectEvidenceStatement':
+      return [
+        {
+          CorrectEvidence: {
+            target: lowerElementRef(stmt.target),
+            by: lowerElementRef(stmt.by),
+            expect_state: stmt.expectState
+              ? lowerScalar(stmt.expectState.value)
+              : null
+          }
+        }
+      ]
+    case 'TransitionActivityStatement':
+      return [{ TransitionActivity: lowerTransition(stmt) }]
+    case 'SetRetentionStatement':
+      return [
+        {
+          SetRetention: {
+            target: lowerElementRef(stmt.target),
+            values: lowerAssignments(stmt.assignments, null),
+            where_clauses: stmt.where ? lowerWhere(stmt.where) : null,
+            limit: stmt.limit ? lowerScalar(stmt.limit.value) : null,
+            expect_version: stmt.expectVersion
+              ? lowerScalar(stmt.expectVersion.value)
+              : null
+          }
+        }
+      ]
+    case 'ArchiveStatement':
+      return [{ Archive: lowerRemoval(stmt) }]
+    case 'TombstoneStatement':
+      return [{ Tombstone: lowerRemoval(stmt) }]
+    case 'PurgeStatement':
+      return [{ Purge: lowerPurge(stmt) }]
+    case 'MergeConceptStatement':
+      return [
+        {
+          MergeConcept: {
+            source: lowerElementRef(stmt.source),
+            into: lowerElementRef(stmt.into),
+            where_clauses: stmt.where ? lowerWhere(stmt.where) : null,
+            expect_version: stmt.expectVersion
+              ? lowerScalar(stmt.expectVersion.value)
+              : null
+          }
+        }
+      ]
+  }
+}
+
+function lowerCreateConcept(stmt: CreateConceptStatement): ConceptCreate {
+  return {
+    handle: varName(stmt.handle.name, stmt.handle.range),
+    type: stmt.type ? lowerSymbol(stmt.type.value) : null,
+    client_key: stmt.clientKey ? lowerScalar(stmt.clientKey.value) : null,
+    name: stmt.name ? lowerScalar(stmt.name.value) : null,
+    set_fields: stmt.setFields
+      ? lowerAssignments(stmt.setFields.assignments, null)
+      : null,
+    set_attributes: stmt.setAttributes
+      ? lowerAssignments(stmt.setAttributes.assignments, null)
+      : null,
+    set_facets: stmt.setFacets.map((f) => lowerFacet(f, null)),
+    set_structural: stmt.setStructural
+      ? lowerStructural(stmt.setStructural, null)
+      : null
+  }
+}
+
+function lowerUpsertConcept(stmt: UpsertConceptStatement): ConceptUpsert {
+  const match = stmt.match ? lowerObjectMatcher(stmt.match.pattern) : null
+
+  // Identity for an upsert is `id` or `key`; a name-only match is forbidden
+  // because names are mutable grounding state with duplicates allowed, so
+  // "the Concept named X" can silently address a different node over time.
+  if (match) {
+    const fields = Object.keys(match)
+    const hasIdentity = fields.includes('id') || fields.includes('key')
+    if (!hasIdentity) {
+      throw invalidSyntax(
+        'UPSERT CONCEPT must match on a stable identity: add {id: ...} or {key: ...} — ' +
+          'name is mutable grounding state and never identifies a Concept',
+        stmt.match!.range
+      )
     }
   }
-}
 
-function lowerMerge(stmt: CstMergeStatement) {
   return {
-    source: varName(stmt.source, stmt.range),
-    target: varName(stmt.target, stmt.range),
-    where_clauses: lowerWhere(stmt.where)
+    handle: varName(stmt.handle.name, stmt.handle.range),
+    match,
+    expect_version: stmt.expectVersion
+      ? lowerScalar(stmt.expectVersion.value)
+      : null,
+    set_fields: stmt.setFields
+      ? lowerAssignments(stmt.setFields.assignments, null)
+      : null,
+    set_attributes: stmt.setAttributes
+      ? lowerAssignments(stmt.setAttributes.assignments, null)
+      : null,
+    set_facets: stmt.setFacets.map((f) => lowerFacet(f, null)),
+    unset_attributes: stmt.unsetAttributes
+      ? lowerUnsetFields(stmt.unsetAttributes.fields)
+      : null,
+    unset_facets: stmt.unsetFacets.map((f) => ({
+      facet: lowerSymbol(f.facet),
+      fields: lowerUnsetFields(f.fields)
+    })),
+    set_structural: stmt.setStructural
+      ? lowerStructural(stmt.setStructural, null)
+      : null
   }
 }
 
-function lowerDelete(stmt: CstDeleteStatement): DeleteStatement {
-  const target = varName(stmt.target, stmt.range)
-  const where_clauses = lowerWhere(stmt.where)
-  switch (stmt.deleteType) {
-    case 'ATTRIBUTES':
+function lowerEnsureProposition(
+  stmt: EnsurePropositionStatement
+): EnsureProposition {
+  const triple = requireStructuralTuple(stmt.tuple, 'ENSURE PROPOSITION')
+  return {
+    handle: stmt.handle ? varName(stmt.handle.name, stmt.handle.range) : null,
+    ...triple,
+    expect_version: stmt.expectVersion
+      ? lowerScalar(stmt.expectVersion.value)
+      : null
+  }
+}
+
+function lowerRecordCreate(
+  stmt:
+    | CreateEvidenceStatement
+    | CreateAssertionStatement
+    | CreateActivityStatement
+): RecordCreate {
+  const fields = stmt.setFields
+    ? lowerAssignments(stmt.setFields.assignments, null)
+    : null
+  return {
+    handle: varName(stmt.handle.name, stmt.handle.range),
+    client_key: stmt.clientKey ? lowerScalar(stmt.clientKey.value) : null,
+    set_fields: fields,
+    set_facets: stmt.setFacets.map((f) => lowerFacet(f, null)),
+    set_structural: stmt.setStructural
+      ? lowerStructural(stmt.setStructural, null)
+      : null
+  }
+}
+
+/**
+ * Desugars `ASSERT` into exactly what the Spec defines it as (§55.1):
+ * `ENSURE PROPOSITION` + `CREATE ASSERTION`, plus `SUPERSEDE` when written.
+ *
+ * Nothing else is fabricated. The sugar exists because recording an
+ * attributed claim is the hot path, not because it means anything new.
+ */
+function lowerAssertSugar(
+  stmt: AssertStatement,
+  seq: number
+): MutationClause[] {
+  const members = new Map<string, Expression>()
+  for (const entry of stmt.assignments.entries) {
+    if (members.has(entry.key)) {
+      throw invalidSyntax(`duplicate ASSERT member ${entry.key}`, entry.range)
+    }
+    members.set(entry.key, entry.value)
+  }
+
+  const known = new Set([
+    'by',
+    'mode',
+    'stance',
+    'confidence',
+    'at',
+    'valid',
+    'evidence',
+    'key'
+  ])
+  for (const [key, value] of members) {
+    if (!known.has(key)) {
+      throw invalidSyntax(
+        `${key} is not an ASSERT member; expected one of ${[...known].join(', ')}`,
+        value.range
+      )
+    }
+  }
+
+  // `by` names whose stance this is, and `mode` says how it was arrived at.
+  // Neither has a safe default: guessing the actor would forge attribution,
+  // and guessing the mode would turn hearsay into observation.
+  const by = members.get('by')
+  if (!by) {
+    throw invalidSyntax(
+      'ASSERT requires by: <semantic actor> — an Assertion without an assertor has no epistemic owner',
+      stmt.assignments.range
+    )
+  }
+  const mode = members.get('mode')
+  if (!mode) {
+    throw invalidSyntax(
+      'ASSERT requires mode: one of observed, stated, inferred, predicted, hypothetical, imported',
+      stmt.assignments.range
+    )
+  }
+
+  // The Proposition handle is synthesized, so it must collide with neither a
+  // user handle nor another ASSERT in the same plan. `#` cannot occur in a KIP
+  // identifier, which rules out the first; `seq` is the clause position, which
+  // rules out the second — two handle-less ASSERTs in one MUTATE are ordinary
+  // input, not a name clash.
+  const assertionHandle = stmt.handle
+    ? varName(stmt.handle.name, stmt.handle.range)
+    : `#assert${seq}`
+  const propositionHandle = `${assertionHandle}#proposition`
+
+  const triple = requireStructuralTuple(stmt.tuple, 'ASSERT')
+
+  const clauses: MutationClause[] = [
+    {
+      EnsureProposition: {
+        handle: propositionHandle,
+        ...triple,
+        expect_version: null
+      }
+    }
+  ]
+
+  const fields: Assignments = [
+    ['proposition', { Handle: propositionHandle }],
+    ['asserted_by', lowerMutationValue(by, null)],
+    ['mode', lowerMutationValue(mode, null)],
+    // The normative expansion carries a stance even when the source omitted
+    // one, so the default is materialized here rather than left for the
+    // engine to re-derive.
+    [
+      'stance',
+      members.has('stance')
+        ? lowerMutationValue(members.get('stance')!, null)
+        : { Value: { String: 'support' } }
+    ]
+  ]
+  const optional: [string, string][] = [
+    ['confidence', 'confidence'],
+    ['at', 'asserted_at'],
+    ['valid', 'valid_time']
+  ]
+  for (const [member, field] of optional) {
+    const value = members.get(member)
+    if (value) fields.push([field, lowerMutationValue(value, null)])
+  }
+
+  // `evidence` is a reserved Core *structural* field, not a plain one: the
+  // normative desugaring emits `("evidence", ref) {role: "support"}`. An array
+  // cites several artifacts, so it becomes one role-qualified edge each.
+  const evidenceExpr = members.get('evidence')
+  const evidenceEdges: StructuralEdge[] =
+    evidenceExpr === undefined
+      ? []
+      : (evidenceExpr.kind === 'ArrayLiteral'
+          ? evidenceExpr.elements
+          : [evidenceExpr]
+        ).map((ref) => ({
+          field: { Name: 'evidence' },
+          value: lowerMutationValue(ref, null),
+          options: { role: { Value: { String: 'support' } } }
+        }))
+
+  const clientKeyExpr = members.get('key')
+  clauses.push({
+    CreateAssertion: {
+      handle: assertionHandle,
+      client_key: clientKeyExpr ? lowerScalarExpression(clientKeyExpr) : null,
+      set_fields: fields,
+      set_facets: [],
+      set_structural: evidenceEdges.length > 0 ? evidenceEdges : null
+    }
+  })
+
+  if (stmt.superseding) {
+    clauses.push({
+      SupersedeAssertion: {
+        target: lowerElementRef(stmt.superseding),
+        by: { Handle: assertionHandle },
+        expect_state: null
+      }
+    })
+  }
+
+  return clauses
+}
+
+function lowerTransition(stmt: TransitionActivityStatement) {
+  let setFields: Assignments | null = null
+  let setStructural: StructuralEdge[] | null = null
+  for (const clause of stmt.finalize) {
+    if (clause.kind === 'SetFieldsClause') {
+      if (setFields) {
+        throw invalidSyntax('duplicate SET FIELDS clause', clause.range)
+      }
+      setFields = lowerAssignments(clause.assignments, null)
+    } else {
+      if (setStructural) {
+        throw invalidSyntax('duplicate SET STRUCTURAL clause', clause.range)
+      }
+      setStructural = lowerStructural(clause, null)
+    }
+  }
+  return {
+    target: lowerElementRef(stmt.target),
+    to: lowerScalar(stmt.to),
+    set_fields: setFields,
+    set_structural: setStructural,
+    expect_state: stmt.expectState ? lowerScalar(stmt.expectState.value) : null
+  }
+}
+
+function lowerRemoval(stmt: ArchiveStatement | TombstoneStatement) {
+  return {
+    target: lowerElementRef(stmt.target),
+    where_clauses: stmt.where ? lowerWhere(stmt.where) : null,
+    limit: stmt.limit ? lowerScalar(stmt.limit.value) : null,
+    expect_state: stmt.expectState ? lowerScalar(stmt.expectState.value) : null
+  }
+}
+
+function lowerPurge(stmt: PurgeStatement) {
+  if (stmt.confirm.parsed !== 'PURGE') {
+    throw invalidSyntax(
+      'PURGE must be confirmed with the exact literal "PURGE"',
+      stmt.confirm.range
+    )
+  }
+  return {
+    target: lowerElementRef(stmt.target),
+    where_clauses: stmt.where ? lowerWhere(stmt.where) : null,
+    limit: stmt.limit ? lowerScalar(stmt.limit.value) : null,
+    reference_policy: stmt.referencePolicy
+      ? lowerScalar(stmt.referencePolicy)
+      : null,
+    confirm: 'PURGE'
+  }
+}
+
+// ---------------------------------------------------------------------------
+// UPDATE
+// ---------------------------------------------------------------------------
+
+function lowerUpdate(stmt: CstUpdateStatement) {
+  if (stmt.actions.length === 0) {
+    throw invalidSyntax(
+      'UPDATE requires at least one SET or UNSET action',
+      stmt.range
+    )
+  }
+
+  const target = lowerElementRef(stmt.target)
+  const targetVar = 'Handle' in target ? target.Handle : null
+  const kind = targetVar ? boundKindOf(targetVar, stmt.where.patterns) : null
+
+  const actions = stmt.actions.map((action) =>
+    lowerUpdateAction(action, targetVar, kind)
+  )
+
+  return {
+    target,
+    expect_version: stmt.expectVersion
+      ? lowerScalar(stmt.expectVersion.value)
+      : null,
+    actions,
+    where_clauses: lowerWhere(stmt.where),
+    limit: stmt.limit ? lowerScalar(stmt.limit.value) : null
+  }
+}
+
+/** Which Core kind the UPDATE target is bound to, when the WHERE block says. */
+type BoundKind = 'assertion' | 'evidence' | 'proposition' | 'concept' | 'activity'
+
+function boundKindOf(
+  variable: string,
+  patterns: WherePattern[]
+): BoundKind | null {
+  for (const pattern of patterns) {
+    switch (pattern.kind) {
+      case 'AssertionPattern':
+        if (varName(pattern.variable.name, pattern.variable.range) === variable) {
+          return 'assertion'
+        }
+        break
+      case 'EvidencePattern':
+        if (varName(pattern.variable.name, pattern.variable.range) === variable) {
+          return 'evidence'
+        }
+        break
+      case 'ActivityPattern':
+        if (varName(pattern.variable.name, pattern.variable.range) === variable) {
+          return 'activity'
+        }
+        break
+      case 'ConceptPattern':
+        if (varName(pattern.variable.name, pattern.variable.range) === variable) {
+          return 'concept'
+        }
+        break
+      case 'PropositionPattern':
+        if (
+          pattern.variable &&
+          varName(pattern.variable.name, pattern.variable.range) === variable
+        ) {
+          return 'proposition'
+        }
+        break
+      case 'NotClause':
+      case 'OptionalClause':
+      case 'UnionClause': {
+        const nested = boundKindOf(variable, pattern.patterns)
+        if (nested) return nested
+        break
+      }
+    }
+  }
+  return null
+}
+
+function lowerUpdateAction(
+  action: CstUpdateAction,
+  targetVar: string | null,
+  kind: BoundKind | null
+): UpdateAction {
+  switch (action.kind) {
+    case 'SetFieldsClause': {
+      const assignments = lowerAssignments(action.assignments, targetVar)
+      for (const entry of action.assignments.entries) {
+        guardImmutableField(entry.key, kind, entry.range)
+      }
+      return { SetFields: assignments }
+    }
+    case 'SetAttributesClause': {
+      const assignments = lowerAssignments(action.assignments, targetVar)
+      for (const entry of action.assignments.entries) {
+        guardProtectedField(entry.key, entry.range)
+      }
+      return { SetAttributes: assignments }
+    }
+    case 'SetFacetClause':
+      return { SetFacet: lowerFacet(action, targetVar) }
+    case 'UnsetAttributesClause':
+      return { UnsetAttributes: lowerUnsetFields(action.fields) }
+    case 'UnsetFacetClause':
       return {
-        DeleteAttributes: {
-          attributes: requireKeys(stmt.keys, 'ATTRIBUTES', stmt.range),
-          target,
-          where_clauses
+        UnsetFacet: {
+          facet: lowerSymbol(action.facet),
+          fields: lowerUnsetFields(action.fields)
         }
       }
-    case 'METADATA':
-      return {
-        DeleteMetadata: {
-          keys: requireKeys(stmt.keys, 'METADATA', stmt.range),
-          target,
-          where_clauses
-        }
-      }
-    case 'PROPOSITIONS':
-      return { DeletePropositions: { target, where_clauses } }
-    case 'CONCEPT':
-      if (!stmt.detach) {
+    case 'SetStructuralClause':
+      return { SetStructural: lowerStructural(action, targetVar) }
+  }
+}
+
+/** Engine-owned state is never author-writable, whatever the element kind. */
+function guardProtectedField(field: string, range: Range): void {
+  if (PROTECTED_FIELDS.has(field)) {
+    throw invalidSyntax(
+      `${field} is engine-maintained state and cannot be written by a mutation`,
+      range
+    )
+  }
+}
+
+function guardImmutableField(
+  field: string,
+  kind: BoundKind | null,
+  range: Range
+): void {
+  guardProtectedField(field, range)
+
+  if (kind === 'assertion' && ASSERTION_IMMUTABLE.has(field)) {
+    throw invalidSyntax(
+      `${field} is immutable Assertion payload: record the change as a new Assertion with SUPERSEDING, ` +
+        'never by rewriting the old one',
+      range
+    )
+  }
+  if (kind === 'evidence' && EVIDENCE_IMMUTABLE.has(field)) {
+    throw invalidSyntax(
+      `${field} is immutable Evidence payload: correct it with CORRECT EVIDENCE :old BY :new`,
+      range
+    )
+  }
+  if (kind === 'proposition' && PROPOSITION_IMMUTABLE.has(field)) {
+    throw invalidSyntax(
+      `${field} is part of the immutable Proposition tuple: a different tuple is a different Proposition`,
+      range
+    )
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Assignments, facets, structural edges
+// ---------------------------------------------------------------------------
+
+function lowerAssignments(
+  object: ObjectLiteral,
+  targetVar: string | null
+): Assignments {
+  const seen = new Set<string>()
+  const out: Assignments = []
+  for (const entry of object.entries) {
+    if (seen.has(entry.key)) {
+      throw invalidSyntax(`duplicate assignment for ${entry.key}`, entry.range)
+    }
+    seen.add(entry.key)
+    out.push([entry.key, lowerMutationValue(entry.value, targetVar)])
+  }
+  return out
+}
+
+function lowerFacet(
+  clause: SetFacetClause,
+  targetVar: string | null
+): FacetAssignment {
+  return {
+    facet: lowerSymbol(clause.facet),
+    values: lowerAssignments(clause.assignments, targetVar)
+  }
+}
+
+function lowerStructural(
+  clause: SetStructuralClause,
+  targetVar: string | null
+): StructuralEdge[] {
+  return clause.assignments.map((assignment) => ({
+    field: lowerSymbol(assignment.field),
+    value: lowerMutationValue(assignment.value, targetVar),
+    options: assignment.options ? lowerBoundObject(assignment.options) : null
+  }))
+}
+
+function lowerUnsetFields(fields: UnsetField[]): string[] {
+  const seen = new Set<string>()
+  for (const field of fields) {
+    if (seen.has(field.name)) {
+      throw invalidSyntax(`duplicate field ${field.name}`, field.range)
+    }
+    guardProtectedField(field.name, field.range)
+    seen.add(field.name)
+  }
+  return [...seen]
+}
+
+function lowerMutationValue(
+  expr: Expression,
+  targetVar: string | null
+): MutationValue {
+  if (expr.kind === 'FunctionCallExpr') {
+    return { Expr: lowerUpdateExpr(expr, targetVar) }
+  }
+  if (expr.kind === 'AggregateExpr') {
+    throw invalidSyntax(
+      `${expr.name} is an aggregate and cannot appear in an assignment`,
+      expr.range
+    )
+  }
+  return lowerBoundValue(expr, targetVar)
+}
+
+/**
+ * Lowers a `data_value`, keeping structure only where something still needs
+ * binding. A wholly literal subtree collapses to one `Value`, so an engine
+ * that has nothing to substitute never walks a binding tree.
+ */
+function lowerBoundValue(
+  expr: Expression,
+  targetVar: string | null
+): BoundValue {
+  switch (expr.kind) {
+    case 'ParameterRef':
+      return { Param: paramName(expr.name) }
+
+    case 'VariableRef':
+      return { Handle: varName(expr.name, expr.range) }
+
+    case 'FieldAccess': {
+      const path = lowerDotPath(expr)
+      guardOwnField(path, targetVar, expr.range)
+      return { Variable: path }
+    }
+
+    case 'ArrayLiteral':
+      return isFullyLiteral(expr)
+        ? { Value: lowerKipValue(expr) }
+        : { Array: expr.elements.map((e) => lowerBoundValue(e, targetVar)) }
+
+    case 'ObjectLiteral':
+      return isFullyLiteral(expr)
+        ? { Value: lowerKipValue(expr) }
+        : {
+            Object: expr.entries.map(
+              (e) =>
+                [e.key, lowerBoundValue(e.value, targetVar)] as [
+                  string,
+                  BoundValue
+                ]
+            )
+          }
+
+    default:
+      return { Value: lowerKipValue(expr) }
+  }
+}
+
+/** True when nothing in the subtree needs binding at execution time. */
+function isFullyLiteral(expr: Expression): boolean {
+  switch (expr.kind) {
+    case 'StringLiteral':
+    case 'NumberLiteral':
+    case 'BooleanLiteral':
+    case 'NullLiteral':
+      return true
+    case 'ArrayLiteral':
+      return expr.elements.every(isFullyLiteral)
+    case 'ObjectLiteral':
+      return expr.entries.every((e) => isFullyLiteral(e.value))
+    case 'UnaryExpression':
+      return expr.operator === '-' && isFullyLiteral(expr.operand)
+    default:
+      return false
+  }
+}
+
+function lowerUpdateExpr(
+  expr: Expression,
+  targetVar: string | null
+): UpdateExpr {
+  switch (expr.kind) {
+    case 'FunctionCallExpr': {
+      const func = UPDATE_FUNCTIONS.get(expr.name.toUpperCase())
+      if (!func) {
         throw invalidSyntax(
-          'DELETE CONCEPT requires DETACH: removing a concept also removes ' +
-            'every proposition attached to it',
-          stmt.range
+          `${expr.name} is not a KIP update function; expected ADD, MUL, CLAMP or COALESCE`,
+          expr.range
         )
       }
-      return { DeleteConcept: { target, where_clauses } }
+      const arity = UPDATE_ARITY[func]
+      if (expr.args.length !== arity) {
+        throw invalidSyntax(
+          `${expr.name} takes ${arity} arguments, found ${expr.args.length}`,
+          expr.range
+        )
+      }
+      return {
+        Function: {
+          func,
+          args: expr.args.map((arg) => lowerUpdateExpr(arg, targetVar))
+        }
+      }
+    }
+
+    case 'ParameterRef':
+      return { Param: paramName(expr.name) }
+
+    case 'NumberLiteral':
+      return { Number: expr.value }
+
+    case 'UnaryExpression':
+      if (expr.operator === '-' && expr.operand.kind === 'NumberLiteral') {
+        return { Number: -expr.operand.value }
+      }
+      throw invalidSyntax(
+        `expected a number, a parameter, the target's own field or a registered function, found ${describeExpression(expr)}`,
+        expr.range
+      )
+
+    case 'VariableRef':
+    case 'FieldAccess': {
+      const path = lowerDotPath(expr)
+      guardOwnField(path, targetVar, expr.range)
+      return { Variable: path }
+    }
+
+    default:
+      throw invalidSyntax(
+        `expected a number, a parameter, the target's own field or a registered function, found ${describeExpression(expr)}`,
+        expr.range
+      )
   }
 }
 
-function requireKeys(
-  keys: string[] | undefined,
-  what: string,
+/**
+ * An update expression may read only the element being updated.
+ *
+ * Reading another variable would make the result depend on a join the
+ * statement never declared, so each matched element must be computable from
+ * its own row.
+ */
+function guardOwnField(
+  path: DotPathVar,
+  targetVar: string | null,
   range: Range
-): string[] {
-  if (!keys || keys.length === 0) {
-    throw invalidSyntax(`DELETE ${what} needs at least one key`, range)
+): void {
+  if (targetVar !== null && path.var !== targetVar) {
+    throw invalidSyntax(
+      `an update expression may read only the target ?${targetVar}, found ?${path.var}`,
+      range
+    )
   }
-  return keys
 }
 
 // ---------------------------------------------------------------------------
 // META
 // ---------------------------------------------------------------------------
 
+function lowerMeta(stmt: Statement): MetaCommand {
+  switch (stmt.kind) {
+    case 'DescribeStatement':
+      return { Describe: lowerDescribe(stmt) }
+    case 'ListStatement':
+      return { List: lowerList(stmt) }
+    case 'SearchStatement':
+      return { Search: lowerSearch(stmt) }
+    case 'VerifyStatement':
+      return {
+        Verify: {
+          target: VERIFY_TARGETS[stmt.target],
+          value: lowerScalar(stmt.value)
+        }
+      }
+    case 'ValidateStatement':
+      return {
+        Validate: {
+          target: VALIDATE_TARGETS[stmt.target],
+          value: lowerScalar(stmt.value),
+          options: stmt.options ? lowerBoundObject(stmt.options) : null
+        }
+      }
+    case 'PreviewStatement':
+      return {
+        Preview:
+          stmt.target === 'KML'
+            ? { Kml: lowerScalar(stmt.value) }
+            : {
+                ImportCapsule: {
+                  capsule: lowerScalar(stmt.value),
+                  into: lowerScalar(stmt.into!)
+                }
+              }
+      }
+    case 'HistoryStatement':
+      return { History: lowerHistory(stmt) }
+    case 'ChangesStatement':
+      return {
+        Changes:
+          stmt.mode === 'SINCE'
+            ? {
+                Since: {
+                  cursor: lowerScalar(stmt.value),
+                  limit: stmt.limit ? lowerScalar(stmt.limit.value) : null
+                }
+              }
+            : {
+                AfterSeq: {
+                  seq: lowerScalar(stmt.value),
+                  limit: stmt.limit ? lowerScalar(stmt.limit.value) : null
+                }
+              }
+      }
+    case 'SnapshotStatement':
+      return { Snapshot: { as_of: stmt.asOf ? lowerAsOf(stmt.asOf) : null } }
+    case 'ExportCapsuleStatement':
+      return { ExportCapsule: lowerExport(stmt) }
+    default:
+      throw invalidSyntax(
+        `${stmt.kind} is not an executable KIP command`,
+        stmt.range
+      )
+  }
+}
+
+const VERIFY_TARGETS: Record<VerifyStatement['target'], VerifyTarget> = {
+  CAPSULE: 'Capsule',
+  SCHEMA_PACKAGE: 'SchemaPackage',
+  RECEIPT: 'Receipt',
+  BLOB: 'Blob',
+  CHECKPOINT: 'Checkpoint'
+}
+
+const VALIDATE_TARGETS: Record<ValidateStatement['target'], ValidateTarget> = {
+  KQL: 'Kql',
+  KML: 'Kml',
+  CAPSULE: 'Capsule',
+  SCHEMA_PACKAGE: 'SchemaPackage',
+  IMPORT_PLAN: 'ImportPlan'
+}
+
+const LIST_TARGETS: Record<ListStatement['target'], ListTarget> = {
+  SPACES: 'Spaces',
+  SCHEMA_PACKAGES: 'SchemaPackages',
+  TYPES: 'Types',
+  PREDICATES: 'Predicates',
+  FACETS: 'Facets',
+  STRUCTURAL_FIELDS: 'StructuralFields',
+  EPISTEMIC_POLICIES: 'EpistemicPolicies'
+}
+
+const SEARCH_TARGETS: Record<SearchStatement['searchKind'], SearchTarget> = {
+  CONCEPT: 'Concept',
+  PROPOSITION: 'Proposition',
+  ASSERTION: 'Assertion',
+  EVIDENCE: 'Evidence',
+  ACTIVITY: 'Activity',
+  COGNITION: 'Cognition'
+}
+
 function lowerDescribe(stmt: DescribeStatement): DescribeTarget {
-  switch (stmt.describeType) {
+  const value = () => {
+    if (!stmt.value) {
+      throw invalidSyntax(
+        `DESCRIBE ${stmt.target} requires an operand`,
+        stmt.range
+      )
+    }
+    return lowerScalar(stmt.value)
+  }
+
+  switch (stmt.target) {
     case 'PRIMER':
-      return 'Primer'
-    case 'DOMAINS':
-      return 'Domains'
-    case 'CONCEPT_TYPES':
+      return { Primer: { mode: stmt.mode ? lowerScalar(stmt.mode) : null } }
+    case 'PROTOCOL':
+      return 'Protocol'
+    case 'EXECUTION_CONTEXT':
+      return 'ExecutionContext'
+    case 'CAPABILITIES':
+      return 'Capabilities'
+    case 'SPACE':
+      return { Space: { value: stmt.value ? lowerScalar(stmt.value) : null } }
+    case 'SCHEMA_ENVIRONMENT':
       return {
-        ConceptTypes: {
-          limit: lowerLimit(stmt.limit),
-          cursor: lowerCursor(stmt.cursor)
-        }
+        SchemaEnvironment: { as_of: stmt.asOf ? lowerAsOf(stmt.asOf) : null }
       }
-    case 'PROPOSITION_TYPES':
+    case 'PACKAGE':
+      return { Package: value() }
+    case 'TYPE':
+      return { Type: value() }
+    case 'PREDICATE':
+      return { Predicate: value() }
+    case 'FACET':
+      return { Facet: value() }
+    case 'STRUCTURAL_FIELD':
+      return { StructuralField: value() }
+    case 'COMPATIBILITY':
+      if (!stmt.from || !stmt.to) {
+        throw invalidSyntax(
+          'DESCRIBE COMPATIBILITY requires FROM and TO',
+          stmt.range
+        )
+      }
       return {
-        PropositionTypes: {
-          limit: lowerLimit(stmt.limit),
-          cursor: lowerCursor(stmt.cursor)
-        }
+        Compatibility: { from: lowerScalar(stmt.from), to: lowerScalar(stmt.to) }
       }
-    case 'CONCEPT_TYPE':
-      return { ConceptType: describeName(stmt) }
-    case 'PROPOSITION_TYPE':
-      return { PropositionType: describeName(stmt) }
+    case 'ERROR':
+      return { Error: value() }
+    case 'TRANSACTION':
+      return { Transaction: value() }
+    case 'TRANSACTION_BY_IDEMPOTENCY_KEY':
+      return { TransactionByIdempotencyKey: value() }
+    case 'SNAPSHOT':
+      return { Snapshot: { as_of: stmt.asOf ? lowerAsOf(stmt.asOf) : null } }
+    case 'CAPSULE':
+      return { Capsule: value() }
+    case 'EPISTEMIC_POLICY':
+      return {
+        EpistemicPolicy: { value: stmt.value ? lowerScalar(stmt.value) : null }
+      }
+    case 'PROJECTION_CAPABILITY':
+      return 'ProjectionCapability'
+    case 'TRUST':
+      return { Trust: { value: stmt.value ? lowerScalar(stmt.value) : null } }
+    case 'ACCESS':
+      return {
+        Access: { with: stmt.with ? lowerBoundObject(stmt.with) : null }
+      }
   }
 }
 
-function describeName(stmt: DescribeStatement): string {
-  const value = stmt.typeNameValue
-  if (value && value.kind !== 'StringLiteral') {
-    throw invalidSyntax('DESCRIBE takes a quoted type name', value.range)
-  }
-  if (!stmt.typeName) {
-    throw invalidSyntax('DESCRIBE takes a quoted type name', stmt.range)
-  }
-  return stmt.typeName
-}
-
-function lowerSearch(stmt: SearchStatement): SearchCommand {
-  const out: SearchCommand = {
-    target: stmt.searchTarget === 'PROPOSITION' ? 'Proposition' : 'Concept',
-    term: requireLiteralString(stmt.termValue, stmt.term, 'SEARCH term', stmt.range),
-    in_type:
-      stmt.withType === undefined
-        ? null
-        : requireLiteralString(
-            stmt.withTypeValue,
-            stmt.withType,
-            'WITH TYPE',
-            stmt.range
-          ),
-    limit: lowerLimit(stmt.limit)
-  }
-
-  if (stmt.mode !== undefined) {
-    const raw = requireLiteralString(stmt.modeValue, stmt.mode, 'MODE', stmt.range)
-    const mode = searchMode(raw)
-    if (!mode) {
-      throw invalidSyntax(
-        `invalid SEARCH mode: ${JSON.stringify(raw)}, expected "keyword", "semantic", or "hybrid"`,
-        stmt.modeValue?.range ?? stmt.range
-      )
-    }
-    out.mode = mode
-  }
-
-  if (stmt.threshold) {
-    const value = stmt.threshold.value
-    if (value.kind !== 'NumberLiteral') {
-      throw invalidSyntax('THRESHOLD takes a number', value.range)
-    }
-    if (value.value < 0 || value.value > 1) {
-      throw invalidSyntax(
-        `THRESHOLD must be between 0.0 and 1.0, got ${value.value}`,
-        value.range
-      )
-    }
-    // `-0` and `0` are the same threshold; the wire form carries only `0`.
-    out.threshold = value.value === 0 ? 0 : value.value
-  }
-
-  return out
-}
-
-function searchMode(raw: string): SearchMode | undefined {
-  switch (raw.toLowerCase()) {
-    case 'keyword':
-      return 'Keyword'
-    case 'semantic':
-      return 'Semantic'
-    case 'hybrid':
-      return 'Hybrid'
-    default:
-      return undefined
+function lowerList(stmt: ListStatement) {
+  return {
+    target: LIST_TARGETS[stmt.target],
+    status: stmt.status ? lowerScalar(stmt.status) : null,
+    limit: stmt.limit ? lowerScalar(stmt.limit.value) : null,
+    cursor: stmt.cursor ? lowerScalar(stmt.cursor.value) : null
   }
 }
 
-function requireLiteralString(
-  node: { kind: string; range: Range } | undefined,
-  value: string,
-  what: string,
-  range: Range
-): string {
-  if (node && node.kind !== 'StringLiteral') {
-    throw invalidSyntax(`${what} must be a quoted string`, node.range)
+function lowerSearch(stmt: SearchStatement) {
+  return {
+    target: SEARCH_TARGETS[stmt.searchKind],
+    term: lowerScalar(stmt.term),
+    with_type: stmt.withType ? lowerScalar(stmt.withType) : null,
+    with_predicate: stmt.withPredicate ? lowerScalar(stmt.withPredicate) : null,
+    mode: stmt.mode ? lowerScalar(stmt.mode) : null,
+    threshold: stmt.threshold ? lowerScalar(stmt.threshold) : null,
+    as_of_seq: stmt.asOfSeq ? lowerScalar(stmt.asOfSeq) : null,
+    limit: stmt.limit ? lowerScalar(stmt.limit.value) : null,
+    cursor: stmt.cursor ? lowerScalar(stmt.cursor.value) : null
   }
-  if (!node) {
-    throw invalidSyntax(`${what} must be a quoted string`, range)
+}
+
+function lowerHistory(stmt: HistoryStatement): HistoryCommand {
+  const paging = {
+    from_seq: stmt.fromSeq ? lowerScalar(stmt.fromSeq) : null,
+    to_seq: stmt.toSeq ? lowerScalar(stmt.toSeq) : null,
+    limit: stmt.limit ? lowerScalar(stmt.limit.value) : null,
+    cursor: stmt.cursor ? lowerScalar(stmt.cursor.value) : null
   }
-  return value
+  if (stmt.target === 'SPACE') {
+    return { Space: paging }
+  }
+  if (!stmt.value) {
+    throw invalidSyntax('HISTORY ELEMENT requires an element id', stmt.range)
+  }
+  return { Element: { value: lowerScalar(stmt.value), ...paging } }
+}
+
+function lowerExport(stmt: ExportCapsuleStatement) {
+  return {
+    target: lowerElementRef(stmt.target),
+    where_clauses: lowerWhere(stmt.where),
+    options: stmt.options ? lowerBoundObject(stmt.options) : null,
+    as_of: stmt.asOf ? lowerAsOf(stmt.asOf) : null
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Shared leaves
+// Leaf conversions
 // ---------------------------------------------------------------------------
 
-function lowerLimit(limit: LimitClause | undefined): number | null {
-  if (!limit) return null
-  const value = limit.value
-  if (value.kind !== 'NumberLiteral' || !isIntegerLiteral(value.raw)) {
-    throw invalidSyntax('LIMIT takes a positive integer', value.range)
+function lowerScalar(value: ScalarValue): Scalar {
+  if (value.kind === 'ParameterRef') {
+    return { Param: paramName(value.name) }
   }
-  const n = BigInt(value.raw)
-  if (n <= 0n) {
-    throw invalidSyntax(
-      'LIMIT must be a positive integer (LIMIT 0 is not allowed; omit LIMIT for the engine default)',
-      value.range
-    )
-  }
-  if (n > BigInt(MAX_LIMIT)) {
-    throw invalidSyntax(`LIMIT ${value.raw} is out of range`, value.range)
-  }
-  return Number(n)
+  return { Literal: lowerKipValue(value) }
 }
 
-function lowerCursor(cursor: CursorClause | undefined): string | null {
-  if (!cursor) return null
-  const value = cursor.value
-  if (value.kind !== 'StringLiteral') {
-    throw invalidSyntax('CURSOR takes a quoted pagination token', value.range)
+/** An ASSERT member used where the grammar needs a scalar, e.g. `key:`. */
+function lowerScalarExpression(expr: Expression): Scalar {
+  if (expr.kind === 'ParameterRef') {
+    return { Param: paramName(expr.name) }
   }
-  if (value.parsed.length === 0) {
-    throw invalidSyntax(
-      'CURSOR must be a non-empty quoted pagination token',
-      value.range
-    )
-  }
-  return value.parsed
-}
-
-function lowerMetadata(
-  block: WithMetadata | undefined
-): Record<string, Json> | null {
-  return block ? lowerJsonEntries(block.entries) : null
-}
-
-function lowerJsonEntries(entries: ObjectEntry[]): Record<string, Json> {
-  const out: Record<string, Json> = {}
-  for (const entry of entries) {
-    if (Object.prototype.hasOwnProperty.call(out, entry.key)) {
-      throw invalidSyntax(
-        `duplicate key in object (keys must be unique): ${entry.key}`,
-        entry.range
-      )
-    }
-    out[entry.key] = lowerJson(entry.value)
-  }
-  return out
-}
-
-function lowerJson(expr: Expression): Json {
-  switch (expr.kind) {
-    case 'StringLiteral':
-      return expr.parsed
-    case 'NumberLiteral':
-      return numberValue(expr.value, expr.raw, expr.range)
-    case 'BooleanLiteral':
-      return expr.value
-    case 'NullLiteral':
-      return null
-    case 'ArrayLiteral':
-      return expr.elements.map(lowerJson)
-    case 'ObjectLiteral':
-      return lowerJsonEntries(expr.entries)
-    default:
-      throw invalidSyntax(
-        `expected a JSON value, found ${describeExpression(expr)}`,
-        expr.range
-      )
-  }
-}
-
-/**
- * Reads a literal in matcher or FILTER position.
- *
- * Stricter than {@link lowerJson}: these positions are not JSON-value
- * positions in the grammar, and a trailing comma that an attribute block
- * tolerates is a syntax error inside `IN [...]`.
- */
-function lowerKipValue(expr: Expression): KipValue {
   if (
-    (expr.kind === 'ArrayLiteral' || expr.kind === 'ObjectLiteral') &&
-    expr.trailingComma
+    expr.kind === 'StringLiteral' ||
+    expr.kind === 'NumberLiteral' ||
+    expr.kind === 'BooleanLiteral' ||
+    expr.kind === 'NullLiteral'
   ) {
-    throw invalidSyntax('a literal list takes no trailing comma', expr.range)
+    return { Literal: lowerKipValue(expr) }
   }
+  throw invalidSyntax(
+    `expected a literal or :parameter, found ${describeExpression(expr)}`,
+    expr.range
+  )
+}
+
+function lowerSymbol(symbol: SchemaSymbol): SymbolRef {
+  return symbol.kind === 'ParameterRef'
+    ? { Param: paramName(symbol.name) }
+    : { Name: symbol.parsed }
+}
+
+function lowerElementRef(ref: TargetRef): ElementRef {
+  switch (ref.kind) {
+    case 'VariableRef':
+      return { Handle: varName(ref.name, ref.range) }
+    case 'ParameterRef':
+      return { Param: paramName(ref.name) }
+    case 'StringLiteral':
+      return { Id: ref.parsed }
+  }
+}
+
+function lowerKipValue(expr: Expression): KipValue {
   switch (expr.kind) {
     case 'StringLiteral':
       return { String: expr.parsed }
     case 'NumberLiteral':
-      return { Number: numberValue(expr.value, expr.raw, expr.range) }
+      if (!Number.isFinite(expr.value)) {
+        throw invalidSyntax(
+          `only finite numbers are valid KIP literals, found ${expr.raw}`,
+          expr.range
+        )
+      }
+      return { Number: expr.value }
     case 'BooleanLiteral':
       return { Bool: expr.value }
     case 'NullLiteral':
       return 'Null'
     case 'ArrayLiteral':
       return { Array: expr.elements.map(lowerKipValue) }
-    case 'ObjectLiteral': {
+    case 'ObjectLiteral':
+    case 'ObjectPattern': {
+      const entries =
+        expr.kind === 'ObjectLiteral' ? expr.entries : expr.members
       const out: Record<string, KipValue> = {}
-      for (const entry of expr.entries) {
-        if (Object.prototype.hasOwnProperty.call(out, entry.key)) {
-          throw invalidSyntax(
-            `duplicate key in object (keys must be unique): ${entry.key}`,
-            entry.range
-          )
-        }
+      for (const entry of entries) {
         out[entry.key] = lowerKipValue(entry.value)
       }
       return { Object: out }
     }
+    case 'UnaryExpression':
+      if (expr.operator === '-' && expr.operand.kind === 'NumberLiteral') {
+        return { Number: -expr.operand.value }
+      }
+      throw invalidSyntax(
+        `expected a value, found ${describeExpression(expr)}`,
+        expr.range
+      )
     default:
       throw invalidSyntax(
-        `expected a literal value, found ${describeExpression(expr)}`,
+        `expected a value, found ${describeExpression(expr)}`,
         expr.range
       )
   }
 }
 
 /**
- * Reads a numeric literal, rejecting integers no KIP engine can carry:
- * `18446744073709551617` is past u64 and would silently widen to
- * `1.8446744073709552e19`.
- *
- * Known limit: this tree carries numbers as JavaScript `number`, so integers
- * above 2^53 still lose precision here even though an i64/u64 engine keeps
- * them — `9007199254740993` lowers to `9007199254740992`. Closing that gap
- * needs a bigint-carrying wire type, not a wider bound.
+ * Option and epistemic blocks are `data_value`s, not plain JSON: the grammar
+ * lets a parameter stand anywhere inside them.
  */
-function numberValue(value: number, raw: string, range: Range): number {
-  // KIP values are JSON values, and JSON has no `02`. `LIMIT 02` and
-  // `EXPECT VERSION 007` are a different production and stay permissive.
-  if (!JSON_NUMBER.test(raw)) {
-    throw invalidSyntax(`invalid number literal ${raw}`, range)
+function lowerBoundObject(object: ObjectLiteral): Record<string, BoundValue> {
+  const out: Record<string, BoundValue> = {}
+  for (const entry of object.entries) {
+    out[entry.key] = lowerBoundValue(entry.value, null)
   }
-  if (!isIntegerLiteral(raw)) {
-    if (!Number.isFinite(value)) {
-      throw invalidSyntax(`number literal ${raw} is out of range`, range)
-    }
-    return value
-  }
-  const n = BigInt(raw)
-  if (n < I64_MIN || n > U64_MAX) {
-    throw invalidSyntax(
-      `integer literal ${raw} is out of range: KIP integers must be representable as i64 or u64`,
-      range
-    )
-  }
-  // `-0` is an integer literal, and the wire format carries it as `0`.
-  return n === 0n ? 0 : Number(n)
-}
-
-const JSON_NUMBER = /^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?$/
-
-function isIntegerLiteral(raw: string): boolean {
-  return !/[.eE]/.test(raw)
-}
-
-/** Reads `?var`, `?var.field` or `?var.attributes.key` as a name plus a path. */
-function dotPathVar(expr: Expression): DotPathVar {
-  const path: string[] = []
-  let node = expr
-  while (node.kind === 'DotExpression') {
-    path.unshift(node.property)
-    node = node.object
-  }
-  if (node.kind !== 'VariableRef') {
-    throw invalidSyntax(
-      `expected a variable, found ${describeExpression(node)}`,
-      node.range
-    )
-  }
-  return { var: varName(node.name, node.range), path }
+  return out
 }
 
 /** Strips the `?` sigil; the executable form carries bare names. */
@@ -1170,14 +1839,23 @@ function varName(name: string, range: Range): string {
   return name.slice(1)
 }
 
+/** Strips the `:` sigil; the executable form carries bare names. */
+function paramName(name: string): string {
+  return name.startsWith(':') ? name.slice(1) : name
+}
+
 function describeExpression(expr: Expression): string {
   switch (expr.kind) {
     case 'ParameterRef':
-      return `the parameter ${expr.name} (this engine does not substitute parameters)`
+      return `the parameter ${expr.name}`
     case 'VariableRef':
       return `the variable ${expr.name}`
     case 'FunctionCallExpr':
       return `a call to ${expr.name}`
+    case 'AggregateExpr':
+      return `the aggregate ${expr.name}`
+    case 'BinaryExpression':
+      return `the operator ${expr.operator}`
     default:
       return expr.kind
   }

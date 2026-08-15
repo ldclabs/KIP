@@ -4271,7 +4271,9 @@ Schema validation
 
 # 228. `ASSERT` Ergonomic Sugar
 
-KML 2.0 MAY standardize:
+Standardized as normative sugar in the Specification (§55.1). The member names
+below are the finalized ones; earlier drafts of this document spelled them
+`asserted_by` / `asserted_at` / `client_key`, which the final grammar shortened:
 
 ```prolog
 ASSERT ?a (
@@ -4279,19 +4281,22 @@ ASSERT ?a (
   "timezone",
   "+08:00"
 ) {
-  asserted_by: :alice,
+  by: :alice,
   stance: "support",
   mode: "stated",
   confidence: 1.0,
-  asserted_at: :time,
+  at: :time,
 
   evidence: [
     {ref: ?e, role: "support"}
   ],
 
-  client_key: :assertion_key
+  key: :assertion_key
 }
 ```
+
+`by` and `mode` are REQUIRED; the rest are optional. `by` becomes the
+Assertion's `asserted_by`, `at` its `asserted_at`, and `key` its `client_key`.
 
 ---
 

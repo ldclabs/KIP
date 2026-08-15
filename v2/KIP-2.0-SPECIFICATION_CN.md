@@ -3203,6 +3203,22 @@ Belief Slot Pattern (信念槽位模式)
 ?p PROPOSITION (?subject, "works_for", ?org)
 ```
 
+已按身份获知的命题，**在同一个槽位**里按 id 寻址：
+
+```prolog
+?p PROPOSITION (id: :proposition_id)
+```
+
+这里的圆括号不是装饰。`( ... )` 就是命题表达式槽位，因此 id 形式在三元组能出现的任何位置都能出现——包括作为 `term` 端点，这正是「对陈述作陈述」时指名一个已存在命题的方式：
+
+```prolog
+?meta (?p, "contradicts", (id: :other_proposition_id))
+```
+
+命题不是按字段匹配的记录：其规范身份即元组（§12.3），且不原生携带其它字段（§12.6）。因此 id 形式是一种可替换的**引用**，而非对象模式。
+
+id 形式是**仅匹配 (match-only)** 的。凡以按结构解析或创建为职责的语句——`ENSURE PROPOSITION`，以及经由它脱糖的 `ASSERT` 语法糖——**必须**拒绝该形式，因为仅凭 id 无法创建出结构。
+
 ---
 
 ## 43.3 谓词变量 (Predicate variable)
@@ -3700,6 +3716,27 @@ UPDATE 绝不创建新元素。
 
 ---
 
+## 52.7 有界选择 (Bounded selection)
+
+凡 `WHERE` 块可能选中无界集合的变更语句，都接受一个紧随该 `WHERE` 之后的可选 `LIMIT`：
+
+```text
+UPDATE
+RETRACT ASSERTION
+SET RETENTION
+ARCHIVE
+TOMBSTONE
+PURGE
+```
+
+一次匹配范围超出作者预期的维护性扫描，就是一次认知状态变更；在 `PURGE` 之下更是不可逆的变更。此类扫描因此**应当**设界。
+
+`MERGE CONCEPT` 不接受 `LIMIT`：其源与目标已被指名，`WHERE` 仅起守卫作用。
+
+`LIMIT` 限定受影响的元素数量，它不是选择顺序；因此除非运行时明确规定了顺序，**严禁**假定在更大匹配集上的有界扫描具有确定性。
+
+---
+
 # 53. MUTATE 变更块 (MUTATE Block)
 
 ## 53.1 语法 (Syntax)
@@ -4113,6 +4150,12 @@ memory_strength (记忆强度)
 ## 60.4 默认不采用破坏性级联删除 (No destructive cascade default)
 
 原生 KIP 2.0 **严禁**将 v1 风格的破坏性 `DETACH` 级联删除作为默认的删除行为。
+
+---
+
+## 60.5 有界移除 (Bounded removal)
+
+三个移除族均接受紧随 `WHERE` 之后的可选 `LIMIT`（§52.7）。移除性扫描**应当**设界；`PURGE` 扫描除必须书写的 `CONFIRM "PURGE"` 之外，**应当**同时设界。
 
 ---
 
@@ -5939,8 +5982,11 @@ concept_pattern :=
     variable ("CONCEPT")? object_pattern
 
 proposition_pattern :=
-    variable? ("PROPOSITION")?
-    "(" term "," predicate_term "," term ")"
+    variable? ("PROPOSITION")? proposition_tuple
+
+proposition_tuple :=
+      "(" term "," predicate_term "," term ")"
+    | "(" "id" ":" scalar ")"
 
 assertion_pattern :=
     variable "ASSERTION" object_pattern

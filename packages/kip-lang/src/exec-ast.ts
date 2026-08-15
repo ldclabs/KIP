@@ -1,5 +1,5 @@
 /**
- * The *executable* KIP AST.
+ * The *executable* KIP 2.0 AST.
  *
  * This is a different tree from `ast.ts`, on purpose. `ast.ts` is a syntax
  * tree: it keeps ranges, comments, quoting style and raw number text, because
@@ -7,29 +7,42 @@
  * engine needs instead — every construct already collapsed to the one shape it
  * means, with the open-ended parts of the grammar closed:
  *
- *  - a concept matcher is one of four identified forms, not a bag of entries;
+ *  - a predicate is an atom or a path, not a nested alternation/quantifier tree;
  *  - a filter is a comparison, a logical node, a negation, or a call to one of
- *    seven functions, not a general expression tree;
- *  - a variable is a name and a dot path, not a chain of member accesses.
+ *    the registered functions, not a general expression tree;
+ *  - a variable is a name and a path of steps, not a chain of member accesses;
+ *  - `ASSERT` is gone: it has been desugared to the parts it is defined as.
  *
  * A consumer switching on these tags is total: there is no "some other
  * function name" case to defend against, because `lower` rejected it.
  *
- * The shape is the wire form of `anda_kip`'s Rust AST (serde's default
- * externally-tagged enum encoding), so an engine can consume either
- * interchangeably and a differential test can compare them field for field.
+ * The shape follows serde's default externally-tagged enum encoding, so a
+ * Rust engine can consume it directly and a differential test can compare the
+ * two field for field.
  */
 
-/** A JSON value, as carried by attribute and metadata blocks. */
-export type Json =
-  | null
-  | boolean
-  | number
-  | string
-  | Json[]
-  | { [key: string]: Json }
+/**
+ * A `data_value`: a value that may still contain unbound parameters.
+ *
+ * The grammar admits `parameter` at every depth of an array or object, so no
+ * assignment, option block or epistemic setting is plain JSON. A subtree with
+ * nothing left to bind collapses to `Value`; anything else keeps its shape so
+ * the runtime envelope can fill the holes without touching text.
+ */
+export type BoundValue =
+  | { Value: KipValue }
+  | { Param: string }
+  | { Handle: string }
+  | { Variable: DotPathVar }
+  | { Array: BoundValue[] }
+  | { Object: [string, BoundValue][] }
 
-/** A KIP literal. Externally tagged; `Null` is a bare string. */
+/**
+ * A KIP literal. Externally tagged; `Null` is a bare string.
+ *
+ * Arrays and objects are not baseline Core Literals (Spec §9.2); they appear
+ * here only as the option/assignment payloads that the grammar admits.
+ */
 export type KipValue =
   | 'Null'
   | { Bool: boolean }
@@ -38,11 +51,109 @@ export type KipValue =
   | { Array: KipValue[] }
   | { Object: Record<string, KipValue> }
 
+/**
+ * A value slot the grammar spells `parameter | literal`.
+ *
+ * KIP 2.0 parameters are structurally bound data, never string-spliced, so an
+ * unbound `:name` survives lowering as a `Param` for the runtime envelope to
+ * fill — it is not an error and never becomes text.
+ */
+export type Scalar = { Literal: KipValue } | { Param: string }
+
+/** A schema symbol: `string_literal | parameter`. */
+export type SymbolRef = { Name: string } | { Param: string }
+
+/** A mutation target: `variable | parameter | string_literal`. */
+export type ElementRef =
+  | { Handle: string }
+  | { Param: string }
+  | { Id: string }
+
 /** One parsed command. */
 export type Command =
   | { Kql: KqlQuery }
   | { Kml: KmlStatement }
   | { Meta: MetaCommand }
+
+// ---------------------------------------------------------------------------
+// Shared terms
+// ---------------------------------------------------------------------------
+
+/** `?var` plus a resolved path, e.g. `?x.facets["MnemonicState"].salience`. */
+export interface DotPathVar {
+  var: string
+  path: PathStep[]
+}
+
+/** A dot step names a field; an index step keys into a map-valued field. */
+export type PathStep = { Field: string } | { Key: string }
+
+/** `predicate_atom` — the exact predicate slot. */
+export type PredAtom =
+  | { Variable: string }
+  | { Literal: string }
+  | { Param: string }
+
+export interface HopRange {
+  min: number
+  /** `null` means unbounded. */
+  max: number | null
+}
+
+export interface PredPathAtom {
+  predicate: PredAtom
+  hops: HopRange | null
+}
+
+/**
+ * `Atom` is the plain predicate every language accepts. `Path` carries the
+ * KQL-only traversal forms — alternation and hop quantifiers — which never
+ * propagate belief and are rejected in KML and EXPORT selections.
+ */
+export type PredTerm = { Atom: PredAtom } | { Path: PredPathAtom[] }
+
+/** One endpoint of a tuple. A term may itself be a tuple: KIP states things about statements. */
+export type Term =
+  | { Variable: string }
+  | { Param: string }
+  | { Literal: KipValue }
+  | { Match: ObjectMatcher }
+  | { Proposition: PropositionMatcher }
+
+/**
+ * `object_pattern` — an open, schema-validated field map.
+ *
+ * Unlike KIP 1.x, v2 does not close this to a fixed set of identity forms:
+ * which fields identify an element is Schema's decision, not the grammar's.
+ */
+export type ObjectMatcher = Record<string, MatchValue>
+
+export type MatchValue =
+  | { Variable: string }
+  | { Param: string }
+  | { Literal: KipValue }
+  | { Array: MatchValue[] }
+  | { Match: ObjectMatcher }
+  | { Proposition: PropositionMatcher }
+
+export interface PropositionTriple {
+  subject: Term
+  predicate: PredTerm
+  object: Term
+}
+
+/**
+ * The Proposition expression slot (Spec §43.2).
+ *
+ * `Tuple` addresses a Proposition by structure, `Id` by record identity. Both
+ * live in the same slot, which is why an id reference works everywhere a
+ * triple does — including as a {@link Term} endpoint. `Id` is match-only: it
+ * never resolves-or-creates, so `lower` rejects it in ENSURE PROPOSITION and
+ * in the ASSERT sugar that desugars through it.
+ */
+export type PropositionMatcher =
+  | { Tuple: PropositionTriple }
+  | { Id: Scalar }
 
 // ---------------------------------------------------------------------------
 // KQL
@@ -51,19 +162,20 @@ export type Command =
 export interface KqlQuery {
   find_clause: FindClause
   where_clauses: WhereClause[]
+  /** Cognitive history basis — what the Brain contained/believed then. */
+  as_of: AsOf | null
+  /** World-valid time — what was applicable then. An independent axis. */
+  for_time: Scalar | null
+  epistemic: Record<string, BoundValue> | null
   order_by: OrderByItem[] | null
-  limit: number | null
-  cursor: string | null
+  limit: Scalar | null
+  cursor: Scalar | null
 }
+
+export type AsOf = { Seq: Scalar } | { Tx: Scalar } | { Time: Scalar }
 
 export interface FindClause {
   expressions: FindExpression[]
-}
-
-/** `?var` with an optional dot path, e.g. `?d.attributes.risk`. Names carry no `?`. */
-export interface DotPathVar {
-  var: string
-  path: string[]
 }
 
 export type FindExpression =
@@ -87,46 +199,35 @@ export interface OrderByItem {
 export type OrderDirection = 'Asc' | 'Desc'
 
 export type WhereClause =
-  | { Concept: { variable: string; matcher: ConceptMatcher } }
+  | { Concept: { variable: string; matcher: ObjectMatcher } }
   | { Proposition: { variable: string | null; matcher: PropositionMatcher } }
+  | { Assertion: { variable: string; matcher: ObjectMatcher } }
+  | { Evidence: { variable: string; matcher: ObjectMatcher } }
+  | { Activity: { variable: string; matcher: ObjectMatcher } }
+  | {
+      Structural: {
+        variable: string | null
+        subject: Term
+        field: SymbolRef
+        object: Term
+      }
+    }
+  | { Belief: { variable: string; target: BeliefTarget } }
+  | { BeliefSlot: { variable: string; subject: Term; predicate: PredAtom } }
   | { Filter: { expression: FilterExpression } }
   | { Not: WhereClause[] }
   | { Optional: WhereClause[] }
   | { Union: WhereClause[] }
 
-export type ConceptMatcher =
-  | { ID: string }
-  | { Type: string }
-  | { Name: string }
-  | { Object: { type: string; name: string } }
-
-export type PropositionMatcher =
-  | { ID: string }
-  | {
-      Object: {
-        subject: TargetTerm
-        predicate: PredTerm
-        object: TargetTerm
-      }
-    }
-
 /**
- * One endpoint of a proposition pattern.
+ * Project an already-bound Proposition, or a tuple stated inline.
  *
- * `Proposition` is the meta-statement case: an endpoint may itself be a
- * proposition, which is how KIP states things about statements. It nests
- * arbitrarily deep.
+ * The inline form is always structural: `belief_pattern` spells its own
+ * parentheses and admits no `(id: ...)` reference.
  */
-export type TargetTerm =
-  | { Variable: string }
-  | { Concept: ConceptMatcher }
-  | { Proposition: PropositionMatcher }
-
-export type PredTerm =
-  | { Variable: string }
-  | { Literal: string }
-  | { Alternative: string[] }
-  | { MultiHop: { predicate: string; min: number; max: number | null } }
+export type BeliefTarget =
+  | { Proposition: string }
+  | { Tuple: PropositionTriple }
 
 export type FilterExpression =
   | {
@@ -149,7 +250,9 @@ export type FilterExpression =
 export type FilterOperand =
   | { Variable: DotPathVar }
   | { Literal: KipValue }
-  | { List: KipValue[] }
+  | { Param: string }
+  | { List: FilterOperand[] }
+  | { Negate: FilterOperand }
 
 export type ComparisonOperator =
   | 'Equal'
@@ -170,95 +273,193 @@ export type FilterFunction =
   | 'In'
   | 'IsNull'
   | 'IsNotNull'
+  | 'IsLiteral'
+  | 'IsElement'
+  | 'IsKind'
+  | 'LiteralType'
 
 // ---------------------------------------------------------------------------
 // KML
 // ---------------------------------------------------------------------------
 
-export type KmlStatement =
-  | { Upsert: UpsertBlock[] }
+/**
+ * One atomic cognitive transition.
+ *
+ * A KML mutation becomes durable only via a Transaction, so a statement
+ * written on its own is still a one-clause transaction. `explicit_transaction`
+ * records which spelling the source used without changing that meaning.
+ */
+export interface KmlStatement {
+  explicit_transaction: boolean
+  clauses: MutationClause[]
+}
+
+export type MutationClause =
+  | { CreateConcept: ConceptCreate }
+  | { UpsertConcept: ConceptUpsert }
+  | { EnsureProposition: EnsureProposition }
+  | { CreateEvidence: RecordCreate }
+  | { CreateAssertion: RecordCreate }
+  | { CreateActivity: RecordCreate }
   | { Update: UpdateStatement }
-  | { Merge: MergeStatement }
-  | { Delete: DeleteStatement }
+  | { RetractAssertion: RetractAssertion }
+  | { SupersedeAssertion: SupersedeAssertion }
+  | { CorrectEvidence: CorrectEvidence }
+  | { TransitionActivity: TransitionActivity }
+  | { SetRetention: SetRetention }
+  | { Archive: RemovalStatement }
+  | { Tombstone: RemovalStatement }
+  | { Purge: PurgeStatement }
+  | { MergeConcept: MergeConcept }
 
-export interface UpsertBlock {
-  items: UpsertItem[]
-  metadata: Record<string, Json> | null
+export interface ConceptCreate {
+  handle: string
+  type: SymbolRef | null
+  client_key: Scalar | null
+  name: Scalar | null
+  set_fields: Assignments | null
+  set_attributes: Assignments | null
+  set_facets: FacetAssignment[]
+  set_structural: StructuralEdge[] | null
 }
 
-export type UpsertItem =
-  | { Concept: ConceptBlock }
-  | { Proposition: PropositionBlock }
+export interface ConceptUpsert {
+  handle: string
+  match: ObjectMatcher | null
+  expect_version: Scalar | null
+  set_fields: Assignments | null
+  set_attributes: Assignments | null
+  set_facets: FacetAssignment[]
+  unset_attributes: string[] | null
+  unset_facets: FacetUnset[]
+  set_structural: StructuralEdge[] | null
+}
 
-export interface ConceptBlock {
+/** CREATE EVIDENCE / ASSERTION / ACTIVITY share one shape. */
+export interface RecordCreate {
+  handle: string
+  client_key: Scalar | null
+  set_fields: Assignments | null
+  set_facets: FacetAssignment[]
+  set_structural: StructuralEdge[] | null
+}
+
+export interface EnsureProposition {
   handle: string | null
-  concept: ConceptMatcher
-  set_attributes: Record<string, Json> | null
-  set_propositions: SetProposition[] | null
-  metadata: Record<string, Json> | null
-  /** `EXPECT VERSION <n>` — optimistic guard, omitted when not written. */
-  expect_version?: number
+  subject: Term
+  predicate: PredAtom
+  object: Term
+  expect_version: Scalar | null
 }
 
-export interface SetProposition {
-  predicate: string
-  object: TargetTerm
-  metadata: Record<string, Json> | null
+export interface FacetAssignment {
+  facet: SymbolRef
+  values: Assignments
 }
 
-export interface PropositionBlock {
-  handle: string | null
-  proposition: PropositionMatcher
-  set_attributes: Record<string, Json> | null
-  metadata: Record<string, Json> | null
-  expect_version?: number
+export interface FacetUnset {
+  facet: SymbolRef
+  fields: string[]
 }
 
-export interface UpdateStatement {
-  target: string
-  set_attributes: [string, UpdateValue][] | null
-  set_metadata: [string, UpdateValue][] | null
-  where_clauses: WhereClause[]
-  limit: number | null
+export interface StructuralEdge {
+  field: SymbolRef
+  value: MutationValue
+  /** Edge options; `index` is meaningful only on an ordered field. */
+  options: Record<string, BoundValue> | null
 }
+
+/** Assignment pairs, kept ordered so lowering stays deterministic. */
+export type Assignments = [string, MutationValue][]
 
 /**
- * An UPDATE right-hand side: a literal, or arithmetic over the target's *own*
+ * A KML right-hand side: a bound value, or arithmetic over the target's *own*
  * fields. References to any other variable are rejected during lowering, which
  * is what lets each matched element be updated from its own row without a join.
  */
-export type UpdateValue = { Json: Json } | { Expr: UpdateExpr }
+export type MutationValue = BoundValue | { Expr: UpdateExpr }
 
 export type UpdateExpr =
   | { Variable: DotPathVar }
   | { Number: number }
+  | { Param: string }
   | { Function: { func: UpdateFunction; args: UpdateExpr[] } }
 
 export type UpdateFunction = 'Add' | 'Mul' | 'Clamp' | 'Coalesce'
 
-export interface MergeStatement {
-  source: string
-  target: string
+export interface UpdateStatement {
+  target: ElementRef
+  expect_version: Scalar | null
+  actions: UpdateAction[]
   where_clauses: WhereClause[]
+  limit: Scalar | null
 }
 
-export type DeleteStatement =
-  | {
-      DeleteAttributes: {
-        attributes: string[]
-        target: string
-        where_clauses: WhereClause[]
-      }
-    }
-  | {
-      DeleteMetadata: {
-        keys: string[]
-        target: string
-        where_clauses: WhereClause[]
-      }
-    }
-  | { DeletePropositions: { target: string; where_clauses: WhereClause[] } }
-  | { DeleteConcept: { target: string; where_clauses: WhereClause[] } }
+export type UpdateAction =
+  | { SetFields: Assignments }
+  | { SetAttributes: Assignments }
+  | { SetFacet: FacetAssignment }
+  | { UnsetAttributes: string[] }
+  | { UnsetFacet: FacetUnset }
+  | { SetStructural: StructuralEdge[] }
+
+export interface RetractAssertion {
+  target: ElementRef
+  where_clauses: WhereClause[] | null
+  limit: Scalar | null
+  expect_state: Scalar | null
+}
+
+export interface SupersedeAssertion {
+  target: ElementRef
+  by: ElementRef
+  expect_state: Scalar | null
+}
+
+export interface CorrectEvidence {
+  target: ElementRef
+  by: ElementRef
+  expect_state: Scalar | null
+}
+
+export interface TransitionActivity {
+  target: ElementRef
+  to: Scalar
+  set_fields: Assignments | null
+  set_structural: StructuralEdge[] | null
+  expect_state: Scalar | null
+}
+
+export interface SetRetention {
+  target: ElementRef
+  values: Assignments
+  where_clauses: WhereClause[] | null
+  limit: Scalar | null
+  expect_version: Scalar | null
+}
+
+export interface RemovalStatement {
+  target: ElementRef
+  where_clauses: WhereClause[] | null
+  limit: Scalar | null
+  expect_state: Scalar | null
+}
+
+export interface PurgeStatement {
+  target: ElementRef
+  where_clauses: WhereClause[] | null
+  limit: Scalar | null
+  reference_policy: Scalar | null
+  /** Always the literal `PURGE`; the grammar freezes the spelling. */
+  confirm: string
+}
+
+export interface MergeConcept {
+  source: ElementRef
+  into: ElementRef
+  where_clauses: WhereClause[] | null
+  expect_version: Scalar | null
+}
 
 // ---------------------------------------------------------------------------
 // META
@@ -266,36 +467,127 @@ export type DeleteStatement =
 
 export type MetaCommand =
   | { Describe: DescribeTarget }
+  | { List: ListCommand }
   | { Search: SearchCommand }
-  | { Export: ExportCommand }
+  | { Verify: { target: VerifyTarget; value: Scalar } }
+  | { Validate: ValidateCommand }
+  | { Preview: PreviewCommand }
+  | { History: HistoryCommand }
+  | { Changes: ChangesCommand }
+  | { Snapshot: { as_of: AsOf | null } }
+  | { ExportCapsule: ExportCapsuleCommand }
 
 export type DescribeTarget =
-  | 'Primer'
-  | 'Domains'
-  | { ConceptTypes: { limit: number | null; cursor: string | null } }
-  | { ConceptType: string }
-  | { PropositionTypes: { limit: number | null; cursor: string | null } }
-  | { PropositionType: string }
+  | { Primer: { mode: Scalar | null } }
+  | 'Protocol'
+  | 'ExecutionContext'
+  | 'Capabilities'
+  | { Space: { value: Scalar | null } }
+  | { SchemaEnvironment: { as_of: AsOf | null } }
+  | { Package: Scalar }
+  | { Type: Scalar }
+  | { Predicate: Scalar }
+  | { Facet: Scalar }
+  | { StructuralField: Scalar }
+  | { Compatibility: { from: Scalar; to: Scalar } }
+  | { Error: Scalar }
+  | { Transaction: Scalar }
+  | { TransactionByIdempotencyKey: Scalar }
+  | { Snapshot: { as_of: AsOf | null } }
+  | { Capsule: Scalar }
+  | { EpistemicPolicy: { value: Scalar | null } }
+  | 'ProjectionCapability'
+  | { Trust: { value: Scalar | null } }
+  | { Access: { with: Record<string, BoundValue> | null } }
+
+export interface ListCommand {
+  target: ListTarget
+  /** `LIST SCHEMA PACKAGES STATUS ...` only. */
+  status: Scalar | null
+  limit: Scalar | null
+  cursor: Scalar | null
+}
+
+export type ListTarget =
+  | 'Spaces'
+  | 'SchemaPackages'
+  | 'Types'
+  | 'Predicates'
+  | 'Facets'
+  | 'StructuralFields'
+  | 'EpistemicPolicies'
 
 export interface SearchCommand {
   target: SearchTarget
-  term: string
-  in_type: string | null
-  /** Omitted when the command wrote no `MODE`. */
-  mode?: SearchMode
-  /** Omitted when the command wrote no `THRESHOLD`. */
-  threshold?: number
-  limit: number | null
+  term: Scalar
+  with_type: Scalar | null
+  with_predicate: Scalar | null
+  mode: Scalar | null
+  threshold: Scalar | null
+  /** Historical index basis, `AS OF SEQ`. */
+  as_of_seq: Scalar | null
+  limit: Scalar | null
+  cursor: Scalar | null
 }
 
-export type SearchTarget = 'Concept' | 'Proposition'
+export type SearchTarget =
+  | 'Concept'
+  | 'Proposition'
+  | 'Assertion'
+  | 'Evidence'
+  | 'Activity'
+  | 'Cognition'
 
-export type SearchMode = 'Keyword' | 'Semantic' | 'Hybrid'
+export type VerifyTarget =
+  | 'Capsule'
+  | 'SchemaPackage'
+  | 'Receipt'
+  | 'Blob'
+  | 'Checkpoint'
 
-export interface ExportCommand {
-  target: string
+export interface ValidateCommand {
+  target: ValidateTarget
+  value: Scalar
+  options: Record<string, BoundValue> | null
+}
+
+export type ValidateTarget =
+  | 'Kql'
+  | 'Kml'
+  | 'Capsule'
+  | 'SchemaPackage'
+  | 'ImportPlan'
+
+export type PreviewCommand =
+  | { Kml: Scalar }
+  | { ImportCapsule: { capsule: Scalar; into: Scalar } }
+
+export type HistoryCommand =
+  | {
+      Element: {
+        value: Scalar
+        from_seq: Scalar | null
+        to_seq: Scalar | null
+        limit: Scalar | null
+        cursor: Scalar | null
+      }
+    }
+  | {
+      Space: {
+        from_seq: Scalar | null
+        to_seq: Scalar | null
+        limit: Scalar | null
+        cursor: Scalar | null
+      }
+    }
+
+export type ChangesCommand =
+  | { Since: { cursor: Scalar; limit: Scalar | null } }
+  | { AfterSeq: { seq: Scalar; limit: Scalar | null } }
+
+export interface ExportCapsuleCommand {
+  target: ElementRef
   where_clauses: WhereClause[]
-  limit: number | null
-  /** Omitted when the command wrote no `CURSOR`. */
-  cursor?: string
+  options: Record<string, BoundValue> | null
+  as_of: AsOf | null
 }
