@@ -3,6 +3,7 @@ import { parse } from './parser.js'
 import { diagnose } from './diagnostics.js'
 import { Token, TokenType } from './token.js'
 import type {
+  BaseNode,
   Program,
   Statement,
   MutationClause,
@@ -480,37 +481,34 @@ class Formatter {
     this.newline()
   }
 
-  private formatCreateConcept(stmt: CreateConceptStatement): void {
+  /**
+   * A body clause together with the printer for it. Bodies (CREATE / UPSERT
+   * CONCEPT, CREATE EVIDENCE|ASSERTION|ACTIVITY) hold their clauses in typed
+   * slots, so the source order has to be recovered from the ranges before
+   * printing — a comment written above a clause must come out above that
+   * same clause, and the comment cursor only moves forward.
+   */
+  private formatBody(
+    header: string,
+    endLine: number,
+    clauses: { node: BaseNode; print: () => void }[]
+  ): void {
     this.writeIndent()
-    this.write(`CREATE CONCEPT ${stmt.handle.name} {`)
+    this.write(`${header} {`)
     this.newline()
     this.indentLevel++
 
-    if (stmt.type) {
-      this.writeIndent()
-      this.write(`TYPE ${this.symbol(stmt.type.value)}`)
-      this.newline()
+    const ordered = [...clauses].sort(
+      (a, b) =>
+        a.node.range.start.line - b.node.range.start.line ||
+        a.node.range.start.column - b.node.range.start.column
+    )
+    for (const clause of ordered) {
+      this.emitCommentsBefore(clause.node.range.start.line)
+      clause.print()
     }
-    if (stmt.clientKey) {
-      this.writeIndent()
-      this.write(`CLIENT KEY ${this.scalar(stmt.clientKey.value)}`)
-      this.newline()
-    }
-    if (stmt.name) {
-      this.writeIndent()
-      this.write(`NAME ${this.scalar(stmt.name.value)}`)
-      this.newline()
-    }
-    if (stmt.setFields) this.formatAssignmentClause('SET FIELDS', stmt.setFields.assignments, false)
-    if (stmt.setAttributes) {
-      this.formatAssignmentClause(
-        'SET ATTRIBUTES',
-        stmt.setAttributes.assignments,
-        this.opts.sortAttributes
-      )
-    }
-    for (const facet of stmt.setFacets) this.formatFacet(facet)
-    if (stmt.setStructural) this.formatStructural(stmt.setStructural)
+    // Comments after the last clause still belong inside the braces.
+    this.emitCommentsBefore(endLine)
 
     this.indentLevel--
     this.writeIndent()
@@ -518,41 +516,141 @@ class Formatter {
     this.newline()
   }
 
-  private formatUpsertConcept(stmt: UpsertConceptStatement): void {
-    this.writeIndent()
-    this.write(`UPSERT CONCEPT ${stmt.handle.name} {`)
-    this.newline()
-    this.indentLevel++
+  private formatCreateConcept(stmt: CreateConceptStatement): void {
+    const clauses: { node: BaseNode; print: () => void }[] = []
+    if (stmt.type) {
+      const node = stmt.type
+      clauses.push({
+        node,
+        print: () => {
+          this.writeIndent()
+          this.write(`TYPE ${this.symbol(node.value)}`)
+          this.newline()
+        }
+      })
+    }
+    if (stmt.clientKey) {
+      const node = stmt.clientKey
+      clauses.push({
+        node,
+        print: () => {
+          this.writeIndent()
+          this.write(`CLIENT KEY ${this.scalar(node.value)}`)
+          this.newline()
+        }
+      })
+    }
+    if (stmt.name) {
+      const node = stmt.name
+      clauses.push({
+        node,
+        print: () => {
+          this.writeIndent()
+          this.write(`NAME ${this.scalar(node.value)}`)
+          this.newline()
+        }
+      })
+    }
+    if (stmt.setFields) {
+      const node = stmt.setFields
+      clauses.push({
+        node,
+        print: () => this.formatAssignmentClause('SET FIELDS', node.assignments, false)
+      })
+    }
+    if (stmt.setAttributes) {
+      const node = stmt.setAttributes
+      clauses.push({
+        node,
+        print: () =>
+          this.formatAssignmentClause(
+            'SET ATTRIBUTES',
+            node.assignments,
+            this.opts.sortAttributes
+          )
+      })
+    }
+    for (const facet of stmt.setFacets) {
+      clauses.push({ node: facet, print: () => this.formatFacet(facet) })
+    }
+    if (stmt.setStructural) {
+      const node = stmt.setStructural
+      clauses.push({ node, print: () => this.formatStructural(node) })
+    }
+    this.formatBody(
+      `CREATE CONCEPT ${stmt.handle.name}`,
+      stmt.range.end.line,
+      clauses
+    )
+  }
 
+  private formatUpsertConcept(stmt: UpsertConceptStatement): void {
+    const clauses: { node: BaseNode; print: () => void }[] = []
     if (stmt.match) {
-      this.writeIndent()
-      this.write('MATCH ')
-      this.write(this.objectPatternToString(stmt.match.pattern))
-      this.newline()
+      const node = stmt.match
+      clauses.push({
+        node,
+        print: () => {
+          this.writeIndent()
+          this.write('MATCH ')
+          this.write(this.objectPatternToString(node.pattern))
+          this.newline()
+        }
+      })
     }
     if (stmt.expectVersion) {
-      this.writeIndent()
-      this.write(`EXPECT VERSION ${this.scalar(stmt.expectVersion.value)}`)
-      this.newline()
+      const node = stmt.expectVersion
+      clauses.push({
+        node,
+        print: () => {
+          this.writeIndent()
+          this.write(`EXPECT VERSION ${this.scalar(node.value)}`)
+          this.newline()
+        }
+      })
     }
-    if (stmt.setFields) this.formatAssignmentClause('SET FIELDS', stmt.setFields.assignments, false)
+    if (stmt.setFields) {
+      const node = stmt.setFields
+      clauses.push({
+        node,
+        print: () => this.formatAssignmentClause('SET FIELDS', node.assignments, false)
+      })
+    }
     if (stmt.setAttributes) {
-      this.formatAssignmentClause(
-        'SET ATTRIBUTES',
-        stmt.setAttributes.assignments,
-        this.opts.sortAttributes
-      )
+      const node = stmt.setAttributes
+      clauses.push({
+        node,
+        print: () =>
+          this.formatAssignmentClause(
+            'SET ATTRIBUTES',
+            node.assignments,
+            this.opts.sortAttributes
+          )
+      })
     }
-    for (const facet of stmt.setFacets) this.formatFacet(facet)
-    if (stmt.unsetAttributes) this.formatUnsetAttributes(stmt.unsetAttributes)
-    for (const facet of stmt.unsetFacets) this.formatUnsetFacet(facet)
-    if (stmt.setStructural) this.formatStructural(stmt.setStructural)
-    if (stmt.unsetStructural) this.formatUnsetStructural(stmt.unsetStructural)
-
-    this.indentLevel--
-    this.writeIndent()
-    this.write('}')
-    this.newline()
+    for (const facet of stmt.setFacets) {
+      clauses.push({ node: facet, print: () => this.formatFacet(facet) })
+    }
+    if (stmt.unsetAttributes) {
+      const node = stmt.unsetAttributes
+      clauses.push({ node, print: () => this.formatUnsetAttributes(node) })
+    }
+    for (const facet of stmt.unsetFacets) {
+      clauses.push({ node: facet, print: () => this.formatUnsetFacet(facet) })
+    }
+    if (stmt.setStructural) {
+      const node = stmt.setStructural
+      clauses.push({ node, print: () => this.formatStructural(node) })
+    }
+    if (stmt.unsetStructural) {
+      const node = stmt.unsetStructural
+      clauses.push({ node, print: () => this.formatUnsetStructural(node) })
+    }
+    this.formatBody(
+      `UPSERT CONCEPT ${stmt.handle.name}`,
+      stmt.range.end.line,
+      clauses
+    )
   }
 
   private formatRecordCreate(
@@ -562,24 +660,37 @@ class Formatter {
       | CreateAssertionStatement
       | CreateActivityStatement
   ): void {
-    this.writeIndent()
-    this.write(`CREATE ${keyword} ${stmt.handle.name} {`)
-    this.newline()
-    this.indentLevel++
-
+    const clauses: { node: BaseNode; print: () => void }[] = []
     if (stmt.clientKey) {
-      this.writeIndent()
-      this.write(`CLIENT KEY ${this.scalar(stmt.clientKey.value)}`)
-      this.newline()
+      const node = stmt.clientKey
+      clauses.push({
+        node,
+        print: () => {
+          this.writeIndent()
+          this.write(`CLIENT KEY ${this.scalar(node.value)}`)
+          this.newline()
+        }
+      })
     }
-    if (stmt.setFields) this.formatAssignmentClause('SET FIELDS', stmt.setFields.assignments, false)
-    for (const facet of stmt.setFacets) this.formatFacet(facet)
-    if (stmt.setStructural) this.formatStructural(stmt.setStructural)
-
-    this.indentLevel--
-    this.writeIndent()
-    this.write('}')
-    this.newline()
+    if (stmt.setFields) {
+      const node = stmt.setFields
+      clauses.push({
+        node,
+        print: () => this.formatAssignmentClause('SET FIELDS', node.assignments, false)
+      })
+    }
+    for (const facet of stmt.setFacets) {
+      clauses.push({ node: facet, print: () => this.formatFacet(facet) })
+    }
+    if (stmt.setStructural) {
+      const node = stmt.setStructural
+      clauses.push({ node, print: () => this.formatStructural(node) })
+    }
+    this.formatBody(
+      `CREATE ${keyword} ${stmt.handle.name}`,
+      stmt.range.end.line,
+      clauses
+    )
   }
 
   private formatEnsureProposition(stmt: EnsurePropositionStatement): void {
@@ -616,13 +727,23 @@ class Formatter {
     this.newline()
 
     if (stmt.expectVersion) {
+      this.emitCommentsBefore(stmt.expectVersion.range.start.line)
       this.writeIndent()
       this.write(`EXPECT VERSION ${this.scalar(stmt.expectVersion.value)}`)
       this.newline()
     }
-    for (const action of stmt.actions) this.formatUpdateAction(action)
-    if (stmt.where) this.formatWhere(stmt.where, 'WHERE')
-    if (stmt.limit) this.formatLimit(stmt.limit)
+    for (const action of stmt.actions) {
+      this.emitCommentsBefore(action.range.start.line)
+      this.formatUpdateAction(action)
+    }
+    if (stmt.where) {
+      this.emitCommentsBefore(stmt.where.range.start.line)
+      this.formatWhere(stmt.where, 'WHERE')
+    }
+    if (stmt.limit) {
+      this.emitCommentsBefore(stmt.limit.range.start.line)
+      this.formatLimit(stmt.limit)
+    }
   }
 
   private formatUpdateAction(action: UpdateAction): void {
@@ -704,6 +825,7 @@ class Formatter {
     if (stmt.finalize.length > 0) {
       this.indentLevel++
       for (const clause of stmt.finalize) {
+        this.emitCommentsBefore(clause.range.start.line)
         if (clause.kind === 'SetFieldsClause') {
           this.formatAssignmentClause('SET FIELDS', clause.assignments, false)
         } else {
@@ -714,6 +836,7 @@ class Formatter {
     }
     if (stmt.expectState) {
       this.indentLevel++
+      this.emitCommentsBefore(stmt.expectState.range.start.line)
       this.writeIndent()
       this.write(`EXPECT STATE ${this.scalar(stmt.expectState.value)}`)
       this.newline()

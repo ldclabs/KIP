@@ -660,6 +660,84 @@ describe('formatter', () => {
     assert.match(out, /\/\/ why this type/)
   })
 
+  test('a comment above a body clause stays above that clause', () => {
+    // Bodies hold their clauses in typed slots; the formatter must still
+    // print them in source order so each comment lands on its own clause
+    // instead of being flushed into the next block that emits comments.
+    const cases = [
+      [
+        `UPSERT CONCEPT ?exp { MATCH {id: :exp_id}
+  // facet comment
+  SET FACET "F" { a: 1 }
+  // structural comment
+  SET STRUCTURAL { ("has_step", ?right) {index: 2} } }`,
+        [/\/\/ facet comment\n\s*SET FACET "F"/, /\/\/ structural comment\n\s*SET STRUCTURAL \{/]
+      ],
+      [
+        `CREATE CONCEPT ?c {
+  // why this type
+  TYPE "Experience"
+  // key
+  CLIENT KEY :k
+}`,
+        [/\{\n\s*\/\/ why this type\n\s*TYPE "Experience"/, /\/\/ key\n\s*CLIENT KEY :k/]
+      ],
+      [
+        `CREATE EVIDENCE ?e {
+  // fields
+  SET FIELDS { evidence_class: "x" }
+  // where it came from
+  SET STRUCTURAL { ("source", :actor) }
+}`,
+        [/\/\/ fields\n\s*SET FIELDS/, /\/\/ where it came from\n\s*SET STRUCTURAL \{/]
+      ],
+      [
+        `UPDATE ?m
+  // decay
+  SET FACET "F" { v: 1 }
+  // and unset
+  UNSET ATTRIBUTES { x }
+WHERE { ?m {} }`,
+        [/\/\/ decay\n\s*SET FACET "F"/, /\/\/ and unset\n\s*UNSET ATTRIBUTES/]
+      ],
+      [
+        `TRANSITION ACTIVITY :a TO "completed"
+  // finalize
+  SET FIELDS { ended_at: :t }
+  EXPECT STATE "running"`,
+        [/\/\/ finalize\n\s*SET FIELDS \{ended_at: :t\}\n\s*EXPECT STATE/]
+      ]
+    ]
+    for (const [source, expectations] of cases) {
+      const once = format(source)
+      for (const re of expectations) assert.match(once, re, `in:\n${once}`)
+      assert.equal(format(once), once, `not idempotent:\n${once}`)
+      // No comment escapes past the end of the statement.
+      const lastLine = once.trimEnd().split('\n').pop()
+      assert.doesNotMatch(lastLine, /^\s*\/\//, `comment leaked out of the body:\n${once}`)
+    }
+  })
+
+  test('body clauses keep source order and trailing body comments stay inside', () => {
+    const out = format(`CREATE CONCEPT ?c {
+  SET ATTRIBUTES { a: 1 }
+  // type comes late in the source
+  TYPE "T"
+  // trailing comment
+}`)
+    assert.equal(
+      out,
+      `CREATE CONCEPT ?c {
+    SET ATTRIBUTES {a: 1}
+    // type comes late in the source
+    TYPE "T"
+    // trailing comment
+}
+`
+    )
+    assert.equal(format(out), out)
+  })
+
   test('preserves quoted-key style', () => {
     const out = format('CREATE CONCEPT ?c { SET ATTRIBUTES {"a-b": 1, plain: 2} }')
     assert.match(out, /"a-b": 1/)
