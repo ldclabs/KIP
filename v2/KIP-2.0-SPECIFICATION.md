@@ -1364,6 +1364,22 @@ A causal claim between referenced elements is a semantic Proposition + Assertion
 
 ---
 
+## 17.5 Structural mutation
+
+Structural References on a mutable Concept are written as a SET/UNSET pair, like attributes and Facets:
+
+```text
+SET STRUCTURAL   { (field, target) {options} }    add a reference
+                                                  (on a single-cardinality field: replace it)
+UNSET STRUCTURAL { (field, target) }              remove that reference
+```
+
+Removal is per reference. Removing from an ordered field re-densifies the remaining order (§17.4). Cardinality is validated at commit: removing the last reference of a required field fails.
+
+Record kinds are not affected. Assertion, Evidence and terminal Activity topology stays immutable (§13.7, §15.5, §16.6); a pending Activity finalizes its references through `TRANSITION ACTIVITY` (§52.5). A wrong reference on a record is corrected by a new record, never by removal.
+
+---
+
 # 18. Facets and Profiles
 
 ## 18.1 Facet
@@ -3899,6 +3915,8 @@ canonical Proposition
 
 No Assertion is created by ENSURE alone.
 
+`ENSURE PROPOSITION ... EXPECT VERSION 0` is the create-only form (§35.2): it fails if the canonical Proposition already exists, instead of resolving to it.
+
 Predicate symbols in examples resolve through the active Schema Environment: `prefers` and `caused_by` are defined by the Cognitive Memory Profile, while domain facts such as `timezone` come from an activated domain package.
 
 ---
@@ -4096,8 +4114,10 @@ UPDATE ?target
 SET FIELDS {...}
 SET ATTRIBUTES {...}
 SET FACET "Facet" {...}
+SET STRUCTURAL {...}
 UNSET ATTRIBUTES {...}
 UNSET FACET "Facet" {...}
+UNSET STRUCTURAL {...}
 
 WHERE {
   ...

@@ -146,7 +146,7 @@ checked construction for the natural reading of the evaluation order.
 
 `grammar/check_ebnf.py` parses the three ISO-14977-style grammars:
 
-| Check                             | KQL (77 rules) | KML (104 rules) | META (109 rules) |
+| Check                             | KQL (77 rules) | KML (106 rules) | META (109 rules) |
 | --------------------------------- | -------------- | --------------- | ---------------- |
 | G1 well-formedness                | ok             | ok              | ok               |
 | G2 no duplicate definitions       | ok             | ok              | ok               |

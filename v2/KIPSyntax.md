@@ -233,7 +233,7 @@ WHERE { ?m {type: "Experience"} FILTER(...) }
 LIMIT :n
 ```
 
-Update expressions: `ADD` `MUL` `CLAMP` `COALESCE` (deterministic, per-target). UPDATE never creates. A direct target needs no `WHERE`: `UPDATE :id SET FACET "MnemonicState" {salience: 0.9}` (same rule as ARCHIVE/TOMBSTONE/PURGE/SET RETENTION/RETRACT — a `?var` target is bound by WHERE, `:id`/`"id"` already names the element).
+Actions: `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL` and `UNSET ATTRIBUTES | FACET | STRUCTURAL` — every SET has an UNSET; `UNSET STRUCTURAL { ("has_step", ?wrong_step) }` removes one reference (ordered fields re-densify; cardinality is validated). Update expressions: `ADD` `MUL` `CLAMP` `COALESCE` (deterministic, per-target). UPDATE never creates. A direct target needs no `WHERE`: `UPDATE :id SET FACET "MnemonicState" {salience: 0.9}` (same rule as ARCHIVE/TOMBSTONE/PURGE/SET RETENTION/RETRACT — a `?var` target is bound by WHERE, `:id`/`"id"` already names the element).
 
 **UPDATE can never touch**: Proposition tuples, Assertion epistemic payload (stance/confidence/actor/time), Evidence payload, terminal Activity topology, `_system`, Governance, Schema. Attempting → `EpistemicRevisionRequired` / `ImmutableField`. **Never decay Assertion confidence over time** — disuse decays `memory_strength`; staleness is Projection's job; new knowledge is a new Assertion.
 

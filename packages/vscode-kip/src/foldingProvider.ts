@@ -185,6 +185,7 @@ export class KipFoldingProvider implements vscode.FoldingRangeProvider {
     if (stmt.unsetAttributes) this.addRange(stmt.unsetAttributes.range, ranges)
     for (const facet of stmt.unsetFacets) this.addRange(facet.range, ranges)
     if (stmt.setStructural) this.addRange(stmt.setStructural.range, ranges)
+    if (stmt.unsetStructural) this.addRange(stmt.unsetStructural.range, ranges)
   }
 
   private collectFromRecordCreate(

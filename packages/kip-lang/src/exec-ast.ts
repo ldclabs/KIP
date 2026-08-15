@@ -337,6 +337,7 @@ export interface ConceptUpsert {
   unset_attributes: string[] | null
   unset_facets: FacetUnset[]
   set_structural: StructuralEdge[] | null
+  unset_structural: StructuralRemoval[] | null
 }
 
 /** CREATE EVIDENCE / ASSERTION / ACTIVITY share one shape. */
@@ -371,6 +372,17 @@ export interface StructuralEdge {
   value: MutationValue
   /** Edge options; `index` is meaningful only on an ordered field. */
   options: Record<string, BoundValue> | null
+}
+
+/**
+ * `UNSET STRUCTURAL { (field, target) }` — one reference to remove.
+ *
+ * The SET STRUCTURAL edge without options: removal is per reference, ordered
+ * fields re-densify, cardinality is validated at commit (Spec §17.5).
+ */
+export interface StructuralRemoval {
+  field: SymbolRef
+  value: MutationValue
 }
 
 /** Assignment pairs, kept ordered so lowering stays deterministic. */
@@ -410,6 +422,7 @@ export type UpdateAction =
   | { UnsetAttributes: string[] }
   | { UnsetFacet: FacetUnset }
   | { SetStructural: StructuralEdge[] }
+  | { UnsetStructural: StructuralRemoval[] }
 
 export interface RetractAssertion {
   target: ElementRef

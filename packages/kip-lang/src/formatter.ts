@@ -28,6 +28,7 @@ import type {
   CreateActivityStatement,
   SetFacetClause,
   SetStructuralClause,
+  UnsetStructuralClause,
   UnsetAttributesClause,
   UnsetFacetClause,
   UpdateStatement,
@@ -546,6 +547,7 @@ class Formatter {
     if (stmt.unsetAttributes) this.formatUnsetAttributes(stmt.unsetAttributes)
     for (const facet of stmt.unsetFacets) this.formatUnsetFacet(facet)
     if (stmt.setStructural) this.formatStructural(stmt.setStructural)
+    if (stmt.unsetStructural) this.formatUnsetStructural(stmt.unsetStructural)
 
     this.indentLevel--
     this.writeIndent()
@@ -646,6 +648,9 @@ class Formatter {
         break
       case 'SetStructuralClause':
         this.formatStructural(action)
+        break
+      case 'UnsetStructuralClause':
+        this.formatUnsetStructural(action)
         break
     }
   }
@@ -837,6 +842,24 @@ class Formatter {
       if (assignment.options) {
         this.write(` ${this.objectLiteralToString(assignment.options)}`)
       }
+      this.newline()
+    }
+    this.emitCommentsBefore(clause.range.end.line)
+    this.indentLevel--
+    this.writeIndent()
+    this.write('}')
+    this.newline()
+  }
+
+  private formatUnsetStructural(clause: UnsetStructuralClause): void {
+    this.writeIndent()
+    this.write('UNSET STRUCTURAL {')
+    this.newline()
+    this.indentLevel++
+    for (const removal of clause.removals) {
+      this.emitCommentsBefore(removal.range.start.line)
+      this.writeIndent()
+      this.write(`(${this.symbol(removal.field)}, ${this.expr(removal.value)})`)
       this.newline()
     }
     this.emitCommentsBefore(clause.range.end.line)

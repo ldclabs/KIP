@@ -60,6 +60,8 @@ import type {
   UnsetField,
   SetStructuralClause,
   StructuralAssignment,
+  UnsetStructuralClause,
+  StructuralRemoval,
   ExpectVersionClause,
   ExpectStateClause,
   UpdateStatement,
@@ -1280,6 +1282,9 @@ class Parser {
           if (clause.kind === 'UnsetAttributesClause') {
             this.rejectRepeat(stmt.unsetAttributes, 'UNSET ATTRIBUTES', tok)
             stmt.unsetAttributes = clause
+          } else if (clause.kind === 'UnsetStructuralClause') {
+            this.rejectRepeat(stmt.unsetStructural, 'UNSET STRUCTURAL', tok)
+            stmt.unsetStructural = clause
           } else {
             stmt.unsetFacets.push(clause)
           }
@@ -1485,7 +1490,10 @@ class Parser {
     }
   }
 
-  private parseUnsetClause(): UnsetAttributesClause | UnsetFacetClause {
+  private parseUnsetClause():
+    | UnsetAttributesClause
+    | UnsetFacetClause
+    | UnsetStructuralClause {
     const start = this.currentPos()
     const unset = this.expect(TokenType.Unset)
     const tok = this.current()
@@ -1510,11 +1518,52 @@ class Parser {
         range: { start, end: this.endPos() }
       }
     }
+    if (tok.type === TokenType.Structural) {
+      // Every SET has an UNSET: an entry is the SET STRUCTURAL entry without
+      // its options object (Spec §17.5).
+      this.expectSecondWord(TokenType.Structural, unset)
+      this.expect(TokenType.LBrace)
+      const removals: StructuralRemoval[] = []
+      while (!this.check(TokenType.RBrace) && !this.isAtEnd()) {
+        const before = this.pos
+        this.skipComments()
+        if (this.check(TokenType.RBrace) || this.isAtEnd()) break
+        removals.push(this.parseStructuralRemoval())
+        if (this.pos === before) break
+      }
+      this.expect(TokenType.RBrace)
+      return {
+        kind: 'UnsetStructuralClause',
+        removals,
+        range: { start, end: this.endPos() }
+      }
+    }
     this.error(
-      `Expected ATTRIBUTES or FACET after UNSET but got '${tok.value}'`,
+      `Expected ATTRIBUTES, FACET or STRUCTURAL after UNSET but got '${tok.value}'`,
       tok
     )
     throw new ParseAbort()
+  }
+
+  private parseStructuralRemoval(): StructuralRemoval {
+    const start = this.currentPos()
+    this.expect(TokenType.LParen)
+    const field = this.parseSchemaSymbol()
+    this.expect(TokenType.Comma)
+    const value = this.parseMutationValue()
+    this.expect(TokenType.RParen)
+    if (this.check(TokenType.LBrace)) {
+      this.error(
+        'UNSET STRUCTURAL removes a reference by (field, target); it takes no options object',
+        this.current()
+      )
+    }
+    return {
+      kind: 'StructuralRemoval',
+      field,
+      value,
+      range: { start, end: this.endPos() }
+    }
   }
 
   private parseUnsetFieldSet(): UnsetField[] {

@@ -30,6 +30,7 @@ import type {
   UpdateAction as CstUpdateAction,
   SetFacetClause,
   SetStructuralClause,
+  UnsetStructuralClause,
   UnsetField,
   RetractAssertionStatement,
   SupersedeAssertionStatement,
@@ -92,6 +93,7 @@ import type {
   Scalar,
   SearchTarget,
   StructuralEdge,
+  StructuralRemoval,
   SymbolRef,
   Term,
   UpdateAction,
@@ -911,6 +913,9 @@ function lowerUpsertConcept(stmt: UpsertConceptStatement): ConceptUpsert {
     })),
     set_structural: stmt.setStructural
       ? lowerStructural(stmt.setStructural, null)
+      : null,
+    unset_structural: stmt.unsetStructural
+      ? lowerStructuralRemovals(stmt.unsetStructural, null)
       : null
   }
 }
@@ -1255,7 +1260,48 @@ function lowerUpdateAction(
         }
       }
     case 'SetStructuralClause':
+      guardStructuralMutation('SET STRUCTURAL', kind, action.range)
       return { SetStructural: lowerStructural(action, targetVar) }
+    case 'UnsetStructuralClause':
+      guardStructuralMutation('UNSET STRUCTURAL', kind, action.range)
+      return { UnsetStructural: lowerStructuralRemovals(action, targetVar) }
+  }
+}
+
+/**
+ * Structural mutation reaches mutable Concept topology only (Spec §17.5).
+ * Record kinds keep their topology: an Assertion's citations and an
+ * Evidence's lineage are immutable payload, a Proposition has no structural
+ * fields, and a pending Activity finalizes through TRANSITION ACTIVITY.
+ */
+function guardStructuralMutation(
+  verb: string,
+  kind: BoundKind | null,
+  range: Range
+): void {
+  switch (kind) {
+    case 'assertion':
+      throw invalidSyntax(
+        `${verb} cannot change an Assertion's citations: they are immutable payload — record a new Assertion with SUPERSEDING`,
+        range
+      )
+    case 'evidence':
+      throw invalidSyntax(
+        `${verb} cannot change Evidence topology: correct it with CORRECT EVIDENCE :old BY :new`,
+        range
+      )
+    case 'proposition':
+      throw invalidSyntax(
+        `${verb} has no target on a Proposition: a Proposition is its tuple and carries no structural fields`,
+        range
+      )
+    case 'activity':
+      throw invalidSyntax(
+        `${verb} cannot change Activity topology: finalize a pending Activity with TRANSITION ACTIVITY ... SET STRUCTURAL; a terminal Activity is immutable`,
+        range
+      )
+    default:
+      return
   }
 }
 
@@ -1335,6 +1381,22 @@ function lowerStructural(
     field: lowerSymbol(assignment.field),
     value: lowerMutationValue(assignment.value, targetVar),
     options: assignment.options ? lowerBoundObject(assignment.options) : null
+  }))
+}
+
+function lowerStructuralRemovals(
+  clause: UnsetStructuralClause,
+  targetVar: string | null
+): StructuralRemoval[] {
+  if (clause.removals.length === 0) {
+    throw invalidSyntax(
+      'UNSET STRUCTURAL removes named references; list at least one (field, target)',
+      clause.range
+    )
+  }
+  return clause.removals.map((removal) => ({
+    field: lowerSymbol(removal.field),
+    value: lowerMutationValue(removal.value, targetVar)
   }))
 }
 

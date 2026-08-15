@@ -57,7 +57,7 @@ Fold/unfold blocks:
 - Statement bodies (`MUTATE { ... }`, `CREATE CONCEPT ?x { ... }`, `UPSERT CONCEPT ?x { ... }`, `WHERE { ... }`)
 - `MATCH { ... }` identity blocks
 - `SET FIELDS` / `SET ATTRIBUTES` / `SET FACET "…"` / `SET STRUCTURAL` blocks
-- `UNSET ATTRIBUTES` / `UNSET FACET` blocks
+- `UNSET ATTRIBUTES` / `UNSET FACET` / `UNSET STRUCTURAL` blocks
 - The `ASSERT` stance object and `WITH EPISTEMIC { ... }`
 - `NOT` / `OPTIONAL` / `UNION` clauses
 - Consecutive comment blocks

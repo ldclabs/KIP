@@ -393,6 +393,57 @@ describe('lower: KML invariants', () => {
     lowerOne('UPDATE ?c SET ATTRIBUTES {note: "ok"} WHERE { ?c {type: "Person"} }')
   })
 
+  test('UNSET STRUCTURAL lowers to per-reference removals on mutable Concept topology', () => {
+    const upsert = lowerOne(`
+      UPSERT CONCEPT ?exp {
+        MATCH { id: :exp_id }
+        UNSET STRUCTURAL { ("has_step", ?wrong) ("involves", :bob) }
+      }`).Kml.clauses[0].UpsertConcept
+    assert.deepEqual(upsert.unset_structural, [
+      { field: { Name: 'has_step' }, value: { Handle: 'wrong' } },
+      { field: { Name: 'involves' }, value: { Param: 'bob' } }
+    ])
+
+    const update = lowerOne(
+      'UPDATE ?exp UNSET STRUCTURAL { ("has_step", ?wrong) } WHERE { ?exp {id: :exp_id} }'
+    ).Kml.clauses[0].Update
+    assert.deepEqual(update.actions[0], {
+      UnsetStructural: [{ field: { Name: 'has_step' }, value: { Handle: 'wrong' } }]
+    })
+
+    // An empty block removes nothing and is almost certainly a mistake.
+    assert.match(
+      lowerThrows('UPDATE ?e UNSET STRUCTURAL {} WHERE { ?e {} }').message,
+      /list at least one/
+    )
+  })
+
+  test('record kinds keep their topology: structural mutation targets Concepts only', () => {
+    // Spec §17.5 — citations, lineage and provenance topology are not
+    // reachable through UPDATE, in either direction.
+    for (const action of ['SET STRUCTURAL { ("evidence", ?e) }', 'UNSET STRUCTURAL { ("evidence", ?e) }']) {
+      assert.match(
+        lowerThrows(`UPDATE ?a ${action} WHERE { ?a ASSERTION {id: "A-1"} }`).message,
+        /immutable payload/
+      )
+      assert.match(
+        lowerThrows(`UPDATE ?ev ${action} WHERE { ?ev EVIDENCE {id: "E-1"} }`).message,
+        /CORRECT EVIDENCE/
+      )
+      assert.match(
+        lowerThrows(`UPDATE ?act ${action} WHERE { ?act ACTIVITY {id: "X-1"} }`).message,
+        /TRANSITION ACTIVITY/
+      )
+      assert.match(
+        lowerThrows(`UPDATE ?p ${action} WHERE { ?p (?s, "pred", ?o) }`).message,
+        /no structural fields/
+      )
+    }
+    // A Concept target, or a direct target whose kind is unknown statically, passes.
+    lowerOne('UPDATE ?c UNSET STRUCTURAL { ("has_step", ?s) } WHERE { ?c {type: "Experience"} }')
+    lowerOne('UPDATE :exp UNSET STRUCTURAL { ("has_step", :s) }')
+  })
+
   test('a direct-target UPDATE lowers with where_clauses = null, like the removal family', () => {
     const cmd = lowerOne('UPDATE :exp SET FACET "MnemonicState" {salience: 0.9}')
     const update = cmd.Kml.clauses[0].Update

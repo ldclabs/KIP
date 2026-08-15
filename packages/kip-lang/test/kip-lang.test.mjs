@@ -344,6 +344,38 @@ describe('KML', () => {
     assert.equal(stmt.setStructural.assignments[0].options.entries[0].key, 'index')
   })
 
+  test('every SET has an UNSET: UNSET STRUCTURAL removes references (Spec §17.5)', () => {
+    // The entry is the SET STRUCTURAL entry without its options object.
+    const upsert = parseOne(`
+      UPSERT CONCEPT ?exp {
+        MATCH { id: :exp_id }
+        SET STRUCTURAL { ("has_step", ?right) {index: 2} }
+        UNSET STRUCTURAL { ("has_step", ?wrong) ("involves", :bob) }
+      }
+    `)
+    assert.equal(upsert.unsetStructural.kind, 'UnsetStructuralClause')
+    assert.deepEqual(
+      upsert.unsetStructural.removals.map((r) => [r.field.parsed, r.value.kind]),
+      [['has_step', 'VariableRef'], ['involves', 'ParameterRef']]
+    )
+
+    const update = parseOne(
+      'UPDATE ?exp UNSET STRUCTURAL { ("has_step", ?wrong) } WHERE { ?exp {id: :exp_id} }'
+    )
+    assert.equal(update.actions[0].kind, 'UnsetStructuralClause')
+
+    // No options object on a removal, and CREATE has nothing to remove.
+    assert.match(
+      parseErrors('UPDATE ?e UNSET STRUCTURAL { ("has_step", ?s) {index: 0} } WHERE { ?e {} }')[0].message,
+      /takes no options object/
+    )
+    assert.ok(parseErrors('CREATE CONCEPT ?c { TYPE "T" UNSET STRUCTURAL { ("f", ?x) } }').length > 0)
+    assert.match(
+      parseErrors('UPDATE ?e UNSET FIELDS { a } WHERE { ?e {} }')[0].message,
+      /ATTRIBUTES, FACET or STRUCTURAL after UNSET/
+    )
+  })
+
   test('the removal ladder parses as four distinct statements', () => {
     assert.equal(parseOne('ARCHIVE :t WHERE { ?x {id:"1"} }').kind, 'ArchiveStatement')
     assert.equal(parseOne('TOMBSTONE :t').kind, 'TombstoneStatement')
@@ -646,6 +678,8 @@ describe('formatter', () => {
       'FIND(?b) WHERE { ?b BELIEF SLOT (?p, "timezone") }',
       'CREATE CONCEPT ?c { TYPE "T" CLIENT KEY :k NAME "n" SET ATTRIBUTES {a: 1} SET FACET "F" {b: 2} SET STRUCTURAL { ("has_step", ?s) {index: 0} } }',
       'UPSERT CONCEPT ?p { MATCH {key: "kip-2"} SET FIELDS {name: "KIP 2.0"} UNSET FACET "F" {x} }',
+      'UPSERT CONCEPT ?e { MATCH {id: :id} SET STRUCTURAL { ("has_step", ?a) {index: 0} } UNSET STRUCTURAL { ("has_step", ?b) ("involves", :bob) } }',
+      'UPDATE ?e UNSET STRUCTURAL { ("has_step", ?wrong) } WHERE { ?e {id: :id} }',
       'ENSURE PROPOSITION ?p (:a, "b", :c) EXPECT VERSION 0',
       'ASSERT (:a, "b", :c) {by: :x, mode: "stated"} SUPERSEDING :old',
       'CREATE EVIDENCE ?e { CLIENT KEY :k SET FIELDS {evidence_class: "tool_result"} }',

@@ -1360,6 +1360,22 @@ Experience.has_step → Step
 
 ---
 
+## 17.5 结构变更 (Structural mutation)
+
+可变概念上的结构引用以 SET/UNSET 成对书写，与属性、切面一致：
+
+```text
+SET STRUCTURAL   { (field, target) {options} }    添加一条引用
+                                                  （单值基数字段：替换之）
+UNSET STRUCTURAL { (field, target) }              移除该条引用
+```
+
+移除按单条引用进行。从有序字段移除后，其余顺序重新致密化（§17.4）。基数在提交时校验：移除必填字段的最后一条引用将失败。
+
+记录类元素不受影响。断言、证据与终态活动的拓扑保持不可变（§13.7、§15.5、§16.6）；未终态的活动通过 `TRANSITION ACTIVITY` 敲定其引用（§52.5）。记录上错误的引用以新记录纠正，绝不以移除纠正。
+
+---
+
 # 18. 切面与 Profile (Facets and Profiles)
 
 ## 18.1 切面 (Facet)
@@ -3868,6 +3884,8 @@ ENSURE PROPOSITION ?p (
 
 仅通过 ENSURE 不会创建任何断言。
 
+`ENSURE PROPOSITION ... EXPECT VERSION 0` 是仅创建形式（§35.2）：若规范命题已存在则失败，而不是解析到它。
+
 示例中的谓词符号通过当前活动的 Schema 环境进行解析：`prefers` 与 `caused_by` 由认知记忆 Profile 定义，而领域事实（例如 `timezone`）则来自于已激活的领域模式包。
 
 ---
@@ -4064,8 +4082,10 @@ UPDATE ?target
 SET FIELDS {...}
 SET ATTRIBUTES {...}
 SET FACET "Facet" {...}
+SET STRUCTURAL {...}
 UNSET ATTRIBUTES {...}
 UNSET FACET "Facet" {...}
+UNSET STRUCTURAL {...}
 
 WHERE {
   ...

@@ -1849,6 +1849,16 @@ SET STRUCTURAL {
 }
 ```
 
+每个 SET 都有对应的 UNSET。可变概念上的引用按条目移除——与 SET 条目相同的 `( field, target )`，只是不带选项对象：
+
+```prolog
+UNSET STRUCTURAL {
+  ("has_step", ?wrong_step)
+}
+```
+
+`UNSET STRUCTURAL` 出现在 `UNSET ATTRIBUTES` 能出现的位置（`UPSERT CONCEPT`、`UPDATE`）；`CREATE` 无物可删，记录类元素保持不可变拓扑（规范 §17.5）。从有序字段移除后其余 index 重新致密化；移除必填字段的最后一条引用将无法通过基数校验。在单值基数字段上，`SET STRUCTURAL` 即替换。
+
 ---
 # 96. 结构字段解析 (Structural Field Resolution)
 
@@ -1945,12 +1955,20 @@ SET FACET "FacetName" {
   ...
 }
 
+SET STRUCTURAL {
+  ("field", ?target)
+}
+
 UNSET ATTRIBUTES {
   "old_field"
 }
 
 UNSET FACET "FacetName" {
   "old_field"
+}
+
+UNSET STRUCTURAL {
+  ("field", ?target)
 }
 
 WHERE {
@@ -6067,6 +6085,7 @@ upsert_concept :=
       set_facet_clause*
       unset_facet_clause*
       set_structural_clause?
+      unset_structural_clause?
     "}"
 
 ensure_proposition :=
@@ -6116,6 +6135,15 @@ update_statement :=
     "}")?
     limit_clause?
     (* ?variable 目标由 WHERE 绑定；直接引用目标可省略 WHERE *)
+
+update_clause :=
+      set_fields_clause
+    | set_attributes_clause
+    | set_facet_clause
+    | set_structural_clause
+    | unset_attributes_clause
+    | unset_facet_clause
+    | unset_structural_clause
 
 retract_assertion :=
     "RETRACT ASSERTION" target

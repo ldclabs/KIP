@@ -4786,15 +4786,11 @@ rather than treating identity as one undifferentiated layer.
 
 # 308. v1 `DESCRIBE DOMAINS`
 
-May remain as:
+Served by the Domain / Topic Map layer of `DESCRIBE PRIMER` (§31); there is
+no separate native command. A compatibility adapter maps the v1 spelling to
+that layer, as it maps `DESCRIBE CONCEPT TYPES` to `LIST TYPES` (§310).
 
-```text
-DESCRIBE DOMAIN MAP
-```
-
-or compatibility alias.
-
-In v2 it is explicitly:
+In v2 the map is explicitly:
 
 ```text
 semantic/navigation state

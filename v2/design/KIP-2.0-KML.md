@@ -1958,6 +1958,22 @@ SET STRUCTURAL {
 }
 ```
 
+Every SET has an UNSET. On a mutable Concept a reference is removed per
+entry — the same `( field, target )` without its options object:
+
+```prolog
+UNSET STRUCTURAL {
+  ("has_step", ?wrong_step)
+}
+```
+
+`UNSET STRUCTURAL` appears where `UNSET ATTRIBUTES` does (`UPSERT CONCEPT`,
+`UPDATE`); `CREATE` has nothing to remove, and record kinds keep their
+immutable topology (Spec §17.5). Removing from an ordered field re-densifies
+the remaining indices; removing the last reference of a required field fails
+cardinality validation. On a single-cardinality field, `SET STRUCTURAL`
+replaces.
+
 ---
 
 # 96. Structural Field Resolution
@@ -2063,12 +2079,20 @@ SET FACET "FacetName" {
   ...
 }
 
+SET STRUCTURAL {
+  ("field", ?target)
+}
+
 UNSET ATTRIBUTES {
   "old_field"
 }
 
 UNSET FACET "FacetName" {
   "old_field"
+}
+
+UNSET STRUCTURAL {
+  ("field", ?target)
 }
 
 WHERE {
@@ -6482,6 +6506,7 @@ upsert_concept :=
       set_facet_clause*
       unset_facet_clause*
       set_structural_clause?
+      unset_structural_clause?
     "}"
 
 ensure_proposition :=
@@ -6531,6 +6556,15 @@ update_statement :=
     "}")?
     limit_clause?
     (* a ?variable target is bound by WHERE; a direct target may omit it *)
+
+update_clause :=
+      set_fields_clause
+    | set_attributes_clause
+    | set_facet_clause
+    | set_structural_clause
+    | unset_attributes_clause
+    | unset_facet_clause
+    | unset_structural_clause
 
 retract_assertion :=
     "RETRACT ASSERTION" target

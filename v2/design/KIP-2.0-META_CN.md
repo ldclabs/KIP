@@ -4725,15 +4725,9 @@ cognitive invariants
 
 # 308. v1 `DESCRIBE DOMAINS` (v1 `DESCRIBE DOMAINS`)
 
-可以保留为：
+由 `DESCRIBE PRIMER` 的领域 / 主题图谱层提供（§31）；不存在单独的原生命令。兼容适配器把 v1 拼写映射到该层，正如它把 `DESCRIBE CONCEPT TYPES` 映射到 `LIST TYPES`（§310）。
 
-```text
-DESCRIBE DOMAIN MAP
-```
-
-或作为兼容性别名。
-
-在 v2 中，它被明确定义为：
+在 v2 中，该图谱被明确定义为：
 
 ```text
 semantic/navigation state

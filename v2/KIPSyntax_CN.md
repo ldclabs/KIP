@@ -233,7 +233,7 @@ WHERE { ?m {type: "Experience"} FILTER(...) }
 LIMIT :n
 ```
 
-更新表达式：`ADD`、`MUL`、`CLAMP`、`COALESCE`（针对每个目标确定性计算）。UPDATE 绝不执行创建。直接引用目标无需 `WHERE`：`UPDATE :id SET FACET "MnemonicState" {salience: 0.9}`（与 ARCHIVE/TOMBSTONE/PURGE/SET RETENTION/RETRACT 同一规则——`?var` 目标由 WHERE 绑定，`:id`/`"id"` 已经指名了元素）。
+动作：`SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL` 与 `UNSET ATTRIBUTES | FACET | STRUCTURAL`——每个 SET 都有对应的 UNSET；`UNSET STRUCTURAL { ("has_step", ?wrong_step) }` 移除一条引用（有序字段重新致密化；基数受校验）。更新表达式：`ADD`、`MUL`、`CLAMP`、`COALESCE`（针对每个目标确定性计算）。UPDATE 绝不执行创建。直接引用目标无需 `WHERE`：`UPDATE :id SET FACET "MnemonicState" {salience: 0.9}`（与 ARCHIVE/TOMBSTONE/PURGE/SET RETENTION/RETRACT 同一规则——`?var` 目标由 WHERE 绑定，`:id`/`"id"` 已经指名了元素）。
 
 **UPDATE 严禁触碰的区域**：Proposition 元组、Assertion 认识载荷（stance/confidence/actor/time）、Evidence 载荷、终态 Activity 拓扑、`_system`、Governance、Schema。违规操作将抛出 `EpistemicRevisionRequired` 或 `ImmutableField`。**严禁随时间推移衰减 Assertion 置信度**——未被调用的记忆衰减的是 `memory_strength`；时效性由认识投影负责；认知更新必须创建新 Assertion。
 

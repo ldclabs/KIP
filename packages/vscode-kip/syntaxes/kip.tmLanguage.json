@@ -132,6 +132,10 @@
         },
         {
           "name": "keyword.other.kip",
+          "match": "(?i)\\bUNSET\\s+STRUCTURAL\\b"
+        },
+        {
+          "name": "keyword.other.kip",
           "match": "(?i)\\bCLIENT\\s+KEY\\b"
         },
         {

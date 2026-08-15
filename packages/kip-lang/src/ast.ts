@@ -362,6 +362,7 @@ export interface UpsertConceptStatement extends BaseNode {
   unsetAttributes?: UnsetAttributesClause
   unsetFacets: UnsetFacetClause[]
   setStructural?: SetStructuralClause
+  unsetStructural?: UnsetStructuralClause
 }
 
 export interface EnsurePropositionStatement extends BaseNode {
@@ -486,6 +487,25 @@ export interface StructuralAssignment extends BaseNode {
   options?: ObjectLiteral
 }
 
+/**
+ * `UNSET STRUCTURAL { ("has_step", ?wrong_step) }` — remove references.
+ *
+ * Every SET has an UNSET. An entry is the SET STRUCTURAL entry without its
+ * options object; removal is per reference, ordered fields re-densify, and
+ * cardinality is validated at commit (Spec §17.5). Admitted where UNSET
+ * ATTRIBUTES is — UPSERT CONCEPT and UPDATE — never on record kinds.
+ */
+export interface UnsetStructuralClause extends BaseNode {
+  kind: 'UnsetStructuralClause'
+  removals: StructuralRemoval[]
+}
+
+export interface StructuralRemoval extends BaseNode {
+  kind: 'StructuralRemoval'
+  field: SchemaSymbol
+  value: Expression
+}
+
 export interface ExpectVersionClause extends BaseNode {
   kind: 'ExpectVersionClause'
   value: ScalarValue
@@ -526,6 +546,7 @@ export type UpdateAction =
   | UnsetAttributesClause
   | UnsetFacetClause
   | SetStructuralClause
+  | UnsetStructuralClause
 
 // ─── KML: lifecycle and correction ───────────────────────────────────
 
