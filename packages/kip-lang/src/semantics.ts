@@ -119,7 +119,7 @@ function analyzeMutationClause(stmt: Statement, diags: Diagnostic[]): void {
       for (const action of stmt.actions) {
         if (action.kind === 'SetFacetClause') checkFacet(action, diags)
       }
-      checkWhere(stmt.where, !!stmt.limit, diags)
+      if (stmt.where) checkWhere(stmt.where, !!stmt.limit, diags)
       break
 
     case 'RetractAssertionStatement':

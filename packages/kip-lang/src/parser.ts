@@ -681,6 +681,44 @@ class Parser {
       }
     }
 
+    // `BELIEF (id: ...)` — the operand is the Proposition expression slot, so
+    // the same id form that names a Proposition in a pattern names it here
+    // (Spec §43.2 / §46.1). Same recognition rule as parsePropositionTuple.
+    if (this.isPropositionIdStart()) {
+      this.advance() // id
+      this.advance() // :
+      const propositionId = this.parseScalarValue()
+      this.expect(TokenType.RParen)
+      this.rejectBeliefInRawDialect(start)
+      return {
+        kind: 'BeliefPattern',
+        variable,
+        propositionId,
+        range: { start, end: this.endPos() }
+      }
+    }
+
+    // `BELIEF (:p)` is the one spelling a reader might reach for that means
+    // nothing: a lone parameter is not a bound variable and not an id
+    // reference. Say what the reference form is instead of "expected ','",
+    // and recover as if the id form had been written so nothing cascades.
+    if (this.check(TokenType.Parameter) && this.peekPast(1)?.type === TokenType.RParen) {
+      const param = this.current()
+      this.error(
+        `BELIEF (${param.value}) is not a form: name the Proposition by (id: ${param.value}), or bind it first and write BELIEF (?p)`,
+        param
+      )
+      const propositionId = this.parseParameterRef()
+      this.expect(TokenType.RParen)
+      this.rejectBeliefInRawDialect(start)
+      return {
+        kind: 'BeliefPattern',
+        variable,
+        propositionId,
+        range: { start, end: this.endPos() }
+      }
+    }
+
     const subject = this.parseTerm()
     this.expect(TokenType.Comma)
     const predicate = this.parsePredicateAtom()
@@ -1559,9 +1597,16 @@ class Parser {
       this.error('UPDATE requires at least one SET or UNSET action', this.current())
     }
 
-    this.expectKeywordWithSpace(TokenType.Where)
-    this.dialect = 'raw'
-    const where = this.parseWhereClause()
+    // WHERE binds a ?variable target; a direct :id / "id" target already names
+    // the element and may omit it, exactly as ARCHIVE / TOMBSTONE / PURGE /
+    // SET RETENTION / RETRACT ASSERTION do (Spec §58). Whether a bare
+    // ?variable is bound is semantic — inside MUTATE it may be a local handle.
+    let where: WhereClause | undefined
+    if (this.check(TokenType.Where)) {
+      this.expectKeywordWithSpace(TokenType.Where)
+      this.dialect = 'raw'
+      where = this.parseWhereClause()
+    }
     const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
 
     return {

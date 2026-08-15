@@ -3319,20 +3319,20 @@ WITH EPISTEMIC {
 ---
 # 221. 命题 ID 定位 (Proposition ID Targeting)
 
-未来的简写语法可以 (MAY) 允许：
+已按身份获知的命题，通过与命题模式中指名它时相同的 id 形式来投影（规范 §43.2 / §46.1）：
 
 ```prolog
-?belief BELIEF {proposition_id: :id}
+?belief BELIEF (id: :id)
 ```
 
-基线版本可以先通过 ID 绑定命题：
+等价地，也可以先绑定它，再使用单参数形式：
 
 ```prolog
 ?p PROPOSITION (id: :id)
 ?belief BELIEF (?p)
 ```
 
-前提是单参数信念形式已完成标准化。
+id 形式是引用，不是对象模式：`BELIEF {proposition_id: :id}` 不是 KQL。
 
 ---
 # 222. 推荐的 BELIEF 单参数形式 (Recommended BELIEF One-Argument Form)
@@ -4965,7 +4965,12 @@ concept_pattern :=
     variable ("CONCEPT")? object_pattern
 
 proposition_pattern :=
-    variable? ("PROPOSITION")? "(" term "," predicate_term "," term ")"
+    variable? ("PROPOSITION")? proposition_tuple
+
+proposition_tuple :=
+      "(" term "," predicate_term "," term ")"
+    | "(" "id" ":" scalar ")"
+        (* 仅匹配：ENSURE PROPOSITION / ASSERT 拒绝该形式 *)
 
 assertion_pattern :=
     variable "ASSERTION" object_pattern
@@ -4982,8 +4987,10 @@ structural_pattern :=
 
 belief_pattern :=
       variable "BELIEF" "(" proposition_variable ")"
+    | variable "BELIEF" "(" "id" ":" scalar ")"
     | variable "BELIEF"
       "(" term "," predicate_term "," term ")"
+        (* 仅限确切谓词——不接受原始路径 *)
 
 belief_slot_pattern :=
     variable "BELIEF" "SLOT"
@@ -5374,7 +5381,7 @@ WHERE {
 BELIEF 查询：
 
 ```prolog
-?belief BELIEF (:p)
+?belief BELIEF (id: :p)
 ```
 
 在本地当前/历史策略下消解分歧。

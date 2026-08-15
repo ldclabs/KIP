@@ -2080,6 +2080,15 @@ LIMIT :limit
 
 Only legal mutable fields are applied.
 
+The target follows the same rule as every other `target_ref` statement: a
+`?variable` is bound by `WHERE`; a direct reference (`:id` / `"id"`) already
+names the element and may omit `WHERE`, which then only guards:
+
+```prolog
+UPDATE :experience_id
+SET FACET "MnemonicState" {salience: 0.9}
+```
+
 ---
 
 # 103. UPDATE Never Creates
@@ -4287,9 +4296,7 @@ ASSERT ?a (
   confidence: 1.0,
   at: :time,
 
-  evidence: [
-    {ref: ?e, role: "support"}
-  ],
+  evidence: [?e, :message],
 
   key: :assertion_key
 }
@@ -4297,6 +4304,10 @@ ASSERT ?a (
 
 `by` and `mode` are REQUIRED; the rest are optional. `by` becomes the
 Assertion's `asserted_by`, `at` its `asserted_at`, and `key` its `client_key`.
+`evidence` is one reference or an array of references; each becomes a
+`("evidence", ref) {role: "support"}` structural citation. A citation with
+another role (`challenge`, `context`) is not sugar material — write the
+desugared `CREATE ASSERTION` with `SET STRUCTURAL` (§74).
 
 ---
 
@@ -6408,6 +6419,7 @@ kml_statement :=
     | create_concept
     | upsert_concept
     | ensure_proposition
+    | assert_statement
     | create_evidence
     | create_assertion
     | create_activity
@@ -6431,13 +6443,21 @@ mutation_clause :=
       create_concept
     | upsert_concept
     | ensure_proposition
+    | assert_statement
     | create_evidence
     | create_assertion
     | create_activity
+    | update_statement
     | retract_assertion
     | supersede_assertion
     | correct_evidence
     | transition_activity
+    | set_retention
+    | archive_statement
+    | tombstone_statement
+    | purge_statement
+    | merge_concept
+    (* every statement except MUTATE itself; MUTATE does not nest *)
 
 create_concept :=
     "CREATE CONCEPT" handle
@@ -6468,6 +6488,13 @@ ensure_proposition :=
     "ENSURE PROPOSITION" handle?
     "(" term "," predicate_term "," term ")"
 
+assert_statement :=
+    "ASSERT" handle?
+    "(" term "," predicate_term "," term ")"
+    assignment_object
+    ("SUPERSEDING" target)?
+    (* normative sugar, Spec §55.1 / §228 *)
+
 create_evidence :=
     "CREATE EVIDENCE" handle
     "{"
@@ -6496,16 +6523,19 @@ create_activity :=
     "}"
 
 update_statement :=
-    "UPDATE" variable
+    "UPDATE" target
+    expect_version_clause?
     update_clause+
-    "WHERE" "{"
+    ("WHERE" "{"
       kql_clause*
-    "}"
+    "}")?
     limit_clause?
+    (* a ?variable target is bound by WHERE; a direct target may omit it *)
 
 retract_assertion :=
     "RETRACT ASSERTION" target
     where_clause?
+    limit_clause?
     expect_state_clause?
 
 supersede_assertion :=

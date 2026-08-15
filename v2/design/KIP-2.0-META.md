@@ -1506,11 +1506,16 @@ Baseline:
 ```text
 SEARCH <KIND> :term
   [WITH TYPE :type]
+  [WITH PREDICATE :predicate]
   [MODE "keyword|semantic|hybrid"]
   [THRESHOLD :threshold]
+  [AS OF SEQ :seq]
   [LIMIT :limit]
   [CURSOR :cursor]
 ```
+
+`WITH PREDICATE` scopes Proposition search (§110); `AS OF SEQ` is the optional
+historical-search capability (§126), not baseline.
 
 ---
 
@@ -5536,6 +5541,8 @@ describe_target :=
     | "TRANSACTION"
     | "SNAPSHOT"
     | "EPISTEMIC POLICY"
+    | "PROJECTION CAPABILITY"
+    | "TRUST"
     | "ACCESS"
     | "CAPSULE"
 

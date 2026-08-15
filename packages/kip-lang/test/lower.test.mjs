@@ -121,9 +121,18 @@ describe('lower: KQL', () => {
     )
   })
 
-  test('BELIEF lowers to the two projection targets', () => {
+  test('BELIEF lowers to the three projection targets', () => {
     const bound = lowerOne('FIND(?b) WHERE { ?b BELIEF (?p) }')
     assert.deepEqual(bound.Kql.where_clauses[0].Belief.target, { Proposition: 'p' })
+
+    // The id form is the same reference a Proposition pattern uses, so it
+    // lowers to the same shape as `?p (id: ...)`'s matcher (Spec §46.1).
+    const byId = lowerOne('FIND(?b) WHERE { ?b BELIEF (id: :pid) }')
+    assert.deepEqual(byId.Kql.where_clauses[0].Belief.target, { Id: { Param: 'pid' } })
+    const byLiteral = lowerOne('FIND(?b) WHERE { ?b BELIEF (id: "P-1") }')
+    assert.deepEqual(byLiteral.Kql.where_clauses[0].Belief.target, {
+      Id: { Literal: { String: 'P-1' } }
+    })
 
     const tuple = lowerOne('FIND(?b) WHERE { ?b BELIEF (?s, "timezone", ?o) }')
     assert.ok('Tuple' in tuple.Kql.where_clauses[0].Belief.target)
@@ -382,6 +391,23 @@ describe('lower: KML invariants', () => {
       'UPDATE ?a SET FACET "MnemonicState" {memory_strength: 0.4} WHERE { ?a ASSERTION {id: "A-1"} }'
     )
     lowerOne('UPDATE ?c SET ATTRIBUTES {note: "ok"} WHERE { ?c {type: "Person"} }')
+  })
+
+  test('a direct-target UPDATE lowers with where_clauses = null, like the removal family', () => {
+    const cmd = lowerOne('UPDATE :exp SET FACET "MnemonicState" {salience: 0.9}')
+    const update = cmd.Kml.clauses[0].Update
+    assert.deepEqual(update.target, { Param: 'exp' })
+    assert.equal(update.where_clauses, null)
+    assert.equal(update.limit, null)
+
+    // The immutable-plane checks do not depend on a WHERE being present.
+    assert.match(
+      lowerThrows('UPDATE "C-1" SET ATTRIBUTES {_system: 1}').message,
+      /_system/
+    )
+    // A guarding WHERE on a direct target is still lowered as written.
+    const guarded = lowerOne('UPDATE "C-1" SET ATTRIBUTES {a: 1} WHERE { ?c {id: "C-1"} }')
+    assert.equal(guarded.Kml.clauses[0].Update.where_clauses.length, 1)
   })
 
   test('an update expression may read only the target', () => {

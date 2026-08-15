@@ -3209,7 +3209,7 @@ Belief Slot Pattern (信念槽位模式)
 ?p PROPOSITION (id: :proposition_id)
 ```
 
-这里的圆括号不是装饰。`( ... )` 就是命题表达式槽位，因此 id 形式在三元组能出现的任何位置都能出现——包括作为 `term` 端点，这正是「对陈述作陈述」时指名一个已存在命题的方式：
+这里的圆括号不是装饰。`( ... )` 就是命题表达式槽位，因此 id 形式在三元组能出现的任何位置都能出现——包括作为 `term` 端点，这正是「对陈述作陈述」时指名一个已存在命题的方式；也包括作为 `BELIEF` 的操作数（§46.1）：
 
 ```prolog
 ?meta (?p, "contradicts", (id: :other_proposition_id))
@@ -3435,6 +3435,14 @@ KQL 分页游标**必须**为该次遍历保留单一规范认知快照。
 ```prolog
 ?belief BELIEF (?p)
 ```
+
+或当命题已按身份获知时（与 §43.2 相同的 id 形式）：
+
+```prolog
+?belief BELIEF (id: :proposition_id)
+```
+
+三元组形式只接受确切谓词，绝不接受原始路径（§45）：投影**不得**沿路径传播信念。
 
 ---
 
@@ -4066,6 +4074,13 @@ WHERE {
 LIMIT :limit
 ```
 
+目标要么是由 `WHERE` 块绑定的变量，要么是直接引用。直接引用（`:id` / `"id"`）已经指名了元素，因此**可以**省略 `WHERE`——与 `ARCHIVE`、`TOMBSTONE`、`PURGE`、`SET RETENTION`、`RETRACT ASSERTION` 一致；即便给出 `WHERE`，它也只起守卫作用：
+
+```prolog
+UPDATE :experience_id
+SET FACET "MnemonicState" {salience: 0.9}
+```
+
 ---
 
 ## 58.1 非法 UPDATE 目标 (Illegal UPDATE targets)
@@ -4349,9 +4364,12 @@ SEARCH <KIND> :term
   [WITH PREDICATE :predicate]
   [MODE "keyword|semantic|hybrid"]
   [THRESHOLD :threshold]
+  [AS OF SEQ :seq]
   [LIMIT :limit]
   [CURSOR :cursor]
 ```
+
+`AS OF SEQ` 是历史检索：无法提供历史上正确索引的运行时**必须**拒绝它（`HistoricalSearchUnavailable`），而不是悄悄检索当前状态；它是一项能力，不属于基线。
 
 ---
 
@@ -4473,6 +4491,7 @@ DESCRIBE SNAPSHOT
 HISTORY ELEMENT :id
 HISTORY SPACE
 CHANGES SINCE :cursor
+CHANGES AFTER SEQ :seq
 SNAPSHOT
 ```
 
@@ -6004,8 +6023,11 @@ structural_pattern :=
 belief_pattern :=
       variable "BELIEF" "(" variable ")"
         (* 内部变量必须绑定到某个命题 *)
+    | variable "BELIEF" "(" "id" ":" scalar ")"
+        (* 与 proposition_tuple 相同的 id 形式 *)
     | variable "BELIEF"
       "(" term "," predicate_term "," term ")"
+        (* 仅限确切谓词——不接受原始路径 *)
 
 belief_slot_pattern :=
     variable "BELIEF" "SLOT"
@@ -6037,6 +6059,7 @@ kml_statement :=
     | create_concept
     | upsert_concept
     | ensure_proposition
+    | assert_statement
     | create_evidence
     | create_assertion
     | create_activity
@@ -6055,10 +6078,26 @@ mutate_statement :=
     "MUTATE" "{"
       mutation_clause*
     "}"
+    (* mutation_clause：除 mutate_statement 之外的任意 kml_statement *)
 
 ensure_proposition :=
     "ENSURE PROPOSITION" handle?
     "(" term "," predicate_term "," term ")"
+
+assert_statement :=
+    "ASSERT" handle?
+    "(" term "," predicate_term "," term ")"
+    assignment_object
+    ("SUPERSEDING" target)?
+    (* 规范性语法糖，§55.1 *)
+
+update_statement :=
+    "UPDATE" target
+    expect_version_clause?
+    update_action+
+    ("WHERE" "{" where_clause* "}")?
+    limit_clause?
+    (* ?variable 目标由 WHERE 绑定；直接引用目标可省略 WHERE *)
 
 supersede_assertion :=
     "SUPERSEDE ASSERTION" target
@@ -6107,6 +6146,8 @@ describe_target :=
     | TRANSACTION
     | SNAPSHOT
     | EPISTEMIC_POLICY
+    | PROJECTION_CAPABILITY
+    | TRUST
     | ACCESS
     | CAPSULE
 ```

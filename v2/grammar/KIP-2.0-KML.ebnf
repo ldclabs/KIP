@@ -30,6 +30,12 @@
         optional LIMIT immediately after that WHERE (UPDATE, RETRACT,
         SET RETENTION, ARCHIVE, TOMBSTONE, PURGE). MERGE CONCEPT does not:
         its source and target are already named, and its WHERE only guards.
+     6b. Every statement that takes a `target_ref` treats WHERE the same way,
+        UPDATE included: a `?variable` target is bound by the WHERE block, a
+        `:parameter` / "id" target already names the element and MAY omit
+        WHERE (a WHERE given anyway only guards, as it does for MERGE).
+        Whether a bare `?variable` target is actually bound is a semantic
+        check, not a grammatical one — inside MUTATE it may be a local handle.
      7. Shared rule names must stay definitionally identical across the
         KQL/KML/META grammars, except the two reviewed divergences owned by
         KQL (`proposition_tuple` raw predicate paths, `where_clause` BELIEF
@@ -244,7 +250,7 @@ match_clause     = "MATCH", object_pattern ;
 update_statement = "UPDATE", target_ref,
                    [ expect_version_clause ],
                    update_action, { update_action },
-                   "WHERE", where_block,
+                   [ "WHERE", where_block ],
                    [ limit_clause ] ;
 
 update_action    = set_fields_clause

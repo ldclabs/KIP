@@ -109,6 +109,7 @@ WHERE { <patterns and filters> }
 ?edge STRUCTURAL (?experience, "has_step", ?step)    // 拓扑结构；有序字段可用 ?edge.index
 ?belief BELIEF (?person, "timezone", ?tz)            // 认识投影 (Epistemic Projection)（虚拟、只读）
 ?belief BELIEF (?p)                                  // 投影已绑定的命题
+?belief BELIEF (id: :prop_id)                        // ……或已按 id 获知的命题（同一 id 形式）
 ?slot BELIEF SLOT (?person, "timezone")              // 完整功能槽位：候选值与冲突集
 ```
 
@@ -232,7 +233,7 @@ WHERE { ?m {type: "Experience"} FILTER(...) }
 LIMIT :n
 ```
 
-更新表达式：`ADD`、`MUL`、`CLAMP`、`COALESCE`（针对每个目标确定性计算）。UPDATE 绝不执行创建。
+更新表达式：`ADD`、`MUL`、`CLAMP`、`COALESCE`（针对每个目标确定性计算）。UPDATE 绝不执行创建。直接引用目标无需 `WHERE`：`UPDATE :id SET FACET "MnemonicState" {salience: 0.9}`（与 ARCHIVE/TOMBSTONE/PURGE/SET RETENTION/RETRACT 同一规则——`?var` 目标由 WHERE 绑定，`:id`/`"id"` 已经指名了元素）。
 
 **UPDATE 严禁触碰的区域**：Proposition 元组、Assertion 认识载荷（stance/confidence/actor/time）、Evidence 载荷、终态 Activity 拓扑、`_system`、Governance、Schema。违规操作将抛出 `EpistemicRevisionRequired` 或 `ImmutableField`。**严禁随时间推移衰减 Assertion 置信度**——未被调用的记忆衰减的是 `memory_strength`；时效性由认识投影负责；认知更新必须创建新 Assertion。
 
@@ -275,6 +276,7 @@ EXPORT CAPSULE ?roots WHERE {...} [WITH {closure: "referential"}] [AS OF SEQ :se
 ```prolog
 SEARCH CONCEPT :term [WITH TYPE :type] [MODE "keyword"|"semantic"|"hybrid"]
   [THRESHOLD :t] [LIMIT :n] [CURSOR :c]        // 亦支持：PROPOSITION|ASSERTION|EVIDENCE|ACTIVITY|COGNITION
+SEARCH PROPOSITION :term [WITH PREDICATE :pred] // 按谓词限定；[AS OF SEQ :seq] 仅在运行时声明 historical_search 时可用
 ```
 
 SEARCH 仅用于检索接地：检索得分 ≠ 置信度 ≠ 确信事实；未命中 ≠ 现实不存在；检索结果会声明索引版本 `index_seq`。标准流程为：**SEARCH 检索 → 锁定精确 id → BELIEF/FIND 精确查询**。

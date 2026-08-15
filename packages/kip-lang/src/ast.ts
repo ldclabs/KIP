@@ -214,7 +214,13 @@ export interface BeliefPattern extends BaseNode {
   variable: VariableRef
   /** `BELIEF (?p)` — project an already-bound Proposition. */
   proposition?: VariableRef
-  /** `BELIEF (?s, "pred", ?o)` — project a tuple. */
+  /**
+   * `BELIEF (id: "P-1")` — project a Proposition already known by identity.
+   * The operand is the same Proposition expression slot as a pattern's, so it
+   * takes the same id form (Spec §43.2 / §46.1).
+   */
+  propositionId?: ScalarValue
+  /** `BELIEF (?s, "pred", ?o)` — project a tuple (exact predicate, no path). */
   subject?: Term
   predicate?: PredicateAtom
   object?: Term
@@ -504,7 +510,12 @@ export interface UpdateStatement extends BaseNode {
   target: TargetRef
   expectVersion?: ExpectVersionClause
   actions: UpdateAction[]
-  where: WhereClause
+  /**
+   * Binds a `?variable` target; a direct `:id` / `"id"` target already names
+   * the element and may omit it — the same rule as ARCHIVE, TOMBSTONE, PURGE,
+   * SET RETENTION and RETRACT ASSERTION (Spec §58).
+   */
+  where?: WhereClause
   limit?: LimitClause
 }
 

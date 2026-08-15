@@ -1962,6 +1962,13 @@ LIMIT :limit
 
 仅应用合法的可变字段。
 
+目标遵循与其它所有 `target_ref` 语句相同的规则：`?variable` 由 `WHERE` 绑定；直接引用（`:id` / `"id"`）已经指名了元素，可以省略 `WHERE`，此时 `WHERE` 只起守卫作用：
+
+```prolog
+UPDATE :experience_id
+SET FACET "MnemonicState" {salience: 0.9}
+```
+
 ---
 # 103. UPDATE 绝不执行创建操作 (UPDATE Never Creates)
 
@@ -4014,15 +4021,13 @@ ASSERT ?a (
   confidence: 1.0,
   at: :time,
 
-  evidence: [
-    {ref: ?e, role: "support"}
-  ],
+  evidence: [?e, :message],
 
   key: :assertion_key
 }
 ```
 
-`by` 与 `mode` **必须**书写，其余为可选。`by` 成为断言的 `asserted_by`，`at` 成为其 `asserted_at`，`key` 成为其 `client_key`。
+`by` 与 `mode` **必须**书写，其余为可选。`by` 成为断言的 `asserted_by`，`at` 成为其 `asserted_at`，`key` 成为其 `client_key`。`evidence` 是一个引用或引用数组；每一项都成为一条 `("evidence", ref) {role: "support"}` 结构性引证。带其它角色（`challenge`、`context`）的引证不属于语法糖范畴——请写脱糖后的 `CREATE ASSERTION` 并使用 `SET STRUCTURAL`（§74）。
 
 ---
 # 229. ASSERT 的语法糖脱敏展开 (ASSERT Desugaring)
@@ -5999,6 +6004,7 @@ kml_statement :=
     | create_concept
     | upsert_concept
     | ensure_proposition
+    | assert_statement
     | create_evidence
     | create_assertion
     | create_activity
@@ -6022,13 +6028,21 @@ mutation_clause :=
       create_concept
     | upsert_concept
     | ensure_proposition
+    | assert_statement
     | create_evidence
     | create_assertion
     | create_activity
+    | update_statement
     | retract_assertion
     | supersede_assertion
     | correct_evidence
     | transition_activity
+    | set_retention
+    | archive_statement
+    | tombstone_statement
+    | purge_statement
+    | merge_concept
+    (* 除 MUTATE 自身之外的所有语句；MUTATE 不可嵌套 *)
 
 create_concept :=
     "CREATE CONCEPT" handle
@@ -6059,6 +6073,13 @@ ensure_proposition :=
     "ENSURE PROPOSITION" handle?
     "(" term "," predicate_term "," term ")"
 
+assert_statement :=
+    "ASSERT" handle?
+    "(" term "," predicate_term "," term ")"
+    assignment_object
+    ("SUPERSEDING" target)?
+    (* 规范性语法糖，规范 §55.1 / 本文 §228 *)
+
 create_evidence :=
     "CREATE EVIDENCE" handle
     "{"
@@ -6087,16 +6108,19 @@ create_activity :=
     "}"
 
 update_statement :=
-    "UPDATE" variable
+    "UPDATE" target
+    expect_version_clause?
     update_clause+
-    "WHERE" "{"
+    ("WHERE" "{"
       kql_clause*
-    "}"
+    "}")?
     limit_clause?
+    (* ?variable 目标由 WHERE 绑定；直接引用目标可省略 WHERE *)
 
 retract_assertion :=
     "RETRACT ASSERTION" target
     where_clause?
+    limit_clause?
     expect_state_clause?
 
 supersede_assertion :=

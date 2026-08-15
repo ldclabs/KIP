@@ -425,10 +425,13 @@ function lowerWherePattern(pattern: WherePattern): WhereClause {
             pattern.proposition.range
           )
         }
+      } else if (pattern.propositionId) {
+        // Same slot, same reference form as `?p PROPOSITION (id: ...)`.
+        target = { Id: lowerScalar(pattern.propositionId) }
       } else {
         if (!pattern.subject || !pattern.predicate || !pattern.object) {
           throw invalidSyntax(
-            'BELIEF requires either one bound Proposition or a full (subject, predicate, object) tuple',
+            'BELIEF requires one bound Proposition, an (id: ...) reference, or a full (subject, predicate, object) tuple',
             pattern.range
           )
         }
@@ -1153,7 +1156,8 @@ function lowerUpdate(stmt: CstUpdateStatement) {
 
   const target = lowerElementRef(stmt.target)
   const targetVar = 'Handle' in target ? target.Handle : null
-  const kind = targetVar ? boundKindOf(targetVar, stmt.where.patterns) : null
+  const kind =
+    targetVar && stmt.where ? boundKindOf(targetVar, stmt.where.patterns) : null
 
   const actions = stmt.actions.map((action) =>
     lowerUpdateAction(action, targetVar, kind)
@@ -1165,7 +1169,7 @@ function lowerUpdate(stmt: CstUpdateStatement) {
       ? lowerScalar(stmt.expectVersion.value)
       : null,
     actions,
-    where_clauses: lowerWhere(stmt.where),
+    where_clauses: stmt.where ? lowerWhere(stmt.where) : null,
     limit: stmt.limit ? lowerScalar(stmt.limit.value) : null
   }
 }

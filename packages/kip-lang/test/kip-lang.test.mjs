@@ -161,6 +161,29 @@ describe('KQL', () => {
     assert.equal(tuple.where.patterns[0].predicate.parsed, 'timezone')
   })
 
+  test('BELIEF takes the same (id: ...) form as a Proposition pattern (Spec §46.1)', () => {
+    // The operand is the Proposition expression slot, so a Proposition already
+    // known by identity is projected in one clause instead of bind-then-project.
+    const byParam = parseOne('FIND(?b) WHERE { ?b BELIEF (id: :pid) }')
+    const pattern = byParam.where.patterns[0]
+    assert.equal(pattern.kind, 'BeliefPattern')
+    assert.equal(pattern.propositionId.name, ':pid')
+    assert.equal(pattern.proposition, undefined)
+    assert.equal(pattern.subject, undefined)
+
+    const byString = parseOne('FIND(?b) WHERE { ?b BELIEF (id: "P-1") }')
+    assert.equal(byString.where.patterns[0].propositionId.parsed, 'P-1')
+
+    // A bare parameter is neither a bound variable nor an id reference: the
+    // reference spelling is (id: :p), exactly as in a Proposition pattern.
+    assert.match(
+      parseErrors('FIND(?b) WHERE { ?b BELIEF (:p) }')[0].message,
+      /\(id: :p\)/
+    )
+    // The one-argument forms leave the raw-path machinery untouched.
+    assert.ok(parseErrors('FIND(?b) WHERE { ?b BELIEF (?s, "p"{1,3}, ?o) }').length > 0)
+  })
+
   test('BELIEF SLOT is its own pattern family', () => {
     const stmt = parseOne('FIND(?slot) WHERE { ?slot BELIEF SLOT (?p, "timezone") }')
     assert.equal(stmt.where.patterns[0].kind, 'BeliefSlotPattern')
@@ -352,6 +375,26 @@ describe('KML', () => {
       stmt.actions.map((a) => a.kind),
       ['SetFacetClause', 'UnsetAttributesClause']
     )
+  })
+
+  test('UPDATE with a direct target may omit WHERE, like the removal family (Spec §58)', () => {
+    const direct = parseOne('UPDATE :exp SET FACET "MnemonicState" {salience: 0.9}')
+    assert.equal(direct.kind, 'UpdateStatement')
+    assert.equal(direct.target.name, ':exp')
+    assert.equal(direct.where, undefined)
+    assert.equal(direct.limit, undefined)
+
+    // A LIMIT still needs its WHERE to be meaningful, but the grammar keeps
+    // the same clause order either way.
+    const guarded = parseOne(
+      'UPDATE "C-1" EXPECT VERSION 3 SET ATTRIBUTES {a: 1} WHERE { ?c {id: "C-1"} } LIMIT 1'
+    )
+    assert.equal(guarded.expectVersion.value.value, 3)
+    assert.equal(guarded.where.patterns.length, 1)
+    assert.ok(guarded.limit)
+
+    // Actions are still mandatory.
+    assert.match(parseErrors('UPDATE :exp')[0].message, /at least one SET or UNSET/)
   })
 
   test('the WHERE-scanning family accepts a LIMIT after its WHERE', () => {
@@ -622,6 +665,10 @@ describe('formatter', () => {
       'FIND(?p) WHERE { ?p PROPOSITION (id: "P-1") }',
       'FIND(?meta) WHERE { ?meta (?p, "contradicts", (id: :other)) }',
       'FIND(?b) WHERE { ?p (id: :x) ?b BELIEF (?p) }',
+      'FIND(?b) WHERE { ?b BELIEF (id: :x) }',
+      'FIND(?b) WHERE { ?b BELIEF (id: "P-1") } WITH EPISTEMIC {explanation: "ledger"}',
+      'UPDATE :exp SET FACET "MnemonicState" {salience: 0.9}',
+      'UPDATE "C-1" EXPECT VERSION 3 SET ATTRIBUTES {a: 1}',
       'PURGE :t REFERENCE POLICY "deny_if_referenced" CONFIRM "PURGE"',
       'PURGE :t WHERE { ?x {a: 1} } LIMIT 10 CONFIRM "PURGE"',
       'MERGE CONCEPT ?a INTO ?b EXPECT VERSION 2',

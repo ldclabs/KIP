@@ -26,6 +26,12 @@
         how a statement about a statement names an existing Proposition. It
         is match-only: semantic validation rejects it where the statement's
         job is to resolve-or-create by structure (ENSURE PROPOSITION, ASSERT).
+     4b. BELIEF's operand is the same Proposition expression slot, so its
+        one-argument form names an already-known Proposition either by a
+        bound variable or by id: `?b BELIEF (?p)` / `?b BELIEF (id: :pid)`.
+        Its triple form takes an exact `predicate_atom` — never a raw path —
+        because projection must not propagate belief along paths (Spec §45).
+        BELIEF SLOT addresses a (subject, predicate) slot and has no id form.
      5. UNION retains the KIP 1.x syntax `UNION { ... }`: it forms an
         independent alternative branch relative to the surrounding block.
      6. Two shared rule names intentionally diverge from KML/META:
@@ -196,6 +202,7 @@ structural_pattern
 
 belief_pattern   = variable, "BELIEF", "(",
                    ( variable
+                   | "id", ":", scalar_value
                    | term, ",", predicate_atom, ",", term ),
                    ")" ;
 

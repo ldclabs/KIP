@@ -109,6 +109,7 @@ WHERE { <patterns and filters> }
 ?edge STRUCTURAL (?experience, "has_step", ?step)    // topology; ?edge.index for ordered fields
 ?belief BELIEF (?person, "timezone", ?tz)            // Epistemic Projection (virtual, read-only)
 ?belief BELIEF (?p)                                  // project an already-bound Proposition
+?belief BELIEF (id: :prop_id)                        // ... or one already known by id (same id form)
 ?slot BELIEF SLOT (?person, "timezone")              // whole functional slot: candidates + conflicts
 ```
 
@@ -232,7 +233,7 @@ WHERE { ?m {type: "Experience"} FILTER(...) }
 LIMIT :n
 ```
 
-Update expressions: `ADD` `MUL` `CLAMP` `COALESCE` (deterministic, per-target). UPDATE never creates.
+Update expressions: `ADD` `MUL` `CLAMP` `COALESCE` (deterministic, per-target). UPDATE never creates. A direct target needs no `WHERE`: `UPDATE :id SET FACET "MnemonicState" {salience: 0.9}` (same rule as ARCHIVE/TOMBSTONE/PURGE/SET RETENTION/RETRACT — a `?var` target is bound by WHERE, `:id`/`"id"` already names the element).
 
 **UPDATE can never touch**: Proposition tuples, Assertion epistemic payload (stance/confidence/actor/time), Evidence payload, terminal Activity topology, `_system`, Governance, Schema. Attempting → `EpistemicRevisionRequired` / `ImmutableField`. **Never decay Assertion confidence over time** — disuse decays `memory_strength`; staleness is Projection's job; new knowledge is a new Assertion.
 
@@ -275,6 +276,7 @@ EXPORT CAPSULE ?roots WHERE {...} [WITH {closure: "referential"}] [AS OF SEQ :se
 ```prolog
 SEARCH CONCEPT :term [WITH TYPE :type] [MODE "keyword"|"semantic"|"hybrid"]
   [THRESHOLD :t] [LIMIT :n] [CURSOR :c]        // also: PROPOSITION|ASSERTION|EVIDENCE|ACTIVITY|COGNITION
+SEARCH PROPOSITION :term [WITH PREDICATE :pred] // predicate-scoped; [AS OF SEQ :seq] only where historical_search is advertised
 ```
 
 SEARCH is grounding only: score ≠ confidence ≠ belief; miss ≠ absence; results disclose `index_seq` freshness. Golden path: **SEARCH → exact id → BELIEF/FIND**.

@@ -3226,7 +3226,7 @@ A Proposition already known by identity is addressed by id **in the same slot**:
 The parentheses are not decoration. `( ... )` is the Proposition expression
 slot, so the id form is usable everywhere the triple is — including as a `term`
 endpoint, which is how a statement about a statement names an existing
-Proposition:
+Proposition, and as the operand of `BELIEF` (§46.1):
 
 ```prolog
 ?meta (?p, "contradicts", (id: :other_proposition_id))
@@ -3456,6 +3456,15 @@ or when a Proposition variable is already bound:
 ```prolog
 ?belief BELIEF (?p)
 ```
+
+or when the Proposition is already known by identity (same id form as §43.2):
+
+```prolog
+?belief BELIEF (id: :proposition_id)
+```
+
+The triple form takes an exact Predicate, never a raw path (§45): projection
+MUST NOT propagate belief along a path.
 
 ---
 
@@ -4097,6 +4106,16 @@ WHERE {
 LIMIT :limit
 ```
 
+The target is either a variable bound by the `WHERE` block or a direct
+reference. A direct reference (`:id` / `"id"`) already names the element, so
+`WHERE` MAY be omitted — as for `ARCHIVE`, `TOMBSTONE`, `PURGE`, `SET RETENTION`
+and `RETRACT ASSERTION`; a `WHERE` given anyway only guards:
+
+```prolog
+UPDATE :experience_id
+SET FACET "MnemonicState" {salience: 0.9}
+```
+
 ---
 
 ## 58.1 Illegal UPDATE targets
@@ -4384,9 +4403,14 @@ SEARCH <KIND> :term
   [WITH PREDICATE :predicate]
   [MODE "keyword|semantic|hybrid"]
   [THRESHOLD :threshold]
+  [AS OF SEQ :seq]
   [LIMIT :limit]
   [CURSOR :cursor]
 ```
+
+`AS OF SEQ` is historical search: a runtime that cannot serve a historically
+correct index MUST reject it (`HistoricalSearchUnavailable`) rather than
+silently search present state; it is a capability, not baseline.
 
 ---
 
@@ -4510,6 +4534,7 @@ DESCRIBE SNAPSHOT
 HISTORY ELEMENT :id
 HISTORY SPACE
 CHANGES SINCE :cursor
+CHANGES AFTER SEQ :seq
 SNAPSHOT
 ```
 
@@ -6054,8 +6079,11 @@ structural_pattern :=
 belief_pattern :=
       variable "BELIEF" "(" variable ")"
         (* the inner variable must be bound to a Proposition *)
+    | variable "BELIEF" "(" "id" ":" scalar ")"
+        (* same id form as proposition_tuple *)
     | variable "BELIEF"
       "(" term "," predicate_term "," term ")"
+        (* exact predicate only — no raw path *)
 
 belief_slot_pattern :=
     variable "BELIEF" "SLOT"
@@ -6087,6 +6115,7 @@ kml_statement :=
     | create_concept
     | upsert_concept
     | ensure_proposition
+    | assert_statement
     | create_evidence
     | create_assertion
     | create_activity
@@ -6105,10 +6134,26 @@ mutate_statement :=
     "MUTATE" "{"
       mutation_clause*
     "}"
+    (* mutation_clause: any kml_statement except mutate_statement *)
 
 ensure_proposition :=
     "ENSURE PROPOSITION" handle?
     "(" term "," predicate_term "," term ")"
+
+assert_statement :=
+    "ASSERT" handle?
+    "(" term "," predicate_term "," term ")"
+    assignment_object
+    ("SUPERSEDING" target)?
+    (* normative sugar, §55.1 *)
+
+update_statement :=
+    "UPDATE" target
+    expect_version_clause?
+    update_action+
+    ("WHERE" "{" where_clause* "}")?
+    limit_clause?
+    (* a ?variable target is bound by WHERE; a direct target may omit it *)
 
 supersede_assertion :=
     "SUPERSEDE ASSERTION" target
@@ -6157,6 +6202,8 @@ describe_target :=
     | TRANSACTION
     | SNAPSHOT
     | EPISTEMIC_POLICY
+    | PROJECTION_CAPABILITY
+    | TRUST
     | ACCESS
     | CAPSULE
 ```

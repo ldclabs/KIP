@@ -414,6 +414,8 @@ class Formatter {
         this.write(`${pattern.variable.name} BELIEF (`)
         if (pattern.proposition) {
           this.write(pattern.proposition.name)
+        } else if (pattern.propositionId) {
+          this.write(`id: ${this.scalar(pattern.propositionId)}`)
         } else {
           this.write(
             `${this.term(pattern.subject!)}, ${this.predAtom(pattern.predicate!)}, ${this.term(pattern.object!)}`
@@ -617,7 +619,7 @@ class Formatter {
       this.newline()
     }
     for (const action of stmt.actions) this.formatUpdateAction(action)
-    this.formatWhere(stmt.where, 'WHERE')
+    if (stmt.where) this.formatWhere(stmt.where, 'WHERE')
     if (stmt.limit) this.formatLimit(stmt.limit)
   }
 

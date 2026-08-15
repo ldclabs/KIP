@@ -202,7 +202,7 @@ export class KipFoldingProvider implements vscode.FoldingRangeProvider {
   ): void {
     // SET FIELDS / SET ATTRIBUTES / SET FACET / SET STRUCTURAL / UNSET ...
     for (const action of stmt.actions) this.addRange(action.range, ranges)
-    this.collectFromWhere(stmt.where, ranges)
+    if (stmt.where) this.collectFromWhere(stmt.where, ranges)
   }
 
   private collectFromWhere(

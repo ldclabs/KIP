@@ -1494,11 +1494,15 @@ BELIEF
 ```text
 SEARCH <KIND> :term
   [WITH TYPE :type]
+  [WITH PREDICATE :predicate]
   [MODE "keyword|semantic|hybrid"]
   [THRESHOLD :threshold]
+  [AS OF SEQ :seq]
   [LIMIT :limit]
   [CURSOR :cursor]
 ```
+
+`WITH PREDICATE` 用于限定命题检索（§110）；`AS OF SEQ` 是可选的历史检索能力（§126），不属于基线。
 
 ---
 
@@ -5471,6 +5475,8 @@ describe_target :=
     | "TRANSACTION"
     | "SNAPSHOT"
     | "EPISTEMIC POLICY"
+    | "PROJECTION CAPABILITY"
+    | "TRUST"
     | "ACCESS"
     | "CAPSULE"
 

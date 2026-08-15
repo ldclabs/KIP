@@ -220,13 +220,17 @@ export type WhereClause =
   | { Union: WhereClause[] }
 
 /**
- * Project an already-bound Proposition, or a tuple stated inline.
+ * What a BELIEF projects: an already-bound Proposition variable, a Proposition
+ * named by id, or a tuple stated inline.
  *
- * The inline form is always structural: `belief_pattern` spells its own
- * parentheses and admits no `(id: ...)` reference.
+ * `BELIEF (...)` is the Proposition expression slot, so the id form that names
+ * a Proposition in a pattern names it here too (Spec §43.2 / §46.1). The
+ * inline tuple always carries an exact predicate: projection never walks a
+ * raw path (Spec §45).
  */
 export type BeliefTarget =
   | { Proposition: string }
+  | { Id: Scalar }
   | { Tuple: PropositionTriple }
 
 export type FilterExpression =
@@ -391,7 +395,11 @@ export interface UpdateStatement {
   target: ElementRef
   expect_version: Scalar | null
   actions: UpdateAction[]
-  where_clauses: WhereClause[]
+  /**
+   * `null` when the statement names its target directly and omits WHERE —
+   * the same shape as the removal family (Spec §58).
+   */
+  where_clauses: WhereClause[] | null
   limit: Scalar | null
 }
 

@@ -3576,20 +3576,22 @@ Both are useful for different questions.
 
 # 221. Proposition ID Targeting
 
-A future shorthand MAY allow:
+A Proposition already known by identity is projected through the same id form
+that names it in a Proposition pattern (Spec §43.2 / §46.1):
 
 ```prolog
-?belief BELIEF {proposition_id: :id}
+?belief BELIEF (id: :id)
 ```
 
-Baseline can bind Proposition by ID first:
+Equivalently, bind it first and use the one-argument form:
 
 ```prolog
 ?p PROPOSITION (id: :id)
 ?belief BELIEF (?p)
 ```
 
-if a one-argument Belief form is standardized.
+The id form is a reference, not an object pattern: `BELIEF {proposition_id: :id}`
+is not KQL.
 
 ---
 
@@ -5349,7 +5351,12 @@ concept_pattern :=
     variable ("CONCEPT")? object_pattern
 
 proposition_pattern :=
-    variable? ("PROPOSITION")? "(" term "," predicate_term "," term ")"
+    variable? ("PROPOSITION")? proposition_tuple
+
+proposition_tuple :=
+      "(" term "," predicate_term "," term ")"
+    | "(" "id" ":" scalar ")"
+        (* match-only: rejected by ENSURE PROPOSITION / ASSERT *)
 
 assertion_pattern :=
     variable "ASSERTION" object_pattern
@@ -5366,8 +5373,10 @@ structural_pattern :=
 
 belief_pattern :=
       variable "BELIEF" "(" proposition_variable ")"
+    | variable "BELIEF" "(" "id" ":" scalar ")"
     | variable "BELIEF"
       "(" term "," predicate_term "," term ")"
+        (* exact predicate only — no raw path *)
 
 belief_slot_pattern :=
     variable "BELIEF" "SLOT"
@@ -5790,7 +5799,7 @@ reveals disagreement without forcing resolution.
 BELIEF:
 
 ```prolog
-?belief BELIEF (:p)
+?belief BELIEF (id: :p)
 ```
 
 resolves disagreement under local current/historical policy.
