@@ -1,0 +1,682 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:kip:2.0:schema:conformance-test-vector",
+  "title": "KIP 2.0 Conformance Test Vector",
+  "description": "Machine-readable conformance test vector for KIP 2.0. Vectors describe profile/capability gating, fixture setup, KIP invocations, test-harness actions, wire assertions, semantic postconditions, and forbidden outcomes.",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "level",
+    "class",
+    "profiles",
+    "fixture",
+    "steps"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "description": "Version of this test-vector interchange schema."
+    },
+    "id": {
+      "$ref": "#/$defs/TestId"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "level": {
+      "$ref": "#/$defs/TestLevel"
+    },
+    "class": {
+      "$ref": "#/$defs/TestClass"
+    },
+    "profiles": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Profile"
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256,
+        "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$"
+      },
+      "description": "Optional capabilities required by this vector. For OPTIONAL vectors, lack of an unadvertised capability may yield SKIP_UNSUPPORTED."
+    },
+    "spec_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      }
+    },
+    "tags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+      }
+    },
+    "fixture": {
+      "$ref": "#/$defs/FixtureRef"
+    },
+    "principal": {
+      "$ref": "#/$defs/PrincipalRef"
+    },
+    "endpoint": {
+      "$ref": "#/$defs/Endpoint"
+    },
+    "timeout_ms": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "variables": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/VariableName"
+      },
+      "additionalProperties": true,
+      "description": "Initial runner-local variables. These are test-harness values, not KIP request authority."
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/Step"
+      }
+    },
+    "expect": {
+      "$ref": "#/$defs/LegacyExpectationMap",
+      "description": "Compatibility container for concise vectors written as named expected values. New vectors should prefer structured assertions."
+    },
+    "assertions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Assertion"
+      }
+    },
+    "postconditions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Postcondition"
+      }
+    },
+    "forbidden": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ForbiddenOutcome"
+      }
+    },
+    "cleanup": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/HarnessStep"
+      },
+      "description": "Best-effort out-of-band cleanup; cleanup must not alter the test result unless it itself is under test."
+    },
+    "extensions": {
+      "$ref": "#/$defs/Extensions"
+    }
+  },
+  "$defs": {
+    "TestId": {
+      "type": "string",
+      "pattern": "^KIP2-(CORE|SCHEMA|EPI|GOV|TX|CAP|KQL|KML|META|RT|HIST|HA|MIG|X)-[0-9]{3}$",
+      "examples": [
+        "KIP2-CORE-001",
+        "KIP2-X-008"
+      ]
+    },
+    "TestLevel": {
+      "type": "string",
+      "enum": [
+        "MUST",
+        "SHOULD",
+        "OPTIONAL"
+      ]
+    },
+    "TestClass": {
+      "type": "string",
+      "enum": [
+        "black_box",
+        "orchestrated_concurrency",
+        "fault_injection"
+      ]
+    },
+    "Profile": {
+      "type": "string",
+      "enum": [
+        "KIP-Core",
+        "KIP-Schema",
+        "KIP-Epistemic",
+        "KIP-Governance",
+        "KIP-Transactions",
+        "KIP-Capsule",
+        "KIP-KQL",
+        "KIP-KML",
+        "KIP-META",
+        "KIP-Runtime",
+        "KIP-Historical",
+        "KIP-High-Assurance",
+        "KIP-1-Migration"
+      ]
+    },
+    "FixtureRef": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        {
+          "type": "object",
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "reset": {
+              "type": "boolean",
+              "default": true
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      ]
+    },
+    "PrincipalRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "Fixture/harness Principal label; actual authentication is established out of band."
+    },
+    "Endpoint": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "examples": [
+        "readonly",
+        "write"
+      ],
+      "description": "Runner binding name for the KIP entry point."
+    },
+    "VariableName": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "StepId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "Step": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/KipRequestStep"
+        },
+        {
+          "$ref": "#/$defs/CommandShorthandStep"
+        },
+        {
+          "$ref": "#/$defs/HarnessStep"
+        }
+      ]
+    },
+    "KipRequestStep": {
+      "type": "object",
+      "required": [
+        "kind",
+        "request"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "kip"
+        },
+        "id": {
+          "$ref": "#/$defs/StepId"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "principal": {
+          "$ref": "#/$defs/PrincipalRef"
+        },
+        "endpoint": {
+          "$ref": "#/$defs/Endpoint"
+        },
+        "request": {
+          "$ref": "urn:kip:2.0:schema:request",
+          "description": "Full KIP request envelope."
+        },
+        "expect_response_schema": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true, the observed response must validate against kip-response.schema.json."
+        },
+        "capture": {
+          "$ref": "#/$defs/CaptureMap"
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      }
+    },
+    "CommandShorthandStep": {
+      "type": "object",
+      "required": [
+        "command"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/StepId"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "principal": {
+          "$ref": "#/$defs/PrincipalRef"
+        },
+        "endpoint": {
+          "$ref": "#/$defs/Endpoint"
+        },
+        "language": {
+          "type": "string",
+          "enum": [
+            "KQL",
+            "KML",
+            "META"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "request_overrides": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Runner-side envelope overrides for the shorthand form. After expansion, the resulting request must validate against kip-request.schema.json."
+        },
+        "expect_response_schema": {
+          "type": "boolean",
+          "default": true
+        },
+        "capture": {
+          "$ref": "#/$defs/CaptureMap"
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "$comment": "This shorthand preserves the Markdown test-vector style. The runner wraps it as a single-operation KIP request and validates the expanded request against urn:kip:2.0:schema:request."
+    },
+    "HarnessStep": {
+      "type": "object",
+      "required": [
+        "kind",
+        "action"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "harness"
+        },
+        "id": {
+          "$ref": "#/$defs/StepId"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$",
+          "examples": [
+            "pause_transaction",
+            "resume_transaction",
+            "revoke_grant",
+            "change_schema_environment",
+            "drop_response_after_commit",
+            "cancel_before_commit",
+            "force_search_index_checkpoint",
+            "expire_cursor",
+            "expire_artifact"
+          ]
+        },
+        "args": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "capture": {
+          "$ref": "#/$defs/CaptureMap"
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "$comment": "Harness actions are out-of-band test controls and are not KIP production APIs."
+    },
+    "CaptureMap": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/VariableName"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "description": "JSON Pointer or runner-defined selector into the step observation."
+      }
+    },
+    "Assertion": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/StructuredAssertion"
+        },
+        {
+          "$ref": "#/$defs/SemanticAssertion"
+        }
+      ]
+    },
+    "StructuredAssertion": {
+      "type": "object",
+      "required": [
+        "operator"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "response",
+            "step",
+            "state",
+            "harness",
+            "variable"
+          ],
+          "default": "response"
+        },
+        "step": {
+          "$ref": "#/$defs/StepId"
+        },
+        "path": {
+          "type": "string",
+          "description": "JSON Pointer for wire values, or runner-defined stable path for semantic state adapters."
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "equals",
+            "not_equals",
+            "present",
+            "absent",
+            "one_of",
+            "contains",
+            "not_contains",
+            "row_count",
+            "set_equals",
+            "set_contains",
+            "monotonic_gt",
+            "same_as_previous",
+            "different_from_previous"
+          ]
+        },
+        "expected": {},
+        "expected_from": {
+          "type": "object",
+          "required": [
+            "step",
+            "path"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "step": {
+              "$ref": "#/$defs/StepId"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "$comment": "Comparison operators normally require an expected value or expected_from binding.",
+          "if": {
+            "properties": {
+              "operator": {
+                "enum": [
+                  "equals",
+                  "not_equals",
+                  "one_of",
+                  "contains",
+                  "not_contains",
+                  "row_count",
+                  "set_equals",
+                  "set_contains",
+                  "monotonic_gt"
+                ]
+              }
+            },
+            "required": [
+              "operator"
+            ]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "expected"
+                ]
+              },
+              {
+                "required": [
+                  "expected_from"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "$comment": "A step-scoped assertion must name its step.",
+          "if": {
+            "properties": {
+              "source": {
+                "const": "step"
+              }
+            },
+            "required": [
+              "source"
+            ]
+          },
+          "then": {
+            "required": [
+              "step"
+            ]
+          }
+        },
+        {
+          "$comment": "present/absent need a location.",
+          "if": {
+            "properties": {
+              "operator": {
+                "enum": [
+                  "present",
+                  "absent"
+                ]
+              }
+            },
+            "required": [
+              "operator"
+            ]
+          },
+          "then": {
+            "required": [
+              "path"
+            ]
+          }
+        }
+      ]
+    },
+    "SemanticAssertion": {
+      "type": "object",
+      "required": [
+        "operator",
+        "predicate"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operator": {
+          "const": "semantic_predicate"
+        },
+        "predicate": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.:-]*$",
+          "examples": [
+            "canonical_proposition_count",
+            "assertion_payload_unchanged",
+            "no_state_change_since",
+            "change_envelope_count"
+          ]
+        },
+        "args": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "expected": {}
+      }
+    },
+    "LegacyExpectationMap": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": true
+    },
+    "LegacyNamedAssertion": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "additionalProperties": true,
+      "description": "Compatibility form such as { assertion_count_for_proposition: 0 }."
+    },
+    "Postcondition": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Assertion"
+        },
+        {
+          "$ref": "#/$defs/LegacyNamedAssertion"
+        }
+      ]
+    },
+    "ForbiddenOutcome": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        {
+          "type": "object",
+          "required": [
+            "description",
+            "assertion"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "description": {
+              "type": "string",
+              "minLength": 1
+            },
+            "assertion": {
+              "$ref": "#/$defs/Assertion"
+            }
+          }
+        }
+      ]
+    },
+    "ExtensionValue": {
+      "type": "object",
+      "properties": {
+        "critical": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "Extensions": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._/-]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/ExtensionValue"
+      }
+    }
+  }
+}

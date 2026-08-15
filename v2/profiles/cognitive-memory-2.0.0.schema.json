@@ -1,0 +1,1302 @@
+{
+  "format": "KIP-Schema-Package",
+  "format_version": "2.0-draft",
+  "manifest": {
+    "package_id": "kip://profiles/cognitive-memory",
+    "version": "2.0.0",
+    "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+    "name": "KIP Cognitive Memory Profile",
+    "description": "Standard portable memory ontology for KIP 2.0 Brains.",
+    "publisher": "urn:kip:publisher:ldclabs",
+    "purpose": "standard_profile",
+    "stability": "profile_candidate",
+    "executable": false,
+    "source_document": "profiles/CognitiveMemoryProfile-2.0.md"
+  },
+  "dependencies": [
+    {
+      "package_id": "kip://core",
+      "version": "2.0.0",
+      "package_ref": "kip://core@2.0.0",
+      "required": true
+    }
+  ],
+  "definitions": {
+    "concept_types": {
+      "Person": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/Person",
+        "kind": "ConceptType",
+        "description": "Semantic person/actor used in cognitive content; never an authenticated Principal or ActorBinding.",
+        "attributes": {
+          "open": true,
+          "fields": {
+            "display_name": {
+              "type": "string",
+              "required": false,
+              "mutable": true
+            },
+            "aliases": {
+              "type": "array",
+              "required": false,
+              "mutable": true
+            },
+            "description": {
+              "type": "string",
+              "required": false,
+              "mutable": true
+            }
+          }
+        },
+        "model_hints": {
+          "authority_invariant": "Person != PrincipalRecord != ActorBinding"
+        }
+      },
+      "Event": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/Event",
+        "kind": "ConceptType",
+        "description": "Compact episodic anchor describing what happened in a bounded situation.",
+        "attributes": {
+          "open": true,
+          "fields": {
+            "event_class": {
+              "type": "string",
+              "required": false,
+              "mutable": true
+            },
+            "summary": {
+              "type": "string",
+              "required": true,
+              "mutable": true
+            },
+            "started_at": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "ended_at": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "outcome_status": {
+              "type": "string",
+              "required": false,
+              "mutable": true,
+              "enum": [
+                "success",
+                "partial",
+                "failure",
+                "aborted",
+                "unknown"
+              ]
+            },
+            "outcome_summary": {
+              "type": "string",
+              "required": false,
+              "mutable": true
+            },
+            "context_summary": {
+              "type": "string",
+              "required": false,
+              "mutable": true
+            }
+          }
+        },
+        "model_hints": {
+          "question": "What happened?",
+          "evidence_invariant": "Event summary is not independent Evidence."
+        }
+      },
+      "Experience": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/Experience",
+        "kind": "ConceptType",
+        "description": "Bounded goal-directed trajectory through state, action, observation, feedback, and outcome.",
+        "attributes": {
+          "open": true,
+          "fields": {
+            "experience_class": {
+              "type": "string",
+              "required": false,
+              "mutable": true
+            },
+            "goal": {
+              "type": "string",
+              "required": true,
+              "mutable": true
+            },
+            "initial_state_summary": {
+              "type": "string",
+              "required": false,
+              "mutable": true
+            },
+            "outcome_status": {
+              "type": "string",
+              "required": true,
+              "mutable": true,
+              "enum": [
+                "success",
+                "partial",
+                "failure",
+                "aborted",
+                "unknown"
+              ]
+            },
+            "outcome_summary": {
+              "type": "string",
+              "required": false,
+              "mutable": true
+            },
+            "started_at": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "ended_at": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "step_count": {
+              "type": "integer",
+              "required": false,
+              "mutable": true,
+              "minimum": 0
+            },
+            "surprise": {
+              "type": "number",
+              "required": false,
+              "mutable": true,
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "learning_value": {
+              "type": "number",
+              "required": false,
+              "mutable": true,
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "consolidation_status": {
+              "type": "string",
+              "required": false,
+              "mutable": true,
+              "enum": [
+                "pending",
+                "semantic",
+                "procedural",
+                "completed",
+                "archived"
+              ]
+            }
+          }
+        },
+        "model_hints": {
+          "question": "What path was traversed while pursuing a goal?",
+          "avoid": [
+            "Do not store hidden chain-of-thought."
+          ],
+          "formation_signals": [
+            "multi-step goal pursuit",
+            "failure/recovery",
+            "prediction error",
+            "strategy revision",
+            "corrective feedback",
+            "novel procedure",
+            "counterexample"
+          ]
+        }
+      },
+      "ExperienceStep": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/ExperienceStep",
+        "kind": "ConceptType",
+        "description": "One ordered externally representable step of an Experience trajectory.",
+        "attributes": {
+          "open": true,
+          "fields": {
+            "step_kind": {
+              "type": "string",
+              "required": true,
+              "mutable": true,
+              "enum": [
+                "context",
+                "observation",
+                "decision",
+                "action",
+                "feedback",
+                "belief_update"
+              ]
+            },
+            "summary": {
+              "type": "string",
+              "required": true,
+              "mutable": true
+            },
+            "timestamp": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "tool": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "result_status": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "required": false,
+              "mutable": true,
+              "enum": [
+                "success",
+                "partial",
+                "failure",
+                "aborted",
+                "unknown",
+                null
+              ]
+            },
+            "expected_observation": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "actual_observation": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "decision_summary": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            }
+          }
+        },
+        "model_hints": {
+          "privacy_invariant": "decision_summary may store concise reusable rationale but never requires hidden chain-of-thought.",
+          "ordering_invariant": "Step order lives on the ordered has_step Structural References (virtual edge index); causality requires an explicit caused_by Proposition + Assertion."
+        }
+      },
+      "Preference": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/Preference",
+        "kind": "ConceptType",
+        "description": "Mutable summary artifact for a relatively stable preference pattern; truth-sensitive preference claims remain Proposition + Assertion + Evidence.",
+        "attributes": {
+          "open": true,
+          "fields": {
+            "scope": {
+              "type": "string",
+              "required": false,
+              "mutable": true
+            },
+            "strength": {
+              "type": "number",
+              "required": false,
+              "mutable": true,
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "stability": {
+              "type": "number",
+              "required": false,
+              "mutable": true,
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "first_observed_at": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "last_observed_at": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "counterexample_count": {
+              "type": "integer",
+              "required": false,
+              "mutable": true,
+              "minimum": 0
+            }
+          }
+        },
+        "model_hints": {
+          "history_invariant": "Preference summary does not replace source Assertion/Evidence history."
+        }
+      },
+      "Insight": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/Insight",
+        "kind": "ConceptType",
+        "description": "Declarative lesson derived from Evidence or Experience.",
+        "attributes": {
+          "open": true,
+          "fields": {
+            "summary": {
+              "type": "string",
+              "required": true,
+              "mutable": true
+            },
+            "scope": {
+              "type": "string",
+              "required": false,
+              "mutable": true
+            },
+            "created_at": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            }
+          }
+        },
+        "model_hints": {
+          "epistemic_invariant": "If truth-apt, also represent the reusable claim through Proposition + Assertion."
+        }
+      },
+      "Commitment": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/Commitment",
+        "kind": "ConceptType",
+        "description": "Prospective memory artifact for an obligation, promise, reminder, follow-up, or intended future action.",
+        "attributes": {
+          "open": true,
+          "fields": {
+            "summary": {
+              "type": "string",
+              "required": true,
+              "mutable": true
+            },
+            "status": {
+              "type": "string",
+              "required": true,
+              "mutable": true,
+              "enum": [
+                "pending",
+                "fulfilled",
+                "cancelled",
+                "expired",
+                "blocked"
+              ]
+            },
+            "created_at": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "due_at": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "completed_at": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "priority": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "conditions": {
+              "type": [
+                "string",
+                "array",
+                "object",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            }
+          }
+        },
+        "model_hints": {
+          "temporal_invariant": "due_at != retention.expires_at",
+          "authority_invariant": "Commitment does not automatically schedule or authorize an external action."
+        }
+      },
+      "Skill": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/Skill",
+        "kind": "ConceptType",
+        "description": "Reusable procedural cognition compiled from Experience, Evidence, or validated instruction.",
+        "attributes": {
+          "open": true,
+          "fields": {
+            "skill_class": {
+              "type": "string",
+              "required": true,
+              "mutable": true,
+              "enum": [
+                "heuristic",
+                "workflow",
+                "checklist",
+                "tool_policy",
+                "communication_strategy",
+                "diagnostic",
+                "recovery",
+                "prompt_pattern",
+                "code_pattern",
+                "subagent_pattern"
+              ]
+            },
+            "summary": {
+              "type": "string",
+              "required": true,
+              "mutable": true
+            },
+            "applicability": {
+              "type": [
+                "string",
+                "array",
+                "object"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "preconditions": {
+              "type": [
+                "string",
+                "array",
+                "object"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "procedure": {
+              "type": [
+                "string",
+                "array",
+                "object"
+              ],
+              "required": true,
+              "mutable": true
+            },
+            "success_criteria": {
+              "type": [
+                "string",
+                "array",
+                "object"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "failure_modes": {
+              "type": [
+                "array",
+                "object"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "counterexamples": {
+              "type": [
+                "array",
+                "object"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "recovery": {
+              "type": [
+                "string",
+                "array",
+                "object"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "status": {
+              "type": "string",
+              "required": true,
+              "mutable": true,
+              "enum": [
+                "candidate",
+                "validated",
+                "needs_review",
+                "deprecated",
+                "archived"
+              ]
+            },
+            "created_at": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "last_validated_at": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            }
+          }
+        },
+        "model_hints": {
+          "authority_invariant": "Validated Skill != executable authority."
+        }
+      },
+      "SleepTask": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/SleepTask",
+        "kind": "ConceptType",
+        "description": "Durable maintenance work item for a Brain maintenance process.",
+        "attributes": {
+          "open": true,
+          "fields": {
+            "task_class": {
+              "type": "string",
+              "required": true,
+              "mutable": true,
+              "enum": [
+                "consolidate",
+                "review_conflict",
+                "review_skill",
+                "resolve_identity",
+                "review_retention",
+                "refresh_self_model",
+                "inspect_quarantine"
+              ]
+            },
+            "summary": {
+              "type": "string",
+              "required": true,
+              "mutable": true
+            },
+            "status": {
+              "type": "string",
+              "required": true,
+              "mutable": true,
+              "enum": [
+                "pending",
+                "running",
+                "completed",
+                "cancelled",
+                "blocked",
+                "failed"
+              ]
+            },
+            "priority": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "created_at": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "not_before": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "review_after": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            }
+          }
+        },
+        "model_hints": {
+          "authority_invariant": "Semantic assignment, including to $system, does not grant Principal permission."
+        }
+      },
+      "SelfModel": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/SelfModel",
+        "kind": "ConceptType",
+        "description": "Derived cognition describing the Brain/agent's model of its own identity, capabilities, limitations, values, preferences, habits, relationships, and goals.",
+        "attributes": {
+          "open": true,
+          "fields": {
+            "summary": {
+              "type": "string",
+              "required": true,
+              "mutable": true
+            },
+            "identity_summary": {
+              "type": [
+                "string",
+                "object",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "capabilities": {
+              "type": [
+                "array",
+                "object",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "limitations": {
+              "type": [
+                "array",
+                "object",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "values": {
+              "type": [
+                "array",
+                "object",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "preferences": {
+              "type": [
+                "array",
+                "object",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "goals": {
+              "type": [
+                "array",
+                "object",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            },
+            "created_at": {
+              "type": [
+                "timestamp",
+                "null"
+              ],
+              "required": false,
+              "mutable": true
+            }
+          }
+        },
+        "model_hints": {
+          "authority_invariant": "SelfModel is descriptive cognition, never Governance or Principal identity."
+        }
+      }
+    },
+    "predicates": {
+      "prefers": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/prefers",
+        "kind": "PredicateType",
+        "description": "Subject holds a relatively stable preference for the object. Truth-sensitive: use Proposition + Assertion + Evidence, not a bare attribute.",
+        "subject": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Person"
+          ]
+        },
+        "object": {
+          "kinds": [
+            "Concept"
+          ]
+        },
+        "functional": false,
+        "open_world": true,
+        "complete": false
+      },
+      "caused_by": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/caused_by",
+        "kind": "PredicateType",
+        "description": "Effect-to-cause claim between ExperienceSteps: the subject step's outcome/observation was causally produced by the object step. Direction is effect -> cause. This is a truth-sensitive semantic claim (Proposition + Assertion, typically mode observed/inferred with Evidence), never structural topology; step order alone must not be promoted into caused_by.",
+        "subject": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/ExperienceStep"
+          ]
+        },
+        "object": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/ExperienceStep"
+          ]
+        },
+        "functional": false,
+        "open_world": true,
+        "complete": false
+      },
+      "same_as": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/same_as",
+        "kind": "PredicateType",
+        "description": "Unverified identity claim: subject and object are believed to denote the same real-world entity. Feeds identity review; it never auto-merges Concepts and never establishes canonical_id by itself.",
+        "subject": {
+          "kinds": [
+            "Concept"
+          ]
+        },
+        "object": {
+          "kinds": [
+            "Concept"
+          ]
+        },
+        "functional": false,
+        "open_world": true,
+        "complete": false
+      }
+    },
+    "facets": {
+      "MnemonicState": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/MnemonicState",
+        "kind": "FacetDefinition",
+        "description": "Mutable mnemonic accessibility/importance state, separate from epistemic confidence and trust.",
+        "closed": true,
+        "applicable_to": {
+          "kinds": [
+            "Concept"
+          ]
+        },
+        "fields": {
+          "memory_strength": {
+            "type": "number",
+            "required": false,
+            "mutable": true,
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "salience": {
+            "type": "number",
+            "required": false,
+            "mutable": true,
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "last_metabolized_at": {
+            "type": [
+              "timestamp",
+              "null"
+            ],
+            "required": false,
+            "mutable": true
+          }
+        },
+        "model_hints": {
+          "invariants": [
+            "memory_strength != Assertion confidence",
+            "salience != source trust",
+            "Facet state cannot override Core/Governance fields"
+          ]
+        }
+      },
+      "SkillUtility": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/SkillUtility",
+        "kind": "FacetDefinition",
+        "description": "Mutable empirical/procedural usefulness state for Skill; not epistemic probability or authority.",
+        "closed": true,
+        "applicable_to": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Skill"
+          ]
+        },
+        "fields": {
+          "utility": {
+            "type": "number",
+            "required": false,
+            "mutable": true,
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "success_count": {
+            "type": "integer",
+            "required": false,
+            "mutable": true,
+            "minimum": 0
+          },
+          "failure_count": {
+            "type": "integer",
+            "required": false,
+            "mutable": true,
+            "minimum": 0
+          },
+          "last_validated_at": {
+            "type": [
+              "timestamp",
+              "null"
+            ],
+            "required": false,
+            "mutable": true
+          }
+        },
+        "model_hints": {
+          "authority_invariant": "High utility != executable authority."
+        }
+      }
+    },
+    "structural_fields": {
+      "experienced_by": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/experienced_by",
+        "kind": "StructuralFieldDefinition",
+        "description": "Primary semantic actor who experienced the trajectory.",
+        "source": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Experience"
+          ]
+        },
+        "target": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Person"
+          ]
+        },
+        "cardinality": {
+          "min": 0,
+          "max": 1
+        },
+        "ordered": false,
+        "unique": true
+      },
+      "has_step": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/has_step",
+        "kind": "StructuralFieldDefinition",
+        "description": "Ordered Experience trajectory membership.",
+        "source": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Experience"
+          ]
+        },
+        "target": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/ExperienceStep"
+          ]
+        },
+        "cardinality": {
+          "min": 0,
+          "max": null
+        },
+        "ordered": true,
+        "unique": true
+      },
+      "involves": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/involves",
+        "kind": "StructuralFieldDefinition",
+        "description": "Contextual participation without claiming stronger domain semantics.",
+        "source": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Event",
+            "kip://profiles/cognitive-memory@2.0.0/Experience"
+          ]
+        },
+        "target": {
+          "kinds": [
+            "Concept"
+          ]
+        },
+        "cardinality": {
+          "min": 0,
+          "max": null
+        },
+        "ordered": false,
+        "unique": true
+      },
+      "mentions": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/mentions",
+        "kind": "StructuralFieldDefinition",
+        "description": "Retrieval/context mention without a stronger semantic claim.",
+        "source": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Event",
+            "kip://profiles/cognitive-memory@2.0.0/Experience",
+            "kip://profiles/cognitive-memory@2.0.0/Insight"
+          ]
+        },
+        "target": {
+          "kinds": [
+            "Concept"
+          ]
+        },
+        "cardinality": {
+          "min": 0,
+          "max": null
+        },
+        "ordered": false,
+        "unique": true
+      },
+      "derived_from": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/derived_from",
+        "kind": "StructuralFieldDefinition",
+        "description": "Profile derivation lineage when no more specific structural field exists.",
+        "source": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Event",
+            "kip://profiles/cognitive-memory@2.0.0/Experience",
+            "kip://profiles/cognitive-memory@2.0.0/ExperienceStep",
+            "kip://profiles/cognitive-memory@2.0.0/Preference",
+            "kip://profiles/cognitive-memory@2.0.0/Insight",
+            "kip://profiles/cognitive-memory@2.0.0/Commitment",
+            "kip://profiles/cognitive-memory@2.0.0/Skill",
+            "kip://profiles/cognitive-memory@2.0.0/SleepTask",
+            "kip://profiles/cognitive-memory@2.0.0/SelfModel"
+          ]
+        },
+        "target": {
+          "kinds": [
+            "Concept",
+            "Proposition",
+            "Assertion",
+            "Evidence",
+            "Activity"
+          ]
+        },
+        "cardinality": {
+          "min": 0,
+          "max": null
+        },
+        "ordered": false,
+        "unique": true
+      },
+      "compiled_from": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/compiled_from",
+        "kind": "StructuralFieldDefinition",
+        "description": "Experience source(s) used in Skill compilation.",
+        "source": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Skill"
+          ]
+        },
+        "target": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Experience"
+          ]
+        },
+        "cardinality": {
+          "min": 0,
+          "max": null
+        },
+        "ordered": false,
+        "unique": true
+      },
+      "compiled_by": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/compiled_by",
+        "kind": "StructuralFieldDefinition",
+        "description": "Activity that compiled or procedurally consolidated the Skill.",
+        "source": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Skill"
+          ]
+        },
+        "target": {
+          "kinds": [
+            "Activity"
+          ]
+        },
+        "cardinality": {
+          "min": 0,
+          "max": 1
+        },
+        "ordered": false,
+        "unique": true
+      },
+      "consolidated_to": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/consolidated_to",
+        "kind": "StructuralFieldDefinition",
+        "description": "Lineage from Event/Experience into derived Profile cognition.",
+        "source": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Event",
+            "kip://profiles/cognitive-memory@2.0.0/Experience"
+          ]
+        },
+        "target": {
+          "kinds": [
+            "Concept"
+          ]
+        },
+        "cardinality": {
+          "min": 0,
+          "max": null
+        },
+        "ordered": false,
+        "unique": true
+      },
+      "committed_to": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/committed_to",
+        "kind": "StructuralFieldDefinition",
+        "description": "Semantic maker/owner of a Commitment.",
+        "source": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Commitment"
+          ]
+        },
+        "target": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Person"
+          ]
+        },
+        "cardinality": {
+          "min": 0,
+          "max": 1
+        },
+        "ordered": false,
+        "unique": true
+      },
+      "owed_to": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/owed_to",
+        "kind": "StructuralFieldDefinition",
+        "description": "Beneficiary/counterparty of a Commitment.",
+        "source": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Commitment"
+          ]
+        },
+        "target": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Person"
+          ]
+        },
+        "cardinality": {
+          "min": 0,
+          "max": null
+        },
+        "ordered": false,
+        "unique": true
+      },
+      "assigned_to": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/assigned_to",
+        "kind": "StructuralFieldDefinition",
+        "description": "Semantic SleepTask assignment; never Governance permission.",
+        "source": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/SleepTask"
+          ]
+        },
+        "target": {
+          "kinds": [
+            "Concept"
+          ]
+        },
+        "cardinality": {
+          "min": 0,
+          "max": 1
+        },
+        "ordered": false,
+        "unique": true
+      },
+      "about": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/about",
+        "kind": "StructuralFieldDefinition",
+        "description": "Generic topical Profile relation; prefer domain predicates when semantic relation matters epistemically.",
+        "source": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Event",
+            "kip://profiles/cognitive-memory@2.0.0/Experience",
+            "kip://profiles/cognitive-memory@2.0.0/ExperienceStep",
+            "kip://profiles/cognitive-memory@2.0.0/Preference",
+            "kip://profiles/cognitive-memory@2.0.0/Insight",
+            "kip://profiles/cognitive-memory@2.0.0/Commitment",
+            "kip://profiles/cognitive-memory@2.0.0/Skill",
+            "kip://profiles/cognitive-memory@2.0.0/SleepTask",
+            "kip://profiles/cognitive-memory@2.0.0/SelfModel"
+          ]
+        },
+        "target": {
+          "kinds": [
+            "Concept"
+          ]
+        },
+        "cardinality": {
+          "min": 0,
+          "max": null
+        },
+        "ordered": false,
+        "unique": true
+      }
+    },
+    "enums": {},
+    "registry_extensions": {
+      "activity_classes": {
+        "values": [
+          "experience_formation",
+          "semantic_consolidation",
+          "reflection",
+          "procedural_consolidation",
+          "skill_compilation",
+          "skill_validation",
+          "self_model_refresh",
+          "mnemonic_metabolism",
+          "commitment_review"
+        ],
+        "description": "Recommended Profile activity_class values; Activity remains a KIP Core kind."
+      }
+    }
+  },
+  "constraints": [
+    {
+      "id": "cognitive-memory.person-is-not-principal",
+      "scope": "kip://profiles/cognitive-memory@2.0.0/Person",
+      "kind": "governance_boundary",
+      "description": "Person is semantic cognition and cannot authenticate a Principal or create ActorBinding."
+    },
+    {
+      "id": "cognitive-memory.skill-is-not-authority",
+      "scope": "kip://profiles/cognitive-memory@2.0.0/Skill",
+      "kind": "governance_boundary",
+      "description": "Skill class/status/utility/provenance cannot grant executable or tool authority."
+    },
+    {
+      "id": "cognitive-memory.self-model-is-not-governance",
+      "scope": "kip://profiles/cognitive-memory@2.0.0/SelfModel",
+      "kind": "governance_boundary",
+      "description": "SelfModel cannot mutate Principal identity, ActorBinding, Governance, trust, or Schema authority."
+    },
+    {
+      "id": "cognitive-memory.mnemonic-is-not-epistemic",
+      "scope": "kip://profiles/cognitive-memory@2.0.0/MnemonicState",
+      "kind": "epistemic_boundary",
+      "description": "memory_strength/salience cannot rewrite Assertion confidence or source trust."
+    },
+    {
+      "id": "cognitive-memory.structural-is-not-semantic",
+      "scope": "StructuralFieldDefinition",
+      "kind": "core_invariant",
+      "description": "Profile Structural References do not automatically create semantic Propositions."
+    },
+    {
+      "id": "cognitive-memory.failure-first-class",
+      "scope": "kip://profiles/cognitive-memory@2.0.0/Experience",
+      "kind": "profile_invariant",
+      "description": "A failed Experience is valid memory and does not imply low learning value or automatic archival."
+    },
+    {
+      "id": "cognitive-memory.no-hidden-cot",
+      "scope": "kip://profiles/cognitive-memory@2.0.0/ExperienceStep",
+      "kind": "privacy_boundary",
+      "description": "Store observable steps and concise reusable rationale; hidden chain-of-thought is not required."
+    },
+    {
+      "id": "cognitive-memory.commitment-time-separation",
+      "scope": "kip://profiles/cognitive-memory@2.0.0/Commitment",
+      "kind": "temporal_boundary",
+      "description": "Commitment.due_at is distinct from retention expiry and Assertion valid time."
+    },
+    {
+      "id": "cognitive-memory.provenance-conservation",
+      "scope": "Profile",
+      "kind": "provenance_invariant",
+      "description": "Derived Profile cognition preserves lineage and does not create independent Evidence roots merely by transformation."
+    },
+    {
+      "id": "cognitive-memory.import-authority-conservation",
+      "scope": "kip://profiles/cognitive-memory@2.0.0/Skill",
+      "kind": "capsule_boundary",
+      "description": "Imported Skill content is non-authoritative by default and cannot raise destination Governance authority."
+    }
+  ],
+  "aliases": {
+    "concept_types": {},
+    "predicates": {},
+    "facets": {},
+    "structural_fields": {}
+  },
+  "compatibility": {
+    "readable_with": [
+      "kip://core@2.0.0"
+    ],
+    "supersedes": [],
+    "breaking_changes": []
+  },
+  "migrations": [],
+  "model_hints": {
+    "summary": "Portable cognitive memory structures above KIP Core. Truth-sensitive claims use Proposition + Assertion + Evidence; transformations preserve Activity provenance.",
+    "minimal_primer": [
+      "Event = compact record of what happened",
+      "Experience = goal-directed state/action/observation trajectory",
+      "ExperienceStep = ordered observable step; no hidden chain-of-thought",
+      "caused_by = explicit effect->cause claim between steps; edge order alone is not causality",
+      "Skill = reusable procedure; not execution authority",
+      "Commitment = prospective memory; not automatic scheduling",
+      "SelfModel = cognition about self; not Governance",
+      "MnemonicState = accessibility/importance; not confidence",
+      "SkillUtility = procedural usefulness; not authority"
+    ],
+    "common_confusions": [
+      "Event != Experience",
+      "Experience != Skill",
+      "Skill != executable authority",
+      "memory_strength != Assertion confidence",
+      "salience != source trust",
+      "Person != Principal",
+      "SelfModel != Governance",
+      "Structural Reference != Proposition",
+      "Remote Experience != local autobiography",
+      "has_step order != caused_by",
+      "same_as claim != merged identity"
+    ]
+  },
+  "canonicalization": {
+    "profile": "kip-draft-canonical-json-v1",
+    "status": "draft",
+    "description": "Draft deterministic encoding for freezing this Profile artifact; not yet the final KIP-wide canonicalization standard."
+  },
+  "integrity": {
+    "digest_profile": "kip-draft-canonical-json-v1",
+    "content_digest": "sha256:63067c486ecd3092622cdd693ccb234c6caa4675eefab3f93ec21eea0cbd7388",
+    "covers": "all top-level fields except integrity",
+    "signatures": []
+  }
+}

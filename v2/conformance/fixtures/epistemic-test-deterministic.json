@@ -1,0 +1,212 @@
+{
+  "format": "KIP-Epistemic-Policy",
+  "format_version": "2.0-draft",
+  "policy_id": "test-deterministic",
+  "version": 1,
+  "name": "KIP Conformance Deterministic Epistemic Policy",
+  "description": "Fixture-only deterministic Epistemic Projection policy for portable KIP 2.0 conformance tests. It is not a recommended production trust policy.",
+  "purpose": "conformance_fixture",
+  "deterministic": true,
+  "method": {
+    "method_id": "kip-test-root-presence-v1",
+    "method_version": "1",
+    "deterministic": true,
+    "score_model": "none",
+    "score_semantics": null
+  },
+  "time": {
+    "missing_valid_time": "unbounded",
+    "validity_test": "requested_valid_at_must_intersect_assertion_valid_time",
+    "non_overlapping_functional_values_conflict": false
+  },
+  "eligibility": {
+    "assertion_lifecycle": {
+      "include": [
+        "active"
+      ],
+      "exclude": [
+        "retracted",
+        "superseded",
+        "expired"
+      ]
+    },
+    "visibility": "caller_visible_only",
+    "modes": {
+      "include": [
+        "observed",
+        "stated",
+        "inferred"
+      ],
+      "exclude_by_default": [
+        "hypothetical",
+        "predicted"
+      ],
+      "imported": {
+        "default": "exclude",
+        "include_if_source_trust_class": [
+          "trusted"
+        ]
+      }
+    },
+    "confidence": {
+      "affects_status": false,
+      "minimum": null,
+      "missing_allowed": true,
+      "note": "Assertion confidence is preserved/reported but does not decide fixture status."
+    }
+  },
+  "trust": {
+    "resolver": "fixture-protected-trust-context",
+    "classes": {
+      "trusted": {
+        "eligible_as_strong_root": true,
+        "eligible_as_weak_material": false
+      },
+      "weak": {
+        "eligible_as_strong_root": false,
+        "eligible_as_weak_material": true
+      },
+      "low_trust": {
+        "eligible_as_strong_root": false,
+        "eligible_as_weak_material": true
+      },
+      "untrusted": {
+        "eligible_as_strong_root": false,
+        "eligible_as_weak_material": false
+      },
+      "unknown": {
+        "eligible_as_strong_root": false,
+        "eligible_as_weak_material": true
+      }
+    },
+    "authority_effect": "none"
+  },
+  "independence": {
+    "unit": "provenance_root_group",
+    "same_underlying_root": "one_group",
+    "derived_summary_translation_copy": "preserve_upstream_group",
+    "repeat_same_source_event": "one_group",
+    "distinct_observation_events": "distinct_groups_if_provenance_supports_independence",
+    "cycle_without_external_root": "zero_independent_strong_roots"
+  },
+  "stance_mapping": {
+    "support": "support",
+    "reject": "opposition",
+    "uncertain": "uncertainty_material"
+  },
+  "projection": {
+    "proposition_status": {
+      "evaluation_order": [
+        "contested",
+        "accepted",
+        "rejected",
+        "uncertain",
+        "insufficient"
+      ],
+      "rules": [
+        {
+          "status": "contested",
+          "when": {
+            "trusted_independent_support_roots": {
+              "min": 1
+            },
+            "trusted_independent_opposition_roots": {
+              "min": 1
+            }
+          }
+        },
+        {
+          "status": "accepted",
+          "when": {
+            "trusted_independent_support_roots": {
+              "min": 1
+            },
+            "trusted_independent_opposition_roots": {
+              "max": 0
+            }
+          }
+        },
+        {
+          "status": "rejected",
+          "when": {
+            "trusted_independent_support_roots": {
+              "max": 0
+            },
+            "trusted_independent_opposition_roots": {
+              "min": 1
+            }
+          }
+        },
+        {
+          "status": "uncertain",
+          "when": {
+            "trusted_independent_support_roots": {
+              "max": 0
+            },
+            "trusted_independent_opposition_roots": {
+              "max": 0
+            },
+            "weak_or_uncertain_material": {
+              "min": 1
+            }
+          }
+        },
+        {
+          "status": "insufficient",
+          "when": {
+            "otherwise": true
+          }
+        }
+      ]
+    },
+    "belief_slot": {
+      "functional_predicate_rule": "If two or more distinct candidate objects each have accepted/strong support and their valid-time intervals overlap for a functional Predicate, the slot status is contested.",
+      "non_overlapping_valid_time": "not_a_conflict",
+      "empty_slot_status": "insufficient",
+      "empty_slot_accepted_values": []
+    },
+    "open_world": {
+      "no_support_means": "insufficient",
+      "absence_is_not_opposition": true,
+      "boolean_reject_positive_equals_support_false": false,
+      "closed_world_requires_explicit_schema_or_policy": true
+    }
+  },
+  "explanation": {
+    "minimum_output": [
+      "status",
+      "policy_id",
+      "policy_version",
+      "valid_at",
+      "as_of"
+    ],
+    "ledger_when_requested": [
+      "eligible_assertions",
+      "excluded_assertions_with_reason",
+      "support_root_groups",
+      "opposition_root_groups",
+      "uncertainty_reasons",
+      "temporal_exclusions"
+    ],
+    "private_chain_of_thought_required": false
+  },
+  "non_effects": [
+    "does_not_mutate_assertion_confidence",
+    "does_not_mutate_source_trust",
+    "does_not_mutate_memory_strength",
+    "does_not_create_evidence",
+    "does_not_create_assertions",
+    "does_not_grant_governance_authority"
+  ],
+  "canonicalization": {
+    "fixture_profile": "kip-draft-canonical-json-v1",
+    "production_status": "test-only",
+    "description": "UTF-8 JSON, recursively sorted object keys, compact separators, finite JSON numbers; integrity is excluded from its own digest. Test-only fixture usage of the shared draft canonicalization profile."
+  },
+  "integrity": {
+    "digest_profile": "kip-draft-canonical-json-v1",
+    "content_digest": "sha256:59bdd05113a7c543d9e71f9b7795d94e8fe029a0538525aea047cd3df9488be4",
+    "covers": "all top-level fields except integrity",
+    "signatures": []
+  }
+}

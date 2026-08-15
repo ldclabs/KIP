@@ -1,0 +1,441 @@
+(* ========================================================================= *)
+(* KIP 2.0 KML Formal EBNF                                                   *)
+(* ========================================================================= *)
+(* Status: Formal syntax draft aligned to KIP-2.0-SPECIFICATION.md 2.0-draft.
+   Language: KML — Cognitive Mutation Language.
+
+   This grammar defines syntax only. Runtime validation still decides:
+     - Schema symbol resolution and field mutability;
+     - stable identity legality for UPSERT;
+     - whether a local handle is unique/bound;
+     - whether forward references resolve;
+     - ActorBinding/Governance authority;
+     - lifecycle compatibility;
+     - whether a target is immutable, terminal, held, referenced, etc.;
+     - transaction preconditions and serializability.
+
+   Formalization decisions made here:
+     1. Keywords are ASCII case-insensitive; canonical rendering is uppercase.
+     2. CREATE CONCEPT/EVIDENCE/ASSERTION/ACTIVITY requires a local handle.
+        ENSURE PROPOSITION and the ASSERT sugar keep optional handles.
+     3. MUTATE contains mutation clauses but cannot recursively contain MUTATE.
+     4. KML WHERE uses raw KQL-visible-state patterns. BELIEF/BELIEF SLOT are
+        intentionally excluded from this mutation grammar; a virtual Projection
+        can never be a mutation target.
+     5. TRANSITION ACTIVITY may include SET FIELDS / SET STRUCTURAL before its
+        EXPECT STATE guard, formalizing the design text that terminal outputs
+        and ended_at may be finalized atomically.
+     6. PURGE freezes the explicit confirmation spelling as CONFIRM "PURGE".
+     7. Shared rule names must stay definitionally identical across the
+        KQL/KML/META grammars, except the two reviewed divergences owned by
+        KQL (`proposition_tuple` raw predicate paths, `where_clause` BELIEF
+        patterns); `../formal/grammar/check_ebnf.py` enforces this.
+*)
+
+(* ------------------------------------------------------------------------- *)
+(* Lexical conventions                                                       *)
+(* ------------------------------------------------------------------------- *)
+
+(* Protocol keywords are ASCII case-insensitive. Canonical rendering uses
+   uppercase spelling. Schema symbols, identifiers inside strings, and string
+   values remain case-sensitive according to their own contracts.
+
+   Whitespace and line comments beginning with // are ignored between tokens.
+
+   This EBNF uses:
+       =       definition
+       |       alternative
+       [ ... ] optional
+       { ... } zero-or-more repetition
+       ( ... ) grouping
+       "..."   terminal token
+       ? ... ? lexical special sequence
+*)
+
+identifier       = identifier_start, { identifier_continue } ;
+identifier_start = ? ASCII letter or "_" ? ;
+identifier_continue
+                 = ? ASCII letter, ASCII digit or "_" ? ;
+
+variable         = "?", identifier ;
+parameter        = ":", identifier ;
+
+number_literal   = [ "-" ], integer_part, [ fraction_part ], [ exponent_part ] ;
+integer_part     = "0" | nonzero_digit, { digit } ;
+fraction_part    = ".", digit, { digit } ;
+exponent_part    = ( "e" | "E" ), [ "+" | "-" ], digit, { digit } ;
+
+digit            = "0" | "1" | "2" | "3" | "4"
+                 | "5" | "6" | "7" | "8" | "9" ;
+nonzero_digit    = "1" | "2" | "3" | "4" | "5"
+                 | "6" | "7" | "8" | "9" ;
+
+string_literal   = '"', { string_character }, '"' ;
+string_character = unescaped_string_character | escape_sequence ;
+unescaped_string_character
+                 = ? Unicode scalar value except quotation mark, reverse solidus,
+                     and U+0000 through U+001F ? ;
+escape_sequence  = "\", ( '"' | "\" | "/" | "b" | "f" | "n" | "r" | "t"
+                       | unicode_escape ) ;
+unicode_escape   = "u", hex_digit, hex_digit, hex_digit, hex_digit ;
+hex_digit        = digit | "A" | "B" | "C" | "D" | "E" | "F"
+                         | "a" | "b" | "c" | "d" | "e" | "f" ;
+
+boolean_literal  = "true" | "false" ;
+null_literal     = "null" ;
+literal          = string_literal | number_literal | boolean_literal | null_literal ;
+
+schema_symbol    = string_literal | parameter ;
+field_name       = identifier | string_literal ;
+
+array_literal    = "[", [ data_value, { ",", data_value } ], "]" ;
+object_literal   = "{", [ object_member, { ",", object_member } ], "}" ;
+object_member    = field_name, ":", data_value ;
+
+data_value       = parameter
+                 | variable
+                 | literal
+                 | array_literal
+                 | object_literal
+                 | function_call
+                 | field_access ;
+
+field_access     = variable, { field_step } ;
+field_step       = ".", identifier | "[", string_literal, "]" ;
+
+function_call    = identifier, "(", [ expression_list ], ")" ;
+expression_list  = expression, { ",", expression } ;
+
+primary_expression
+                 = field_access
+                 | variable
+                 | parameter
+                 | literal
+                 | array_literal
+                 | object_literal
+                 | function_call
+                 | "(", expression, ")" ;
+
+unary_expression = [ "!" | "-" ], primary_expression ;
+relational_expression
+                 = unary_expression,
+                   [ ( "<" | ">" | "<=" | ">=" ), unary_expression ] ;
+equality_expression
+                 = relational_expression,
+                   { ( "==" | "!=" ), relational_expression } ;
+and_expression   = equality_expression, { "&&", equality_expression } ;
+or_expression    = and_expression, { "||", and_expression } ;
+expression       = or_expression ;
+
+(* ------------------------------------------------------------------------- *)
+(* Entry point                                                               *)
+(* ------------------------------------------------------------------------- *)
+
+kml              = kml_statement ;
+
+kml_statement    = mutate_statement
+                 | create_concept
+                 | upsert_concept
+                 | ensure_proposition
+                 | assert_statement
+                 | create_evidence
+                 | create_assertion
+                 | create_activity
+                 | update_statement
+                 | retract_assertion
+                 | supersede_assertion
+                 | correct_evidence
+                 | transition_activity
+                 | set_retention
+                 | archive_statement
+                 | tombstone_statement
+                 | purge_statement
+                 | merge_concept ;
+
+mutate_statement = "MUTATE", "{", { mutation_clause }, "}" ;
+
+mutation_clause  = create_concept
+                 | upsert_concept
+                 | ensure_proposition
+                 | assert_statement
+                 | create_evidence
+                 | create_assertion
+                 | create_activity
+                 | update_statement
+                 | retract_assertion
+                 | supersede_assertion
+                 | correct_evidence
+                 | transition_activity
+                 | set_retention
+                 | archive_statement
+                 | tombstone_statement
+                 | purge_statement
+                 | merge_concept ;
+
+(* ------------------------------------------------------------------------- *)
+(* Create / ensure / upsert                                                  *)
+(* ------------------------------------------------------------------------- *)
+
+create_concept   = "CREATE", "CONCEPT", handle,
+                   "{", { concept_create_clause }, "}" ;
+
+concept_create_clause
+                 = type_clause
+                 | client_key_clause
+                 | name_clause
+                 | set_fields_clause
+                 | set_attributes_clause
+                 | set_facet_clause
+                 | set_structural_clause ;
+
+upsert_concept   = "UPSERT", "CONCEPT", handle,
+                   "{", { upsert_clause }, "}" ;
+
+upsert_clause    = match_clause
+                 | expect_version_clause
+                 | set_fields_clause
+                 | set_attributes_clause
+                 | set_facet_clause
+                 | unset_attributes_clause
+                 | unset_facet_clause
+                 | set_structural_clause ;
+
+ensure_proposition
+                 = "ENSURE", "PROPOSITION", [ handle ],
+                   proposition_tuple,
+                   [ expect_version_clause ] ;
+
+(* Normative sugar (Spec §55.1): ensure Proposition + create Assertion,
+   with optional supersession. Member keys (by, mode, stance, confidence,
+   at, valid, evidence, key) are validated semantically. *)
+assert_statement = "ASSERT", [ handle ], proposition_tuple,
+                   assignment_object,
+                   [ "SUPERSEDING", target_ref ] ;
+
+create_evidence  = "CREATE", "EVIDENCE", handle,
+                   "{", { record_create_clause }, "}" ;
+
+create_assertion = "CREATE", "ASSERTION", handle,
+                   "{", { record_create_clause }, "}" ;
+
+create_activity  = "CREATE", "ACTIVITY", handle,
+                   "{", { record_create_clause }, "}" ;
+
+record_create_clause
+                 = client_key_clause
+                 | set_fields_clause
+                 | set_facet_clause
+                 | set_structural_clause ;
+
+type_clause      = "TYPE", schema_symbol ;
+client_key_clause
+                 = "CLIENT", "KEY", scalar_or_parameter ;
+name_clause      = "NAME", scalar_or_parameter ;
+match_clause     = "MATCH", object_pattern ;
+
+(* ------------------------------------------------------------------------- *)
+(* Generic update                                                            *)
+(* ------------------------------------------------------------------------- *)
+
+update_statement = "UPDATE", target_ref,
+                   [ expect_version_clause ],
+                   update_action, { update_action },
+                   "WHERE", where_block,
+                   [ limit_clause ] ;
+
+update_action    = set_fields_clause
+                 | set_attributes_clause
+                 | set_facet_clause
+                 | unset_attributes_clause
+                 | unset_facet_clause
+                 | set_structural_clause ;
+
+set_fields_clause
+                 = "SET", "FIELDS", assignment_object ;
+
+set_attributes_clause
+                 = "SET", "ATTRIBUTES", assignment_object ;
+
+set_facet_clause = "SET", "FACET", schema_symbol, assignment_object ;
+
+unset_attributes_clause
+                 = "UNSET", "ATTRIBUTES", unset_field_set ;
+
+unset_facet_clause
+                 = "UNSET", "FACET", schema_symbol, unset_field_set ;
+
+set_structural_clause
+                 = "SET", "STRUCTURAL", "{",
+                   { structural_assignment }, "}" ;
+
+structural_assignment
+                 = "(", schema_symbol, ",", mutation_value, ")",
+                   [ object_literal ] ;
+
+assignment_object
+                 = "{", [ assignment_member, { ",", assignment_member } ], "}" ;
+
+assignment_member
+                 = field_name, ":", mutation_value ;
+
+unset_field_set  = "{",
+                   [ unset_field, { ",", unset_field } ],
+                   "}" ;
+
+unset_field      = identifier | string_literal ;
+
+(* ------------------------------------------------------------------------- *)
+(* Lifecycle / correction                                                    *)
+(* ------------------------------------------------------------------------- *)
+
+retract_assertion
+                 = "RETRACT", "ASSERTION", target_ref,
+                   [ "WHERE", where_block ],
+                   [ expect_state_clause ] ;
+
+supersede_assertion
+                 = "SUPERSEDE", "ASSERTION", target_ref,
+                   "BY", target_ref,
+                   [ expect_state_clause ] ;
+
+correct_evidence = "CORRECT", "EVIDENCE", target_ref,
+                   "BY", target_ref,
+                   [ expect_state_clause ] ;
+
+transition_activity
+                 = "TRANSITION", "ACTIVITY", target_ref,
+                   "TO", scalar_or_parameter,
+                   { transition_finalize_clause },
+                   [ expect_state_clause ] ;
+
+transition_finalize_clause
+                 = set_fields_clause | set_structural_clause ;
+
+(* ------------------------------------------------------------------------- *)
+(* Retention / storage lifecycle                                             *)
+(* ------------------------------------------------------------------------- *)
+
+set_retention    = "SET", "RETENTION", target_ref,
+                   assignment_object,
+                   [ "WHERE", where_block ],
+                   [ expect_version_clause ] ;
+
+archive_statement
+                 = "ARCHIVE", target_ref,
+                   [ "WHERE", where_block ],
+                   [ expect_state_clause ] ;
+
+tombstone_statement
+                 = "TOMBSTONE", target_ref,
+                   [ "WHERE", where_block ],
+                   [ expect_state_clause ] ;
+
+purge_statement  = "PURGE", target_ref,
+                   [ "WHERE", where_block ],
+                   [ "REFERENCE", "POLICY", scalar_or_parameter ],
+                   "CONFIRM", '"PURGE"' ;
+
+merge_concept    = "MERGE", "CONCEPT", target_ref,
+                   "INTO", target_ref,
+                   [ "WHERE", where_block ],
+                   [ expect_version_clause ] ;
+
+(* ------------------------------------------------------------------------- *)
+(* Preconditions                                                             *)
+(* ------------------------------------------------------------------------- *)
+
+expect_version_clause
+                 = "EXPECT", "VERSION", scalar_or_parameter ;
+
+expect_state_clause
+                 = "EXPECT", "STATE", scalar_or_parameter ;
+
+limit_clause     = "LIMIT", scalar_or_parameter ;
+
+(* ------------------------------------------------------------------------- *)
+(* Raw KQL matching subset used by KML WHERE                                 *)
+(* ------------------------------------------------------------------------- *)
+
+where_block      = "{", { where_clause }, "}" ;
+
+where_clause     = concept_pattern
+                 | proposition_pattern
+                 | assertion_pattern
+                 | evidence_pattern
+                 | activity_pattern
+                 | structural_pattern
+                 | filter_clause
+                 | not_clause
+                 | optional_clause
+                 | union_clause ;
+
+concept_pattern  = variable, [ "CONCEPT" ], object_pattern ;
+
+proposition_pattern
+                 = [ variable ], [ "PROPOSITION" ], proposition_tuple ;
+
+assertion_pattern
+                 = variable, "ASSERTION", object_pattern ;
+
+evidence_pattern = variable, "EVIDENCE", object_pattern ;
+
+activity_pattern = variable, "ACTIVITY", object_pattern ;
+
+structural_pattern
+                 = [ variable ], "STRUCTURAL", "(",
+                   term, ",", schema_symbol, ",", term, ")" ;
+
+filter_clause    = "FILTER", "(", expression, ")" ;
+not_clause       = "NOT", where_block ;
+optional_clause  = "OPTIONAL", where_block ;
+union_clause     = "UNION", where_block ;
+
+(* ------------------------------------------------------------------------- *)
+(* Terms / objects                                                           *)
+(* ------------------------------------------------------------------------- *)
+
+handle           = variable ;
+target_ref       = variable | parameter | string_literal ;
+
+proposition_tuple
+                 = "(", term, ",", predicate_atom, ",", term, ")" ;
+
+predicate_atom   = string_literal | parameter | variable ;
+
+term             = variable
+                 | parameter
+                 | literal
+                 | object_pattern
+                 | proposition_tuple ;
+
+object_pattern   = "{",
+                   [ pattern_member, { ",", pattern_member } ],
+                   "}" ;
+
+pattern_member   = field_name, ":", pattern_value ;
+
+pattern_value    = variable
+                 | parameter
+                 | literal
+                 | array_pattern
+                 | object_pattern
+                 | proposition_tuple ;
+
+array_pattern    = "[",
+                   [ pattern_value, { ",", pattern_value } ],
+                   "]" ;
+
+mutation_value   = field_access
+                 | variable
+                 | parameter
+                 | literal
+                 | array_literal
+                 | object_literal
+                 | function_call ;
+
+scalar_or_parameter
+                 = parameter | literal ;
+
+(* Registered update-expression functions include ADD, MUL, CLAMP, COALESCE.
+   Syntax remains open to registered/Profile-defined deterministic functions;
+   semantic validation decides whether the function is legal for a field. *)

@@ -1,0 +1,521 @@
+{
+  "format": "KIP-Schema-Package",
+  "format_version": "2.0-draft",
+  "manifest": {
+    "package_id": "kip://test/core-domain",
+    "version": "1.0.0",
+    "package_ref": "kip://test/core-domain@1.0.0",
+    "name": "KIP Conformance Core Domain",
+    "description": "Canonical deterministic Schema Package used by the KIP 2.0 conformance suite. It exists only for interoperability tests and is not a production domain ontology.",
+    "publisher": "urn:kip:test:publisher:conformance",
+    "purpose": "conformance_fixture",
+    "stability": "frozen_test_fixture",
+    "executable": false
+  },
+  "dependencies": [
+    {
+      "package_id": "kip://core",
+      "version": "2.0.0",
+      "package_ref": "kip://core@2.0.0",
+      "required": true
+    }
+  ],
+  "definitions": {
+    "concept_types": {
+      "Person": {
+        "ref": "kip://test/core-domain@1.0.0/Person",
+        "kind": "ConceptType",
+        "description": "A human or person-like semantic actor used in conformance fixtures.",
+        "attributes": {
+          "open": true,
+          "fields": {}
+        },
+        "model_hints": {
+          "summary": "Use for Alice, Bob, Carol, and fixture self identities."
+        }
+      },
+      "Project": {
+        "ref": "kip://test/core-domain@1.0.0/Project",
+        "kind": "ConceptType",
+        "description": "A project used for functional status conflict and historical-state tests.",
+        "attributes": {
+          "open": true,
+          "fields": {}
+        }
+      },
+      "Theme": {
+        "ref": "kip://test/core-domain@1.0.0/Theme",
+        "kind": "ConceptType",
+        "description": "A preference target such as dark mode or light mode.",
+        "attributes": {
+          "open": true,
+          "fields": {}
+        }
+      },
+      "Organization": {
+        "ref": "kip://test/core-domain@1.0.0/Organization",
+        "kind": "ConceptType",
+        "description": "An organization used by works_for tests.",
+        "attributes": {
+          "open": true,
+          "fields": {}
+        }
+      },
+      "Service": {
+        "ref": "kip://test/core-domain@1.0.0/Service",
+        "kind": "ConceptType",
+        "description": "A service used by health/status fixtures.",
+        "attributes": {
+          "open": true,
+          "fields": {}
+        }
+      },
+      "StatusValue": {
+        "ref": "kip://test/core-domain@1.0.0/StatusValue",
+        "kind": "ConceptType",
+        "description": "A semantic status value such as planning, active, or paused.",
+        "attributes": {
+          "open": false,
+          "fields": {
+            "code": {
+              "type": "string",
+              "required": true,
+              "mutable": false,
+              "enum": [
+                "planning",
+                "active",
+                "paused",
+                "degraded",
+                "offline"
+              ]
+            }
+          }
+        },
+        "identity_hints": {
+          "recommended_key_field": "code"
+        }
+      },
+      "Document": {
+        "ref": "kip://test/core-domain@1.0.0/Document",
+        "kind": "ConceptType",
+        "description": "A document-like semantic object used by Evidence/provenance fixtures.",
+        "attributes": {
+          "open": true,
+          "fields": {}
+        }
+      },
+      "Experience": {
+        "ref": "kip://test/core-domain@1.0.0/Experience",
+        "kind": "ConceptType",
+        "description": "A goal-directed situated trajectory used by memory conformance fixtures.",
+        "attributes": {
+          "open": true,
+          "fields": {}
+        },
+        "model_hints": {
+          "avoid": [
+            "Do not store hidden chain-of-thought."
+          ]
+        }
+      },
+      "ExperienceStep": {
+        "ref": "kip://test/core-domain@1.0.0/ExperienceStep",
+        "kind": "ConceptType",
+        "description": "One structured step belonging to an Experience.",
+        "attributes": {
+          "open": true,
+          "fields": {}
+        },
+        "model_hints": {
+          "ordering_invariant": "Step order lives on the ordered has_step Structural References (virtual edge index)."
+        }
+      },
+      "Skill": {
+        "ref": "kip://test/core-domain@1.0.0/Skill",
+        "kind": "ConceptType",
+        "description": "Reusable procedural cognition used by import and authority tests.",
+        "attributes": {
+          "open": true,
+          "fields": {}
+        },
+        "model_hints": {
+          "summary": "Skill content does not imply executable Governance authority."
+        }
+      }
+    },
+    "predicates": {
+      "timezone": {
+        "ref": "kip://test/core-domain@1.0.0/timezone",
+        "kind": "PredicateType",
+        "description": "The subject's timezone string.",
+        "subject": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Person"
+          ]
+        },
+        "object": {
+          "literal_types": [
+            "string"
+          ]
+        },
+        "functional": true,
+        "open_world": true,
+        "complete": false,
+        "temporal_conflict": "overlapping_valid_time"
+      },
+      "prefers": {
+        "ref": "kip://test/core-domain@1.0.0/prefers",
+        "kind": "PredicateType",
+        "description": "The subject has a preference for the object.",
+        "subject": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Person"
+          ]
+        },
+        "object": {
+          "kinds": [
+            "Concept"
+          ]
+        },
+        "functional": false,
+        "open_world": true,
+        "complete": false
+      },
+      "project_status": {
+        "ref": "kip://test/core-domain@1.0.0/project_status",
+        "kind": "PredicateType",
+        "description": "The current or time-scoped semantic status of a Project.",
+        "subject": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Project"
+          ]
+        },
+        "object": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/StatusValue"
+          ]
+        },
+        "functional": true,
+        "open_world": true,
+        "complete": false,
+        "temporal_conflict": "overlapping_valid_time"
+      },
+      "is_vegetarian": {
+        "ref": "kip://test/core-domain@1.0.0/is_vegetarian",
+        "kind": "PredicateType",
+        "description": "Boolean-valued vegetarian classification used to test open-world semantics.",
+        "subject": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Person"
+          ]
+        },
+        "object": {
+          "literal_types": [
+            "boolean"
+          ]
+        },
+        "functional": true,
+        "open_world": true,
+        "complete": false,
+        "boolean_completeness": false,
+        "temporal_conflict": "overlapping_valid_time"
+      },
+      "works_for": {
+        "ref": "kip://test/core-domain@1.0.0/works_for",
+        "kind": "PredicateType",
+        "description": "Person works for Organization.",
+        "subject": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Person"
+          ]
+        },
+        "object": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Organization"
+          ]
+        },
+        "functional": false,
+        "open_world": true,
+        "complete": false
+      },
+      "knows": {
+        "ref": "kip://test/core-domain@1.0.0/knows",
+        "kind": "PredicateType",
+        "description": "Person knows another Person.",
+        "subject": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Person"
+          ]
+        },
+        "object": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Person"
+          ]
+        },
+        "functional": false,
+        "open_world": true,
+        "complete": false,
+        "symmetric": false
+      },
+      "parent_of": {
+        "ref": "kip://test/core-domain@1.0.0/parent_of",
+        "kind": "PredicateType",
+        "description": "Person is a parent of another Person.",
+        "subject": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Person"
+          ]
+        },
+        "object": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Person"
+          ]
+        },
+        "functional": false,
+        "open_world": true,
+        "complete": false
+      },
+      "service_healthy": {
+        "ref": "kip://test/core-domain@1.0.0/service_healthy",
+        "kind": "PredicateType",
+        "description": "Boolean service health assertion target.",
+        "subject": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Service"
+          ]
+        },
+        "object": {
+          "literal_types": [
+            "boolean"
+          ]
+        },
+        "functional": true,
+        "open_world": true,
+        "complete": false,
+        "boolean_completeness": false,
+        "temporal_conflict": "overlapping_valid_time"
+      },
+      "alias_of": {
+        "ref": "kip://test/core-domain@1.0.0/alias_of",
+        "kind": "PredicateType",
+        "description": "Semantic alias relation used by merge/history fixtures.",
+        "subject": {
+          "kinds": [
+            "Concept"
+          ]
+        },
+        "object": {
+          "kinds": [
+            "Concept"
+          ]
+        },
+        "functional": false,
+        "open_world": true,
+        "complete": false
+      }
+    },
+    "facets": {
+      "MnemonicState": {
+        "ref": "kip://test/core-domain@1.0.0/MnemonicState",
+        "kind": "FacetDefinition",
+        "description": "Mutable mnemonic accessibility state; intentionally separate from epistemic confidence.",
+        "closed": true,
+        "applicable_to": {
+          "kinds": [
+            "Concept"
+          ]
+        },
+        "fields": {
+          "memory_strength": {
+            "type": "number",
+            "required": false,
+            "mutable": true,
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "salience": {
+            "type": "number",
+            "required": false,
+            "mutable": true,
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "last_metabolized_at": {
+            "type": [
+              "timestamp",
+              "null"
+            ],
+            "required": false,
+            "mutable": true
+          }
+        }
+      },
+      "SkillUtility": {
+        "ref": "kip://test/core-domain@1.0.0/SkillUtility",
+        "kind": "FacetDefinition",
+        "description": "Mutable procedural utility counters; not action authority.",
+        "closed": true,
+        "applicable_to": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Skill"
+          ]
+        },
+        "fields": {
+          "utility": {
+            "type": "number",
+            "required": false,
+            "mutable": true
+          },
+          "success_count": {
+            "type": "integer",
+            "required": false,
+            "mutable": true,
+            "minimum": 0
+          },
+          "failure_count": {
+            "type": "integer",
+            "required": false,
+            "mutable": true,
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "structural_fields": {
+      "has_step": {
+        "ref": "kip://test/core-domain@1.0.0/has_step",
+        "kind": "StructuralFieldDefinition",
+        "description": "Experience contains ordered ExperienceStep records.",
+        "source": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Experience"
+          ]
+        },
+        "target": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/ExperienceStep"
+          ]
+        },
+        "cardinality": {
+          "min": 0,
+          "max": null
+        },
+        "ordered": true,
+        "unique": true
+      },
+      "experienced_by": {
+        "ref": "kip://test/core-domain@1.0.0/experienced_by",
+        "kind": "StructuralFieldDefinition",
+        "description": "Experience structural subject/owner.",
+        "source": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Experience"
+          ]
+        },
+        "target": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Person"
+          ]
+        },
+        "cardinality": {
+          "min": 0,
+          "max": 1
+        },
+        "ordered": false,
+        "unique": true
+      },
+      "compiled_from": {
+        "ref": "kip://test/core-domain@1.0.0/compiled_from",
+        "kind": "StructuralFieldDefinition",
+        "description": "Skill compilation source Experience(s).",
+        "source": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Skill"
+          ]
+        },
+        "target": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Experience"
+          ]
+        },
+        "cardinality": {
+          "min": 0,
+          "max": null
+        },
+        "ordered": false,
+        "unique": true
+      },
+      "compiled_by": {
+        "ref": "kip://test/core-domain@1.0.0/compiled_by",
+        "kind": "StructuralFieldDefinition",
+        "description": "Skill was compiled by Activity.",
+        "source": {
+          "concept_types": [
+            "kip://test/core-domain@1.0.0/Skill"
+          ]
+        },
+        "target": {
+          "kinds": [
+            "Activity"
+          ]
+        },
+        "cardinality": {
+          "min": 0,
+          "max": 1
+        },
+        "ordered": false,
+        "unique": true
+      }
+    },
+    "enums": {},
+    "registry_extensions": {}
+  },
+  "constraints": [
+    {
+      "id": "test.functional-overlap-conflict",
+      "scope": "PredicateType",
+      "kind": "epistemic_conflict_rule",
+      "description": "For a functional Predicate, independently supported distinct objects whose valid-time intervals overlap form one Epistemic conflict set. Raw contradictory storage remains legal."
+    },
+    {
+      "id": "test.structural-is-not-semantic",
+      "scope": "StructuralFieldDefinition",
+      "kind": "core_invariant",
+      "description": "Structural References do not imply semantic Propositions."
+    }
+  ],
+  "aliases": {
+    "concept_types": {},
+    "predicates": {
+      "status": "kip://test/core-domain@1.0.0/project_status"
+    },
+    "facets": {},
+    "structural_fields": {}
+  },
+  "compatibility": {
+    "readable_with": [],
+    "supersedes": [],
+    "breaking_changes": []
+  },
+  "migrations": [],
+  "model_hints": {
+    "summary": "Minimal deterministic semantic domain for KIP 2.0 conformance vectors.",
+    "common_confusions": [
+      "The local alias 'status' is intentionally unsafe when test-secondary is active.",
+      "Functional predicates create epistemic conflict sets; they do not reject contradictory raw storage.",
+      "MnemonicState.memory_strength is not Assertion confidence."
+    ],
+    "core_builtins": "Core structural fields (evidence, source, generated_by, inputs, outputs) are reserved built-ins defined by KIP-2.0-SPECIFICATION.md §20.13 and are not redefined by this test package."
+  },
+  "canonicalization": {
+    "fixture_profile": "kip-draft-canonical-json-v1",
+    "production_status": "test-only",
+    "description": "UTF-8 JSON, recursively sorted object keys, compact separators, finite JSON numbers; integrity is excluded from its own digest. Test-only fixture usage of the shared draft canonicalization profile."
+  },
+  "integrity": {
+    "digest_profile": "kip-draft-canonical-json-v1",
+    "content_digest": "sha256:d04c9778db56d11242cf275f6d21dbfac078aa87bae9e4773849f969250638ad",
+    "covers": "all top-level fields except integrity",
+    "signatures": []
+  }
+}

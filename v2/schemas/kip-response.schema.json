@@ -1,0 +1,744 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:kip:2.0:schema:response",
+  "title": "KIP 2.0 Response Envelope",
+  "description": "JSON Schema for a non-streaming logical KIP 2.0 response envelope. Streaming delivery frames are transport units and should be described by a separate schema.",
+  "type": "object",
+  "required": [
+    "kip",
+    "status",
+    "results"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "kip": {
+      "const": "2.0"
+    },
+    "request_id": {
+      "$ref": "#/$defs/RequestId"
+    },
+    "status": {
+      "$ref": "#/$defs/TopLevelStatus"
+    },
+    "execution": {
+      "$ref": "#/$defs/ResponseExecution"
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/OperationResult"
+      }
+    },
+    "context": {
+      "$ref": "#/$defs/ResponseContext"
+    },
+    "snapshot": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SnapshotContext"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "receipt": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Receipt"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Warning"
+      }
+    },
+    "next_cursor": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192,
+      "description": "Opaque continuation cursor when a top-level operation family uses one."
+    },
+    "error": {
+      "$ref": "#/$defs/Error"
+    },
+    "extensions": {
+      "$ref": "#/$defs/Extensions"
+    }
+  },
+  "allOf": [
+    {
+      "$comment": "A succeeded response must not carry a top-level fatal error.",
+      "if": {
+        "properties": {
+          "status": {
+            "const": "succeeded"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "not": {
+          "required": [
+            "error"
+          ]
+        }
+      }
+    },
+    {
+      "$comment": "A partial response must contain at least one success/no-effect and at least one non-success operation.",
+      "if": {
+        "properties": {
+          "status": {
+            "const": "partial"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "results": {
+            "allOf": [
+              {
+                "contains": {
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "succeeded",
+                        "no_effect"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                },
+                "minContains": 1
+              },
+              {
+                "contains": {
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "failed",
+                        "skipped",
+                        "rolled_back"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                },
+                "minContains": 1
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "$comment": "A top-level failed response should expose either a top-level error or at least one failed operation with an error.",
+      "if": {
+        "properties": {
+          "status": {
+            "const": "failed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "anyOf": [
+          {
+            "required": [
+              "error"
+            ]
+          },
+          {
+            "properties": {
+              "results": {
+                "contains": {
+                  "properties": {
+                    "status": {
+                      "const": "failed"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "error"
+                  ]
+                },
+                "minContains": 1
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "RequestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "TopLevelStatus": {
+      "type": "string",
+      "enum": [
+        "succeeded",
+        "failed",
+        "partial",
+        "outcome_unknown"
+      ]
+    },
+    "OperationStatus": {
+      "type": "string",
+      "enum": [
+        "succeeded",
+        "failed",
+        "skipped",
+        "rolled_back",
+        "no_effect"
+      ]
+    },
+    "ResponseExecution": {
+      "type": "object",
+      "required": [
+        "mode"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "independent",
+            "sequence",
+            "atomic"
+          ]
+        },
+        "on_error": {
+          "type": "string",
+          "enum": [
+            "stop",
+            "continue"
+          ]
+        },
+        "isolation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      }
+    },
+    "OperationResult": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "op_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "status": {
+          "$ref": "#/$defs/OperationStatus"
+        },
+        "result": {},
+        "context": {
+          "$ref": "#/$defs/ResultContext"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Warning"
+          }
+        },
+        "error": {
+          "$ref": "#/$defs/Error"
+        },
+        "next_cursor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "failed"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "error"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "succeeded",
+                  "no_effect"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "error"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "ResponseContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "space_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "schema_environment_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "compatibility_profile_used": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      }
+    },
+    "ResultContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "space_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "snapshot_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "schema_environment_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "epistemic_policy": {
+          "$ref": "#/$defs/PolicyIdentity"
+        },
+        "search": {
+          "$ref": "#/$defs/SearchContext"
+        },
+        "cursor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      }
+    },
+    "PolicyIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "version": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        }
+      },
+      "minProperties": 1
+    },
+    "SearchContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "index_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "current_space_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "consistency": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "keyword",
+            "semantic",
+            "hybrid"
+          ]
+        },
+        "score_semantics": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      }
+    },
+    "SnapshotContext": {
+      "type": "object",
+      "required": [
+        "snapshot_seq"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "space_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "snapshot_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "snapshot_token": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        },
+        "schema_environment_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tx_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "space_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "snapshot_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "space_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "committed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "committed",
+            "aborted",
+            "no_effect",
+            "pending",
+            "unknown"
+          ]
+        },
+        "transaction_class": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "examples": [
+            "cognitive"
+          ]
+        },
+        "request_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "semantic_plan_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "result_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "schema_environment_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "change_summary": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "proofs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "committed"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "tx_id",
+              "space_id",
+              "snapshot_seq",
+              "space_seq",
+              "committed_at"
+            ]
+          }
+        },
+        {
+          "$comment": "An aborted transaction does not have a state-changing space_seq.",
+          "if": {
+            "properties": {
+              "status": {
+                "const": "aborted"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "space_seq"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "Digest": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 1024,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*:.+$",
+      "examples": [
+        "sha256:0123456789abcdef"
+      ]
+    },
+    "Error": {
+      "type": "object",
+      "required": [
+        "code",
+        "category",
+        "message"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$",
+          "examples": [
+            "SchemaSymbolAmbiguous",
+            "NotAuthorized",
+            "VersionConflict",
+            "OutcomeUnknown"
+          ]
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "syntax",
+            "protocol",
+            "schema",
+            "data",
+            "epistemic",
+            "governance",
+            "transaction",
+            "history",
+            "search",
+            "artifact",
+            "resource",
+            "transport",
+            "system"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "retry": {
+          "$ref": "#/$defs/Retry"
+        },
+        "details": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "$comment": "Error hints/details remain Governance-filtered and must not leak hidden resource existence."
+    },
+    "Retry": {
+      "type": "object",
+      "required": [
+        "class"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "safe_same_request",
+            "requires_refresh",
+            "requires_different_input",
+            "requires_authority",
+            "requires_new_snapshot",
+            "requires_reacquire_artifact",
+            "outcome_lookup_required",
+            "non_retryable"
+          ]
+        },
+        "after_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      }
+    },
+    "Warning": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object",
+          "required": [
+            "code"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$"
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1
+            },
+            "details": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "extensions": {
+              "$ref": "#/$defs/Extensions"
+            }
+          }
+        }
+      ],
+      "description": "Non-fatal semantic caveat. A required failure must be an Error, not a Warning."
+    },
+    "ExtensionValue": {
+      "type": "object",
+      "properties": {
+        "critical": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "Extensions": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._/-]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/ExtensionValue"
+      }
+    }
+  }
+}

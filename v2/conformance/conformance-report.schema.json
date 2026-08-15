@@ -1,0 +1,787 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:kip:2.0:schema:conformance-report",
+  "title": "KIP 2.0 Conformance Report",
+  "description": "Machine-readable output of a KIP 2.0 conformance runner. A claimed profile passes only when all applicable MUST vectors pass. OPTIONAL advertised capabilities become test obligations.",
+  "type": "object",
+  "required": [
+    "implementation",
+    "profiles_claimed",
+    "summary",
+    "profiles",
+    "tests"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0"
+    },
+    "suite": {
+      "$ref": "#/$defs/SuiteIdentity"
+    },
+    "implementation": {
+      "$ref": "#/$defs/Implementation"
+    },
+    "runner": {
+      "$ref": "#/$defs/Runner"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "overall_status": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "FAIL"
+      ]
+    },
+    "profiles_claimed": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Profile"
+      }
+    },
+    "capabilities_advertised": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$"
+      },
+      "additionalProperties": true
+    },
+    "summary": {
+      "$ref": "#/$defs/Summary"
+    },
+    "profiles": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/Profile"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/ProfileResult"
+      },
+      "$comment": "Profile keys should correspond to claimed/tested profiles."
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/TestResult"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Diagnostic"
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ArtifactRef"
+      }
+    },
+    "extensions": {
+      "$ref": "#/$defs/Extensions"
+    }
+  },
+  "$comment": "JSON Schema cannot express arithmetic equality between summary counters and tests[]. The runner must verify that summary counts exactly match the test-result multiset, and that each claimed profile status follows the normative pass rules.",
+  "$defs": {
+    "Profile": {
+      "type": "string",
+      "enum": [
+        "KIP-Core",
+        "KIP-Schema",
+        "KIP-Epistemic",
+        "KIP-Governance",
+        "KIP-Transactions",
+        "KIP-Capsule",
+        "KIP-KQL",
+        "KIP-KML",
+        "KIP-META",
+        "KIP-Runtime",
+        "KIP-Historical",
+        "KIP-High-Assurance",
+        "KIP-1-Migration"
+      ]
+    },
+    "TestId": {
+      "type": "string",
+      "pattern": "^KIP2-(CORE|SCHEMA|EPI|GOV|TX|CAP|KQL|KML|META|RT|HIST|HA|MIG|X)-[0-9]{3}$"
+    },
+    "TestLevel": {
+      "type": "string",
+      "enum": [
+        "MUST",
+        "SHOULD",
+        "OPTIONAL"
+      ]
+    },
+    "TestClass": {
+      "type": "string",
+      "enum": [
+        "black_box",
+        "orchestrated_concurrency",
+        "fault_injection"
+      ]
+    },
+    "SuiteIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "default": "KIP 2.0 Conformance Suite"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "spec_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "examples": [
+            "2.0-draft"
+          ]
+        },
+        "vector_set_digest": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 1024
+        }
+      }
+    },
+    "Implementation": {
+      "type": "object",
+      "required": [
+        "name",
+        "version",
+        "kip_version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "kip_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "examples": [
+            "2.0-draft",
+            "2.0"
+          ]
+        },
+        "build": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "commit": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "runtime": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "endpoint": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      }
+    },
+    "Runner": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      }
+    },
+    "Summary": {
+      "type": "object",
+      "required": [
+        "pass",
+        "fail",
+        "skip_unsupported",
+        "not_applicable",
+        "harness_error"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pass": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fail": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skip_unsupported": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "not_applicable": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "harness_error": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "must_failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "should_failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "optional_failed": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "ProfileResult": {
+      "type": "object",
+      "required": [
+        "status",
+        "required_tests",
+        "passed"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "required_tests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "passed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "should_warnings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skipped_optional": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "test_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/TestId"
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          }
+        }
+      },
+      "$comment": "Runtime semantic rule: status PASS iff every applicable MUST vector for the claimed profile passes. A SHOULD failure is a warning unless a stricter claimed profile makes it required."
+    },
+    "TestResult": {
+      "type": "object",
+      "required": [
+        "id",
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/TestId"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "level": {
+          "$ref": "#/$defs/TestLevel"
+        },
+        "class": {
+          "$ref": "#/$defs/TestClass"
+        },
+        "profiles": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Profile"
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL",
+            "SKIP_UNSUPPORTED",
+            "NOT_APPLICABLE",
+            "HARNESS_ERROR"
+          ]
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "observed": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "assertions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AssertionResult"
+          }
+        },
+        "failures": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/Failure"
+          }
+        },
+        "skip": {
+          "$ref": "#/$defs/Skip"
+        },
+        "error": {
+          "$ref": "#/$defs/RunnerError"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          }
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ArtifactRef"
+          }
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "FAIL"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "failures"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "SKIP_UNSUPPORTED"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "skip"
+            ],
+            "properties": {
+              "skip": {
+                "properties": {
+                  "reason": {
+                    "const": "unsupported_capability"
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "NOT_APPLICABLE"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "skip"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "HARNESS_ERROR"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "error"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "PASS"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "failures"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "AssertionResult": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "equals",
+            "not_equals",
+            "present",
+            "absent",
+            "one_of",
+            "contains",
+            "not_contains",
+            "row_count",
+            "set_equals",
+            "set_contains",
+            "monotonic_gt",
+            "same_as_previous",
+            "different_from_previous",
+            "semantic_predicate"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "path": {
+          "type": "string"
+        },
+        "expected": {},
+        "observed": {},
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Failure": {
+      "type": "object",
+      "required": [
+        "phase",
+        "message"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "phase": {
+          "type": "string",
+          "enum": [
+            "setup",
+            "invoke",
+            "assertion",
+            "postcondition",
+            "forbidden",
+            "cleanup",
+            "harness"
+          ]
+        },
+        "step_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "assertion_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected": {},
+        "observed": {},
+        "protocol_error": {
+          "$ref": "urn:kip:2.0:schema:response#/$defs/Error"
+        },
+        "details": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "Skip": {
+      "type": "object",
+      "required": [
+        "reason",
+        "message"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "type": "string",
+          "enum": [
+            "unsupported_capability",
+            "profile_not_claimed",
+            "not_applicable",
+            "environment_constraint"
+          ]
+        },
+        "capability": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "profile": {
+          "$ref": "#/$defs/Profile"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "RunnerError": {
+      "type": "object",
+      "required": [
+        "code",
+        "message"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "details": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "Diagnostic": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object",
+          "required": [
+            "message"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1
+            },
+            "details": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      ]
+    },
+    "ArtifactRef": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "media_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 1024
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "required": [
+            "digest"
+          ]
+        }
+      ]
+    },
+    "ExtensionValue": {
+      "type": "object",
+      "properties": {
+        "critical": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "Extensions": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._/-]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/ExtensionValue"
+      }
+    }
+  }
+}
