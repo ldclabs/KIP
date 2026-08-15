@@ -460,7 +460,7 @@ SET field to existing identical value
 
 `no_effect` SHOULD NOT mutate element versions merely to prove the request happened.
 
-The idempotency registry/audit may still remember the request.
+The idempotency registry MUST still retain a `no_effect` outcome under its idempotency key (Specification §34.3); the audit log may additionally record the request.
 
 ---
 

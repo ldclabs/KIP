@@ -29,6 +29,10 @@
         the design's operation/resource/Space/purpose input list.
      5. EXPORT CAPSULE freezes the conceptual syntax from the current Spec:
         selection WHERE, optional WITH options, optional AS OF clause.
+     6. Shared rule names must stay definitionally identical across the
+        KQL/KML/META grammars, except the two reviewed divergences owned by
+        KQL (`proposition_tuple` raw predicate paths, `where_clause` BELIEF
+        patterns); `../formal/grammar/check_ebnf.py` enforces this.
 *)
 
 (* ------------------------------------------------------------------------- *)

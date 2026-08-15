@@ -247,7 +247,7 @@ PURGE :target WHERE {...}                    // physical erasure; exceptional
 SET RETENTION :target { retention_class: "standard", expires_at: :t }
 ```
 
-`MERGE CONCEPT ?src INTO ?tgt WHERE {...}` — non-destructive: source stays addressable as merged history; future writes canonicalize to target.
+`MERGE CONCEPT ?src INTO ?tgt WHERE {...}` — non-destructive: source stays addressable as merged history; future writes canonicalize to target. Cycle-creating merges (target already resolves back to source) are rejected.
 
 Preconditions: `EXPECT VERSION :n` (optimistic concurrency; `EXPECT VERSION 0` = create-only), `EXPECT STATE "..."`.
 

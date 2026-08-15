@@ -22,6 +22,12 @@
      4. Raw path quantifiers are syntax only for raw Proposition predicates.
      5. UNION retains the KIP 1.x syntax `UNION { ... }`: it forms an
         independent alternative branch relative to the surrounding block.
+     6. Two shared rule names intentionally diverge from KML/META:
+        `proposition_tuple` here accepts raw predicate path expressions
+        (KML/META require an exact `predicate_atom`), and `where_clause`
+        here additionally accepts BELIEF / BELIEF SLOT patterns. All other
+        rules shared across the three grammars must stay definitionally
+        identical; `../formal/grammar/check_ebnf.py` enforces this.
 *)
 
 (* ------------------------------------------------------------------------- *)

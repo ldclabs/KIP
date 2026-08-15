@@ -26,6 +26,10 @@
         EXPECT STATE guard, formalizing the design text that terminal outputs
         and ended_at may be finalized atomically.
      6. PURGE freezes the explicit confirmation spelling as CONFIRM "PURGE".
+     7. Shared rule names must stay definitionally identical across the
+        KQL/KML/META grammars, except the two reviewed divergences owned by
+        KQL (`proposition_tuple` raw predicate paths, `where_clause` BELIEF
+        patterns); `../formal/grammar/check_ebnf.py` enforces this.
 *)
 
 (* ------------------------------------------------------------------------- *)

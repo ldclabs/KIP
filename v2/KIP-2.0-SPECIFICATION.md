@@ -819,6 +819,8 @@ A.merged_into = B
 future canonical resolution A → B
 ```
 
+A merge MUST NOT create a cycle in `merged_into`: the runtime MUST reject a merge whose target already resolves, transitively, to the source. This keeps canonical resolution (following `merged_into` to its fixpoint) terminating.
+
 ---
 
 ## 11.2 Raw historical references
@@ -2357,7 +2359,10 @@ Allows creation of derived cognitive output subject to:
 classification propagation
 provenance preservation
 authority non-amplification
+Same-Space reference closure
 ```
+
+Reference closure (§5.3) MUST be revalidated on derived and maintenance writes exactly as on primary writes; derivation is not an exempt write path.
 
 ---
 
@@ -2671,6 +2676,10 @@ operation endpoint/class
 ## 34.3 Same key, same request
 
 The runtime MUST return the original retained transaction outcome rather than re-execute.
+
+Retention covers every finalized outcome, including `no_effect`: a `no_effect` outcome MUST be retained and replayed exactly like a committed outcome, even though it allocates no `space_seq` and appends no Commit Record (§32.8, §33.1).
+
+A transaction that aborts before finalizing (precondition, validation, authorization, or serialization failure) MUST NOT bind the key: the failure is not a retained outcome, and a later request with the same key executes normally.
 
 ---
 

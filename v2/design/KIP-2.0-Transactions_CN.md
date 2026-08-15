@@ -456,7 +456,7 @@ SET field to existing identical value (SET 字段为已有完全相同的值)
 
 `no_effect` **不得 (SHOULD NOT)** 仅仅为了证明请求曾发生过而递增元素版本号。
 
-幂等注册表/审计日志仍可记录该请求。
+幂等注册表**必须**仍以幂等键留存 `no_effect` 结果（规范 §34.3）；审计日志可另行记录该请求。
 
 ---
 

@@ -818,6 +818,8 @@ A.merged_into = B
 未来的规范解析为 A → B (future canonical resolution A → B)
 ```
 
+合并**严禁**在 `merged_into` 中制造环：若合并目标（经传递解析）已解析回合并源，运行时**必须**拒绝该次合并。这保证规范解析（沿 `merged_into` 追溯至不动点）必然终止。
+
 ---
 
 ## 11.2 原始历史引用 (Raw historical references)
@@ -2349,7 +2351,10 @@ read_raw_origin (读取原始来源)
 密级继承 (classification propagation)
 溯源保留 (provenance preservation)
 权限不放大 (authority non-amplification)
+同空间引用闭包 (Same-Space reference closure)
 ```
+
+引用闭包（§5.3）在衍生写入与维护写入上**必须**与主写入路径完全一样地重新校验；衍生不是豁免的写入路径。
 
 ---
 
@@ -2662,6 +2667,10 @@ operation endpoint/class (操作端点/类别)
 ## 34.3 相同键与相同请求 (Same key, same request)
 
 运行时**必须**返回原始保留的事务结果，而非重复执行。
+
+留存覆盖所有已定格的结果，包括 `no_effect`：`no_effect` 结果**必须**与已提交结果一样被留存并按原样重放——即便它不分配 `space_seq`、也不追加提交记录（§32.8、§33.1）。
+
+在定格之前中止的事务（前置条件、校验、授权或可串行化失败）**严禁**占用该幂等键：失败不构成留存结果，之后携带同一键的请求照常执行。
 
 ---
 

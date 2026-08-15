@@ -247,7 +247,7 @@ PURGE :target WHERE {...}                    // 物理抹除；极端特殊操�
 SET RETENTION :target { retention_class: "standard", expires_at: :t }
 ```
 
-`MERGE CONCEPT ?src INTO ?tgt WHERE {...}` 为非破坏性合并：源节点作为已合并历史依然可寻址；后续新写入会自动规范化到目标节点。
+`MERGE CONCEPT ?src INTO ?tgt WHERE {...}` 为非破坏性合并：源节点作为已合并历史依然可寻址；后续新写入会自动规范化到目标节点。会制造环的合并（目标已传递解析回源）将被拒绝。
 
 前置状态断言：`EXPECT VERSION :n`（乐观并发控制；`EXPECT VERSION 0` 代表仅允许新建）、`EXPECT STATE "..."`。
 
