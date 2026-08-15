@@ -71,7 +71,7 @@ client_key    retry-safe logical identity for one historical creation
 
 Unverified "these are the same entity" → `same_as` Proposition + Assertion (feeds review, never auto-merges).
 
-#### 1.5. Lexical
+#### 1.5. Lexical & writing rules
 
 ```text
 ?name    variable / KML local handle        :name    bound parameter (complete value position)
@@ -79,7 +79,15 @@ Unverified "these are the same entity" → `same_as` Proposition + Assertion (fe
 identifiers: [A-Za-z_][A-Za-z0-9_]*         // comments to end of line
 ```
 
-Parameters are structurally bound data, never string-spliced; don't embed them inside quoted strings.
+Notation **in this card only**: `[ ]` = optional, `A | B` = alternatives, `<...>` = placeholder, `...` = elided. Never emit those. Real KIP square brackets occur only in arrays (`[1, "a"]`) and facet access (`?x.facets["MnemonicState"]`); a real `|` occurs only between predicate alternatives (`"a" | "b"`).
+
+Rules that decide whether a statement parses:
+
+- Predicates, schema names (types, facets, structural fields), ids and enum values are **quoted strings** or `:params` — never bare words: `(?a, "prefers", ?b)`, `SET FACET "MnemonicState"`, `("has_step", ?s)`. Object keys are bare identifiers or quoted strings; a keyword is a fine key (`{by: …, mode: …, key: …}`).
+- Inside `WHERE { … }` items are separated by whitespace/newlines, **not commas**. Commas only inside `( )`, `{ }`, `[ ]`, argument lists, and the `FIND(...)` / `ORDER BY` lists.
+- Statement-level clause order is fixed and is exactly the order shown in this card; only the clauses inside a `CREATE ... { }` / `UPSERT ... { }` body may come in any order. `true` / `false` / `null` are lowercase; keywords are case-insensitive.
+- One statement per operation, no `;`. Several mutations that must commit together → wrap them in `MUTATE { … }`.
+- Parameters are structurally bound data, never string-spliced; don't embed them inside quoted strings.
 
 ---
 
@@ -90,19 +98,23 @@ FIND(<projections>)
 WHERE { <patterns and filters> }
 [AS OF SEQ :seq | AS OF TX :tx | AS OF TIME :t]   // cognitive history: what the Brain contained/believed then
 [FOR TIME :world_time]                            // world-valid time: what was applicable then
-[WITH EPISTEMIC { purpose: "...", explanation: "none|summary|ledger", ... }]
-[ORDER BY <expr> [ASC|DESC], ...] [LIMIT :n] [CURSOR :cursor]
+[WITH EPISTEMIC { purpose: "...", risk: "low", policy: "...", include_historical: false,
+                  include_hypothetical: false, explanation: "none|summary|ledger" }]
+[ORDER BY <expr> [ASC|DESC], ...] [LIMIT :n] [CURSOR :cursor]   // several sort keys; ASC default; nulls last
 ```
 
-`AS OF` and `FOR TIME` are independent axes. "What did I believe then?" = both; "what do I now believe about then?" = `FOR TIME` only.
+`AS OF` and `FOR TIME` are independent axes. "What did I believe then?" = both; "what do I now believe about then?" = `FOR TIME` only. Projections are variables, dot paths or aggregates; mixing plain expressions with aggregates groups by the plain ones.
 
 #### 2.1. Pattern families
 
 ```prolog
-?person {type: "Person", name: "Alice"}              // Concept (type = schema sugar)
+?person {type: "Person", name: "Alice"}              // Concept (type = schema sugar; `?person CONCEPT {...}` also legal)
+?exp {type: "Experience", attributes: {outcome_status: "failure"}}   // attributes/facets match as nested objects (or FILTER on ?exp.attributes.x)
 ?p (?person, "works_for", ?org)                      // raw Proposition — existence, NOT belief
 ?p (?s, ?predicate, ?o)                              // predicate variable → binds exact predicate ref
 ?p (id: :prop_id)                                    // same slot, addressed by id — usable as a term too
+(?drug, "treats", {type: "Symptom", name: "Headache"})   // a term may be an inline Concept match, a literal, or a :param
+?s (?user, "stated", (?drug, "treats", ?symptom))    // ... or a nested tuple: statement about a statement
 ?a ASSERTION {proposition: ?p, asserted_by: ?actor, stance: "support", mode: "stated"}
 ?e EVIDENCE {evidence_class: "tool_result"}
 ?act ACTIVITY {activity_class: "inference", status: "completed"}
@@ -113,26 +125,26 @@ WHERE { <patterns and filters> }
 ?slot BELIEF SLOT (?person, "timezone")              // whole functional slot: candidates + conflicts
 ```
 
-**BELIEF output**: `status` ∈ `accepted | rejected | contested | uncertain | insufficient`, plus support/opposition, uncertainty, policy identity, temporal basis. A fully grounded BELIEF over a never-stored Proposition returns `insufficient` (not zero rows). BELIEF SLOT returns `accepted_values` + `candidate_projections`. Support and opposition scores don't sum to 1.
+**BELIEF output**: `status` ∈ `accepted | rejected | contested | uncertain | insufficient`, plus support/opposition, uncertainty, policy identity, temporal basis. A fully grounded BELIEF over a never-stored Proposition returns `insufficient` (not zero rows). BELIEF SLOT returns `accepted_values` + `candidate_projections`. Support and opposition scores don't sum to 1. `BELIEF` / `BELIEF SLOT` are `FIND`-only: never inside a mutation's `WHERE` or an `EXPORT` selection, and their predicate is exact (no path operators).
 
 **When to use what**: answering "what is true?" → `BELIEF` / `BELIEF SLOT`. Auditing "who said what, based on what?" → raw Proposition/Assertion/Evidence patterns. Never present raw rows as accepted belief.
 
 #### 2.2. Expressions
 
 ```prolog
-FILTER(?a.confidence > 0.8 && ?a.lifecycle.status == "active")
+FILTER(?a.confidence > 0.8 && ?a.lifecycle.status == "active")   // == != < > <= >=   && || !
 FILTER(IN(?x.name, ["A", "B"]))    // also: CONTAINS STARTS_WITH ENDS_WITH REGEX
 FILTER(IS_NULL(?opt))              // IS_NOT_NULL IS_LITERAL IS_ELEMENT IS_KIND
 NOT { (?person, "prefers", ?x) }   // = no visible match; NEVER world-level falsehood
 OPTIONAL { ... }                   // left join; null = no visible match
-UNION { ... }                      // alternative branch
+UNION { ... }                      // alternative branch (independent scope)
 ```
 
-Dot paths: `?x.id` `?x.name` `?x.attributes.goal` `?a.lifecycle.status` `?x._system.version` `?x.facets["MnemonicState"].memory_strength` `?edge.index`
+Dot paths: `?x.id` `?x.name` `?x.attributes.goal` `?a.lifecycle.status` `?x._system.version` `?x.facets["MnemonicState"].memory_strength` `?edge.index`; whole objects too (`?x.attributes`).
 
 Aggregates: `COUNT(?x)` `COUNT(DISTINCT ?x)` `SUM/AVG/MIN/MAX`. `COUNT = 0` never proves falsehood.
 
-Raw paths (traversal only, no belief propagation): `(?x, "is_subclass_of"{0,5}, ?anc)`, alternatives `(?x, "related_to" | "depends_on", ?y)`.
+Raw paths (traversal only, no belief propagation): `(?x, "is_subclass_of"{0,5}, ?anc)` — quantifiers `{n}` `{m,}` `{m,n}`; alternatives `(?x, "related_to" | "depends_on", ?y)`.
 
 Cursors are opaque, snapshot-pinned, family-specific; current Governance still applies on continuation.
 
@@ -154,6 +166,7 @@ ASSERT (:alice, "prefers", :dark_mode) {
   evidence: :msg,          // optional: Evidence ref or array (runtime-ingested preferred)
   stance: "support",       // optional, default support (support|reject|uncertain)
   at: :time,               // optional → asserted_at (default: engine transaction time)
+  valid: {from: :t1, until: :t2},   // optional → valid_time (world-valid interval)
   key: :client_key         // optional retry-safe identity
 }
 ```
@@ -161,12 +174,22 @@ ASSERT (:alice, "prefers", :dark_mode) {
 Correction (same actor changed their claim):
 
 ```prolog
-ASSERT (:alice, "timezone", "+01:00") {
+ASSERT ?a (:alice, "timezone", "+01:00") {   // the handle ?a is optional
   by: :alice, mode: "stated", evidence: :e2
 } SUPERSEDING :old_assertion
 ```
 
-Desugars exactly to `ENSURE PROPOSITION` + `CREATE ASSERTION` (+ `SUPERSEDE`). Never fabricates extra state.
+Desugars exactly to `ENSURE PROPOSITION` + `CREATE ASSERTION` (+ `SUPERSEDE`). Never fabricates extra state. The tuple must be a structural `(s, "p", o)`: the `(id: …)` form is match-only and rejected here. The long form — needed for `challenge` / `context` citations or fine control:
+
+```prolog
+ENSURE PROPOSITION ?p (:alice, "prefers", :dark_mode)   // resolve-or-create the canonical tuple; [EXPECT VERSION 0] = must be new
+CREATE ASSERTION ?a {
+  CLIENT KEY :a_key
+  SET FIELDS { proposition: ?p, asserted_by: :alice, stance: "support", mode: "stated",
+               confidence: 0.95, asserted_at: :time, valid_time: {from: :t1, until: :t2} }
+  SET STRUCTURAL { ("evidence", :msg) {role: "support"} ("evidence", :counter) {role: "challenge"} }
+}
+```
 
 Rules of stance:
 - Someone tells you a fact → `ASSERT ... {by: <them>, mode: "stated"}`. Recording "Alice said X" needs no permission to *be* Alice.
@@ -186,7 +209,7 @@ CREATE EVIDENCE ?e {
 }
 ```
 
-Wrong Evidence is corrected, never edited: `CORRECT EVIDENCE :old BY :new`.
+`CREATE EVIDENCE` / `CREATE ASSERTION` / `CREATE ACTIVITY` share one body: `[CLIENT KEY]`, `SET FIELDS`, `SET FACET`*, `SET STRUCTURAL` — no `TYPE`/`NAME`/`SET ATTRIBUTES` (those are Concept clauses). Wrong Evidence is corrected, never edited: `CORRECT EVIDENCE :old BY :new [EXPECT STATE "..."]`.
 
 #### 3.3. Concepts
 
@@ -202,9 +225,12 @@ CREATE CONCEPT ?exp {                       // historically distinct thing
 
 UPSERT CONCEPT ?proj {                      // stable identity-bearing Concept
   MATCH { type: "Project", key: "kip-2" }   // identity = id/key; name-only upsert is forbidden
+  EXPECT VERSION :v                         // optional; 0 = create-only
   SET FIELDS { name: "KIP 2.0" }
 }
 ```
+
+Clause menus (any order inside the braces, each at most once except `SET/UNSET FACET`): `CREATE CONCEPT` — `TYPE` (required), `CLIENT KEY`, `NAME`, `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`. `UPSERT CONCEPT` — `MATCH` (required), `EXPECT VERSION`, `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`, `UNSET ATTRIBUTES | FACET | STRUCTURAL`. `MATCH { type: "Person", key: "alice" }` may create; `MATCH { id: :id }` only matches. Where a value goes: Core fields (`name`, `key`) → `SET FIELDS`; schema-declared attributes (`goal`, `status`, …) → `SET ATTRIBUTES`; Profile facet values → `SET FACET "Facet"`; references → `SET STRUCTURAL`.
 
 #### 3.4. `MUTATE` — one atomic cognitive transition
 
@@ -220,12 +246,12 @@ MUTATE {
 }
 ```
 
-Handles (`?e`, `?a`) are block-local; forward references are allowed; the engine validates the whole graph, then commits all-or-nothing.
+Handles (`?e`, `?a`) are block-local; forward references are allowed; the engine validates the whole graph, then commits all-or-nothing. A `MUTATE` may hold any KML statement except another `MUTATE`.
 
 #### 3.5. UPDATE — mutable state only
 
 ```prolog
-UPDATE ?m
+UPDATE ?m [EXPECT VERSION :v]
 SET FACET "MnemonicState" {
   memory_strength: CLAMP(MUL(?m.facets["MnemonicState"].memory_strength, :decay), 0, 1)
 }
@@ -233,50 +259,60 @@ WHERE { ?m {type: "Experience"} FILTER(...) }
 LIMIT :n
 ```
 
-Actions: `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL` and `UNSET ATTRIBUTES | FACET | STRUCTURAL` — every SET has an UNSET; `UNSET STRUCTURAL { ("has_step", ?wrong_step) }` removes one reference (ordered fields re-densify; cardinality is validated). Update expressions: `ADD` `MUL` `CLAMP` `COALESCE` (deterministic, per-target). UPDATE never creates. A direct target needs no `WHERE`: `UPDATE :id SET FACET "MnemonicState" {salience: 0.9}` (same rule as ARCHIVE/TOMBSTONE/PURGE/SET RETENTION/RETRACT — a `?var` target is bound by WHERE, `:id`/`"id"` already names the element).
+Actions (one or more, in this position): `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL` and `UNSET ATTRIBUTES | FACET | STRUCTURAL` — every SET has an UNSET; `UNSET STRUCTURAL { ("has_step", ?wrong_step) }` removes one reference (ordered fields re-densify; cardinality is validated). Update expressions: `ADD` `MUL` `CLAMP` `COALESCE` (deterministic, per-target; operands may read only the target's own paths). UPDATE never creates. A direct target needs no `WHERE`: `UPDATE :id SET FACET "MnemonicState" {salience: 0.9}` (same rule as ARCHIVE/TOMBSTONE/PURGE/SET RETENTION/RETRACT — a `?var` target is bound by WHERE, `:id`/`"id"` already names the element).
 
 **UPDATE can never touch**: Proposition tuples, Assertion epistemic payload (stance/confidence/actor/time), Evidence payload, terminal Activity topology, `_system`, Governance, Schema. Attempting → `EpistemicRevisionRequired` / `ImmutableField`. **Never decay Assertion confidence over time** — disuse decays `memory_strength`; staleness is Projection's job; new knowledge is a new Assertion.
 
 #### 3.6. Lifecycle & removal (four different things)
 
 ```prolog
-RETRACT ASSERTION :a EXPECT STATE "active"   // the assertor withdraws their own claim
-SUPERSEDE ASSERTION :old BY ?new             // same actor/lineage revision — not disagreement
-ARCHIVE :target WHERE {...} [LIMIT :n]       // out of ordinary recall; history preserved
-TOMBSTONE :target WHERE {...} [LIMIT :n]     // logical deletion; identity/audit preserved
-PURGE :target WHERE {...} [LIMIT :n]         // physical erasure; exceptional
-  REFERENCE POLICY "deny_if_referenced" CONFIRM "PURGE"
-SET RETENTION :target { retention_class: "standard", expires_at: :t } [LIMIT :n]
+RETRACT ASSERTION :a [WHERE {...}] [LIMIT :n] [EXPECT STATE "active"]   // the assertor withdraws their own claim
+SUPERSEDE ASSERTION :old BY ?new [EXPECT STATE "active"]               // same actor/lineage revision — not disagreement
+TRANSITION ACTIVITY :act TO "completed"                                // lifecycle move; may finalize terminal fields atomically
+  [SET FIELDS { ended_at: :t }] [SET STRUCTURAL { ("outputs", ?a) }] [EXPECT STATE "running"]
+ARCHIVE :target [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]     // out of ordinary recall; history preserved
+TOMBSTONE :target [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]   // logical deletion; identity/audit preserved
+PURGE :target [WHERE {...}] [LIMIT :n]                             // physical erasure; exceptional
+  [REFERENCE POLICY "deny_if_referenced"] CONFIRM "PURGE"          // policies: deny_if_referenced | tombstone_reference | authorized_cascade
+SET RETENTION :target { retention_class: "standard", expires_at: :t } [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]
+MERGE CONCEPT ?src INTO ?tgt [WHERE {...}] [EXPECT VERSION :v]
 ```
 
 Every mutation whose `WHERE` can select an unbounded set takes an optional `LIMIT` right after it (`UPDATE`, `RETRACT ASSERTION`, `SET RETENTION`, `ARCHIVE`, `TOMBSTONE`, `PURGE`) — bound your sweeps. `LIMIT` caps how many are affected, not which: don't assume an order. `MERGE CONCEPT` takes none.
 
-`MERGE CONCEPT ?src INTO ?tgt WHERE {...}` — non-destructive: source stays addressable as merged history; future writes canonicalize to target. Cycle-creating merges (target already resolves back to source) are rejected.
+`MERGE CONCEPT` is non-destructive: source stays addressable as merged history; future writes canonicalize to target. Cycle-creating merges (target already resolves back to source) are rejected.
 
-Preconditions: `EXPECT VERSION :n` (optimistic concurrency; `EXPECT VERSION 0` = create-only), `EXPECT STATE "..."`.
+Preconditions: `EXPECT VERSION :n` (optimistic concurrency; `EXPECT VERSION 0` = create-only) sits right after the target in `UPDATE`, after `MATCH` in `UPSERT CONCEPT`, after the tuple in `ENSURE PROPOSITION`, and last in `SET RETENTION` / `MERGE CONCEPT`; `EXPECT STATE "..."` is always the last clause of a lifecycle statement.
 
 ---
 
 ### 4. META — Ground, Verify, Inspect
 
 ```prolog
-DESCRIBE PRIMER [MODE "compact"]      // identity, Space, schema map, capabilities, safety invariants
-DESCRIBE CAPABILITIES                 // supported vs available (for THIS caller)
-DESCRIBE TYPE :t | PREDICATE :p | FACET :f | STRUCTURAL FIELD :sf | PACKAGE :pkg
-DESCRIBE SCHEMA ENVIRONMENT | SPACE | EXECUTION CONTEXT | EPISTEMIC POLICY [:id] | TRUST [:scope]
+DESCRIBE PRIMER [MODE "compact" | "full"]   // identity, Space, schema map, capabilities, safety invariants
+DESCRIBE PROTOCOL | EXECUTION CONTEXT | CAPABILITIES | PROJECTION CAPABILITY   // CAPABILITIES: supported vs available (for THIS caller)
+DESCRIBE SPACE [:space_id] | SCHEMA ENVIRONMENT [AS OF SEQ :s] | SNAPSHOT [AS OF SEQ :s]
+DESCRIBE TYPE :t | PREDICATE :p | FACET :f | STRUCTURAL FIELD :sf | PACKAGE :pkg | COMPATIBILITY FROM :pkg_a TO :pkg_b
+DESCRIBE ERROR :code | CAPSULE :artifact | EPISTEMIC POLICY [:id] | TRUST [:scope] | ACCESS [WITH {operation: "...", resource: :r}]
 DESCRIBE TRANSACTION :tx_id | DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :key
-LIST TYPES | PREDICATES | FACETS | STRUCTURAL FIELDS | SCHEMA PACKAGES | SPACES [LIMIT :n]
-HISTORY ELEMENT :id | HISTORY SPACE [FROM SEQ :a] [TO SEQ :b]     // transition chronology
-CHANGES SINCE :cursor | CHANGES AFTER SEQ :seq                    // transaction-grained stream
-SNAPSHOT [AS OF SEQ :seq]
-VERIFY CAPSULE :artifact | VALIDATE KML :cmd | PREVIEW KML :cmd | PREVIEW IMPORT CAPSULE :c INTO :space
-EXPORT CAPSULE ?roots WHERE {...} [WITH {closure: "referential"}] [AS OF SEQ :seq]
+LIST SPACES | TYPES | PREDICATES | FACETS | STRUCTURAL FIELDS | EPISTEMIC POLICIES [LIMIT :n] [CURSOR :c]
+LIST SCHEMA PACKAGES [STATUS "active"] [LIMIT :n] [CURSOR :c]
+HISTORY ELEMENT :id [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]   // transition chronology
+HISTORY SPACE [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]
+CHANGES SINCE :cursor [LIMIT :n] | CHANGES AFTER SEQ :seq [LIMIT :n]   // transaction-grained stream
+SNAPSHOT [AS OF SEQ :s]                                                // AS OF also takes TX :tx | TIME :t
+VERIFY CAPSULE | SCHEMA PACKAGE | RECEIPT | BLOB | CHECKPOINT :artifact
+VALIDATE KQL | KML | CAPSULE | SCHEMA PACKAGE | IMPORT PLAN :input [WITH {...}]
+PREVIEW KML :cmd | PREVIEW IMPORT CAPSULE :capsule INTO :space
+EXPORT CAPSULE ?roots WHERE {...}                                      // ?roots bound by WHERE, or :id / "id" for one root
+  [WITH {closure: "referential", provenance_depth: 2, include_schema: true, include_blobs: false, proof_profile: "..."}]
+  [AS OF SEQ :s]
 ```
 
 ```prolog
-SEARCH CONCEPT :term [WITH TYPE :type] [MODE "keyword"|"semantic"|"hybrid"]
-  [THRESHOLD :t] [LIMIT :n] [CURSOR :c]        // also: PROPOSITION|ASSERTION|EVIDENCE|ACTIVITY|COGNITION
-SEARCH PROPOSITION :term [WITH PREDICATE :pred] // predicate-scoped; [AS OF SEQ :seq] only where historical_search is advertised
+SEARCH CONCEPT :term [WITH TYPE :type] [MODE "keyword" | "semantic" | "hybrid"]   // exactly this clause order
+  [THRESHOLD :t] [AS OF SEQ :s] [LIMIT :n] [CURSOR :c]      // kinds: CONCEPT | PROPOSITION | ASSERTION | EVIDENCE | ACTIVITY | COGNITION
+SEARCH PROPOSITION :term [WITH PREDICATE :pred] [MODE "hybrid"] [LIMIT :n]   // AS OF SEQ only where historical_search is advertised
 ```
 
 SEARCH is grounding only: score ≠ confidence ≠ belief; miss ≠ absence; results disclose `index_seq` freshness. Golden path: **SEARCH → exact id → BELIEF/FIND**.
