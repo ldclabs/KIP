@@ -3,6 +3,7 @@
   "displayName": "KIP Language",
   "description": "Language support for KIP 2.0 (Knowledge Interaction Protocol): syntax highlighting, formatting, diagnostics, and code folding for .kip files",
   "version": "2.0.0",
+  "preview": true,
   "publisher": "ldclabs",
   "license": "MIT",
   "keywords": [
@@ -15,19 +16,42 @@
     "cognitive-nexus",
     "formatter"
   ],
+  "homepage": "https://github.com/ldclabs/KIP/tree/main/packages/vscode-kip#readme",
+  "bugs": {
+    "url": "https://github.com/ldclabs/KIP/issues"
+  },
+  "qna": "https://github.com/ldclabs/KIP/issues",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ldclabs/KIP",
+    "url": "git+https://github.com/ldclabs/KIP.git",
     "directory": "packages/vscode-kip"
   },
   "engines": {
     "vscode": "^1.85.0"
   },
+  "kip": {
+    "specRevision": "2.0-draft",
+    "scope": "command-text-editor",
+    "conformanceProfiles": [],
+    "syntaxSurfaces": [
+      "KIP-KQL",
+      "KIP-KML",
+      "KIP-META"
+    ]
+  },
   "activationEvents": [],
   "categories": [
     "Programming Languages",
-    "Formatters"
+    "Formatters",
+    "Linters"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true,
+      "description": "KIP command text is parsed in-process and never executed, so no workspace trust is required."
+    },
+    "virtualWorkspaces": true
+  },
   "main": "./dist/extension.js",
   "contributes": {
     "languages": [
@@ -43,6 +67,16 @@
         "configuration": "./language-configuration.json"
       }
     ],
+    "configuration": {
+      "title": "KIP",
+      "properties": {
+        "kip.format.sortAttributes": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Alphabetize keys inside `SET ATTRIBUTES` blocks when formatting. Blocks holding a comment keep author order, since reordering would detach the comment from its key."
+        }
+      }
+    },
     "configurationDefaults": {
       "[kip]": {
         "editor.defaultFormatter": "ldclabs.vscode-kip"
@@ -57,19 +91,21 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run build",
+    "vscode:prepublish": "pnpm --filter @ldclabs/kip-lang build && npm run lint && npm run build:production",
     "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "build:production": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify",
     "watch": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch",
     "package": "vsce package --no-dependencies",
-    "lint": "tsc --noEmit"
+    "publish": "vsce publish --no-dependencies",
+    "lint": "tsc --noEmit",
+    "pretest": "pnpm --filter @ldclabs/kip-lang build",
+    "test": "node --test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.85.0",
+    "@ldclabs/kip-lang": "workspace:*",
+    "@types/vscode": "1.85.0",
     "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.28.0",
-    "typescript": "^6.0.0"
-  },
-  "dependencies": {
-    "@ldclabs/kip-lang": "workspace:*"
+    "typescript": "^5.9.3"
   }
 }

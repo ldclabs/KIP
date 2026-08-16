@@ -253,10 +253,13 @@ export function lowerStatement(stmt: Statement): Command {
     case 'TombstoneStatement':
     case 'PurgeStatement':
     case 'MergeConceptStatement':
+      const clauses = lowerMutationClause(stmt, 0)
+      assertUniqueHandles(clauses, stmt.range)
+      assertResolvedHandles(clauses, stmt.range)
       return {
         Kml: {
           explicit_transaction: false,
-          clauses: lowerMutationClause(stmt, 0)
+          clauses
         }
       }
 
@@ -439,7 +442,7 @@ function lowerWherePattern(pattern: WherePattern): WhereClause {
         }
         target = {
           Tuple: {
-            subject: lowerTerm(pattern.subject),
+            subject: lowerPropositionSubject(pattern.subject),
             predicate: { Atom: lowerPredAtom(pattern.predicate) },
             object: lowerTerm(pattern.object)
           }
@@ -457,7 +460,7 @@ function lowerWherePattern(pattern: WherePattern): WhereClause {
       return {
         BeliefSlot: {
           variable: varName(pattern.variable.name, pattern.variable.range),
-          subject: lowerTerm(pattern.subject),
+          subject: lowerPropositionSubject(pattern.subject),
           predicate: lowerPredAtom(pattern.predicate)
         }
       }
@@ -486,7 +489,7 @@ function lowerPropositionMatcher(tuple: PropositionTuple): PropositionMatcher {
   }
   return {
     Tuple: {
-      subject: lowerTerm(tuple.subject),
+      subject: lowerPropositionSubject(tuple.subject),
       predicate: lowerPredicate(tuple.predicate),
       object: lowerTerm(tuple.object)
     }
@@ -511,15 +514,22 @@ function requireStructuralTuple(
       tuple.range
     )
   }
-  const predicate = lowerPredicate(tuple.predicate!)
+  const predicateExpression = tuple.predicate!
+  const predicate = lowerPredicate(predicateExpression)
   if (!('Atom' in predicate)) {
     throw invalidSyntax(
       `${statement} needs one exact predicate; alternation and hop quantifiers are KQL traversal forms`,
       tuple.predicate!.range
     )
   }
+  if ('Variable' in predicate.Atom) {
+    throw invalidSyntax(
+      `${statement} needs an exact quoted predicate or :parameter; ?variables are KQL read-pattern syntax`,
+      predicateExpression.range
+    )
+  }
   return {
-    subject: lowerTerm(tuple.subject!),
+    subject: lowerPropositionSubject(tuple.subject!),
     predicate: predicate.Atom,
     object: lowerTerm(tuple.object!)
   }
@@ -562,6 +572,22 @@ function lowerTerm(term: CstTerm): Term {
       return { Proposition: lowerPropositionMatcher(term) }
     default:
       return { Literal: lowerKipValue(term) }
+  }
+}
+
+/** A Proposition subject is always an Element reference, never a Literal. */
+function lowerPropositionSubject(term: CstTerm): Term {
+  switch (term.kind) {
+    case 'StringLiteral':
+    case 'NumberLiteral':
+    case 'BooleanLiteral':
+    case 'NullLiteral':
+      throw invalidSyntax(
+        'a Proposition subject must be a local Element reference, never a Literal',
+        term.range
+      )
+    default:
+      return lowerTerm(term)
   }
 }
 
@@ -719,6 +745,7 @@ function lowerMutate(stmt: MutateStatement): KmlStatement {
     lowerMutationClause(clause, i)
   )
   assertUniqueHandles(clauses, stmt.range)
+  assertResolvedHandles(clauses, stmt.range)
   return { explicit_transaction: true, clauses }
 }
 
@@ -750,6 +777,61 @@ function handleOf(clause: MutationClause): string | null {
   if ('CreateActivity' in clause) return clause.CreateActivity.handle
   if ('EnsureProposition' in clause) return clause.EnsureProposition.handle
   return null
+}
+
+/**
+ * Every executable `Handle` must be created by this mutation plan or bound by
+ * that clause's WHERE. Parameters remain runtime bindings and are unaffected.
+ */
+function assertResolvedHandles(clauses: MutationClause[], range: Range): void {
+  const planHandles = new Set<string>()
+  for (const clause of clauses) {
+    const handle = handleOf(clause)
+    if (handle !== null) planHandles.add(handle)
+  }
+
+  for (const clause of clauses) {
+    const allowed = new Set(planHandles)
+    const body = Object.values(clause)[0] as Record<string, unknown>
+    collectWhereVariables(body.where_clauses, allowed)
+
+    const referenced = new Set<string>()
+    collectTaggedHandles(body, referenced)
+    for (const handle of referenced) {
+      if (!allowed.has(handle)) {
+        throw invalidSyntax(
+          `?${handle} is not bound by this command's mutation outputs or WHERE clause`,
+          range
+        )
+      }
+    }
+  }
+}
+
+function collectWhereVariables(value: unknown, out: Set<string>): void {
+  if (Array.isArray(value)) {
+    for (const item of value) collectWhereVariables(item, out)
+    return
+  }
+  if (!value || typeof value !== 'object') return
+  const record = value as Record<string, unknown>
+  if (typeof record.variable === 'string') out.add(record.variable)
+  // Pattern terms and predicate atoms use the tagged `{ Variable: name }`
+  // shape. Filter operands also use `Variable`, but carry a DotPathVar object
+  // rather than a string, so they cannot accidentally introduce a binding.
+  if (typeof record.Variable === 'string') out.add(record.Variable)
+  for (const child of Object.values(record)) collectWhereVariables(child, out)
+}
+
+function collectTaggedHandles(value: unknown, out: Set<string>): void {
+  if (Array.isArray(value)) {
+    for (const item of value) collectTaggedHandles(item, out)
+    return
+  }
+  if (!value || typeof value !== 'object') return
+  const record = value as Record<string, unknown>
+  if (typeof record.Handle === 'string') out.add(record.Handle)
+  for (const child of Object.values(record)) collectTaggedHandles(child, out)
 }
 
 /**
@@ -1354,6 +1436,7 @@ function lowerAssignments(
   const seen = new Set<string>()
   const out: Assignments = []
   for (const entry of object.entries) {
+    guardProtectedField(entry.key, entry.range)
     if (seen.has(entry.key)) {
       throw invalidSyntax(`duplicate assignment for ${entry.key}`, entry.range)
     }

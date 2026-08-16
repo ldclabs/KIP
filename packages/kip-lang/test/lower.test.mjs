@@ -249,13 +249,13 @@ describe('lower: ASSERT desugaring', () => {
 
   test('an evidence array cites each artifact as its own edge', () => {
     const cmd = lowerOne(
-      'ASSERT (:a, "p", :b) { by: :x, mode: "stated", evidence: [:e1, ?e2] }'
+      'ASSERT (:a, "p", :b) { by: :x, mode: "stated", evidence: [:e1, :e2] }'
     )
     const edges = cmd.Kml.clauses[1].CreateAssertion.set_structural
     assert.equal(edges.length, 2)
     assert.deepEqual(edges.map((e) => e.value), [
       { Param: 'e1' },
-      { Handle: 'e2' }
+      { Param: 'e2' }
     ])
     assert.ok(edges.every((e) => e.options.role.Value.String === 'support'))
   })
@@ -318,6 +318,21 @@ describe('lower: ASSERT desugaring', () => {
       /not an ASSERT member/
     )
   })
+
+  test('a Proposition subject is never a Literal and KML predicates are exact', () => {
+    assert.match(
+      lowerThrows('ASSERT ("Alice", "prefers", :dark) {by: :alice, mode: "stated"}').message,
+      /subject must be a local Element reference/
+    )
+    assert.match(
+      lowerThrows('ENSURE PROPOSITION ?p (:alice, ?predicate, :dark)').message,
+      /exact quoted predicate or :parameter/
+    )
+    assert.match(
+      lowerThrows('FIND(?p) WHERE { ?p (42, "answer", ?o) }').message,
+      /subject must be a local Element reference/
+    )
+  })
 })
 
 describe('lower: KML invariants', () => {
@@ -362,6 +377,39 @@ describe('lower: KML invariants', () => {
     }
   })
 
+  test('engine-maintained state is also protected during creation and upsert', () => {
+    const cases = [
+      'CREATE CONCEPT ?c { SET FIELDS {_system: 1} }',
+      'UPSERT CONCEPT ?c { MATCH {id: :id} SET ATTRIBUTES {governance: {role: "admin"}} }',
+      'CREATE EVIDENCE ?e { SET FIELDS {space_id: "foreign"} }',
+      'CREATE ASSERTION ?a { SET FIELDS {space_seq: 9} }',
+      'CREATE ACTIVITY ?a { SET FIELDS {_system: {version: 99}} }'
+    ]
+    for (const source of cases) {
+      assert.match(lowerThrows(source).message, /engine-maintained state/)
+    }
+  })
+
+  test('local handles must resolve within the command', () => {
+    assert.match(
+      lowerThrows('CREATE ACTIVITY ?a { SET STRUCTURAL {("inputs", ?missing)} }').message,
+      /not bound by this command/
+    )
+    assert.match(
+      lowerThrows('UPDATE ?x SET ATTRIBUTES {a: 1}').message,
+      /not bound by this command/
+    )
+    // A WHERE binding and a MUTATE-local forward reference are both valid.
+    lowerOne('UPDATE ?x SET ATTRIBUTES {a: 1} WHERE { ?x {id: :id} }')
+    lowerOne(
+      'UPDATE ?subject SET ATTRIBUTES {a: 1} WHERE { ?p (?subject, "rel", :object) }'
+    )
+    lowerOne(`MUTATE {
+      CREATE ACTIVITY ?a { SET STRUCTURAL {("inputs", ?e)} }
+      CREATE EVIDENCE ?e { SET FIELDS {evidence_class: "tool_result"} }
+    }`)
+  })
+
   test('Assertion epistemic payload cannot be rewritten by UPDATE', () => {
     for (const field of ['stance', 'confidence', 'asserted_by', 'asserted_at', 'mode']) {
       const err = lowerThrows(
@@ -397,18 +445,18 @@ describe('lower: KML invariants', () => {
     const upsert = lowerOne(`
       UPSERT CONCEPT ?exp {
         MATCH { id: :exp_id }
-        UNSET STRUCTURAL { ("has_step", ?wrong) ("involves", :bob) }
+        UNSET STRUCTURAL { ("has_step", :wrong) ("involves", :bob) }
       }`).Kml.clauses[0].UpsertConcept
     assert.deepEqual(upsert.unset_structural, [
-      { field: { Name: 'has_step' }, value: { Handle: 'wrong' } },
+      { field: { Name: 'has_step' }, value: { Param: 'wrong' } },
       { field: { Name: 'involves' }, value: { Param: 'bob' } }
     ])
 
     const update = lowerOne(
-      'UPDATE ?exp UNSET STRUCTURAL { ("has_step", ?wrong) } WHERE { ?exp {id: :exp_id} }'
+      'UPDATE ?exp UNSET STRUCTURAL { ("has_step", :wrong) } WHERE { ?exp {id: :exp_id} }'
     ).Kml.clauses[0].Update
     assert.deepEqual(update.actions[0], {
-      UnsetStructural: [{ field: { Name: 'has_step' }, value: { Handle: 'wrong' } }]
+      UnsetStructural: [{ field: { Name: 'has_step' }, value: { Param: 'wrong' } }]
     })
 
     // An empty block removes nothing and is almost certainly a mistake.
@@ -421,7 +469,7 @@ describe('lower: KML invariants', () => {
   test('record kinds keep their topology: structural mutation targets Concepts only', () => {
     // Spec §17.5 — citations, lineage and provenance topology are not
     // reachable through UPDATE, in either direction.
-    for (const action of ['SET STRUCTURAL { ("evidence", ?e) }', 'UNSET STRUCTURAL { ("evidence", ?e) }']) {
+    for (const action of ['SET STRUCTURAL { ("evidence", :e) }', 'UNSET STRUCTURAL { ("evidence", :e) }']) {
       assert.match(
         lowerThrows(`UPDATE ?a ${action} WHERE { ?a ASSERTION {id: "A-1"} }`).message,
         /immutable payload/
@@ -440,7 +488,7 @@ describe('lower: KML invariants', () => {
       )
     }
     // A Concept target, or a direct target whose kind is unknown statically, passes.
-    lowerOne('UPDATE ?c UNSET STRUCTURAL { ("has_step", ?s) } WHERE { ?c {type: "Experience"} }')
+    lowerOne('UPDATE ?c UNSET STRUCTURAL { ("has_step", :s) } WHERE { ?c {type: "Experience"} }')
     lowerOne('UPDATE :exp UNSET STRUCTURAL { ("has_step", :s) }')
   })
 
@@ -517,11 +565,11 @@ describe('lower: KML invariants', () => {
 
   test('a structural edge keeps its options', () => {
     const cmd = lowerOne(
-      'CREATE CONCEPT ?e { SET STRUCTURAL { ("has_step", ?s) {index: 0} } }'
+      'CREATE CONCEPT ?e { SET STRUCTURAL { ("has_step", :s) {index: 0} } }'
     )
     const [edge] = cmd.Kml.clauses[0].CreateConcept.set_structural
     assert.deepEqual(edge.field, { Name: 'has_step' })
-    assert.deepEqual(edge.value, { Handle: 's' })
+    assert.deepEqual(edge.value, { Param: 's' })
     assert.deepEqual(edge.options, { index: { Value: { Number: 0 } } })
   })
 
@@ -631,7 +679,7 @@ describe('version', () => {
     assert.equal(PARSER_VERSION, pkg.version)
   })
 
-  test('the spec revision is a KIP revision string', () => {
-    assert.match(KIP_SPEC_REVISION, /^v\d+\.\d+(-RC\d+)?$/)
+  test('the spec revision identifies the normative draft', () => {
+    assert.equal(KIP_SPEC_REVISION, '2.0-draft')
   })
 })

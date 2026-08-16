@@ -609,6 +609,15 @@ describe('parser strictness the executable form depends on', () => {
     )
   })
 
+  test('KQL trailing clauses follow their canonical order', () => {
+    assert.ok(
+      parseErrors('FIND(?x) WHERE { ?x {a: 1} } LIMIT 1 AS OF SEQ 2').length > 0
+    )
+    assert.ok(
+      parseErrors('FIND(?x) WHERE { ?x {a: 1} } CURSOR :c ORDER BY ?x').length > 0
+    )
+  })
+
   test('strings are JSON strings', () => {
     assert.ok(diagnose('FIND(?x) WHERE { ?x {a: "unterminated }').length > 0)
   })
@@ -670,7 +679,7 @@ describe('formatter', () => {
   // facet comment
   SET FACET "F" { a: 1 }
   // structural comment
-  SET STRUCTURAL { ("has_step", ?right) {index: 2} } }`,
+  SET STRUCTURAL { ("has_step", :right) {index: 2} } }`,
         [/\/\/ facet comment\n\s*SET FACET "F"/, /\/\/ structural comment\n\s*SET STRUCTURAL \{/]
       ],
       [
@@ -754,16 +763,16 @@ WHERE { ?m {} }`,
     const sources = [
       'FIND(?x) WHERE { ?x {a: 1} } AS OF SEQ :s FOR TIME :t ORDER BY ?x.a DESC LIMIT 5 CURSOR :c',
       'FIND(?b) WHERE { ?b BELIEF SLOT (?p, "timezone") }',
-      'CREATE CONCEPT ?c { TYPE "T" CLIENT KEY :k NAME "n" SET ATTRIBUTES {a: 1} SET FACET "F" {b: 2} SET STRUCTURAL { ("has_step", ?s) {index: 0} } }',
+      'CREATE CONCEPT ?c { TYPE "T" CLIENT KEY :k NAME "n" SET ATTRIBUTES {a: 1} SET FACET "F" {b: 2} SET STRUCTURAL { ("has_step", :s) {index: 0} } }',
       'UPSERT CONCEPT ?p { MATCH {key: "kip-2"} SET FIELDS {name: "KIP 2.0"} UNSET FACET "F" {x} }',
-      'UPSERT CONCEPT ?e { MATCH {id: :id} SET STRUCTURAL { ("has_step", ?a) {index: 0} } UNSET STRUCTURAL { ("has_step", ?b) ("involves", :bob) } }',
-      'UPDATE ?e UNSET STRUCTURAL { ("has_step", ?wrong) } WHERE { ?e {id: :id} }',
+      'UPSERT CONCEPT ?e { MATCH {id: :id} SET STRUCTURAL { ("has_step", :a) {index: 0} } UNSET STRUCTURAL { ("has_step", :b) ("involves", :bob) } }',
+      'UPDATE ?e UNSET STRUCTURAL { ("has_step", :wrong) } WHERE { ?e {id: :id} }',
       'ENSURE PROPOSITION ?p (:a, "b", :c) EXPECT VERSION 0',
       'ASSERT (:a, "b", :c) {by: :x, mode: "stated"} SUPERSEDING :old',
       'CREATE EVIDENCE ?e { CLIENT KEY :k SET FIELDS {evidence_class: "tool_result"} }',
       'UPDATE ?m SET FACET "F" {v: CLAMP(MUL(?m.v, :d), 0, 1)} WHERE { ?m {type: "T"} } LIMIT 10',
       'RETRACT ASSERTION :a EXPECT STATE "active"',
-      'SUPERSEDE ASSERTION :o BY ?n',
+      'SUPERSEDE ASSERTION :o BY :n',
       'CORRECT EVIDENCE :o BY :n',
       'TRANSITION ACTIVITY :a TO "completed" SET FIELDS {ended_at: :t} EXPECT STATE "running"',
       'SET RETENTION :t {retention_class: "standard"}',
@@ -783,7 +792,7 @@ WHERE { ?m {} }`,
       'UPDATE "C-1" EXPECT VERSION 3 SET ATTRIBUTES {a: 1}',
       'PURGE :t REFERENCE POLICY "deny_if_referenced" CONFIRM "PURGE"',
       'PURGE :t WHERE { ?x {a: 1} } LIMIT 10 CONFIRM "PURGE"',
-      'MERGE CONCEPT ?a INTO ?b EXPECT VERSION 2',
+      'MERGE CONCEPT :a INTO :b EXPECT VERSION 2',
       'DESCRIBE PRIMER MODE "compact"',
       'DESCRIBE COMPATIBILITY FROM :a TO :b',
       'LIST SCHEMA PACKAGES STATUS "active" LIMIT 10',
@@ -871,6 +880,22 @@ describe('semantics', () => {
   test('TRANSITION ACTIVITY only reaches terminal states', () => {
     assert.ok(codes('TRANSITION ACTIVITY :a TO "running"').includes('KIP_2001'))
     assert.deepEqual(codes('TRANSITION ACTIVITY :a TO "completed"'), [])
+  })
+
+  test('diagnostics include executable-AST constraints', () => {
+    const invalid = [
+      'FIND(?x.name == "Alice") WHERE { ?x {type: "Person"} }',
+      'FIND(?x) WHERE { ?x {a: 1} FILTER(SOUNDS_LIKE(?x.name)) }',
+      'UPDATE ?a SET FIELDS {confidence: 0.2} WHERE { ?a ASSERTION {id: "A-1"} }',
+      'ASSERT (:a, "p", :b) {by: :x, mode: "stated", trust: 0.9}',
+      'CREATE ACTIVITY ?a { SET STRUCTURAL {("inputs", ?missing)} }'
+    ]
+    for (const source of invalid) {
+      assert.ok(
+        diagnose(source).some((d) => d.severity === 'error'),
+        `expected an executable diagnostic for: ${source}`
+      )
+    }
   })
 })
 

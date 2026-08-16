@@ -247,7 +247,7 @@ function checkMutate(stmt: MutateStatement, diags: Diagnostic[]): void {
     if (!bound.has(ref.name)) {
       diags.push({
         range: ref.range,
-        severity: 'warning',
+        severity: 'error',
         message: `?${ref.name} is not bound by any clause in this MUTATE block`,
         code: 'KIP_2102'
       })

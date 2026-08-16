@@ -1,6 +1,7 @@
 node_modules/
 src/
+test/
 tsconfig.json
 *.ts
 *.vsix
-!dist/**
+dist/*.map

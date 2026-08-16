@@ -7,6 +7,12 @@ Provides a full-featured **lexer → parser → AST → formatter / diagnostics*
 pipeline for `.kip` files, plus **`lower`**, which turns a syntax tree into the
 executable AST a KIP engine runs.
 
+This package targets the normative **KIP 2.0 draft** command-text surface. It
+implements the KQL, KML, and META syntax surfaces, but it does not claim a
+complete KIP conformance profile by itself: Schema resolution, Governance,
+transactions, persistence, projection, history, Capsules, and runtime
+envelopes remain engine responsibilities.
+
 The parser targets the KIP 2.0 command-text syntax — all three languages:
 **KQL** (`FIND`) to read, **KML** (`ASSERT`, `MUTATE`, `CREATE`, `UPSERT`,
 `UPDATE`, and the retract/supersede/archive/tombstone/purge lifecycle) to
@@ -163,7 +169,8 @@ refuses on size is refused by every other engine too.
 | `tokenize(source)`                 | Tokenize KIP source into `Token[]`                       |
 | `parse(source)`                    | Parse into `{ ast: Program, diagnostics: Diagnostic[] }` |
 | `format(source, options?)`         | AST-based formatting with comment preservation           |
-| `diagnose(source)`                 | Return `Diagnostic[]` (lexer + bracket + parser errors)  |
+| `diagnose(source)`                 | Return syntax, static-semantic, and executable diagnostics |
+| `validateExecutable(program)`      | Check every parsed statement can lower to executable AST |
 | `analyzeSemantics(program)`        | Spec SHOULD/MUST checks decidable without a live schema  |
 | `lower(program)`                   | Lower one command to the executable `Command` AST        |
 | `lowerAll(program)`                | Lower every command in a multi-statement program         |
@@ -182,7 +189,7 @@ All AST types are exported for downstream consumption:
 - **KQL**: `FindStatement`, with `AsOfClause`, `ForTimeClause`, `EpistemicClause`, `OrderByClause`, `LimitClause`, `CursorClause`
 - **KML**: `MutateStatement` plus every `MutationClause` — `CreateConceptStatement`, `UpsertConceptStatement`, `EnsurePropositionStatement`, `AssertStatement`, `CreateEvidenceStatement`, `CreateAssertionStatement`, `CreateActivityStatement`, `UpdateStatement`, `RetractAssertionStatement`, `SupersedeAssertionStatement`, `CorrectEvidenceStatement`, `TransitionActivityStatement`, `SetRetentionStatement`, `ArchiveStatement`, `TombstoneStatement`, `PurgeStatement`, `MergeConceptStatement`
 - **META**: `DescribeStatement`, `ListStatement`, `SearchStatement`, `VerifyStatement`, `ValidateStatement`, `PreviewStatement`, `HistoryStatement`, `ChangesStatement`, `SnapshotStatement`, `ExportCapsuleStatement`
-- **Clauses**: `TypeClause`, `ClientKeyClause`, `NameClause`, `MatchClause`, `SetFieldsClause`, `SetAttributesClause`, `SetFacetClause`, `UnsetAttributesClause`, `UnsetFacetClause`, `SetStructuralClause`, `ExpectVersionClause`, `ExpectStateClause`
+- **Clauses**: `TypeClause`, `ClientKeyClause`, `NameClause`, `MatchClause`, `SetFieldsClause`, `SetAttributesClause`, `SetFacetClause`, `UnsetAttributesClause`, `UnsetFacetClause`, `SetStructuralClause`, `UnsetStructuralClause`, `ExpectVersionClause`, `ExpectStateClause`
 - **Patterns**: `ConceptPattern`, `PropositionPattern`, `AssertionPattern`, `EvidencePattern`, `ActivityPattern`, `StructuralPattern`, `BeliefPattern`, `BeliefSlotPattern`, `FilterClause`, `NotClause`, `OptionalClause`, `UnionClause`
 - **Expressions**: `Expression`, `FieldAccess`, `AggregateExpr`, `FunctionCallExpr`, `ObjectLiteral`, `ObjectPattern`, `ArrayLiteral`, `ObjectEntry`
 
@@ -198,8 +205,8 @@ String-or-parameter operands stay `ScalarValue` nodes — `SearchStatement.term`
 
 KIP 2.0 is the cognitive state protocol between an agent and a persistent
 Cognitive Nexus: you read with KQL, change cognition with KML, and ground or
-introspect with META. See the [KIP 2.0 Specification](../../v2/KIP-2.0-SPECIFICATION.md)
-for full syntax details, or the [syntax card](../../v2/KIPSyntax.md) for a
+introspect with META. See the [KIP 2.0 Specification](https://github.com/ldclabs/KIP/blob/main/v2/KIP-2.0-SPECIFICATION.md)
+for full syntax details, or the [syntax card](https://github.com/ldclabs/KIP/blob/main/v2/KIPSyntax.md) for a
 condensed reference.
 
 ## License

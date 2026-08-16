@@ -29,12 +29,12 @@
     }
   },
   "indentationRules": {
-    "increaseIndentPattern": "^[^\"']*\\{\\s*$",
+    "increaseIndentPattern": "^.*\\{\\s*$",
     "decreaseIndentPattern": "^\\s*[}\\])]"
   },
   "onEnterRules": [
     {
-      "beforeText": "^[^\"']*\\{\\s*$",
+      "beforeText": "^.*\\{\\s*$",
       "afterText": "^\\s*\\}",
       "action": {
         "indent": "indentOutdent",
@@ -42,7 +42,7 @@
       }
     },
     {
-      "beforeText": "^[^\"']*\\{\\s*$",
+      "beforeText": "^.*\\{\\s*$",
       "action": {
         "indent": "indent"
       }

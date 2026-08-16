@@ -2,6 +2,9 @@ import type { Range } from './token.js'
 import { tokenize } from './lexer.js'
 import { parse } from './parser.js'
 import { analyzeSemantics } from './semantics.js'
+import { lowerStatement } from './lower.js'
+import { KipSyntaxError } from './errors.js'
+import type { Program } from './ast.js'
 import { TokenType } from './token.js'
 
 export interface Diagnostic {
@@ -13,8 +16,8 @@ export interface Diagnostic {
 
 /**
  * Runs diagnostics on KIP source code.
- * Combines lexer-level issues (unterminated strings, unknown tokens)
- * with parser-level syntax errors.
+ * Combines lexer and parser errors with schema-independent semantic and
+ * executable-AST validation.
  */
 export function diagnose(source: string): Diagnostic[] {
   const diagnostics: Diagnostic[] = []
@@ -142,9 +145,35 @@ export function diagnose(source: string): Diagnostic[] {
   // Phase 4: Semantic checks (only when the AST parsed cleanly, to avoid
   // cascading false positives from error-recovery placeholders).
   if (!parseDiags.some((d) => d.severity === 'error')) {
-    diagnostics.push(...analyzeSemantics(ast))
+    const semanticDiags = analyzeSemantics(ast)
+    diagnostics.push(...semanticDiags)
+    if (!semanticDiags.some((d) => d.severity === 'error')) {
+      diagnostics.push(...validateExecutable(ast))
+    }
   }
 
+  return diagnostics
+}
+
+/**
+ * Runs the schema-independent checks needed for every parsed statement to
+ * lower into the closed executable AST used by a KIP engine.
+ */
+export function validateExecutable(program: Program): Diagnostic[] {
+  const diagnostics: Diagnostic[] = []
+  for (const statement of program.statements) {
+    try {
+      lowerStatement(statement)
+    } catch (error) {
+      if (!(error instanceof KipSyntaxError)) throw error
+      diagnostics.push({
+        range: error.range ?? statement.range,
+        severity: 'error',
+        message: error.message,
+        code: error.code
+      })
+    }
+  }
   return diagnostics
 }
 

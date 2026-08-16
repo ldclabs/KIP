@@ -310,6 +310,7 @@ class Parser {
     let orderBy: OrderByClause | undefined
     let limit: LimitClause | undefined
     let cursor: CursorClause | undefined
+    let lastClauseOrder = -1
 
     // The grammar fixes this order. Accepting any order here would let a
     // command run on this parser that a conformant engine rejects, so each
@@ -317,21 +318,42 @@ class Parser {
     for (;;) {
       const tok = this.current()
       if (this.check(TokenType.As)) {
+        lastClauseOrder = this.checkClauseOrder(0, lastClauseOrder, 'AS OF', tok)
         this.rejectRepeat(asOf, 'AS OF', tok)
         asOf = this.parseAsOfClause()
       } else if (this.check(TokenType.For)) {
+        lastClauseOrder = this.checkClauseOrder(
+          1,
+          lastClauseOrder,
+          'FOR TIME',
+          tok
+        )
         this.rejectRepeat(forTime, 'FOR TIME', tok)
         forTime = this.parseForTimeClause()
       } else if (this.check(TokenType.With)) {
+        lastClauseOrder = this.checkClauseOrder(
+          2,
+          lastClauseOrder,
+          'WITH EPISTEMIC',
+          tok
+        )
         this.rejectRepeat(epistemic, 'WITH EPISTEMIC', tok)
         epistemic = this.parseEpistemicClause()
       } else if (this.check(TokenType.Order)) {
+        lastClauseOrder = this.checkClauseOrder(
+          3,
+          lastClauseOrder,
+          'ORDER BY',
+          tok
+        )
         this.rejectRepeat(orderBy, 'ORDER BY', tok)
         orderBy = this.parseOrderBy()
       } else if (this.check(TokenType.Limit)) {
+        lastClauseOrder = this.checkClauseOrder(4, lastClauseOrder, 'LIMIT', tok)
         this.rejectRepeat(limit, 'LIMIT', tok)
         limit = this.parseLimitClause()
       } else if (this.check(TokenType.Cursor)) {
+        lastClauseOrder = this.checkClauseOrder(5, lastClauseOrder, 'CURSOR', tok)
         this.rejectRepeat(cursor, 'CURSOR', tok)
         cursor = this.parseCursorClause()
       } else {
@@ -3286,6 +3308,19 @@ class Parser {
     if (seen !== undefined) {
       this.error(`Duplicate ${name} clause`, tok)
     }
+  }
+
+  /** Enforces the canonical statement-level order while still recovering. */
+  private checkClauseOrder(
+    order: number,
+    previous: number,
+    name: string,
+    tok: Token
+  ): number {
+    if (order < previous) {
+      this.error(`${name} clause is out of order`, tok)
+    }
+    return Math.max(order, previous)
   }
 
   private skipComments(): void {

@@ -13,7 +13,10 @@ export class KipFormattingProvider
     const source = document.getText()
     try {
       const formatted = format(source, {
-        indentSize: options.tabSize
+        indentSize: options.tabSize,
+        sortAttributes: vscode.workspace
+          .getConfiguration('kip', document)
+          .get<boolean>('format.sortAttributes', false)
       })
       if (formatted === source) return []
 

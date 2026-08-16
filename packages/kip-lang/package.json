@@ -9,11 +9,30 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "kip": {
+    "specRevision": "2.0-draft",
+    "scope": "command-text-toolkit",
+    "conformanceProfiles": [],
+    "syntaxSurfaces": [
+      "KIP-KQL",
+      "KIP-KML",
+      "KIP-META"
+    ]
   },
   "files": [
     "dist",
     "src",
+    "CHANGELOG.md",
     "README.md",
     "package.json"
   ],
@@ -22,7 +41,7 @@
     "dev": "tsc -p tsconfig.json --watch",
     "pretest": "tsc -p tsconfig.json",
     "test": "node --test",
-    "prepublishOnly": "tsc -p tsconfig.json"
+    "prepublishOnly": "npm test"
   },
   "keywords": [
     "kip",
@@ -36,10 +55,15 @@
     "formatter",
     "lexer"
   ],
+  "author": "LDC Labs",
   "license": "MIT",
+  "homepage": "https://github.com/ldclabs/KIP/tree/main/packages/kip-lang#readme",
+  "bugs": {
+    "url": "https://github.com/ldclabs/KIP/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ldclabs/KIP",
+    "url": "git+https://github.com/ldclabs/KIP.git",
     "directory": "packages/kip-lang"
   },
   "devDependencies": {

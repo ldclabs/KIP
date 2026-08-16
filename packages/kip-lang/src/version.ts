@@ -10,4 +10,4 @@
 export const PARSER_VERSION = '2.0.0'
 
 /** The KIP specification revision this grammar targets. */
-export const KIP_SPEC_REVISION = 'v2.0'
+export const KIP_SPEC_REVISION = '2.0-draft'

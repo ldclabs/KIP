@@ -1,6 +1,12 @@
 # KIP Language (VS Code Extension)
 
-VS Code extension providing full language support for **KIP** (Knowledge Interaction Protocol) `.kip` files.
+VS Code extension providing command-text editor support for the normative
+**KIP 2.0 draft** `.kip` syntax.
+
+It covers the KQL, KML, and META syntax surfaces. It is not a KIP runtime and
+does not claim a complete protocol conformance profile: live Schema,
+Governance, transaction, projection, history, and persistence checks remain
+the connected engine's responsibility.
 
 The extension uses `@ldclabs/kip-lang` for KIP 2.0 command-text parsing,
 formatting, and diagnostics across all three languages — **KQL** (`FIND`),
@@ -49,6 +55,12 @@ Error squiggles as you type (300ms debounce):
 - Unterminated strings
 - Unclosed / mismatched brackets
 - Unexpected tokens and missing clauses
+- Static-semantic checks the Spec makes without a live schema (unbound
+  variables, out-of-order trailing clauses, …)
+- Commands that parse but cannot lower to the executable AST — an unknown
+  filter function, a `?variable` where the language requires an exact
+  predicate, a write to an engine-maintained field — reported with their KIP
+  error code
 
 ### Code Folding
 
@@ -97,15 +109,19 @@ Use `pnpm watch` for live rebuild during development.
 
 ## Configuration
 
-The extension works out of the box with no configuration needed. Formatting
-follows the editor's tab size and leaves the order of keys as you wrote them.
+The extension works out of the box. Formatting follows the editor's tab size
+and leaves the order of keys as you wrote them.
+
+| Setting                     | Default | Description                                                                                                             |
+| --------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `kip.format.sortAttributes` | `false` | Alphabetize keys inside `SET ATTRIBUTES` blocks. A block holding a comment keeps author order, so the comment stays put. |
 
 ## KIP Language
 
 KIP 2.0 is the cognitive state protocol between an agent and a persistent
 Cognitive Nexus: you read with KQL, change cognition with KML, and ground or
-introspect with META. See the [KIP 2.0 Specification](../../v2/KIP-2.0-SPECIFICATION.md)
-for full syntax details, or the [syntax card](../../v2/KIPSyntax.md) for a
+introspect with META. See the [KIP 2.0 Specification](https://github.com/ldclabs/KIP/blob/main/v2/KIP-2.0-SPECIFICATION.md)
+for full syntax details, or the [syntax card](https://github.com/ldclabs/KIP/blob/main/v2/KIPSyntax.md) for a
 condensed reference.
 
 ## License
