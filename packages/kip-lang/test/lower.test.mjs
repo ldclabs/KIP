@@ -361,7 +361,7 @@ describe('lower: KML invariants', () => {
     assert.match(
       lowerThrows('UPSERT CONCEPT ?p { MATCH {type: "Project", name: "KIP"} SET FIELDS {a: 1} }')
         .message,
-      /must match on a stable identity/
+      /stable identity/
     )
     // `id` and `key` both qualify.
     lowerOne('UPSERT CONCEPT ?p { MATCH {key: "kip-2"} SET FIELDS {a: 1} }')
@@ -651,6 +651,132 @@ describe('lower: META', () => {
     assert.ok('Space' in lowerOne('HISTORY SPACE').Meta.History)
     assert.ok('Since' in lowerOne('CHANGES SINCE :c').Meta.Changes)
     assert.ok('AfterSeq' in lowerOne('CHANGES AFTER SEQ :s').Meta.Changes)
+  })
+})
+
+describe('lower: what a literal can promise', () => {
+  test('an integer literal must fit the range an engine can store', () => {
+    // The bounds are i64::MIN and u64::MAX, which is what the reference
+    // grammar reads an integer literal as.
+    lowerOne('CREATE CONCEPT ?c { TYPE "T" SET ATTRIBUTES { n: 18446744073709551615 } }')
+    lowerOne('CREATE CONCEPT ?c { TYPE "T" SET ATTRIBUTES { n: -9223372036854775808 } }')
+
+    // Past them the value cannot survive being a JavaScript number, and
+    // accepting it would be the worst outcome available: not a failure, but a
+    // command that executes with a different number than it says. No engine
+    // downstream can detect that — by the time an executable AST exists the
+    // digits are gone.
+    const over = lowerThrows(
+      'CREATE CONCEPT ?c { TYPE "T" SET ATTRIBUTES { n: 18446744073709551616 } }'
+    )
+    assert.match(over.message, /outside the range/)
+    assert.match(
+      lowerThrows(
+        'CREATE CONCEPT ?c { TYPE "T" SET ATTRIBUTES { n: -9223372036854775809 } }'
+      ).message,
+      /outside the range/
+    )
+  })
+
+  test('the float form is an approximation and says so', () => {
+    // `18446744073709551616.0` claims an approximation and is legal;
+    // `18446744073709551616` claims an exact value it cannot deliver.
+    const cmd = lowerOne(
+      'CREATE CONCEPT ?c { TYPE "T" SET ATTRIBUTES { n: 18446744073709551616.0 } }'
+    )
+    assert.equal(
+      cmd.Kml.clauses[0].CreateConcept.set_attributes[0][1].Value.Number,
+      18446744073709551616
+    )
+  })
+
+  test('a number with no finite value is not a literal', () => {
+    assert.match(
+      lowerThrows('CREATE CONCEPT ?c { TYPE "T" SET ATTRIBUTES { n: 1e309 } }')
+        .message,
+      /finite/
+    )
+    // Underflow is a real value, not an overflow.
+    lowerOne('CREATE CONCEPT ?c { TYPE "T" SET ATTRIBUTES { n: 1e-400 } }')
+  })
+
+  test('the range applies to update expressions too', () => {
+    assert.match(
+      lowerThrows(
+        'UPDATE :c SET ATTRIBUTES { n: ADD(?c.n, 18446744073709551616) }'
+      ).message,
+      /outside the range/
+    )
+  })
+
+  test('a negated literal is checked before it is negated', () => {
+    assert.match(
+      lowerThrows(
+        'CREATE CONCEPT ?c { TYPE "T" SET ATTRIBUTES { n: -18446744073709551616 } }'
+      ).message,
+      /outside the range/
+    )
+  })
+})
+
+describe('lower: EXPORT is bounded', () => {
+  test('an empty selection is not a Capsule', () => {
+    // A Capsule is a bounded excerpt. `WHERE { }` selects the whole Space,
+    // which is not a smaller thing to hand somebody — it is the Brain,
+    // exported by accident.
+    assert.match(
+      lowerThrows('EXPORT CAPSULE :out WHERE { }').message,
+      /at least one selection pattern/
+    )
+  })
+
+  test('one pattern is enough', () => {
+    const cmd = lowerOne('EXPORT CAPSULE :out WHERE { ?c CONCEPT {} }')
+    assert.equal(cmd.Meta.ExportCapsule.where_clauses.length, 1)
+  })
+})
+
+describe('lower: UPSERT identity', () => {
+  test('a stable identity is required, not optional', () => {
+    // Without one, UPSERT would mean "create, always".
+    assert.match(
+      lowerThrows('UPSERT CONCEPT ?c { SET FIELDS {name: "Alice"} }').message,
+      /stable identity/
+    )
+    assert.match(
+      lowerThrows('UPSERT CONCEPT ?c { MATCH {} }').message,
+      /stable identity/
+    )
+  })
+
+  test('a name never identifies a Concept', () => {
+    // Names are mutable grounding state with duplicates allowed, so "the
+    // Concept named X" can silently address a different node over time.
+    assert.match(
+      lowerThrows('UPSERT CONCEPT ?c { MATCH {name: "Alice"} }').message,
+      /stable identity/
+    )
+  })
+
+  test('a variable names a set rather than an element', () => {
+    assert.match(
+      lowerThrows('UPSERT CONCEPT ?c { MATCH {id: ?anything} }').message,
+      /stable identity/
+    )
+    assert.match(
+      lowerThrows('UPSERT CONCEPT ?c { MATCH {key: ?v} }').message,
+      /stable identity/
+    )
+  })
+
+  test('a literal or a parameter identifies, and other fields may narrow', () => {
+    assert.deepEqual(lowerOne('UPSERT CONCEPT ?c { MATCH {key: "person:alice"} }').Kml
+      .clauses[0].UpsertConcept.match, { key: { Literal: { String: 'person:alice' } } })
+    assert.deepEqual(lowerOne('UPSERT CONCEPT ?c { MATCH {id: :who} }').Kml
+      .clauses[0].UpsertConcept.match, { id: { Param: 'who' } })
+    // One valid identity is enough even when another field is a variable.
+    lowerOne('UPSERT CONCEPT ?c { MATCH {id: ?x, key: "k"} }')
+    lowerOne('UPSERT CONCEPT ?c { MATCH {id: "C-1", name: "Alice"} }')
   })
 })
 

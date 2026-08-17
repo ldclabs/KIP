@@ -50,7 +50,8 @@ import type {
   HistoryStatement,
   ChangesStatement,
   SnapshotStatement,
-  ExportCapsuleStatement
+  ExportCapsuleStatement,
+  NumberLiteral
 } from './ast.js'
 import { invalidSyntax } from './errors.js'
 import type {
@@ -955,22 +956,44 @@ function lowerCreateConcept(stmt: CreateConceptStatement): ConceptCreate {
   }
 }
 
+/**
+ * Whether a matcher pins exactly one Concept.
+ *
+ * Only `id` and `key` identify, and only when they carry a value that is one
+ * value: a literal, or a parameter the runtime binds to one. Anything else —
+ * a variable, a nested pattern, a list — describes candidates.
+ */
+function hasStableIdentity(match: ObjectMatcher): boolean {
+  for (const field of ['id', 'key']) {
+    const value = match[field]
+    if (value && ('Literal' in value || 'Param' in value)) return true
+  }
+  return false
+}
+
 function lowerUpsertConcept(stmt: UpsertConceptStatement): ConceptUpsert {
   const match = stmt.match ? lowerObjectMatcher(stmt.match.pattern) : null
 
-  // Identity for an upsert is `id` or `key`; a name-only match is forbidden
-  // because names are mutable grounding state with duplicates allowed, so
-  // "the Concept named X" can silently address a different node over time.
-  if (match) {
-    const fields = Object.keys(match)
-    const hasIdentity = fields.includes('id') || fields.includes('key')
-    if (!hasIdentity) {
-      throw invalidSyntax(
-        'UPSERT CONCEPT must match on a stable identity: add {id: ...} or {key: ...} — ' +
-          'name is mutable grounding state and never identifies a Concept',
-        stmt.match!.range
-      )
-    }
+  // Identity for an upsert is `id` or `key`, spelled as a literal or a
+  // parameter. Three things are refused here, and they are the same mistake at
+  // different depths:
+  //
+  //   - no MATCH at all, which would make UPSERT mean "create, always";
+  //   - a name-only match, because names are mutable grounding state with
+  //     duplicates allowed, so "the Concept named X" can silently address a
+  //     different node over time;
+  //   - an identity whose value is a variable, which is a *set* of candidates
+  //     rather than one element — an upsert resolving it would pick a winner.
+  //
+  // A match may carry other fields beside the identity; they narrow, they do
+  // not identify.
+  if (!match || !hasStableIdentity(match)) {
+    throw invalidSyntax(
+      'UPSERT CONCEPT requires a MATCH on a stable identity: {id: <literal-or-parameter>} ' +
+        'or {key: <literal-or-parameter>} — name is mutable grounding state and never ' +
+        'identifies a Concept, and a variable names a set rather than an element',
+      stmt.match ? stmt.match.range : stmt.range
+    )
   }
 
   return {
@@ -1607,11 +1630,11 @@ function lowerUpdateExpr(
       return { Param: paramName(expr.name) }
 
     case 'NumberLiteral':
-      return { Number: expr.value }
+      return { Number: numberValue(expr) }
 
     case 'UnaryExpression':
       if (expr.operator === '-' && expr.operand.kind === 'NumberLiteral') {
-        return { Number: -expr.operand.value }
+        return { Number: -numberValue(expr.operand) }
       }
       throw invalidSyntax(
         `expected a number, a parameter, the target's own field or a registered function, found ${describeExpression(expr)}`,
@@ -1869,9 +1892,19 @@ function lowerHistory(stmt: HistoryStatement): HistoryCommand {
 }
 
 function lowerExport(stmt: ExportCapsuleStatement) {
+  const where_clauses = lowerWhere(stmt.where)
+  // A Capsule is a bounded, self-contained excerpt. `WHERE { }` selects the
+  // whole Space, which is not a smaller thing to hand somebody — it is the
+  // Brain, exported by accident.
+  if (where_clauses.length === 0) {
+    throw invalidSyntax(
+      'expected at least one selection pattern: an unbounded EXPORT is not a Capsule',
+      stmt.where.range
+    )
+  }
   return {
     target: lowerElementRef(stmt.target),
-    where_clauses: lowerWhere(stmt.where),
+    where_clauses,
     options: stmt.options ? lowerBoundObject(stmt.options) : null,
     as_of: stmt.asOf ? lowerAsOf(stmt.asOf) : null
   }
@@ -1924,18 +1957,68 @@ function lowerElementRef(ref: TargetRef): ElementRef {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Numeric literals
+// ---------------------------------------------------------------------------
+
+/** `i64::MIN` — the most negative integer a KIP number literal may spell. */
+const INT_MIN = -(2n ** 63n)
+/** `u64::MAX` — the largest. */
+const INT_MAX = 2n ** 64n - 1n
+
+/** An integer literal: no fraction, no exponent, so it is read as an integer. */
+const INTEGER_FORM = /^-?\d+$/
+
+/**
+ * The value of a number literal, refusing the ones that cannot survive being
+ * one.
+ *
+ * A JavaScript number is a double, so `18446744073709551617` silently becomes
+ * `18446744073709551616` on the way in. Accepting that would be the worst
+ * possible outcome: the command does not fail, it *executes with a different
+ * number than it says*, and no engine downstream can detect it — by the time
+ * an executable AST exists the digits are gone. So the check happens here,
+ * against the raw text, which is the only place the original is still around.
+ *
+ * The bounds are the reference grammar's: an integer literal is read as an
+ * `i64` or a `u64` and must fit one of them, and any other form must parse to a
+ * finite double. `18446744073709551616.0` is therefore accepted where
+ * `18446744073709551616` is not — the float form is claiming an approximation,
+ * and the integer form is claiming an exact value it cannot deliver.
+ *
+ * Integers above 2^53 still lose precision in this implementation's `value`
+ * even though they are accepted, because a double cannot hold them. That is a
+ * property of the host, not a disagreement about the language: both engines
+ * agree the command is legal, and a runtime that needs the exact digits has
+ * `raw`.
+ */
+function numberValue(node: NumberLiteral): number {
+  if (INTEGER_FORM.test(node.raw)) {
+    const exact = BigInt(node.raw)
+    if (exact < INT_MIN || exact > INT_MAX) {
+      throw invalidSyntax(
+        `${node.raw} is outside the range a KIP integer literal can represent ` +
+          `(${INT_MIN} to ${INT_MAX})`,
+        node.range
+      )
+    }
+    return node.value
+  }
+  if (!Number.isFinite(node.value)) {
+    throw invalidSyntax(
+      `only finite numbers are valid KIP literals, found ${node.raw}`,
+      node.range
+    )
+  }
+  return node.value
+}
+
 function lowerKipValue(expr: Expression): KipValue {
   switch (expr.kind) {
     case 'StringLiteral':
       return { String: expr.parsed }
     case 'NumberLiteral':
-      if (!Number.isFinite(expr.value)) {
-        throw invalidSyntax(
-          `only finite numbers are valid KIP literals, found ${expr.raw}`,
-          expr.range
-        )
-      }
-      return { Number: expr.value }
+      return { Number: numberValue(expr) }
     case 'BooleanLiteral':
       return { Bool: expr.value }
     case 'NullLiteral':
@@ -1954,7 +2037,7 @@ function lowerKipValue(expr: Expression): KipValue {
     }
     case 'UnaryExpression':
       if (expr.operator === '-' && expr.operand.kind === 'NumberLiteral') {
-        return { Number: -expr.operand.value }
+        return { Number: -numberValue(expr.operand) }
       }
       throw invalidSyntax(
         `expected a value, found ${describeExpression(expr)}`,
