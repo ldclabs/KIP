@@ -1,5 +1,7 @@
 # KIP 2.0 Formal Verification
 
+**[English](./README.md) | [中文](./README_CN.md)**
+
 Machine-checked models of the KIP 2.0 specification. Results, findings,
 and scope limits are in **[REPORT.md](./REPORT.md)**.
 

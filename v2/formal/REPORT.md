@@ -1,5 +1,7 @@
 # KIP 2.0 Formal Verification Report
 
+**[English](./REPORT.md) | [中文](./REPORT_CN.md)**
+
 **Date**: 2026-08-15
 **Target**: `v2/KIP-2.0-SPECIFICATION.md` (2.0-draft) and `v2/grammar/*.ebnf`
 **Artifacts**: [`alloy/kip-core.als`](./alloy/kip-core.als), [`tla/KipTransactions.tla`](./tla/KipTransactions.tla), [`governance/check_governance.py`](./governance/check_governance.py), [`grammar/check_ebnf.py`](./grammar/check_ebnf.py), [`run.sh`](./run.sh)
