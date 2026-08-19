@@ -445,13 +445,13 @@ SEARCH 仅用于检索接地：检索得分 ≠ 置信度 ≠ 确信事实；未
 
 ### 6. 认知记忆 Profile（速查）
 
-核心类型：`Person`、`Event`（发生了什么）、`Experience`（目标导向轨迹；必须包含 `goal`、`outcome_status`）、`ExperienceStep`（`step_kind`: context|observation|decision|action|feedback|belief_update；`summary`；顺序由 has_step 边索引决定）、`Preference`（总结性产物——主张本身仍为 Proposition+Assertion）、`Insight`、`Commitment`（`status`: pending|fulfilled|cancelled|expired|blocked；`due_at` 与 retention 过期时间不同）、`Skill`（`skill_class`、`procedure`、`status`: candidate|validated|needs_review|deprecated|archived）、`SleepTask`、`SelfModel`。
+核心类型：`Person`、`Event`（发生了什么）、`Experience`（目标导向轨迹；必须包含 `goal`、`outcome_status`）、`ExperienceStep`（`step_kind`: context|observation|decision|action|feedback|belief_update；`summary`；顺序由 has_step 边索引决定）、`Preference`（总结性产物——主张本身仍为 Proposition+Assertion）、`Insight`、`Commitment`（`status`: pending|fulfilled|cancelled|expired|blocked；`due_at` 与 retention 过期时间不同）、`Skill`（`skill_class`、`summary`、`procedure`、`status`: candidate|validated|needs_review|deprecated|archived）、`SleepTask`、`SelfModel`。
 
 核心谓词：`prefers`（Person→Concept）、`caused_by`（Step→Step，结果→起因，基于证据）、`same_as`（同一性主张 → 触发审核）。
 
-核心 Facet：`MnemonicState {memory_strength, salience}`、`SkillUtility {utility, success_count, failure_count}`——取值均为 `[0,1]`，均不代表真假。
+核心 Facet：`MnemonicState {memory_strength, salience, last_metabolized_at}`、`SkillUtility {utility, success_count, failure_count, last_validated_at}`——比率字段取值为 `[0,1]`，计数字段为非负整数，时间戳字段可为 null；均不代表真假。
 
-结构引用字段：`has_step`（有序）、`experienced_by`、`involves`、`mentions`、`about`、`derived_from`、`consolidated_to`、`compiled_from`、`compiled_by`、`committed_to`、`owed_to`、`assigned_to`；内置底层记录字段：`evidence`、`source`、`generated_by`、`inputs`、`outputs`。
+结构引用字段：`has_step`（有序）、`experienced_by`、`involves`、`mentions`、`about`、`derived_from`、`consolidated_to`、`compiled_from`、`compiled_by`、`committed_to`、`owed_to`、`assigned_to`；内置底层记录字段：`evidence`、`source`、`generated_by`、`inputs`、`outputs`、`associated_actors`。
 
 核心不变式：失败的 Experience 是头等记忆；单次成功 ≠ 已验证的 Skill；已验证的 Skill ≠ 执行权限；SelfModel ≠ Governance 权限策略；导入的记忆保持 `mode: "imported"`，绝不会伪造成本地亲历传记。
 

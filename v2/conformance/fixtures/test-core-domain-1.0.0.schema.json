@@ -505,7 +505,7 @@
       "Functional predicates create epistemic conflict sets; they do not reject contradictory raw storage.",
       "MnemonicState.memory_strength is not Assertion confidence."
     ],
-    "core_builtins": "Core structural fields (evidence, source, generated_by, inputs, outputs) are reserved built-ins defined by KIP-2.0-SPECIFICATION.md §20.13 and are not redefined by this test package."
+    "core_builtins": "Core structural fields (evidence, source, generated_by, inputs, outputs, associated_actors) are reserved built-ins defined by KIP-2.0-SPECIFICATION.md §20.13 and are not redefined by this test package."
   },
   "canonicalization": {
     "fixture_profile": "kip-draft-canonical-json-v1",
@@ -514,7 +514,7 @@
   },
   "integrity": {
     "digest_profile": "kip-draft-canonical-json-v1",
-    "content_digest": "sha256:d04c9778db56d11242cf275f6d21dbfac078aa87bae9e4773849f969250638ad",
+    "content_digest": "sha256:79a0c166847785cf3a0b56b0e33e625a9f3bb6e002232db86572f183fb250984",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

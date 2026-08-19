@@ -6,7 +6,7 @@
 
 **Core Data Model Proposal / Pre-Specification Draft**
 
-This document defines the concrete logical data model that implements the architectural principles in [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md).
+This document defines the concrete logical data model that implements the architectural principles in [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md).
 
 It is intentionally **not** a KQL/KML grammar specification and is intentionally **not** the complete epistemic, governance, schema-package, transaction, or capsule specification.
 
@@ -105,14 +105,9 @@ A sixth core object, `MemorySpace`, is a governance container rather than an ord
 ```text
                     Cognitive Element
                            │
-          ┌────────────────┼─────────────────┐
-          │                │                 │
-       Concept         Proposition        Assertion
-          │                │                 │
-          │                │                 │
-          └──────────┬─────┘                 │
-                     │                       │
-                   Evidence              Activity
+   ┌───────────┬───────────┼───────────┬───────────┐
+   │           │           │           │           │
+Concept   Proposition  Assertion   Evidence    Activity
 ```
 
 These element kinds exist for different reasons and MUST NOT be collapsed merely for graph uniformity.
@@ -321,7 +316,7 @@ name = legacy name
 
 for types that relied on name identity.
 
-A future KML specification may permit `{type, name}` addressing as ergonomic sugar, but native Core identity is always `id`.
+Native KML 2.0 does **not** accept `{type, name}` as identity: a native `UPSERT` must select on `id` or `key`, and name-only upsert is forbidden. Only a `kip-1-compat` profile may translate legacy `type + name` into a migrated `key`. Native Core identity is always `id`.
 
 ---
 
@@ -348,7 +343,7 @@ Unverified claims such as:
 
 > "This person is DID X"
 
-SHOULD normally be represented as a Proposition + Assertion until the binding is trusted.
+SHOULD normally be represented as a Proposition + Assertion until the binding is trusted. The Cognitive Memory Profile provides the `same_as` Predicate for exactly this purpose; it feeds identity review rather than automatic merging, and never establishes `canonical_id` by itself.
 
 ---
 
@@ -484,13 +479,26 @@ A Structural Reference describes how KIP records are assembled.
 Examples:
 
 ```text
-Assertion.proposition_id      → Proposition
-Assertion.evidence_refs       → Evidence
+Assertion.proposition         → Proposition
+Assertion.evidence            → Evidence
 Assertion.supersedes          → Assertion
+Evidence.source               → Concept | Evidence
 Evidence.generated_by         → Activity
 Activity.inputs               → Cognitive Elements
 Activity.outputs              → Cognitive Elements
 Experience.has_step           → ExperienceStep   [profile]
+```
+
+Core reserves six structural **field names** for query and mutation, resolved
+by the source element's Core kind rather than through package aliases:
+
+```text
+evidence       Assertion → Evidence            role-qualified citation
+source         Evidence  → Concept | Evidence  origin of the observation/artifact
+generated_by   Evidence  → Activity            producing Activity
+inputs         Activity  → any Core element    provenance inputs
+outputs        Activity  → any Core element    provenance outputs
+associated_actors  Activity  → Concept         semantic actors involved in the process (not authority, not the Principal)
 ```
 
 These links are part of record structure.
@@ -643,7 +651,7 @@ Example:
 ```json
 {
   "value": "苹果",
-  "datatype": "kip:string",
+  "datatype": "string",
   "language": "zh-Hans"
 }
 ```
@@ -703,7 +711,7 @@ Existence itself, when epistemically important, can be represented through a Pro
   "kind": "concept",
   "space_id": "space-1",
 
-  "schema_ref": "kip://profiles/example@2.0/Person",
+  "schema_ref": "kip://profiles/example@2.0.0/Person",
   "key": "alice",
   "name": "Alice",
   "canonical_id": null,
@@ -810,8 +818,8 @@ KIP 2.0 SHOULD adopt a more conservative semantic model:
 
 ```text
 Concept A
-   status = merged
-   merged_into = Concept B
+   _system.state = merged
+   merged_into   = Concept B
 ```
 
 Concept A remains an addressable historical identity record.
@@ -829,6 +837,8 @@ The engine maintains a resolution function:
 ```text
 resolve_concept(A) → B
 ```
+
+`resolve_concept` follows `merged_into` to its fixpoint, so a merge MUST NOT create a cycle: the runtime MUST reject a merge whose target already resolves, transitively, to the source.
 
 Default semantic queries MAY canonicalize merged identities.
 
@@ -902,7 +912,7 @@ Its existence is not a belief.
   "space_id": "space-1",
 
   "subject": {"id": "concept-alice"},
-  "predicate_ref": "kip://profiles/personal@2.0/prefers",
+  "predicate_ref": "kip://profiles/personal@2.0.0/prefers",
   "object": {"id": "concept-dark-mode"},
 
   "governance": {},
@@ -917,10 +927,10 @@ Literal object:
 ```json
 {
   "subject": {"id": "concept-alice"},
-  "predicate_ref": "kip://profiles/personal@2.0/timezone",
+  "predicate_ref": "kip://profiles/personal@2.0.0/timezone",
   "object": {
     "value": "+08:00",
-    "datatype": "kip:string"
+    "datatype": "string"
   }
 }
 ```
@@ -976,7 +986,7 @@ This is a semantic statement and therefore still needs an Assertion to become be
 This is different from the Core structural field:
 
 ```text
-Assertion42.evidence_refs
+Assertion42.evidence
 ```
 
 which is record structure.
@@ -1191,7 +1201,7 @@ One Assertion targets exactly one Proposition.
   "kind": "assertion",
   "space_id": "space-1",
 
-  "proposition_id": "prop-123",
+  "proposition": {"id": "prop-123"},
 
   "asserted_by": {
     "id": "concept-alice"
@@ -1208,9 +1218,9 @@ One Assertion targets exactly one Proposition.
 
   "asserted_at": "2026-08-13T10:00:00Z",
 
-  "evidence_refs": [
+  "evidence": [
     {
-      "evidence_id": "evidence-1",
+      "id": "evidence-1",
       "role": "support"
     }
   ],
@@ -1340,7 +1350,7 @@ Therefore an Assertion is conceptually a statement made at a time, not a mutable
 After creation, these fields SHOULD be immutable:
 
 ```text
-proposition_id
+proposition
 asserted_by
 stance
 mode
@@ -1516,7 +1526,7 @@ Evidence existence does not prove the Evidence is correct.
 
   "observed_at": "2026-08-13T10:00:00Z",
 
-  "source_refs": [
+  "source": [
     {"id": "concept-service-api"}
   ],
 
@@ -1671,9 +1681,9 @@ context
 Illustrative:
 
 ```json
-"evidence_refs": [
-  {"evidence_id": "E1", "role": "support"},
-  {"evidence_id": "E2", "role": "challenge"}
+"evidence": [
+  {"id": "E1", "role": "support"},
+  {"id": "E2", "role": "challenge"}
 ]
 ```
 
@@ -1822,7 +1832,7 @@ They are represented through:
 
 ```text
 asserted_by
-Evidence.source_refs
+Evidence.source
 Activity.associated_actors
 semantic Propositions
 ```
@@ -1838,8 +1848,7 @@ Example:
 ```json
 {
   "principal_id": "principal:agent-42",
-  "channel": "brain-formation",
-  "transaction_id": "tx-123",
+  "channel": "formation",
   "import_id": null
 }
 ```
@@ -1962,8 +1971,8 @@ It is not a semantic Domain.
   "default_policy_ref": "policy-1",
 
   "schema_packages": [
-    "kip://core@2.0",
-    "kip://profiles/cognitive-memory@2.0"
+    "kip://core@2.0.0",
+    "kip://profiles/cognitive-memory@2.0.0"
   ],
 
   "status": "active",
@@ -2093,12 +2102,12 @@ Exact class names are policy/profile-defined.
 
 ---
 
-# 34. `expires_at` Is Not `valid_until`
+# 34. `expires_at` Is Not `valid_time.until`
 
 These fields answer different questions.
 
 ```text
-Assertion.valid_until
+Assertion.valid_time.until
     When is the claim said to stop being true/applicable in the world?
 
 Element.retention.expires_at
@@ -2115,8 +2124,8 @@ The Assertion about that old timezone may remain stored forever for history.
 Therefore:
 
 ```text
-valid_until = 2025
-expires_at  = null
+valid_time.until = 2025
+expires_at       = null
 ```
 
 is perfectly valid.
@@ -2135,7 +2144,7 @@ Logical form:
 
 ```json
 "facets": {
-  "kip://profiles/cognitive-memory@2.0": {
+  "kip://profiles/cognitive-memory@2.0.0/MnemonicState": {
     "memory_strength": 0.72,
     "salience": 0.91
   }
@@ -2146,10 +2155,10 @@ Logical form:
 
 ## 35.2 Facet Rules
 
-Each Facet namespace MUST resolve to:
+Each Facet key is the exact Facet symbol reference and MUST resolve to:
 
 ```text
-a Schema Package
+a Facet symbol in a Schema Package
 or
 a registered extension definition
 ```
@@ -2202,8 +2211,8 @@ KIP 2.0 recognizes four clocks.
 On Assertion:
 
 ```text
-valid_from
-valid_until
+valid_time.from
+valid_time.until
 ```
 
 When the Proposition is claimed to hold in the world.
@@ -2259,7 +2268,8 @@ from:
 
 > What did this agent know/believe as of cognitive transaction time T?
 
-The exact KQL syntax is deferred.
+KQL has since settled that syntax: `AS OF` selects cognitive transaction state
+and `FOR TIME` selects world-valid time, and the two MUST remain independent.
 
 The data model must not need another redesign to support it.
 
@@ -2546,13 +2556,15 @@ Skill             → Concept
 with profile Structural References such as:
 
 ```text
-Experience.has_step       → ExperienceStep
+Experience.has_step       → ExperienceStep   (ordered)
 Experience.experienced_by → actor Concept
-Experience.compiled_to    → Skill
-Skill.derived_from        → Experience
+Skill.compiled_from       → Experience
+Skill.compiled_by         → Activity
 ```
 
 These may be profile-native structural fields or profile-defined graph relations.
+
+Step order belongs to the ordered `has_step` references (Section 74), exposed to queries as `?edge.index`. Steps carry no separate order attribute.
 
 If the profile wants a relation to be independently epistemically disputable, it must use a Proposition + Assertion instead.
 
@@ -2602,9 +2614,9 @@ facet namespace
 Illustrative:
 
 ```text
-kip://core@2.0/Assertion
-kip://profiles/cognitive-memory@2.0/Experience
-kip://ldclabs/organization@1.3/works_for
+kip://core@2.0.0/Assertion
+kip://profiles/cognitive-memory@2.0.0/Experience
+kip://ldclabs/organization@1.3.0/works_for
 ```
 
 The exact identifier grammar is deferred to KIP-2.0-Schema-Packages.md.
@@ -2796,9 +2808,11 @@ Recommended Core mutability:
 | Concept `name` | Yes | grounding label |
 | Concept `canonical_id` | Restricted | identity-binding operation |
 | Concept `attributes` | Yes | schema/policy governed |
+| Concept Structural References | Yes | SET/UNSET per reference; cardinality validated at commit |
 | Proposition tuple | No | new tuple = new Proposition |
 | Assertion epistemic payload | No | new belief = new Assertion |
 | Assertion lifecycle | Yes | retract/supersede |
+| Assertion / Evidence Structural References | No | wrong reference is corrected by a new record, never removed |
 | Evidence payload | No | correction = new Evidence |
 | Evidence lifecycle | Yes | correction/retraction/archive |
 | Activity inputs/outputs | No after completion | provenance integrity |
@@ -3080,7 +3094,7 @@ Examples:
 (Mention17, refers_to, Alice)
 Assertion confidence = 0.6
 
-(Alice, canonical_identity, did:...)
+(Alice, same_as, DidConceptX)
 Assertion confidence = 0.95
 ```
 
@@ -3280,7 +3294,8 @@ Activity from tool call ID
 Experience from run ID
 ```
 
-The exact KML syntax is deferred.
+KML expresses this as the `CLIENT KEY :key` clause on `CREATE CONCEPT` /
+`CREATE EVIDENCE` / `CREATE ASSERTION` / `CREATE ACTIVITY`.
 
 ---
 
@@ -3348,10 +3363,10 @@ Core Structural Reference fields have defined cardinality.
 Examples:
 
 ```text
-Assertion.proposition_id
+Assertion.proposition
     exactly 1
 
-Assertion.evidence_refs
+Assertion.evidence
     0..N
 
 Assertion.supersedes
@@ -3368,6 +3383,33 @@ Activity.outputs
 ```
 
 Schema/Profile structures define their own cardinalities.
+
+A Structural Field MAY additionally be declared **ordered**. For an ordered field the engine maintains one stable, dense, zero-based total order of references per source element:
+
+```text
+references added without an explicit index append in mutation order
+an explicit {index: n} assignment declares the intended zero-based position
+conflicting explicit positions in one mutation plan MUST fail validation
+the committed order MUST be dense (0..n-1) and deterministic
+removing a reference re-densifies the remaining order
+```
+
+An explicit `{index: n}` outside the current dense range `0..len` MUST fail validation: positions are dense, so the only position past the last existing reference is `len` (append).
+
+Order lives on the reference, not on the target. A profile MUST NOT add an
+`ordinal`/`sequence` attribute to the referenced element, because that would
+create a second source of truth for the same order. Queries read the current
+position through the virtual field `?edge.index` on the Structural Pattern
+binding; unordered fields expose no index.
+
+Order is record topology only:
+
+```text
+index order ≠ causality
+```
+
+A causal claim between referenced elements is a semantic Proposition +
+Assertion (Section 47).
 
 ---
 
@@ -3716,14 +3758,15 @@ Alice ──────────────┐
              Proposition P1
       (Alice, prefers, DarkMode)
                     ▲
-                    │ target
+                    │ proposition
                Assertion A1
-                 │      │
-          support│      │generated_by
-                 ▼      ▼
+                    │
+                    │ evidence {role: "support"}
+                    ▼
              Evidence E1
-                    ▲
-                    │ output
+                 │      ▲
+    generated_by │      │ outputs
+                 ▼      │
                Activity X
 ```
 
@@ -4062,7 +4105,7 @@ Assertion A1
   evidence = E1
 
 Activity X1
-  class = memory_formation
+  class = extraction
   inputs = E1
   outputs = A1
 ```
@@ -4262,6 +4305,10 @@ No imported historical Assertion is rewritten to pretend it originally used C2.
 # 103. Open Data Model Questions
 
 The architecture is now sufficiently constrained that remaining questions are narrower.
+
+The KIP 2.0 Specification has since adopted the recommendation below for most of
+these questions. Where the Specification settles one, the Specification is
+authoritative and the answer here is retained only as design rationale.
 
 ## Q1. Should Structural References have their own generic persisted edge records?
 
@@ -4498,13 +4545,13 @@ Proposition:
     object ─────────────────> Cognitive Element | Literal
 
 Assertion:
-    proposition_id ─────────> Proposition
+    proposition ────────────> Proposition
     asserted_by ────────────> semantic actor reference
-    evidence_refs ──────────> Evidence
+    evidence ───────────────> Evidence
     supersedes ─────────────> Assertion
 
 Evidence:
-    source_refs ────────────> semantic/external sources
+    source ─────────────────> semantic/external sources
     generated_by ───────────> Activity
 
 Activity:

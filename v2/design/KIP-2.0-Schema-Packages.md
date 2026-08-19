@@ -10,7 +10,7 @@ This document defines the schema architecture of KIP 2.0: how semantic types, pr
 
 It builds directly on:
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 - [KIP-2.0-Epistemic-Model.md](KIP-2.0-Epistemic-Model.md)
 - [KIP-2.0-Governance.md](KIP-2.0-Governance.md)
@@ -71,7 +71,7 @@ This prevents an ordinary cognitive write from silently redefining what `Person`
 
 # 0. Normative Language
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate intended requirements for the future KIP 2.0 specification.
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate requirements of the KIP 2.0 Specification (`../KIP-2.0-SPECIFICATION.md`), which is authoritative where the two differ.
 
 Exact JSON field names and URI grammar are pre-specification but the semantic distinctions and invariants are intended to survive later syntax work.
 
@@ -216,7 +216,7 @@ KIP 1.x achieves self-description by storing `$ConceptType` and `$PropositionTyp
 KIP 2.0 preserves self-description through runtime introspection:
 
 ```text
-DESCRIBE SCHEMA
+DESCRIBE SCHEMA ENVIRONMENT
 DESCRIBE TYPE
 DESCRIBE PREDICATE
 DESCRIBE PACKAGE
@@ -1533,9 +1533,10 @@ Example:
   "name": "SkillStatus",
   "values": [
     "candidate",
-    "active",
+    "validated",
     "needs_review",
-    "superseded"
+    "deprecated",
+    "archived"
   ]
 }
 ```
@@ -2067,7 +2068,7 @@ Person
   semantic human entity
   attributes: display_name?
   predicates:
-    prefers → Concept | Literal
+    prefers → Concept
     belongs_to_domain → Domain
 
 Experience
@@ -2934,6 +2935,21 @@ It defines introspectable descriptions for Core symbols/registries.
 
 However, the engine's conformance to Core does not depend on ordinary package activation.
 
+`kip://core` is virtual and built-in: its version is the protocol version, it is implicitly active in every Schema Environment, it MUST NOT be deactivated, replaced, or shadowed, and it has no separate package artifact — so a dependency declaration on `kip://core` MAY omit an artifact digest.
+
+Besides the Core element kinds and registries, `kip://core@2.0.0` exports reserved Core structural fields that resolve by the source element's Core kind rather than through package aliases:
+
+```text
+evidence       Assertion → Evidence            role-qualified citation
+source         Evidence  → Concept | Evidence  origin of the observation/artifact
+generated_by   Evidence  → Activity            producing Activity
+inputs         Activity  → any Core element    provenance inputs
+outputs        Activity  → any Core element    provenance outputs
+associated_actors  Activity  → Concept         semantic actors involved in the process (not authority, not the Principal)
+```
+
+No Package may define or alias a symbol that shadows a reserved Core symbol name in its resolution scope (§169).
+
 Core is foundational.
 
 ---
@@ -2975,7 +2991,8 @@ SleepTask
 SelfModel
 MnemonicState Facet
 has_step structural field
-compiled_to structural field
+compiled_from structural field
+compiled_by structural field
 ```
 
 subject to the final profile design.
@@ -3108,7 +3125,9 @@ No package may mutate another package's symbol definition.
 
 Canonical symbol refs cannot be shadowed.
 
-Only local aliases can conflict.
+A Package MUST NOT define or alias a symbol that shadows a reserved Core symbol name (§158).
+
+For all other symbols, only local aliases can conflict, and a collision is a resolution error rather than a redefinition.
 
 ---
 
@@ -3292,7 +3311,11 @@ rather than guessing.
 
 # 183. Schema Resolution Error Classes
 
-Future error registry should distinguish:
+The normative wire codes are the Core error registry (Specification §87.2: `SchemaSymbolNotFound`, `SchemaSymbolAmbiguous`, `SchemaFieldNotFound`, `SchemaPackageUnavailable`, `SchemaEnvironmentChanged`, `HistoricalSchemaUnavailable`, `TypeMismatch`, `ConstraintViolation`).
+
+The finer-grained classes below are schema-tooling diagnostics that map onto those stable codes; for example `SchemaPackageNotFound` and `SchemaVersionNotFound` both surface as `SchemaPackageUnavailable`.
+
+A schema tooling layer may distinguish:
 
 ```text
 SchemaPackageNotFound
@@ -4360,7 +4383,7 @@ Published canonical package should reference the resolved semantic requirement i
     "concept_types": ["./Project"]
   },
   "object": {
-    "literal_types": ["kip:string"],
+    "literal_types": ["string"],
     "enum": ["active", "archived", "deleted"]
   },
   "semantics": {
@@ -4427,7 +4450,10 @@ hr@1.0.0/Person
 Agent writes:
 
 ```text
-CONCEPT {type: "Person", ...}
+CREATE CONCEPT ?p {
+  TYPE "Person"
+  ...
+}
 ```
 
 Without alias mapping:

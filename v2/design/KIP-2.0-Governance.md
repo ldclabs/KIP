@@ -10,7 +10,7 @@ This document defines the Governance Plane of KIP 2.0: the protected control mod
 
 It builds directly on:
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 - [KIP-2.0-Epistemic-Model.md](KIP-2.0-Epistemic-Model.md)
 
@@ -48,9 +48,11 @@ The central security invariant is:
 
 # 0. Normative Language
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate intended requirements for the future KIP 2.0 specification.
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate requirements of the KIP 2.0 Specification (`../KIP-2.0-SPECIFICATION.md`), which is authoritative where the two differ.
 
 Exact API and wire syntax remain illustrative unless explicitly stated otherwise.
+
+Where `KIP-2.0-SPECIFICATION.md` has settled a permission name, error code, or wire shape, the Specification governs and this document follows it. A reference written as `Specification §N` points into that document; a bare `§N` points into this one.
 
 ---
 
@@ -641,9 +643,11 @@ Illustrative protected record:
   "default_policy_id": "policy-default",
   "trust_policy_id": "epistemic-policy-default",
 
+  "self_identity": "concept:yan",
+
   "schema_packages": [
-    "kip://core@2.0",
-    "kip://profiles/cognitive-memory@2.0"
+    "kip://core@2.0.0",
+    "kip://profiles/cognitive-memory@2.0.0"
   ],
 
   "governance": {
@@ -654,6 +658,8 @@ Illustrative protected record:
 ```
 
 Exact storage is implementation-defined.
+
+`self_identity` is the Space's designated semantic `$self` (Specification §5.6): at most one Concept reference, protected Space/Governance configuration state. Ordinary KML MUST NOT create or change it, and a Space MAY have none.
 
 ---
 
@@ -1070,6 +1076,17 @@ require_approval
 
 The operation remains blocked until the approval condition is satisfied.
 
+On the wire, a blocking decision surfaces as one of the registered Governance codes (Specification §87.5):
+
+```text
+Unauthenticated                  no authenticated Principal
+NotAuthorized                    denied
+RequiresApproval                 approval missing / expired / consumed
+RequiresStrongerAuthentication   authentication strength below policy
+ActorBindingRequired             representation attempted without ActorBinding
+NotFoundOrNotVisible             discovery denied (existence-neutral)
+```
+
 ---
 
 # 41. Baseline Policy Rule
@@ -1257,6 +1274,14 @@ General `write` permission MUST NOT imply permission to alter them.
 
 Dedicated Governance permissions are required.
 
+An unauthorized attempt is rejected with the matching protected-field code (Specification §87.5):
+
+```text
+ProtectedGovernanceField   Governance-owned element fields
+ProtectedSystemField       engine-owned _system fields
+ProtectedSchemaState       Schema Environment / lock state
+```
+
 ---
 
 # 51. Element Governance Hook
@@ -1393,10 +1418,11 @@ Recommended:
 create
 update
 derive
-tombstone
 ```
 
 These apply to ordinary Cognitive Elements subject to kind/schema scope.
+
+Removal verbs (`archive`, `tombstone`, `purge`) are Lifecycle permissions (§80), not cognitive mutation.
 
 They do not imply epistemic or governance authority.
 
@@ -1445,7 +1471,10 @@ Derived outputs must follow:
 classification propagation
 origin/provenance preservation
 authority non-amplification
+Same-Space reference closure
 ```
+
+Reference closure MUST be revalidated on derived and maintenance writes exactly as on primary writes (Specification §29.6). Derivation is not an exempt write path.
 
 ---
 
@@ -1533,6 +1562,8 @@ or tombstone it under administrative authority
 
 The historical source stance remains accurate.
 
+A retraction attempted without representation authority MUST fail with `RetractionNotAuthorized` (Specification §87.4); it MUST NOT be silently downgraded into a moderation action.
+
 ---
 
 # 69. `supersede_own`
@@ -1567,7 +1598,7 @@ This operation belongs to Governance state.
 Recommended:
 
 ```text
-bind_actor
+manage_actor_binding
 bind_canonical_identity
 merge_identity
 ```
@@ -1578,7 +1609,7 @@ They require stronger authority than ordinary writes.
 
 ---
 
-# 72. `bind_actor`
+# 72. `manage_actor_binding`
 
 Creates/updates protected Principal ↔ semantic actor bindings.
 
@@ -1620,7 +1651,6 @@ Recommended:
 
 ```text
 maintain
-archive
 quarantine
 ```
 
@@ -1703,10 +1733,11 @@ tombstone
 purge
 manage_retention
 legal_hold
-declassify
 ```
 
 Physical purge is strictly more consequential than mnemonic/archive forgetting.
+
+`declassify` is a Governance permission (§88), not a lifecycle one.
 
 ---
 
@@ -1718,6 +1749,8 @@ It SHOULD require stronger authority than ordinary delete/tombstone.
 
 Evidence purge is especially sensitive.
 
+A refused purge returns `PurgeDenied` (Specification §87.5). Where policy permits erasure, purge SHOULD still leave the minimal digest stub of Specification §60.3 so reference integrity and provenance-root identity survive.
+
 ---
 
 # 82. `legal_hold`
@@ -1725,6 +1758,8 @@ Evidence purge is especially sensitive.
 Prevents policy-driven purge while the hold is active.
 
 Even a normal Space owner may be unable to override a system/legal hold.
+
+A purge blocked by an active hold returns `LegalHoldConflict` (Specification §87.5), distinct from `PurgeDenied`: the operation is not permanently forbidden, it is deferred until the hold lifts.
 
 ---
 
@@ -1735,7 +1770,7 @@ Recommended:
 ```text
 manage_membership
 manage_grants
-delegate
+manage_delegation
 manage_policy
 manage_trust
 manage_schema
@@ -1810,7 +1845,7 @@ Recommended:
 ```text
 read_audit
 read_raw_origin
-read_governance_history
+read_history
 ```
 
 An Auditor may have:
@@ -2140,7 +2175,13 @@ secret-element-id
 
 SHOULD produce an existence-neutral result.
 
-Exact error behavior belongs to KQL/runtime specification.
+The registered existence-neutral code is:
+
+```text
+NotFoundOrNotVisible
+```
+
+(Specification §86.4, Specification §87.3). A runtime MUST NOT distinguish "absent" from "hidden" in code, message, hint, or `details` when discovery is denied.
 
 ---
 
@@ -2252,6 +2293,8 @@ through protected Governance state.
 # 114. Trust Policy Versioning
 
 Trust policy changes MUST be versioned/auditable.
+
+Changing trust state requires `manage_trust`, and each change SHOULD appear on the change/audit stream as a control-plane transition (Specification §22.6).
 
 A historical decision should be able to answer:
 
@@ -3139,9 +3182,19 @@ Sometimes Governance must physically purge data even when provenance would prefe
 
 Privacy/legal deletion can override audit retention.
 
-Where permitted, the system SHOULD retain only a minimal non-sensitive deletion receipt.
+Where permitted, the system SHOULD retain only the minimal non-recoverable **digest stub** of Specification §60.3:
 
-Never preserve prohibited content merely for epistemic elegance.
+```text
+element kind
+content digest
+class
+observation time
+purging Activity reference
+```
+
+so reference integrity, provenance-root identity, and independence counting survive byte destruction. A stub is not the content and is not recoverable Evidence.
+
+Where even a stub is prohibited, history returns unavailable. Never preserve prohibited content merely for epistemic elegance.
 
 ---
 
@@ -3594,7 +3647,7 @@ Policy rules SHOULD reference canonical schema identities, not only mutable disp
 Example:
 
 ```text
-kip://profiles/cognitive-memory@2.x/Skill
+kip://profiles/cognitive-memory@2.0.0/Skill
 ```
 
 rather than:
@@ -3745,17 +3798,29 @@ rollback/audit
 
 SHOULD be controlled.
 
+Each revision SHOULD carry provenance — for example a trust-revision Activity referencing the outcome Evidence — so the Brain can later answer **why it trusts a source** (Specification §22.6).
+
 High-impact trust changes may require human review.
 
 ---
 
 # 200. Governance of `$self`
 
-`$self` belongs to the Cognitive Memory Profile, not KIP Core.
+A MemorySpace MAY designate at most one **self identity**: the Concept the Space treats as its semantic `$self` (Specification §5.6).
 
-A semantic `$self` Concept does not automatically have Governance owner authority.
+That designation is protected Space/Governance configuration state, not ordinary cognitive content:
 
-The deployment explicitly binds Principals to `$self`.
+```text
+ordinary KML MUST NOT create or change it
+changing it requires a protected Governance operation
+a Space MAY have no self identity at all
+```
+
+`$self` is a documentation name, not literal KIP syntax; an Agent obtains the designated Concept's exact reference through `DESCRIBE PRIMER`. The richer autobiographical modelling around it belongs to the Cognitive Memory Profile.
+
+Being the designated self identity confers no Governance authority. A semantic `$self` Concept is not an owner, and it is not a Principal.
+
+The deployment explicitly binds Principals to `$self` through ActorBinding.
 
 ---
 
@@ -3922,7 +3987,7 @@ Therefore:
 manage_policy
 manage_trust
 manage_schema
-bind_actor
+manage_actor_binding
 elevate_authority
 ```
 
@@ -4642,40 +4707,38 @@ retract_own
 supersede_own
 moderate_assertion
 
-bind_actor
+manage_actor_binding
 bind_canonical_identity
 merge_identity
 
 maintain
-archive
 quarantine
 
 import
 export
 share
 
-manage_retention
-legal_hold
+archive
 tombstone
 purge
-declassify
+manage_retention
+legal_hold
 
 manage_membership
 manage_grants
-delegate
+manage_delegation
 manage_policy
 manage_trust
 manage_schema
 elevate_authority
+declassify
 approve_high_risk
 
 read_audit
-read_governance_history
+read_history
 ```
 
-Exact names may change.
-
-The distinctions should not.
+Specification §29 fixes the baseline names. An implementation MAY refine names/scopes, but MUST preserve the equivalent semantic distinctions to claim full Governance conformance.
 
 ---
 

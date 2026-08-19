@@ -13,16 +13,25 @@ This document is the normative consolidation of the KIP 2.0 design.
 The following KIP 2.0 design documents are informative references and design rationale:
 
 - `KIP-2.0-Architecture.md`
-- `KIP-2.0-Core-Data-Model.md`
-- `KIP-2.0-Epistemic-Model.md`
-- `KIP-2.0-Governance.md`
-- `KIP-2.0-Schema-Packages.md`
-- `KIP-2.0-Transactions.md`
-- `KIP-2.0-Capsule.md`
-- `KIP-2.0-KQL.md`
-- `KIP-2.0-KML.md`
-- `KIP-2.0-META.md`
-- `KIP-2.0-Protocol-Runtime.md`
+- `design/KIP-2.0-Core-Data-Model.md`
+- `design/KIP-2.0-Epistemic-Model.md`
+- `design/KIP-2.0-Governance.md`
+- `design/KIP-2.0-Schema-Packages.md`
+- `design/KIP-2.0-Transactions.md`
+- `design/KIP-2.0-Capsule.md`
+- `design/KIP-2.0-KQL.md`
+- `design/KIP-2.0-KML.md`
+- `design/KIP-2.0-META.md`
+- `design/KIP-2.0-Protocol-Runtime.md`
+
+The following artifacts are normative companions to this Specification:
+
+- `grammar/KIP-2.0-KQL.ebnf`, `grammar/KIP-2.0-KML.ebnf`, `grammar/KIP-2.0-META.ebnf` — normative syntax
+- `schemas/kip-request.schema.json`, `schemas/kip-response.schema.json` — normative wire shapes
+- `profiles/cognitive-memory-2.0.0.schema.json` and `profiles/CognitiveMemoryProfile-2.0.md` — the standard Profile package
+- `conformance/KIP-2.0-Conformance-Tests.md`, `conformance/conformance-test-vector.schema.json`, `conformance/conformance-report.schema.json` and `conformance/fixtures/` — the conformance suite
+
+`KIPSyntax.md` is an informative LLM-facing syntax card, not a normative artifact.
 
 If this Specification conflicts with an earlier KIP 2.0 design document, **this Specification takes precedence**.
 
@@ -952,7 +961,7 @@ An **Assertion** is a historically attributable epistemic commitment toward exac
 
 ```json
 {
-  "proposition_id": "P-1",
+  "proposition": {"id": "P-1"},
   "asserted_by": {"id": "C-actor"},
 
   "stance": "support",
@@ -966,9 +975,9 @@ An **Assertion** is a historically attributable epistemic commitment toward exac
     "until": null
   },
 
-  "evidence_refs": [
+  "evidence": [
     {
-      "evidence_id": "E-1",
+      "id": "E-1",
       "role": "support"
     }
   ],
@@ -1058,7 +1067,7 @@ Missing confidence is not equivalent to `0`, `0.5`, or untrusted.
 The historical epistemic payload SHOULD be immutable after creation, including:
 
 ```text
-proposition_id
+proposition
 asserted_by
 stance
 mode
@@ -1161,7 +1170,7 @@ Schema/Profile extensions MAY add namespaced classes.
   "media_type": "application/json",
   "observed_at": "...",
 
-  "source_refs": [],
+  "source": [],
   "generated_by": null,
 
   "lifecycle": {
@@ -1343,6 +1352,7 @@ For an ordered field, the engine maintains one stable, dense, zero-based total o
 references added without an explicit index append in mutation order
 an explicit {index: n} assignment declares the intended zero-based position
 conflicting explicit positions in one mutation plan MUST fail validation
+an explicit {index: n} outside the current dense range 0..len MUST fail validation (positions are dense; append = len)
 the committed order MUST be dense (0..n-1) and deterministic
 ```
 
@@ -1693,6 +1703,7 @@ source         Evidence  → Concept | Evidence  origin of the observation/artif
 generated_by   Evidence  → Activity            producing Activity
 inputs         Activity  → any Core element    provenance inputs
 outputs        Activity  → any Core element    provenance outputs
+associated_actors  Activity  → Concept         semantic actors involved in the process (not authority, not the Principal)
 ```
 
 **Core registries**:
@@ -2108,7 +2119,6 @@ purpose
 risk
 valid_at
 as_of cognitive state
-context refs
 policy
 include historical
 include hypothetical
@@ -3347,6 +3357,11 @@ Baseline operators SHOULD include:
 ```text
 == != < > <= >=
 && || !
+```
+
+Baseline registered functions SHOULD include:
+
+```text
 IN
 CONTAINS
 STARTS_WITH
@@ -3357,7 +3372,10 @@ IS_NOT_NULL
 IS_LITERAL
 IS_ELEMENT
 IS_KIND
+LITERAL_TYPE
 ```
+
+These are functions, not infix operators: they are written in call form, e.g. `FILTER(IN(?x.name, ["A", "B"]))`.
 
 ---
 
@@ -3406,6 +3424,8 @@ MAX
 
 Aggregation MUST occur over authorized visible solutions.
 
+Grouping is implicit: the non-aggregated projected expressions of the `FIND` list form the grouping key. Aggregates ignore null inputs, so `COUNT(?optional)` returns `0` when every row in its group is null.
+
 `COUNT = 0` does not mean a proposition is false.
 
 ---
@@ -3413,8 +3433,10 @@ Aggregation MUST occur over authorized visible solutions.
 ## 44.7 Ordering
 
 ```prolog
-ORDER BY <expr> ASC|DESC
+ORDER BY <expr> ASC|DESC [, ...]
 ```
+
+Sort keys are applied left to right.
 
 Null SHOULD sort last unless future explicit syntax says otherwise.
 
@@ -3428,6 +3450,8 @@ CURSOR :cursor
 ```
 
 KQL pagination cursor MUST preserve one canonical cognitive snapshot for that traversal.
+
+The engine MUST apply a deterministic tie-breaker within one cursor traversal so that solutions with equal `ORDER BY` values are neither duplicated nor skipped across pages.
 
 Current Governance authority still applies when continuing.
 
@@ -3672,6 +3696,7 @@ snapshot_seq
 schema_environment_version
 resolved Epistemic Policy/version when used
 world valid time when used
+materialized projection policy identity and snapshot basis when a cached projection is served (§21.9)
 ```
 
 This context may later be preserved as decision provenance.
@@ -3982,6 +4007,7 @@ Rules:
 - `ASSERT` MUST commit exactly the semantics of its desugared form; it MUST NOT create additional or divergent state.
 - The handle is optional; when present it binds the created Assertion.
 - `ASSERT` MAY appear standalone or inside `MUTATE`.
+- The desugared clauses are one mutation plan, not separate commands: a standalone `ASSERT` commits them exactly as if they appeared together in a single `MUTATE` block (§53.1); inside `MUTATE` they join the enclosing plan.
 - Sugar support belongs to the full KIP-KML conformance profile (§97).
 
 ---
@@ -4110,6 +4136,7 @@ Recommended:
 
 ```prolog
 UPDATE ?target
+EXPECT VERSION :version
 
 SET FIELDS {...}
 SET ATTRIBUTES {...}
@@ -4197,6 +4224,23 @@ Temporal relevance belongs in Projection.
 
 # 60. Archive / Tombstone / Purge
 
+Recommended syntax:
+
+```text
+SET RETENTION <target> {retention_class: "...", expires_at: ...}
+                       [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]
+ARCHIVE       <target> [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]
+TOMBSTONE     <target> [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]
+PURGE         <target> [WHERE {...}] [LIMIT :n]
+                       [REFERENCE POLICY "..."] CONFIRM "PURGE"
+```
+
+`<target>` follows the same rule as generic UPDATE (§58): a `?variable` is bound
+by the `WHERE` block, while a `:parameter` / `"id"` already names the element and
+MAY omit `WHERE`.
+
+---
+
 ## 60.1 Archive
 
 Archive removes/deprioritizes ordinary Recall while preserving history.
@@ -4213,7 +4257,15 @@ Tombstone logically removes an element from active state while preserving minima
 
 Purge physically erases bytes under high-impact policy.
 
-Default reference policy SHOULD deny purge when required references would be broken.
+Reference policy values are:
+
+```text
+deny_if_referenced      refuse the purge while required references exist
+tombstone_reference     purge the bytes and tombstone the dangling references
+authorized_cascade      purge referencing elements too, under explicit authority
+```
+
+The default is `deny_if_referenced`: purge SHOULD be denied when required references would be broken. `CONFIRM "PURGE"` is REQUIRED and is not a policy substitute.
 
 Purge MAY leave a minimal, non-recoverable **stub** — element kind, content digest, class, observation time, and the purging Activity reference — so that reference integrity, provenance-root identity (§23.3), and independence counting survive the destruction of the bytes. A stub is not the content and is not recoverable Evidence.
 
@@ -4312,6 +4364,24 @@ SNAPSHOT
 EXPORT CAPSULE
 ```
 
+`DESCRIBE` targets:
+
+```text
+PRIMER | PROTOCOL | EXECUTION CONTEXT | CAPABILITIES
+SPACE | SCHEMA ENVIRONMENT | PACKAGE | TYPE | PREDICATE | FACET
+STRUCTURAL FIELD | COMPATIBILITY | ERROR | TRANSACTION | SNAPSHOT
+CAPSULE | EPISTEMIC POLICY | PROJECTION CAPABILITY | TRUST | ACCESS
+```
+
+`LIST` targets:
+
+```text
+SPACES | SCHEMA PACKAGES | TYPES | PREDICATES | FACETS
+STRUCTURAL FIELDS | EPISTEMIC POLICIES
+```
+
+A `LIST` accepts `LIMIT` / `CURSOR` paging.
+
 ---
 
 ## 63.4 EXPORT CAPSULE
@@ -4330,10 +4400,12 @@ WHERE {
   include_blobs: false,
   proof_profile: "..."
 }]
-[AS OF SEQ :seq]
+[AS OF SEQ :seq | AS OF TX :tx | AS OF TIME :time]
 ```
 
-The operand names the **selection root binding**: every element bound to `?roots` by the `WHERE` block belongs to the export root set. The operand MAY instead be a parameter or string naming a single root element.
+The operand names the **selection root binding**: every element bound to `?roots` by the `WHERE` block belongs to the export root set. The operand MAY instead be a parameter or string naming a single root element, in which case the `WHERE` block only constrains that root.
+
+`WHERE` is REQUIRED and MUST contain at least one selection pattern: an unbounded export is not a Capsule. `closure` uses the vocabulary of §40.3.
 
 The produced Capsule contains the root set plus the closure declared in `WITH`, subject to Governance and to the snapshot-consistency rules of §41.1. The result is a Capsule artifact (§85); no cognitive state is mutated.
 
@@ -4342,6 +4414,10 @@ The produced Capsule contains the root set plus the closure declared in `WITH`, 
 # 64. DESCRIBE PRIMER
 
 `DESCRIBE PRIMER` returns a compact model-oriented bootstrapping artifact.
+
+```text
+DESCRIBE PRIMER [MODE "compact" | "full"]
+```
 
 Recommended layers:
 
@@ -4396,9 +4472,9 @@ DESCRIBE TYPE
 DESCRIBE PREDICATE
 DESCRIBE FACET
 DESCRIBE STRUCTURAL FIELD
-DESCRIBE COMPATIBILITY
+DESCRIBE COMPATIBILITY FROM :from TO :to
 
-LIST SCHEMA PACKAGES
+LIST SCHEMA PACKAGES [STATUS :status]
 LIST TYPES
 LIST PREDICATES
 LIST FACETS
@@ -4550,12 +4626,12 @@ Recommended:
 ```text
 DESCRIBE TRANSACTION :tx_id
 DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :key
-DESCRIBE SNAPSHOT
-HISTORY ELEMENT :id
-HISTORY SPACE
-CHANGES SINCE :cursor
-CHANGES AFTER SEQ :seq
-SNAPSHOT
+DESCRIBE SNAPSHOT [AS OF ...]
+HISTORY ELEMENT :id [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]
+HISTORY SPACE [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]
+CHANGES SINCE :cursor [LIMIT :n]
+CHANGES AFTER SEQ :seq [LIMIT :n]
+SNAPSHOT [AS OF ...]
 ```
 
 ---
@@ -4586,6 +4662,10 @@ These terms have distinct normative meanings.
 
 ## 69.1 VERIFY
 
+```text
+VERIFY CAPSULE | SCHEMA PACKAGE | RECEIPT | BLOB | CHECKPOINT <artifact>
+```
+
 Checks:
 
 ```text
@@ -4600,6 +4680,10 @@ VERIFY does not establish trust or truth.
 ---
 
 ## 69.2 VALIDATE
+
+```text
+VALIDATE KQL | KML | CAPSULE | SCHEMA PACKAGE | IMPORT PLAN <input> [WITH {...}]
+```
 
 Checks:
 
@@ -5357,6 +5441,8 @@ OutcomeUnknown
 TransactionTooLarge
 ```
 
+`TransactionUnknown` also covers a well-formed transaction id whose outcome the runtime no longer retains: once the retained outcome window of §32.8 / §34.3 has elapsed, a lookup or replay of that id MUST report `TransactionUnknown` rather than an absence of effect.
+
 ---
 
 ## 87.7 Historical / cursor
@@ -5955,7 +6041,7 @@ over recreating generic destructive DETACH semantics.
 
 ## 103.7 Legacy MERGE
 
-Legacy destructive edge-repoint/delete should migrate to v2 non-destructive identity consolidation.
+Legacy destructive edge-repoint/delete SHOULD migrate to v2 non-destructive identity consolidation.
 
 ---
 
@@ -5971,7 +6057,7 @@ A v2 runtime MAY provide a compatibility importer/exporter.
 
 ## 103.9 Legacy schema nodes
 
-KIP 1 self-described graph types should be migrated to authoritative Schema Packages or compatibility packages.
+KIP 1 self-described graph types SHOULD be migrated to authoritative Schema Packages or compatibility packages.
 
 Ordinary cognitive nodes MUST NOT become authoritative Schema state in native v2.
 
@@ -6119,9 +6205,21 @@ for_time_clause :=
 
 epistemic_clause :=
     "WITH EPISTEMIC" object_literal
+
+predicate_term :=
+    predicate_atom path_quantifier?
+    ("|" predicate_atom path_quantifier?)*
+        (* raw predicate paths are legal only inside proposition_tuple;
+           BELIEF / BELIEF SLOT take a bare predicate_atom *)
+
+predicate_atom :=
+    string | parameter | variable
+
+path_quantifier :=
+    "{" integer ("," integer?)? "}"
 ```
 
-A formal parser grammar remains a deliverable for the final specification release.
+The normative parser grammars ship with this Specification as [`grammar/KIP-2.0-KQL.ebnf`](./grammar/KIP-2.0-KQL.ebnf), [`grammar/KIP-2.0-KML.ebnf`](./grammar/KIP-2.0-KML.ebnf) and [`grammar/KIP-2.0-META.ebnf`](./grammar/KIP-2.0-META.ebnf). Where a sketch in these appendices is less complete than its EBNF, the EBNF governs syntax. Productions referenced but not spelled out here (`structural_field`, `order_clause`, `limit_clause`, `cursor_clause`, `scalar`, `value`, …) are defined in [`grammar/KIP-2.0-KQL.ebnf`](./grammar/KIP-2.0-KQL.ebnf).
 
 ---
 
@@ -6159,6 +6257,8 @@ mutate_statement :=
 ensure_proposition :=
     "ENSURE PROPOSITION" handle?
     "(" term "," predicate_term "," term ")"
+    expect_version_clause?
+    (* EXPECT VERSION 0 is the create-only form, §35.2 *)
 
 assert_statement :=
     "ASSERT" handle?
@@ -6178,13 +6278,48 @@ update_statement :=
 supersede_assertion :=
     "SUPERSEDE ASSERTION" target
     "BY" target
+    expect_state_clause?
 
 correct_evidence :=
     "CORRECT EVIDENCE" target
     "BY" target
+    expect_state_clause?
+
+set_retention :=
+    "SET RETENTION" target
+    assignment_object
+    ("WHERE" "{" where_clause* "}")?
+    limit_clause?
+    expect_version_clause?
+
+archive_statement :=
+    "ARCHIVE" target
+    ("WHERE" "{" where_clause* "}")?
+    limit_clause?
+    expect_state_clause?
+
+tombstone_statement :=
+    "TOMBSTONE" target
+    ("WHERE" "{" where_clause* "}")?
+    limit_clause?
+    expect_state_clause?
+
+purge_statement :=
+    "PURGE" target
+    ("WHERE" "{" where_clause* "}")?
+    limit_clause?
+    ("REFERENCE POLICY" value)?
+    "CONFIRM" "\"PURGE\""
+
+merge_concept :=
+    "MERGE CONCEPT" target
+    "INTO" target
+    ("WHERE" "{" where_clause* "}")?
+    expect_version_clause?
+        (* no limit_clause: source and target are already named *)
 ```
 
-The final grammar MUST preserve declarative local-handle semantics and forward references within MUTATE.
+The normative grammar MUST preserve declarative local-handle semantics and forward references within MUTATE.
 
 ---
 
@@ -6439,7 +6574,19 @@ Recommended:
 
 ```prolog
 MUTATE {
-  CREATE EVIDENCE ?e {...}
+  CREATE EVIDENCE ?e {
+    CLIENT KEY :evidence_key
+
+    SET FIELDS {
+      evidence_class: "user_statement",
+      payload: :payload,
+      observed_at: :time
+    }
+
+    SET STRUCTURAL {
+      ("source", :alice)
+    }
+  }
 
   ENSURE PROPOSITION ?p_new (
     :alice,
@@ -6447,7 +6594,22 @@ MUTATE {
     "+01:00"
   )
 
-  CREATE ASSERTION ?a_new {...}
+  CREATE ASSERTION ?a_new {
+    CLIENT KEY :assertion_key
+
+    SET FIELDS {
+      proposition: ?p_new,
+      asserted_by: :alice,
+      stance: "support",
+      mode: "stated",
+      confidence: 1.0,
+      asserted_at: :time
+    }
+
+    SET STRUCTURAL {
+      ("evidence", ?e) {role: "support"}
+    }
+  }
 
   SUPERSEDE ASSERTION :a_old BY ?a_new
 

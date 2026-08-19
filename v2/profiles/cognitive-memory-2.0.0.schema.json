@@ -1291,11 +1291,11 @@
   "canonicalization": {
     "profile": "kip-draft-canonical-json-v1",
     "status": "draft",
-    "description": "Draft deterministic encoding for freezing this Profile artifact; not yet the final KIP-wide canonicalization standard."
+    "description": "UTF-8 JSON, recursively sorted object keys, compact separators (\",\" and \":\"), finite JSON numbers; integrity is excluded from its own digest. Draft deterministic encoding for freezing this Profile artifact; not yet the final KIP-wide canonicalization standard."
   },
   "integrity": {
     "digest_profile": "kip-draft-canonical-json-v1",
-    "content_digest": "sha256:63067c486ecd3092622cdd693ccb234c6caa4675eefab3f93ec21eea0cbd7388",
+    "content_digest": "sha256:db92ac4de7777bef88de8d64245381dc4277e47628824f0cd5433de0255b45c1",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

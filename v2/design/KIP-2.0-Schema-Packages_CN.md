@@ -10,7 +10,7 @@
 
 本文档直接建立在以下文档的基础之上：
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 - [KIP-2.0-Epistemic-Model.md](KIP-2.0-Epistemic-Model.md)
 - [KIP-2.0-Governance.md](KIP-2.0-Governance.md)
@@ -70,7 +70,7 @@ KIP 2.0 保留了 KIP 1.x 中最有价值的思想：
 
 # 0. 规范性用语 (Normative Language)
 
-关键字 **必须 (MUST)**、**严禁 (MUST NOT)**、**必需 (REQUIRED)**、**应当 (SHOULD)**、**不得 (SHOULD NOT)**、**可以 (MAY)** 和 **可选 (OPTIONAL)** 用于表示未来 KIP 2.0 规范的预期要求。
+关键字 **必须 (MUST)**、**严禁 (MUST NOT)**、**必需 (REQUIRED)**、**应当 (SHOULD)**、**不得 (SHOULD NOT)**、**可以 (MAY)** 和 **可选 (OPTIONAL)** 用于表示 KIP 2.0 规范 (`../KIP-2.0-SPECIFICATION.md`) 的要求；两者不一致时以该规范为准。
 
 确切的 JSON 字段名称与 URI 文法属于规范预研内容，但其语义区分与不变式旨在延续至后续的语法规范工作中。
 
@@ -215,7 +215,7 @@ KIP 1.x 通过将 `$ConceptType` 和 `$PropositionType` 存储为图谱节点来
 KIP 2.0 通过运行时自省来保持自描述性：
 
 ```text
-DESCRIBE SCHEMA
+DESCRIBE SCHEMA ENVIRONMENT
 DESCRIBE TYPE
 DESCRIBE PREDICATE
 DESCRIBE PACKAGE
@@ -1527,9 +1527,10 @@ ordered = true
   "name": "SkillStatus",
   "values": [
     "candidate",
-    "active",
+    "validated",
     "needs_review",
-    "superseded"
+    "deprecated",
+    "archived"
   ]
 }
 ```
@@ -2061,7 +2062,7 @@ Person
   语义人类实体
   attributes: display_name?
   predicates:
-    prefers → Concept | Literal
+    prefers → Concept
     belongs_to_domain → Domain
 
 Experience
@@ -2927,6 +2928,21 @@ kip://core@2.0.0
 
 然而，引擎对 Core 的一致性符合并不依赖于普通模式包的激活。
 
+`kip://core` 是虚拟的内建模式包：其版本即协议版本，它在每个模式环境中都隐式激活，**绝不能 (MUST NOT)** 被停用、替换或遮蔽，并且它没有独立的模式包资产——因此对 `kip://core` 的依赖声明**可以 (MAY)** 省略资产摘要。
+
+除 Core 元素种类与注册表之外，`kip://core@2.0.0` 还导出保留的 Core 结构字段；它们按源元素的 Core 种类解析，而不经由模式包别名解析：
+
+```text
+evidence       Assertion → Evidence            role-qualified citation
+source         Evidence  → Concept | Evidence  origin of the observation/artifact
+generated_by   Evidence  → Activity            producing Activity
+inputs         Activity  → any Core element    provenance inputs
+outputs        Activity  → any Core element    provenance outputs
+associated_actors  Activity  → Concept         semantic actors involved in the process (not authority, not the Principal)
+```
+
+任何模式包都不得定义或别名化在其解析作用域内遮蔽保留 Core 符号名称的符号（见 §169）。
+
 Core 是整个系统的基石。
 
 ---
@@ -2968,7 +2984,8 @@ SleepTask
 SelfModel
 MnemonicState Facet
 has_step 结构字段
-compiled_to 结构字段
+compiled_from 结构字段
+compiled_by 结构字段
 ```
 
 具体以最终的 Profile 设计为准。
@@ -3101,7 +3118,9 @@ Structural Fields (结构字段)
 
 规范符号引用无法被遮蔽。
 
-仅有本地别名可能会产生冲突。
+模式包**绝不能 (MUST NOT)** 定义或别名化遮蔽保留 Core 符号名称的符号（见 §158）。
+
+对于其余符号，仅有本地别名可能会产生冲突，且该冲突是解析错误而非重定义。
 
 ---
 
@@ -3283,7 +3302,11 @@ digest / 锁定配置
 
 # 183. 模式解析错误类别 (Schema Resolution Error Classes)
 
-未来的错误注册表应当区分：
+规范层面的线路错误码取自 Core 错误注册表（规范 §87.2：`SchemaSymbolNotFound`、`SchemaSymbolAmbiguous`、`SchemaFieldNotFound`、`SchemaPackageUnavailable`、`SchemaEnvironmentChanged`、`HistoricalSchemaUnavailable`、`TypeMismatch`、`ConstraintViolation`）。
+
+下列更细粒度的类别属于模式工具层的诊断分类，它们映射到上述稳定错误码；例如 `SchemaPackageNotFound` 与 `SchemaVersionNotFound` 都以 `SchemaPackageUnavailable` 对外呈现。
+
+模式工具层可以区分：
 
 ```text
 SchemaPackageNotFound (模式包未找到)
@@ -4341,7 +4364,7 @@ KIP 1.x 元类型迁移
     "concept_types": ["./Project"]
   },
   "object": {
-    "literal_types": ["kip:string"],
+    "literal_types": ["string"],
     "enum": ["active", "archived", "deleted"]
   },
   "semantics": {
@@ -4408,7 +4431,10 @@ hr@1.0.0/Person
 智能体写入：
 
 ```text
-CONCEPT {type: "Person", ...}
+CREATE CONCEPT ?p {
+  TYPE "Person"
+  ...
+}
 ```
 
 在缺乏别名映射时：

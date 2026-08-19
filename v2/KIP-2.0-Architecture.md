@@ -488,7 +488,7 @@ Assertion
 ├ stance
 ├ mode
 ├ confidence
-├ valid_from / valid_until
+├ valid_time (from / until)
 ├ asserted_at
 ├ status
 ├ evidence links
@@ -590,8 +590,8 @@ Evidence SHOULD be immutable where possible. Corrections SHOULD create new evide
 Assertions SHOULD be able to reference both:
 
 ```text
-supported_by
-challenged_by
+evidence citation with role "support"
+evidence citation with role "challenge"
 ```
 
 This permits an agent to preserve unresolved epistemic tension rather than collapsing to one truth prematurely.
@@ -733,8 +733,8 @@ KIP 2.0 SHOULD explicitly distinguish multiple temporal dimensions.
 When the assertion is claimed to hold in the world:
 
 ```text
-valid_from
-valid_until
+valid_time.from
+valid_time.until
 ```
 
 Example:
@@ -764,9 +764,9 @@ asserted_at
 When the Nexus recorded or mutated the element:
 
 ```text
-_created_at
-_updated_at
-_transaction_id
+_system.created_at
+_system.updated_at
+_system.created_tx / _system.updated_tx
 ```
 
 These fields are engine truth and SHOULD be immutable or engine-maintained.
@@ -895,6 +895,9 @@ Mnemonic forgetting
 
 Archival forgetting
     excluded from normal recall but retained for audit
+
+Logical deletion
+    tombstoned; identity and audit references survive
 
 Governance forgetting
     access revoked
@@ -1041,7 +1044,7 @@ A memory item's semantic content MUST NOT be allowed to raise its own authority 
 Externally imported Skills SHOULD default to:
 
 ```text
-status = candidate or inactive
+status = candidate
 execution authority = none
 ```
 
@@ -1215,7 +1218,7 @@ Returns a context-specific accepted/contested/rejected projection.
 
 Returns profile-aware memories ranked using mnemonic and task-relevance signals.
 
-The exact syntax is intentionally deferred.
+The Specification has since fixed the syntax: the Raw View is ordinary `FIND` over Concept/Proposition/Assertion/Evidence/Activity patterns, the Epistemic View is `BELIEF` / `BELIEF SLOT` under `WITH EPISTEMIC`, and the Memory View is Profile-aware ranking owned by the Brain rather than a protocol clause.
 
 ## 13.2 Mutation
 
@@ -1241,9 +1244,11 @@ Conceptually:
 
 ```json
 {
-  "commands": ["...", "...", "..."],
-  "transaction": "atomic",
-  "idempotency_key": "..."
+  "operations": ["...", "...", "..."],
+  "execution": {
+    "mode": "atomic",
+    "idempotency_key": "..."
+  }
 }
 ```
 
@@ -1380,12 +1385,12 @@ compatibility range
 Example logical identifiers:
 
 ```text
-kip://core@2.0
-kip://profiles/cognitive-memory@2.0
-kip://ldclabs/organization@1.0
+kip://core@2.0.0
+kip://profiles/cognitive-memory@2.0.0
+kip://ldclabs/organization@1.0.0
 ```
 
-The URI format above is illustrative, not yet normative.
+The Specification has since fixed this reference grammar as `kip://<package-path>@<exact-version>[/<symbol>]`, and durable state MUST persist the exact version rather than a floating alias (Specification §20.2, §20.4).
 
 ## 14.2 Canonical Schema Identity
 
@@ -1600,7 +1605,7 @@ external executable memory
 
 # 17. Self and Agent Identity
 
-`$self` and `$system` remain valuable cognitive abstractions, but they SHOULD live in the Cognitive Memory Profile rather than KIP Core.
+`$self` and `$system` remain valuable cognitive abstractions, but they are documentation names for semantic actors, never KIP syntax. Core owns only the protected designation; the actors themselves live in the Cognitive Memory Profile.
 
 KIP Core understands:
 
@@ -1608,15 +1613,15 @@ KIP Core understands:
 Principal
 Space
 identity references
+at most one Space-designated self identity (protected Governance state)
 ```
 
 The Cognitive Memory Profile defines:
 
 ```text
-$self
-$system
 Person
 SelfModel
+the semantic actors documented as $self / $system
 ```
 
 A deployment maps `$self` to one or more authenticated Principals according to policy.
@@ -1660,7 +1665,7 @@ The standard Cognitive Memory Profile SHOULD define:
 
 ```text
 Person
-$self / $system
+the semantic actors documented as $self / $system
 Event
 Experience
 ExperienceStep
@@ -1750,7 +1755,8 @@ New Evidence
 Assertion B
    ↓
 if same proposition:
-    confidence / stance may change
+    Assertion B carries the new stance/confidence
+    supersede A only for same-actor revision; A is never edited
 
 if new incompatible proposition:
     keep both propositions
@@ -1876,7 +1882,7 @@ This can happen gradually.
 
 ## 20.5 `confidence`
 
-Existing proposition `metadata.confidence` becomes migrated Assertion confidence.
+Existing proposition `metadata.confidence` becomes migrated Assertion confidence only where it actually expressed epistemic commitment (Specification §103.4). Where it encoded accessibility, importance, or staleness instead, classify it as `memory_strength`, salience, or a Projection freshness policy.
 
 If older deployments used time decay on confidence as a memory-strength proxy, migration cannot reconstruct the lost epistemic confidence perfectly. Preserve history and initialize `memory_strength` conservatively.
 
@@ -2162,21 +2168,31 @@ A compact capability/policy profile may be preferable.
 
 The protocol should permit URI/DID/URN/custom identifiers without mandating one scheme.
 
+**Resolved**: as recommended — a Concept MAY carry a `canonical_id` whose scheme is unconstrained but whose assignment is Governance-protected, and an unverified identity claim stays a `same_as` Proposition + Assertion (Specification §7.4).
+
 ## Q7. Should policy apply at element, assertion, proposition, or subgraph level?
 
 All may be necessary. The initial model should optimize for Space defaults plus element-level exceptions before adding arbitrary policy graphs.
+
+**Resolved**: as recommended — Space-scoped permission families with deny-overrides evaluation, applied to element existence, counts, rank, history, and origin rather than payload fields alone; no general policy graph (Specification §§29–30, §30.4).
 
 ## Q8. What is the canonical Capsule format?
 
 Likely JSON with strict canonicalization, while KIP DSL remains the model-facing mutation representation.
 
+**Resolved**: as expected — canonical JSON is the baseline serialization target for hashing/signing, and KIP DSL stays the model-facing mutation surface (Specification §37.7).
+
 ## Q9. How should large Evidence payloads be handled?
 
 Likely external content-addressed references + digest + metadata, rather than storing every raw artifact directly in the graph.
 
+**Resolved**: as expected — Evidence payload is `inline` or `external` with `content_ref` + `content_digest` + `media_type`, and large artifacts move through opaque runtime Artifact handles that are never dereferenced as URLs (Specification §15.3, §85).
+
 ## Q10. Which mnemonic fields are Core versus Profile?
 
 `expires_at` and archival state may remain cross-cutting Core lifecycle fields. `memory_strength`, `salience`, and `utility` are better defined by the Cognitive Memory Profile.
+
+**Resolved**: as recommended — Core keeps `retention {retention_class, expires_at, legal_hold}` plus archive/tombstone/purge, while `memory_strength` / `salience` live in the Profile `MnemonicState` Facet and `utility` in `SkillUtility` (Specification §19, §18; Cognitive Memory Profile 2.0).
 
 ---
 
@@ -2355,8 +2371,7 @@ Assertion C
   stance: support
   mode: observed
   confidence: 0.95
-  valid_from: 2024-01-01
-  valid_until: 2024-12-31
+  valid_time: {from: 2024-01-01, until: 2024-12-31}
 ```
 
 The Cognitive Nexus does not need to rewrite P1 three times.
@@ -2406,10 +2421,10 @@ with Assertions:
 
 ```text
 A1 supports P1
-valid_until = 2026-09-01
+valid_time.until = 2026-09-01
 
 A2 supports P2
-valid_from = 2026-09-01
+valid_time.from = 2026-09-01
 ```
 
 Now the Brain can answer both:
@@ -2444,7 +2459,7 @@ External Skill Sx
   authority: descriptive only
 
 Local Skill S1
-  derived_from: E1, E2
+  compiled_from: E1, E2
   status: candidate
   authority: advisory
 ```
@@ -2453,7 +2468,7 @@ After local validation:
 
 ```text
 S1
-  status: active
+  status: validated
   utility: 0.87
   authority: behavioral
 ```
@@ -2685,6 +2700,7 @@ The machine-readable artifacts make the prose specification executable and indep
 KIP/
 ├── KIP-2.0-SPECIFICATION.md
 ├── KIP-2.0-Architecture.md
+├── KIPSyntax.md
 ├── design/
 │   ├── KIP-2.0-Core-Data-Model.md
 │   ├── KIP-2.0-Epistemic-Model.md
@@ -2715,10 +2731,9 @@ KIP/
 │   └── kip-response.schema.json
 └── conformance/
     ├── KIP-2.0-Conformance-Tests.md
-    ├── schemas/
-    ├── fixtures/
-    ├── policies/
-    └── vectors/
+    ├── conformance-test-vector.schema.json
+    ├── conformance-report.schema.json
+    └── fixtures/
 ```
 
 Physical repository paths may differ; the layering should not.
@@ -2753,16 +2768,14 @@ Brain policies
 
 ## E.10 Current Completion State
 
-The original Architecture was written before the concrete Core Data Model, Epistemic Model, Governance model, Schema Packages, Transactions, Capsule, KQL/KML/META, Protocol Runtime, consolidated Specification, Formal EBNF, and conformance artifacts existed. Those layers now exist.
+The original Architecture was written before the concrete Core Data Model, Epistemic Model, Governance model, Schema Packages, Transactions, Capsule, KQL/KML/META, Protocol Runtime, consolidated Specification, Formal EBNF, and conformance artifacts existed. Those layers now exist, together with the machine-readable Cognitive Memory Profile Package, the canonical conformance fixtures, the LLM-facing syntax card, and the KIP 1.x operational migration guide.
 
 Remaining work is primarily:
 
 ```text
-1. stabilize the standard Cognitive Memory Profile;
-2. stabilize the reference Brain architecture and policies;
-3. publish the KIP 1.x operational migration guide;
-4. publish machine-readable Profile Packages and canonical fixtures;
-5. turn conformance design vectors into executable CI fixtures.
+1. turn the conformance design vectors into executable CI fixtures;
+2. broaden interoperability evidence through independent implementations;
+3. keep the reference Brain policies tracking Profile and Specification revisions.
 ```
 
 KIP 2.0 should now evolve by tightening these contracts rather than expanding Core indiscriminately.

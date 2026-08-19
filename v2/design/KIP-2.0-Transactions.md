@@ -10,7 +10,7 @@ This document defines the transaction architecture of KIP 2.0: how cognitive, ep
 
 It builds directly on:
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 - [KIP-2.0-Epistemic-Model.md](KIP-2.0-Epistemic-Model.md)
 - [KIP-2.0-Governance.md](KIP-2.0-Governance.md)
@@ -56,11 +56,13 @@ It represents one coherent state transition that the Cognitive Nexus may later e
 
 # 0. Normative Language
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate intended requirements for the future KIP 2.0 specification.
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate requirements of the KIP 2.0 Specification (`../KIP-2.0-SPECIFICATION.md`), which is authoritative where the two differ.
 
 Exact API names, request JSON, and KML syntax remain illustrative unless explicitly stated.
 
 The transaction semantics are the important part.
+
+Where `KIP-2.0-SPECIFICATION.md` has settled a name, code, or wire shape, the Specification governs and this document follows it. A reference written as `Specification §N` points into that document; a bare `§N` points into this one.
 
 ---
 
@@ -179,20 +181,20 @@ This distinction is normative.
 A transport batch:
 
 ```text
-commands[]
+operations[] with execution.mode = independent | sequence
 ```
 
 exists to reduce round trips.
 
-Commands execute independently according to ordinary command semantics.
+Each state-changing operation commits in its own transaction according to ordinary command semantics.
 
-Earlier successful writes are not rolled back merely because a later command fails.
+Earlier successful writes are not rolled back merely because a later operation fails.
 
 ---
 
 ## 4.2 Atomic Transaction
 
-An explicit transaction means:
+`execution.mode = atomic` means:
 
 ```text
 all durable mutations commit
@@ -596,37 +598,40 @@ when exact sequencing matters.
 
 # 24. Transaction Envelope
 
-Illustrative logical request:
+An atomic transaction is not a separate envelope. It is the ordinary KIP request envelope with `execution.mode = atomic`:
 
 ```json
 {
-  "space_id": "space-1",
+  "kip": "2.0",
+  "space": {
+    "id": "space-1"
+  },
 
-  "transaction": {
+  "execution": {
     "mode": "atomic",
+    "isolation": "serializable",
+    "idempotency_key": "formation:run-42"
+  },
 
-    "idempotency_key": "formation:run-42",
+  "preconditions": {
+    "schema_environment_version": 12
+  },
 
-    "options": {
-      "isolation": "serializable",
-      "dry_run": false
-    },
+  "operations": [
+    {
+      "op_id": "op-1",
+      "language": "KML",
+      "command": "..."
+    }
+  ],
 
-    "preconditions": {
-      "schema_environment_version": 12
-    },
-
-    "operations": [
-      {
-        "language": "KML",
-        "command": "..."
-      }
-    ]
+  "options": {
+    "dry_run": false
   }
 }
 ```
 
-Exact wire format is deferred.
+The normative wire structure is Specification §71/§75 and `v2/schemas/kip-request.schema.json`.
 
 ---
 
@@ -792,10 +797,10 @@ If an implementation cannot guarantee serializable write transactions, it MUST a
 High-assurance clients MAY require:
 
 ```text
-serializable
+execution.isolation = "serializable"
 ```
 
-and reject weaker endpoints.
+A runtime that cannot honour a requested isolation MUST fail with `UnsupportedIsolation` (Specification §32.2, Specification §87.1). It MUST NOT silently downgrade and report success.
 
 Baseline KIP implementations SHOULD target serializable semantics.
 
@@ -903,6 +908,7 @@ Recommended transaction preconditions include:
 element version
 element exists
 element absent
+element lifecycle state
 Space revision
 Schema Environment version
 Governance version/binding
@@ -910,7 +916,16 @@ query/result guard
 client logical key expectation
 ```
 
-Exact KML/request syntax is deferred.
+KIP 2.0 settles the portable surface:
+
+```text
+EXPECT VERSION n        KML element version / create-only guard
+EXPECT STATE "active"   KML lifecycle-state guard
+preconditions.space_seq
+preconditions.schema_environment_version
+```
+
+Governance/query guards remain internal serializable validation (§50, §62).
 
 ---
 
@@ -1249,15 +1264,15 @@ Security response must override convenience.
 
 # 60. Schema Change Conflict
 
-Recommended error:
+Recommended error (Specification §87.2):
 
 ```text
 SchemaEnvironmentChanged
 or
-SchemaVersionNoLongerWritable
+SchemaPackageUnavailable
 ```
 
-with safe retry guidance.
+with safe retry guidance (`requires_refresh`).
 
 ---
 
@@ -1738,17 +1753,15 @@ The engine may return diagnostics separately.
 
 # 90. KQL and KML Mixing
 
-A future explicit transaction API MAY permit:
+An `atomic` request MAY mix languages inside one transaction:
 
 ```text
 KQL read
 KML write
-KQL verify
+VERIFY / VALIDATE
 ```
 
-inside one transaction.
-
-Exact syntax is deferred.
+The runtime classifies actual parsed semantics; a declared `language` label cannot downgrade a write (Specification §73.1).
 
 ---
 
@@ -1966,13 +1979,12 @@ status = retracted
 
 # 105. Lifecycle Transition History
 
-Transitions such as:
+The baseline Assertion lifecycle states are `active`, `retracted`, `superseded`, `expired` (Specification §14). Transitions such as:
 
 ```text
 active → superseded
 active → retracted
 active → expired
-active → quarantined [Governance]
 ```
 
 MUST be reconstructable from:
@@ -1984,6 +1996,8 @@ equivalent append-preserving version history
 ```
 
 for deployments advertising historical projection.
+
+Governance quarantine is a control-plane state transition over the same element, not an Assertion lifecycle state: quarantining does not claim the assertor withdrew anything (Governance §133–§134). It is reconstructable through Governance/audit history under the same rule.
 
 ---
 
@@ -2093,6 +2107,8 @@ record merge Activity/audit
 ```
 
 without rewriting raw historical references.
+
+`merged_into` MUST stay acyclic (Specification §11.1). This is a genuine concurrency hazard: two transactions merging `A → B` and `B → A` can each pass validation against their own start snapshot and still form a cycle once both commit. Commit validation MUST evaluate the acyclicity invariant against the final write set, and abort the loser with `IdentityMergeConflict` or `SerializationConflict`.
 
 ---
 
@@ -2276,15 +2292,19 @@ Physical purge may make some historical state unreconstructable.
 
 Transaction history MUST NOT fabricate removed content.
 
-It may retain an allowed receipt such as:
+Where law/policy permits, purge SHOULD leave the minimal non-recoverable **digest stub** defined by Specification §60.3:
 
 ```text
-element existed
-purged under policy X at seq N
-content unavailable
+element kind
+content digest
+class
+observation time
+purging Activity reference
 ```
 
-if law/policy permits.
+so reference integrity, provenance-root identity, and independence counting survive the destruction of the bytes.
+
+A stub is not the content and is not recoverable Evidence. Where even a stub is prohibited, history returns unavailable rather than fabricated content.
 
 ---
 
@@ -2441,7 +2461,7 @@ The Receipt is engine truth about the transaction outcome.
 
 # 133. Receipt Logical Shape
 
-Illustrative:
+The normative Receipt shape is Specification §33.2 and the `Receipt` definition in `v2/schemas/kip-response.schema.json`. It is a flat object; anything beyond its named fields rides in `change_summary` or a namespaced `extensions` entry.
 
 ```json
 {
@@ -2454,37 +2474,32 @@ Illustrative:
 
   "committed_at": "2026-08-13T14:00:00Z",
 
-  "idempotency": {
-    "key": "formation:991",
-    "request_digest": "sha256:..."
-  },
+  "transaction_class": "cognitive",
 
-  "execution": {
-    "transaction_class": "cognitive",
-    "isolation": "serializable"
-  },
+  "request_digest": "sha256:...",
+  "semantic_plan_digest": "sha256:...",
+  "result_digest": "sha256:...",
 
-  "schema": {
-    "environment_version": 17
-  },
+  "schema_environment_version": 17,
 
-  "governance": {
-    "decision_ref": "gov-decision-...",
-    "policy_versions": []
-  },
-
-  "changes": {
+  "change_summary": {
     "created": ["evidence-1", "assertion-2"],
     "updated": ["assertion-1"],
     "tombstoned": [],
-    "purged": []
+    "purged": [],
+    "change_cursor": "opaque-cursor"
   },
 
-  "change_cursor": "opaque-cursor",
-
-  "warnings": []
+  "extensions": {
+    "kip.governance/decision": {
+      "decision_ref": "gov-decision-...",
+      "policy_versions": []
+    }
+  }
 }
 ```
+
+The idempotency key and requested isolation are request state, not Receipt fields: they are echoed on the response envelope (`execution`) rather than inside the Receipt.
 
 ---
 
@@ -2582,14 +2597,13 @@ An aborted transaction may return:
 {
   "tx_id": "tx-124",
   "status": "aborted",
-  "snapshot_seq": 912,
-  "error": {
-    "code": "VersionConflict"
-  }
+  "snapshot_seq": 912
 }
 ```
 
 No `space_seq` is assigned for a non-state-changing abort.
+
+The failure code (`VersionConflict`, `SerializationConflict`, `NotAuthorized`, ...) belongs to the envelope/operation `error` object (Specification §86.1), not to the Receipt.
 
 ---
 
@@ -2601,12 +2615,13 @@ Example:
 {
   "tx_id": "tx-125",
   "status": "no_effect",
-  "snapshot_seq": 912,
-  "space_seq": null
+  "snapshot_seq": 912
 }
 ```
 
-Idempotency mapping may preserve it.
+`space_seq` is omitted rather than null: a `no_effect` transaction allocates no cognitive commit position (§17, §85).
+
+The idempotency registry MUST retain this outcome and replay it on exact retry (Specification §34.3).
 
 ---
 
@@ -2632,6 +2647,14 @@ Client sends transaction.
 
 Connection fails.
 
+Where the runtime can still answer, it signals the ambiguity explicitly rather than reporting a false abort:
+
+```text
+top-level status = outcome_unknown
+error code       = OutcomeUnknown
+retry class      = outcome_lookup_required
+```
+
 Correct recovery:
 
 ```text
@@ -2643,6 +2666,8 @@ not:
 ```text
 blindly submit a fresh logical transaction
 ```
+
+A client timeout alone is not evidence of abort (§210, Specification §80.2).
 
 ---
 
@@ -2764,6 +2789,7 @@ with resumable cursor.
 Consumers deduplicate by:
 
 ```text
+space_id
 space_seq
 tx_id
 ```
@@ -2948,29 +2974,29 @@ MUST retain enough authorized history to reconstruct requested state, subject to
 
 ---
 
-# 161. `AS OF space_seq`
+# 161. `AS OF SEQ`
 
-Conceptually, historical reads can request:
+Historical reads request Space state as of a commit position:
 
-```text
-Space state as of sequence N
+```prolog
+AS OF SEQ 1500
 ```
 
-Exact KQL/META syntax is deferred.
+`AS OF` selects cognitive transaction time; `FOR TIME` selects world-valid time. They are independent (Specification §48).
 
 ---
 
-# 162. `AS OF tx_id`
+# 162. `AS OF TX`
 
-Because each committed tx maps to a sequence, an implementation MAY support:
+Because each committed tx maps to a sequence, a runtime resolves a transaction identity to its commit position:
 
-```text
-AS OF tx_id
+```prolog
+AS OF TX "tx-900"
 ```
 
 ---
 
-# 163. `AS OF time`
+# 163. `AS OF TIME`
 
 Time-based historical query may resolve:
 
@@ -3362,43 +3388,50 @@ Do not delete the historical fact that A1 existed unless privacy policy requires
 
 # 186. Transaction Failure Categories
 
-Recommended classes:
+Transaction aborts report stable codes from the Core Error Registry (Specification §87). The transaction-relevant subset:
 
 ```text
-SyntaxError
-ValidationError
-AuthorizationDenied
-ApprovalRequired
-VersionConflict
-SerializationConflict
-PreconditionFailed
-SchemaResolutionError
-SchemaEnvironmentChanged
-SchemaVersionBlocked
-IdempotencyConflict
-ReferenceConflict
-UniquenessConflict
-ResourceExhausted
-TransactionTooLarge
-CrossSpaceAtomicityUnsupported
-ExternalSideEffectUnsupported
-InternalError
+InvalidSyntax                syntax
+ConstraintViolation          Core/Schema validation
+TypeMismatch                 Schema validation
+NotAuthorized                authorization denied
+RequiresApproval             approval missing/expired
+SchemaSymbolNotFound         alias/symbol resolution
+SchemaSymbolAmbiguous        alias/symbol resolution
+SchemaPackageUnavailable     package blocked/unwritable
+SchemaEnvironmentChanged     environment moved under the transaction
+VersionConflict              EXPECT VERSION mismatch
+PreconditionFailed           EXPECT STATE / envelope precondition
+SerializationConflict        serializable validation
+IdempotencyConflict          same key, different request
+ReferenceError               reference integrity
+IdentityConflict             logical identity/uniqueness
+ClientKeyConflict            client_key reused for a different payload
+TransactionTooLarge          transaction size limit
+ResourceExhausted            runtime resource limit
+UnsupportedCapability        e.g. cross-Space atomicity not offered
+UnsupportedIsolation         requested isolation not offered
+OutcomeUnknown               commit outcome not establishable
+InternalError                engine fault
 ```
 
-Exact KIP error codes are deferred.
+Implementations MUST NOT invent parallel names for these conditions.
 
 ---
 
 # 187. Retryability
 
-Errors SHOULD indicate:
+Every error carries one retry class from Specification §86.3:
 
 ```text
-retryable
-non_retryable
-retry_after_refresh
-requires_approval
-requires_schema_update
+safe_same_request            retry the identical request (same idempotency key)
+requires_refresh             re-read state / re-resolve schema, then rebuild
+requires_different_input     the request itself is wrong
+requires_authority           needs different permission or approval
+requires_new_snapshot        retry against a fresh snapshot
+requires_reacquire_artifact  re-upload/re-stage the artifact
+outcome_lookup_required      resolve the ambiguous outcome first
+non_retryable                do not retry
 ```
 
 ---
@@ -4407,92 +4440,89 @@ The following are normative design targets.
 
 ---
 
-# 251. Recommended Transaction API Shape
+# 251. Transaction Request Shape
 
-Illustrative only:
+KIP 2.0 settled this in Specification §71/§75: one request envelope, one required `execution.mode`.
 
 ```json
 {
-  "space_id": "space-1",
+  "kip": "2.0",
+  "space": {
+    "id": "space-1"
+  },
 
-  "transaction": {
+  "execution": {
     "mode": "atomic",
-
-    "idempotency_key": "memory-formation:msg-991",
-
     "isolation": "serializable",
+    "idempotency_key": "memory-formation:msg-991"
+  },
 
-    "preconditions": {
-      "schema_environment_version": 17
+  "preconditions": {
+    "schema_environment_version": 17
+  },
+
+  "operations": [
+    {
+      "op_id": "op-1",
+      "command": "..."
     },
-
-    "operations": [
-      {
-        "command": "..."
-      },
-      {
-        "command": "..."
-      }
-    ]
-  }
+    {
+      "op_id": "op-2",
+      "command": "..."
+    }
+  ]
 }
 ```
 
-The final API may instead provide:
-
-```text
-execute_transaction(...)
-```
-
-to make the atomicity boundary impossible to confuse with existing `execute_kip(commands=...)`.
-
 ---
 
-# 252. Recommended Naming Decision
+# 252. Naming Decision
 
-Because KIP 1.x already uses:
+KIP 1.x used:
 
 ```text
 commands[]
 ```
 
-for non-atomic batch execution, KIP 2.0 SHOULD avoid adding:
+for non-atomic batch execution, and atomicity was not visible in the request at all.
+
+KIP 2.0 does not keep that name and does not add a boolean flag to it. It renames the array to `operations[]` and makes the atomicity boundary an explicit, REQUIRED enumeration whenever more than one operation is present:
 
 ```text
-commands[] + transaction=true
+execution.mode = independent | sequence | atomic
 ```
 
-as a subtle flag.
-
-A distinct top-level transaction form or API is safer and more self-explanatory.
+A multi-operation request without `execution` is invalid, so a batch can never silently pass for a transaction.
 
 ---
 
-# 253. Possible Interface Separation
+# 253. Runtime Interface Separation
 
-Recommended conceptual interfaces:
+The settled runtime surface is two execution paths plus META (Specification §68, §76, §77):
 
 ```text
 execute_kip
-    one command / transport batch
-
-execute_kip_transaction
-    explicit atomic transaction
+    KQL / KML / META under Governance
+    execution.mode selects batch vs. atomic transaction
 
 execute_kip_readonly
-    ordinary read
+    read-only path; MUST reject state-changing semantics
 
-execute_kip_snapshot
-    multiple reads pinned to one snapshot
+read.snapshot_token
+    pins several reads to one snapshot (§37)
 
-transaction_status
-    lookup by tx_id / idempotency key
+DESCRIBE TRANSACTION :tx_id
+DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :key
+    transaction lookup (§141)
 
-changes
-    resumable Space Change Stream
+CHANGES SINCE :cursor
+CHANGES AFTER SEQ :seq
+    resumable Space Change Stream (§146)
 ```
 
-Exact MCP/HTTP shape is deferred.
+There is no separate `execute_kip_transaction` endpoint: the mode carries the boundary.
+
+Exact MCP/HTTP binding remains transport-specific.
 
 ---
 
@@ -4507,7 +4537,7 @@ An LLM can understand:
 and choose:
 
 ```text
-transaction
+execution.mode = atomic
 ```
 
 instead of accidentally relying on batch behavior.
@@ -4971,15 +5001,16 @@ source/destination transaction lineage
 
 # 274. Relationship to KQL
 
-KQL should eventually support:
+KQL provides the historical/transactional read surface:
 
-```text
-snapshot/as-of reads
-transaction-pinned reads
-transaction ID/system history lookup where authorized
+```prolog
+AS OF SEQ :seq
+AS OF TX :tx_id
+AS OF TIME :t
+FOR TIME :world_time
 ```
 
-Exact syntax is deferred.
+plus `read.snapshot_token` for pinning several reads to one snapshot. Transaction/system history lookup is META (§276).
 
 ---
 
@@ -5015,10 +5046,17 @@ change stream capability
 history capability
 ```
 
-and possibly:
+through:
 
 ```text
-DESCRIBE TRANSACTION
+DESCRIBE TRANSACTION :tx_id
+DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :key
+DESCRIBE SNAPSHOT
+HISTORY ELEMENT :id
+HISTORY SPACE
+CHANGES SINCE :cursor
+CHANGES AFTER SEQ :seq
+SNAPSHOT
 ```
 
 for authorized audit.

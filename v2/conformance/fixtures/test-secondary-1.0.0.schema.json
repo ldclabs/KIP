@@ -17,7 +17,7 @@
       "package_id": "kip://test/core-domain",
       "version": "1.0.0",
       "package_ref": "kip://test/core-domain@1.0.0",
-      "digest": "sha256:d04c9778db56d11242cf275f6d21dbfac078aa87bae9e4773849f969250638ad",
+      "digest": "sha256:79a0c166847785cf3a0b56b0e33e625a9f3bb6e002232db86572f183fb250984",
       "required": true
     }
   ],
@@ -80,7 +80,7 @@
   },
   "integrity": {
     "digest_profile": "kip-draft-canonical-json-v1",
-    "content_digest": "sha256:bd9d1206a952f72545f9d6d61ffb23d30df0000b2cd9a218f90d155508858311",
+    "content_digest": "sha256:e6ae7e336a3c621b0ae416e50f455d0d9d93e5f48a2423752f69170859db03e2",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

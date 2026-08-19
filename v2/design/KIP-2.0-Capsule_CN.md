@@ -10,7 +10,7 @@
 
 它直接构建于以下规范基础之上：
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 - [KIP-2.0-Epistemic-Model.md](KIP-2.0-Epistemic-Model.md)
 - [KIP-2.0-Governance.md](KIP-2.0-Governance.md)
@@ -74,7 +74,7 @@ the destination should execute anything (目标端应当执行任何动作)
 
 # 0. 规范性用词定义 (Normative Language)
 
-关键词 **必须 (MUST)**、**严禁 (MUST NOT)**、**必需 (REQUIRED)**、**应当 (SHOULD)**、**不得 (SHOULD NOT)**、**可以 (MAY)** 和 **可选 (OPTIONAL)** 用于表示未来 KIP 2.0 规范的预期要求。
+关键词 **必须 (MUST)**、**严禁 (MUST NOT)**、**必需 (REQUIRED)**、**应当 (SHOULD)**、**不得 (SHOULD NOT)**、**可以 (MAY)** 和 **可选 (OPTIONAL)** 用于表示 KIP 2.0 规范 (`../KIP-2.0-SPECIFICATION.md`) 的要求；两者不一致时以该规范为准。
 
 除非另有明确说明，具体的 JSON 字段名、算法和 KIP 命令语法仍处于预规范阶段。
 
@@ -1794,6 +1794,14 @@ cross-language implementation (跨语言实现)
 # 110. 规范 JSON 基准 (Canonical JSON Baseline)
 
 KIP 2.0 **应当 (SHOULD)** 定义规范 JSON 作为基准机器呈现格式。
+
+当前已发布的 KIP 2.0 工件（模式包、一致性测试夹具）所采用的草案编码标识为：
+
+```text
+kip-draft-canonical-json-v1
+```
+
+它尚未成为最终的 KIP 全局规范化标准；声明该标识的工件**必须 (MUST)** 同时写明其所应用的规则，以保证其声明的摘要可被独立复现。
 
 未来 **可以 (MAY)** 定义具有等价抽象数据语义的规范 CBOR 呈现格式。
 
@@ -4001,11 +4009,13 @@ source Assertion (源断言)
 
 # 274. 撤销属于新信息 (Revocation Is New Information)
 
-若目标端获知胶囊/签名被撤销：
+若目标端获知：
 
 ```text
-create/record new Governance/epistemic state (创建/记录新的治理/认识论状态)
+Capsule/signature revoked (胶囊/签名被撤销)
 ```
+
+它会创建/记录新的治理/认识论状态。
 
 它不会篡改胶囊先前在已知信息下已被合法导入的历史事实。
 
@@ -4552,7 +4562,9 @@ safe or true (安全或为真)
 
 # 315. 导入错误分类 (Import Error Classes)
 
-推荐类别：
+规范层面的线路错误码取自 Core 错误注册表（规范 §87.9 与 §87.2），主要包括 `ArtifactParseError`、`DigestMismatch`、`ProofInvalid`、`SignerUnknown`、`BlobUnavailable`、`CapsuleValidationFailed`、`ImportPreviewConflict`、`SchemaPackageUnavailable` 与 `IdentityConflict`。
+
+下列分类属于导入器的细粒度诊断，用于细化上述稳定错误码，本身并非额外的线路错误码：
 
 ```text
 CapsuleParseError (胶囊解析错误)
@@ -5030,12 +5042,16 @@ reject/stage (拒绝 / 暂存)
     "schema": [
       {
         "package": "kip://core",
-        "version": "2.0.0",
-        "digest": "sha256:..."
+        "version": "2.0.0"
       },
       {
         "package": "kip://profiles/cognitive-memory",
         "version": "2.0.0",
+        "digest": "sha256:..."
+      },
+      {
+        "package": "kip://acme/ui",
+        "version": "1.0.0",
         "digest": "sha256:..."
       }
     ],
@@ -5051,6 +5067,15 @@ reject/stage (拒绝 / 暂存)
           "name": "Alice",
           "canonical_id": "did:example:alice",
           "attributes": {}
+        },
+        {
+          "ref": "c:2",
+          "source_ref": {
+            "element_id": "C:dark-mode"
+          },
+          "schema_ref": "kip://acme/ui@1.0.0/Theme",
+          "name": "Dark Mode",
+          "attributes": {}
         }
       ],
 
@@ -5059,12 +5084,7 @@ reject/stage (拒绝 / 暂存)
           "ref": "p:1",
           "predicate_ref": "kip://profiles/cognitive-memory@2.0.0/prefers",
           "subject": {"$ref": "c:1"},
-          "object": {
-            "$literal": {
-              "type": "string",
-              "value": "dark_mode"
-            }
-          }
+          "object": {"$ref": "c:2"}
         }
       ],
 
@@ -5131,6 +5151,7 @@ Capsule: (胶囊概况)
 Schema: (模式依赖)
     Core 2.0 present (核心 2.0 存在)
     Cognitive Memory 2.0 present (认知记忆 2.0 存在)
+    acme/ui 1.0 present (acme/ui 1.0 存在)
 
 Identity: (身份解析)
     remote Alice canonical_id matches local Alice (远端 Alice 的 canonical_id 与本地 Alice 匹配)
@@ -5486,13 +5507,13 @@ KQL/META 最终应当支持快照一致性的导出选择查询。
 可能的形式：
 
 ```text
-EXPORT CAPSULE ?x
-WHERE {...}
-AS OF <snapshot>
-WITH CLOSURE ...
+EXPORT CAPSULE ?roots
+WHERE { ... }
+[WITH { closure: "...", provenance_depth: ..., include_schema: true }]
+[AS OF SEQ :seq]
 ```
 
-具体语法在此不作硬性限定。
+规范已确定该接口形态（§63.4）：操作数指明选择根绑定；与之配套的只读导入预览语句是 `PREVIEW IMPORT CAPSULE`。
 
 ---
 

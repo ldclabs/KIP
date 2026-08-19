@@ -221,7 +221,7 @@ If it represented accessibility, importance, or staleness, classify instead:
 ```text
 truth support      → Assertion confidence
 forgetting/access  → MnemonicState.memory_strength
-importance         → salience
+importance         → MnemonicState.salience
 staleness          → Projection freshness/validity policy
 mixed/unknown      → preserve legacy value + conservative native initialization
 ```
@@ -413,6 +413,26 @@ legacy export       → compatibility artifact or converted Capsule
 ```
 
 The adapter cannot redefine native KIP 2.0 semantics. Ambiguous behavior should produce explicit warnings/errors.
+
+A v1 client that switches on numeric codes also needs an error mapping: KIP 2.0 error codes are stable names, not `KIP_xxxx` numbers (Specification §87).
+
+```text
+KIP_1001 InvalidSyntax       → InvalidSyntax
+KIP_1002 InvalidIdentifier   → InvalidIdentifier
+KIP_2001 TypeMismatch        → SchemaSymbolNotFound (undefined type/predicate)
+KIP_2002 ConstraintViolation → ConstraintViolation; ProtectedSystemField for a `_` metadata write
+KIP_2003 InvalidValueType    → TypeMismatch
+KIP_3001 ReferenceError      → ReferenceError
+KIP_3002 NotFound            → NotFoundOrNotVisible
+KIP_3003 DuplicateExists     → IdentityConflict; IdentityMergeConflict for a merge
+KIP_3004 ImmutableTarget     → ProtectedSystemField | ProtectedSchemaState | ImmutableField
+KIP_3005 VersionConflict     → VersionConflict
+KIP_4001 ExecutionTimeout    → ExecutionTimeout
+KIP_4002 ResourceExhausted   → ResourceExhausted | ResultLimitExceeded
+KIP_4003 InternalError       → InternalError
+```
+
+The mapping is not one-to-one: v2 splits several v1 codes by cause, and `NotFoundOrNotVisible` deliberately refuses to distinguish "absent" from "not visible to you".
 
 # 33. Dual Read
 

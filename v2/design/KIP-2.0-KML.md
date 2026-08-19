@@ -10,7 +10,7 @@ This document defines the mutation semantics of KIP 2.0: how an Agent records ne
 
 It builds directly on:
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 - [KIP-2.0-Epistemic-Model.md](KIP-2.0-Epistemic-Model.md)
 - [KIP-2.0-Governance.md](KIP-2.0-Governance.md)
@@ -137,7 +137,7 @@ The language must preserve that distinction by construction.
 
 # 0. Normative Language
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate intended requirements for the future KIP 2.0 specification.
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate requirements of the KIP 2.0 Specification (`../KIP-2.0-SPECIFICATION.md`), which is authoritative where the two differ.
 
 The grammar shown here is an architecture-level proposal.
 
@@ -1533,7 +1533,6 @@ An author-written:
 
 ```text
 source
-source_refs
 ```
 
 does not become trusted engine origin.
@@ -2616,7 +2615,22 @@ A read alone does not automatically reinforce.
 
 ---
 
-# 132. `LIMIT` on UPDATE
+# 132. `LIMIT` on Bounded Mutation
+
+Every mutation whose `WHERE` can select an unbounded set accepts an optional
+`LIMIT` immediately after that `WHERE` (Spec §52.7):
+
+```text
+UPDATE
+RETRACT ASSERTION
+SET RETENTION
+ARCHIVE
+TOMBSTONE
+PURGE
+```
+
+`MERGE CONCEPT` takes no `LIMIT`: its source and target are already named, and
+its `WHERE` only guards them.
 
 `LIMIT` is a blast-radius cap, not a semantic ordering mechanism.
 
@@ -2998,7 +3012,17 @@ TO "completed"
 EXPECT STATE "running"
 ```
 
-with allowed terminal fields.
+Allowed terminal fields are finalized in the same statement, before the guard:
+
+```prolog
+TRANSITION ACTIVITY :activity_id
+TO "completed"
+SET FIELDS {ended_at: :time}
+SET STRUCTURAL {
+  ("outputs", :assertion_id)
+}
+EXPECT STATE "running"
+```
 
 ---
 
@@ -3203,14 +3227,17 @@ WHERE {
   ?target EVIDENCE {id: :evidence_id}
 }
 
+LIMIT :limit
+
 REFERENCE POLICY "deny_if_referenced"
 
 CONFIRM "PURGE"
 ```
 
-Exact confirmation grammar may change.
+The confirmation spelling is frozen as `CONFIRM "PURGE"`.
 
-The explicitness should remain.
+A purge sweep SHOULD also be bounded by `LIMIT` (§132), in addition to the
+required confirmation.
 
 ---
 
@@ -4319,6 +4346,7 @@ ASSERT ?a (
   mode: "stated",
   confidence: 1.0,
   at: :time,
+  valid: {from: :valid_from, until: null},
 
   evidence: [?e, :message],
 
@@ -4327,11 +4355,21 @@ ASSERT ?a (
 ```
 
 `by` and `mode` are REQUIRED; the rest are optional. `by` becomes the
-Assertion's `asserted_by`, `at` its `asserted_at`, and `key` its `client_key`.
-`evidence` is one reference or an array of references; each becomes a
+Assertion's `asserted_by`, `at` its `asserted_at`, `valid` its `valid_time`,
+and `key` its `client_key`. `stance` defaults to `"support"`, and an omitted
+`at` defaults to engine transaction time. `evidence` is one reference or an
+array of references; each becomes a
 `("evidence", ref) {role: "support"}` structural citation. A citation with
 another role (`challenge`, `context`) is not sugar material — write the
 desugared `CREATE ASSERTION` with `SET STRUCTURAL` (§74).
+
+Supersession is expressed by an optional trailing clause:
+
+```prolog
+ASSERT ?a (...) {...} SUPERSEDING :old_assertion
+```
+
+which desugars to `SUPERSEDE ASSERTION :old_assertion BY ?a`.
 
 ---
 
@@ -4343,9 +4381,19 @@ Conceptually:
 ENSURE PROPOSITION tuple
 +
 CREATE ASSERTION targeting canonical Proposition
++
+SUPERSEDE ASSERTION old BY new when SUPERSEDING is present
 ```
 
-The Evidence refs must already exist or be local handles in the same `MUTATE`.
+The desugaring is normative and deterministic (Spec §55.1): `ASSERT` MUST
+commit exactly the semantics of its desugared form and MUST NOT create
+additional or divergent state.
+
+`ASSERT` may appear standalone or inside `MUTATE`. The Evidence refs must
+already exist or be local handles in the same `MUTATE`.
+
+The Proposition id form `(id: :p)` is rejected here: `ASSERT` desugars through
+`ENSURE PROPOSITION`, which resolves-or-creates by structure (§58).
 
 ---
 
@@ -5332,6 +5380,7 @@ ensure_proposition
 create_evidence
 create_assertion
 create_activity
+assert_sugar
 
 update
 update_expressions
@@ -5346,6 +5395,7 @@ activity_transition
 archive
 tombstone
 purge
+set_retention
 non_destructive_merge
 
 expect_version
@@ -5390,6 +5440,7 @@ Adds:
 
 ```text
 MUTATE compound block
+ASSERT sugar (normative desugaring)
 forward local references
 Structural Reference mutation
 Profile Facets
@@ -5807,11 +5858,16 @@ Assertion:
       stance:"support",
       mode:"stated",
       confidence:0.9,
-      asserted_at::time
+      asserted_at: :time
     }
     SET STRUCTURAL {
       ("evidence", ?e) {role:"support"}
     }
+  }
+
+Same claim as one sugar statement:
+  ASSERT ?a (?s, "predicate", ?o) {
+    by: ?actor, mode: "stated", confidence: 0.9, evidence: ?e
   }
 
 Provenance:
@@ -6512,6 +6568,8 @@ upsert_concept :=
 ensure_proposition :=
     "ENSURE PROPOSITION" handle?
     "(" term "," predicate_term "," term ")"
+    expect_version_clause?
+        (* EXPECT VERSION 0 is the create-only form (§32) *)
 
 assert_statement :=
     "ASSERT" handle?
@@ -6568,32 +6626,74 @@ update_clause :=
 
 retract_assertion :=
     "RETRACT ASSERTION" target
-    where_clause?
+    ("WHERE" "{" kql_clause* "}")?
     limit_clause?
     expect_state_clause?
 
 supersede_assertion :=
     "SUPERSEDE ASSERTION" target
     "BY" target
+    expect_state_clause?
 
 correct_evidence :=
     "CORRECT EVIDENCE" target
     "BY" target
+    expect_state_clause?
 
 transition_activity :=
     "TRANSITION ACTIVITY" target
     "TO" value
+    transition_finalize_clause*
     expect_state_clause?
 
+transition_finalize_clause :=
+      set_fields_clause
+    | set_structural_clause
+        (* terminal outputs / ended_at finalized atomically (§157) *)
+
+set_retention :=
+    "SET RETENTION" target
+    assignment_object
+    ("WHERE" "{" kql_clause* "}")?
+    limit_clause?
+    expect_version_clause?
+
+archive_statement :=
+    "ARCHIVE" target
+    ("WHERE" "{" kql_clause* "}")?
+    limit_clause?
+    expect_state_clause?
+
+tombstone_statement :=
+    "TOMBSTONE" target
+    ("WHERE" "{" kql_clause* "}")?
+    limit_clause?
+    expect_state_clause?
+
+purge_statement :=
+    "PURGE" target
+    ("WHERE" "{" kql_clause* "}")?
+    limit_clause?
+    ("REFERENCE POLICY" value)?
+    "CONFIRM" "\"PURGE\""
+
 merge_concept :=
-    "MERGE CONCEPT" variable
-    "INTO" variable
-    "WHERE" "{"
-      kql_clause*
-    "}"
+    "MERGE CONCEPT" target
+    "INTO" target
+    ("WHERE" "{" kql_clause* "}")?
+    expect_version_clause?
+        (* no limit_clause: source and target are already named *)
+
+target :=
+    variable | parameter | string
+        (* a ?variable target is bound by WHERE, or is a local handle
+           inside MUTATE; a direct target may omit WHERE (§102) *)
 ```
 
-Formal grammar will need exact rules for standalone IDs, local handles, fields, references, and lifecycle options.
+The normative machine-readable grammar is
+[`../grammar/KIP-2.0-KML.ebnf`](../grammar/KIP-2.0-KML.ebnf); this sketch is a
+reading aid for it. Local handles, field mutability, reference resolution, and
+lifecycle legality remain semantic rules validated outside the grammar.
 
 ---
 

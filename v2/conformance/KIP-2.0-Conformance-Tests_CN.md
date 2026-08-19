@@ -91,17 +91,24 @@ HARNESS_ERROR      测试框架执行异常
     "KIP-META",
     "KIP-Runtime",
     "KIP-Historical",
-    "KIP-High-Assurance"
+    "KIP-High-Assurance",
+    "KIP-1-Migration"
   ],
 
   "optional_capabilities": {
     "belief_slot": true,
     "historical_reads": true,
     "semantic_search": true,
-    "signed_receipts": false
+    "search_index_freshness": true,
+    "signed_receipts": false,
+    "materialized_projection": false,
+    "ingestion_context": true,
+    "serializable_isolation": false
   }
 }
 ```
+
+`KIP-1-Migration`（规范 §89）仅由声明支持 KIP 1.x 迁移/兼容的实现声明；否则 §25 套件整体记为 `NOT_APPLICABLE`。一旦在 `optional_capabilities` 中声明支持某项能力，本文档中所有依赖该能力的 OPTIONAL 测试向量即转为强制必测项（§35）。
 
 测试运行器应当将该声明与 `DESCRIBE PROTOCOL` 和 `DESCRIBE CAPABILITIES` 的输出进行比对校验。
 
@@ -330,17 +337,17 @@ compiled_from   编译自
 compiled_by     编译者
 ```
 
-保留的核心结构字段（`evidence`、`source`、`generated_by`、`inputs`、`outputs`）属于 `KIP-2.0-SPECIFICATION.md` §20.13 所定义的内置字段；测试包不会对其进行重新定义，涉及这些字段的测试向量直接测试 Core 内置约束。
+保留的核心结构字段（`evidence`、`source`、`generated_by`、`inputs`、`outputs`、`associated_actors`）属于 `KIP-2.0-SPECIFICATION.md` §20.13 所定义的内置字段；测试包不会对其进行重新定义，涉及这些字段的测试向量直接测试 Core 内置约束。
 
 切面定义 (Facets)：
 
 ```text
-MnemonicState (记忆状态):
+MnemonicState (记忆状态):                适用于 Concept
     memory_strength number [0,1], mutable (记忆强度)
     salience number [0,1], mutable        (显著度)
     last_metabolized_at timestamp|null, mutable (上次代谢时间)
 
-SkillUtility (技能效用):
+SkillUtility (技能效用):                 适用于 Skill
     utility number, mutable               (效用评分)
     success_count integer >= 0, mutable   (成功次数)
     failure_count integer >= 0, mutable   (失败次数)
@@ -707,7 +714,7 @@ untrusted imported (未受信任的导入数据)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：断言的置信度为 0.9，其关联记忆强度（memory_strength）为 0.2。触发操作：将 memory_strength 更新为 0.1。预期结果：断言置信度依然严格保持为 0.9。
+**预期语义行为 (Expected semantic behavior):** 前置条件：某断言的置信度为 0.9，该断言所指向概念的 MnemonicState 记忆强度（memory_strength）为 0.2。触发操作：将 memory_strength 更新为 0.1。预期结果：该断言的置信度依然严格保持为 0.9。
 
 **违规禁则 (Forbidden outcome):** 记忆状态的变动改变认识断言的置信度。
 
@@ -947,187 +954,191 @@ untrusted imported (未受信任的导入数据)
 
 ---
 
-## KIP2-EPI-004 — 受信任的反驳断言判定为已拒绝 (Trusted refute yields rejected)
+## KIP2-EPI-004 — 受信任的反对根源判定为已拒绝 (Trusted opposition yields rejected)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：存在一个来自受信任来源且处于活跃状态的反驳立场断言。触发操作：执行 BELIEF 查询。预期结果：状态判定为 `rejected`。
+**预期语义行为 (Expected semantic behavior):** 前置条件：存在一个合格的、受信任的、独立的反对（reject）来源根源。预期结果：状态判定为 `rejected`（已拒绝）。
 
 ---
 
-## KIP2-EPI-005 — 存在矛盾断言判定为存争议 (Contradictory Assertions yield contested)
+## KIP2-EPI-005 — 支持与反对并存判定为存争议 (Support plus opposition yields contested)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：同时存在实质性的受信任支持断言与受信任反对断言。触发操作：执行 BELIEF 查询。预期结果：状态判定为 `contested`（存争议）。
+**预期语义行为 (Expected semantic behavior):** 前置条件：同时存在合格且相互独立的支持根源与反对根源。预期结果：状态判定为 `contested`（存争议）。
 
-**违规禁则 (Forbidden outcome):** 引擎自行武断选择一方并判定为已接受。
+**违规禁则 (Forbidden outcome):** 悄然丢弃其中一方。
 
 ---
 
-## KIP2-EPI-006 — 不受信任的断言判定为不确定 (Untrusted Assertion yields uncertain)
+## KIP2-EPI-006 — 微弱材料可判定为不确定 (Weak material may yield uncertain)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：仅存在来自不受信任来源的微弱断言。触发操作：执行 BELIEF 查询。预期结果：状态判定为 `uncertain`（不确定）。
+**预期语义行为 (Expected semantic behavior):** 前置条件：仅存在固件明确定义为微弱（weak）/低信任（low_trust）的材料。预期结果：状态判定为 `uncertain`（不确定）。
 
-**违规禁则 (Forbidden outcome):** 不受信任的输入被直接判定为已接受。
+**违规禁则 (Forbidden outcome):** 将 `uncertain` 塌缩为 `rejected`。
 
 ---
 
-## KIP2-EPI-007 — 多个微弱断言不会自动合并为已接受 (Multiple weak Assertions do not automatically become accepted)
+## KIP2-EPI-007 — 置信度不等于信念概率 (Confidence does not equal belief probability)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：存在多个低置信度/不受信任的同向断言。触发操作：执行 BELIEF 查询。预期结果：在缺乏独立信任根源的情况下，状态依然保持为 `uncertain` 或 `insufficient`。
+**预期语义行为 (Expected semantic behavior):** 前置条件：断言 confidence 为 0.9。预期结果：除非投影策略显式声明了该分值语义（score semantics），否则运行时不得将裸露的 0.9 作为经过校准的信念概率对外暴露。
 
-**违规禁则 (Forbidden outcome):** 仅凭低信任断言的数量累加而自动跃迁为 `accepted`。
+**违规禁则 (Forbidden outcome):** 未声明语义的概率解读。
 
 ---
 
-## KIP2-EPI-008 — 搜索相关性评分不改变认识状态 (Search score does not alter Epistemic state)
+## KIP2-EPI-008 — 搜索评分不会转化为置信度 (Search score does not become confidence)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：对一个处于 `uncertain` 状态的命题执行搜索操作，检索返回了很高的搜索相关性得分（Search score）。预期结果：该命题的 BELIEF 认识判定依然严格保持为 `uncertain`。
+**预期语义行为 (Expected semantic behavior):** 触发操作：先执行 SEARCH，再查询相关断言。预期结果：断言的 confidence 保持不变。
 
-**违规禁则 (Forbidden outcome):** 将搜索相关性混同于事实置信度。
+**违规禁则 (Forbidden outcome):** 检索评分被持久化写入认识状态。
 
 ---
 
-## KIP2-EPI-009 — 认识投影不会强化记忆 (Epistemic projection does not reinforce memory)
+## KIP2-EPI-009 — 读操作不会强化认知 (Reads do not reinforce cognition)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：反复执行 BELIEF 投影查询。预期结果：底层事实的记忆强度（memory_strength）与置信度保持不变。
+**预期语义行为 (Expected semantic behavior):** 触发操作：先记录 confidence / memory_strength / 证据数量，再反复执行 KQL 与 BELIEF 读查询。预期结果：上述持久化数值保持不变。
 
-**违规禁则 (Forbidden outcome):** 读查询产生记忆强化的副作用。
+**违规禁则 (Forbidden outcome):** 读端强化（read-side reinforcement）。
 
 ---
 
-## KIP2-EPI-010 — 已撤回的断言失去计算资格 (Retracted Assertion is ineligible)
+## KIP2-EPI-010 — 假设性材料被常规当前世界策略排除 (Hypothetical excluded by ordinary current-world policy)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：断言的状态已变更为撤回（retracted）。触发操作：执行当前世界的 BELIEF 查询。预期结果：该撤回断言不参与当前信念计算。
+**预期语义行为 (Expected semantic behavior):** 前置条件：仅存在 `hypothetical`（假设）模式的支持材料。预期结果：默认 BELIEF 查询不会因此判定为已接受。
 
-**违规禁则 (Forbidden outcome):** 已撤回的断言依然支撑当前信念。
+**违规禁则 (Forbidden outcome):** 假设被提升为事实。
 
 ---
 
-## KIP2-EPI-011 — 被废弃替代的断言在当前信念中失去计算资格 (Superseded Assertion is ineligible for current belief)
+## KIP2-EPI-011 — 假设性材料可被显式纳入 (Hypothetical may be included explicitly)
 
-**要求级别 (Level):** MUST
+**要求级别 (Level):** SHOULD
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：断言 A1 已被断言 A2 废弃替代（superseded）。触发操作：执行当前世界的 BELIEF 查询。预期结果：当前信念仅根据 A2 计算，A1 不再作为活跃依据。
+**预期语义行为 (Expected semantic behavior):** 在显式声明纳入 `hypothetical` 的情景策略（scenario policy）下，结果遵循该策略的定义。
 
-**违规禁则 (Forbidden outcome):** 已被替代的历史断言与新断言发生重复计算。
-
----
-
-## KIP2-EPI-012 — 已中止的断言失去计算资格 (Suspended Assertion is ineligible)
-
-**要求级别 (Level):** MUST
-
-**预期语义行为 (Expected semantic behavior):** 前置条件：断言的生命周期状态被标记为中止（suspended）。触发操作：执行当前世界的 BELIEF 查询。预期结果：该断言不参与当前信念的判定。
+**违规禁则 (Forbidden outcome):** 隐式变更策略。
 
 ---
 
-## KIP2-EPI-013 — 撤回断言可消除争议使信念恢复 (Retraction can reopen contested belief)
+## KIP2-EPI-012 — 预测不等于观测 (Predicted is not observed)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：原本存在矛盾断言而处于 `contested` 状态。触发操作：反对立场的主体撤回其反对断言。预期结果：后续 BELIEF 查询重新收敛并判定为 `accepted`。
+**预期语义行为 (Expected semantic behavior):** 前置条件：仅存在 `predicted`（预测）模式的支持材料。预期结果：常规事实性投影不会将其视为直接观测。
+
+**违规禁则 (Forbidden outcome):** 预报被提升为观测。
 
 ---
 
-## KIP2-EPI-014 — 超出有效时间的断言失去计算资格 (Expired valid_time is ineligible)
+## KIP2-EPI-013 — 导入不等于本地背书 (Imported is not local endorsement)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：断言的 `valid_time.until` 早于当前查询的世界时间（world-time）。触发操作：执行当前时间点的 BELIEF 查询。预期结果：该断言在当前判定中失去计算资格。
+**预期语义行为 (Expected semantic behavior):** 触发操作：导入一条不受信任的断言。预期结果：记录本身存在，但不会被自动判定为已接受。
 
-**违规禁则 (Forbidden outcome):** 将已过期的历史断言作为当前事实。
+**违规禁则 (Forbidden outcome):** 将导入等同于背书。
 
 ---
 
-## KIP2-EPI-015 — 无独立证据的派生断言避免自我强化 (Derived Assertion without distinct Evidence avoids self-reinforcement)
+## KIP2-EPI-014 — 派生断言保留溯源根源 (Derived Assertion preserves provenance roots)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：断言 A2 纯粹由断言 A1 派生而来，且二者共享同一个底层证据源。触发操作：执行 BELIEF 投影计算。预期结果：A2 与 A1 不被计为两个相互独立的证据支持。
+**预期语义行为 (Expected semantic behavior):** 触发操作：通过 Activity 从 A1/E1 推导出 `inferred` 模式的断言 A2。预期结果：证据台账/溯源链可回溯到上游根源。
 
-**违规禁则 (Forbidden outcome):** 派生认知产生自我印证与置信度倍增。
+**违规禁则 (Forbidden outcome):** 来源洗白（origin laundering）。
 
 ---
 
-## KIP2-EPI-016 — 单个断言下的多个证据引用不增加支持根源 (Multiple Evidence citations under one Assertion do not multiply roots)
+## KIP2-EPI-015 — 派生副本不会倍增证据 (Derived copies do not multiply evidence)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：单个断言内部引用了多个辅助证据条目。预期结果：在拓扑分析中，该断言依然仅代表一个独立断言节点。
+**预期语义行为 (Expected semantic behavior):** 触发操作：对同一根源分别生成摘要与译文。预期结果：二者仍归属同一个印证/根源分组。
 
-**违规禁则 (Forbidden outcome):** 仅凭断言内部引用的证据数量来人为放大断言权威。
+**违规禁则 (Forbidden outcome):** 由一个来源派生出三个相互独立的根源。
 
 ---
 
-## KIP2-EPI-017 — 不同传输通道传输同一来源事件不增加独立性 (Same source-event across different transports does not multiply independence)
+## KIP2-EPI-016 — 同源重复陈述不构成来源多样性 (Repeated same-source statement is not source diversity)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：同一个来源事件通过多个不同的传输通道被摄取到系统中。预期结果：在认识论层面其依然被识别为同源事件，不被视为多个独立的客观事实证据。
+**预期语义行为 (Expected semantic behavior):** 绑定到同一来源事件的重复记录，不会转化为相互独立的来源多样性。
 
-**违规禁则 (Forbidden outcome):** 重复摄取同一事实伪造出多个独立证据来源。
+**违规禁则 (Forbidden outcome):** 将重复当作独立性。
 
 ---
 
-## KIP2-EPI-018 — 相互印证必须基于独立的根源 (Corroboration requires independent roots)
+## KIP2-EPI-017 — 独立观测可保持独立 (Independent observations may remain independent)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：两个由同一上游事实派生出来的断言同时存在。触发操作：执行印证度分析。预期结果：系统判定它们源于共同祖先，不构成真正的独立印证。
+**预期语义行为 (Expected semantic behavior):** 两个来源各异的独立观测事件，可以呈现为彼此不同的根源分组。
 
-**违规禁则 (Forbidden outcome):** 虚假的派生印证。
+**违规禁则 (Forbidden outcome):** 强行合并真正相互独立的观测。
 
 ---
 
-## KIP2-EPI-019 — 陈述模式与观测模式严格区分 (Stated versus observed modes distinct)
+## KIP2-EPI-018 — 环状溯源不会放大信念 (Circular provenance does not amplify)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：存在 `mode: "stated"`（主体陈述）与 `mode: "observed"`（客观观测）的断言。预期结果：两者的认识模式（epistemic mode）保持独立且可被分别过滤。
+**预期语义行为 (Expected semantic behavior):** 触发操作：构造一个不含任何外部根源的派生环路。预期结果：投影不得仅因该环路而判定为已接受。
 
-**违规禁则 (Forbidden outcome):** 将主观陈述静默升级为直接的客观观测。
+**违规禁则 (Forbidden outcome):** 自我印证循环。
 
 ---
 
-## KIP2-EPI-020 — 假设性断言排除在当前世界信念之外 (Hypothetical Assertion excluded from current-world belief)
+## KIP2-EPI-019 — 函数型谓词的冲突取值可被检出 (Functional Predicate conflicting values are detected)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：断言被标记为 `mode: "hypothetical"`（假设性）。触发操作：执行默认的当前世界 BELIEF 查询。预期结果：该断言不参与当前世界状态的判定。
+**预期语义行为 (Expected semantic behavior):** 前置条件：受信任来源分别支持有效时间相互重叠的 timezone `+08` 与 `+01`。预期结果：在测试策略下，BELIEF SLOT 结果体现冲突/存争议。
 
-**违规禁则 (Forbidden outcome):** 假设性内容污染真实世界信念。
+**违规禁则 (Forbidden outcome):** 武断接受先到的取值。
 
 ---
 
-## KIP2-EPI-021 — 历史有效时间查询严格遵循世界时间轴 (Historical valid_time query obeys world-time axis)
+## KIP2-EPI-020 — 有效时间不重叠不必构成冲突 (Non-overlapping valid times need not conflict)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：在查询中使用 `VALID AT T` 指定世界时间。预期结果：计算仅选取在该时间点 T 有效的断言，且世界时间轴与系统的物理事务时间轴严格区分。
+**预期语义行为 (Expected semantic behavior):** 前置条件：`+08` 在 T1 之前有效，`+01` 在 T1 之后有效。预期结果：FOR TIME 选出对应时刻的候选值，而不必判定为存争议。
 
-**违规禁则 (Forbidden outcome):** 用一个时间轴替代另一个时间轴。
+**违规禁则 (Forbidden outcome):** 把历史上的先后并存当作当前矛盾。
 
 ---
 
-## KIP2-EPI-022 — 认识投影严格只读 (Epistemic projection is read-only)
+## KIP2-EPI-021 — AS OF 与 FOR TIME 相互独立 (AS OF and FOR TIME are independent)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 记录系统序号（seq）后反复执行 BELIEF 查询。预期结果：系统中不会产生新的状态变更序号，也不会持久化保存只读投影对象。
+**预期语义行为 (Expected semantic behavior):** 触发操作：分别查询历史认知状态，以及当前对同一世界时间的认知。预期结果：两者的时间坐标不同，结果也可能正确地不同。
 
-**违规禁则 (Forbidden outcome):** 读操作导致投影结果被持久化写入。
+**违规禁则 (Forbidden outcome):** 用一条时间轴替代另一条。
+
+---
+
+## KIP2-EPI-022 — 投影严格只读 (Projection is read-only)
+
+**要求级别 (Level):** MUST
+
+**预期语义行为 (Expected semantic behavior):** 触发操作：记录系统序号（seq）后反复执行 BELIEF 查询。预期结果：不产生新的状态变更序号，也不产生持久化的投影对象。
+
+**违规禁则 (Forbidden outcome):** 读操作导致投影被持久化。
 
 ---
 
@@ -1455,119 +1466,123 @@ untrusted imported (未受信任的导入数据)
 
 ---
 
-## KIP2-TX-004 — 已提交读不可见未提交脏状态 (Read Committed sees no uncommitted dirty state)
+## KIP2-TX-004 — 禁止脏读 (No dirty reads)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：在另一个并发事务尚未提交期间，在已提交读（Read Committed）隔离级别下发起查询。预期结果：未提交的变更在外部完全不可见。
+**预期语义行为 (Expected semantic behavior):** 触发操作：事务 A 完成暂定写入后暂停；事务 B 在其之外执行读取。预期结果：B 看不到该暂定写入；A 提交之后的新读取才能看到。
 
-**违规禁则 (Forbidden outcome):** 发生脏读（dirty read）。
+**违规禁则 (Forbidden outcome):** 脏读。
 
 ---
 
-## KIP2-TX-005 — 已提交读允许跨语句的不可重复读 (Read Committed allows non-repeatable read across statements)
+## KIP2-TX-005 — 原子提交只有一个 tx_id/space_seq (Atomic commit has one tx_id/space_seq)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：在已提交读模式下，语句 1 读取后外部并发事务提交修改，随后语句 2 再次读取。预期结果：语句 2 可以观察到新提交的数据。
+**预期语义行为 (Expected semantic behavior):** 触发操作：在 atomic 模式下执行多个写操作。预期结果：只有一个提交凭证（Receipt）、一个 `tx_id`、一个状态变更 `space_seq`。
+
+**违规禁则 (Forbidden outcome):** 逐操作分别提交。
 
 ---
 
-## KIP2-TX-006 — 快照隔离级别保证可重复读 (Snapshot Isolation repeatable read)
+## KIP2-TX-006 — 每个事务只递增一次版本号 (Version increments once per transaction)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：在快照隔离（Snapshot Isolation）事务开始后外部并发事务提交修改，事务内部再次读取。预期结果：事务内部的读取严格保持与事务起始快照一致。
+**预期语义行为 (Expected semantic behavior):** 触发操作：一个事务对同一个已存在的可变元素施加多项合法变更。预期结果：版本号恰好递增一次。
 
-**违规禁则 (Forbidden outcome):** 在快照隔离下发生不可重复读或幻读。
+**违规禁则 (Forbidden outcome):** 按内部子句逐条递增版本号。
 
 ---
 
-## KIP2-TX-007 — 快照隔离级别检测先提交者写冲突 (Snapshot Isolation detects first-committer write conflict)
+## KIP2-TX-007 — 无副作用写入不产生认知抖动 (No-effect avoids cognitive churn)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：事务 T1 与 T2 基于同一快照并发尝试修改同一实体，T2 先行提交。预期结果：T1 在尝试提交时发生冲突中止（abort）。
+**预期语义行为 (Expected semantic behavior):** 触发操作：执行一次幂等更新，最终状态与原状态一致。预期结果：不产生新的认知 `space_seq`；目标元素的 version 与 `updated_at` 均保持不变。
 
-**违规禁则 (Forbidden outcome):** 盲写覆盖（blind overwrite）。
+**违规禁则 (Forbidden outcome):** 伪造写入活动。
 
 ---
 
-## KIP2-TX-008 — 可串行化隔离级别检测读写冲突 (Serializable detects read-write conflict)
+## KIP2-TX-008 — EXPECT VERSION 匹配当前版本时成功 (EXPECT VERSION current succeeds)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：并发执行具有读写依赖的事务（例如反向依赖冲突）。预期结果：至少有一个事务因可串行化冲突而被中止。
+**预期语义行为 (Expected semantic behavior):** 触发操作：使用当前版本号作为前置条件执行更新。预期结果：更新提交成功，且版本号恰好递增一次。
 
 ---
 
-## KIP2-TX-009 — 可串行化隔离级别防止写偏斜 (Serializable prevents write skew)
+## KIP2-TX-009 — EXPECT VERSION 版本过期时失败 (EXPECT VERSION stale fails)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：注入典型的写偏斜（write-skew）并发交错操作。预期结果：在可串行化模式下拒绝产生写偏斜。
+**预期语义行为 (Expected semantic behavior):** 触发操作：使用过期的版本号。预期结果：返回 `VersionConflict`；不发生任何写入。
 
-**违规禁则 (Forbidden outcome):** 允许产生写偏斜异常状态。
+**违规禁则 (Forbidden outcome):** 更新丢失（lost update）。
 
 ---
 
-## KIP2-TX-010 — 幂等重试返回原始提交凭证 (Idempotent retry returns original Receipt)
+## KIP2-TX-010 — 可串行化隔离防止写偏斜 (Serializable write skew prevented)
 
-**要求级别 (Level):** MUST
+**要求级别 (Level):** OPTIONAL
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：使用相同的 `idempotency_key` 重复提交完全相同的写入请求。预期结果：返回与首次提交相同的事务凭证（Receipt）以及相同的 `tx_id`/`space_seq`。
+**依赖能力 (Capabilities):** serializable_isolation
 
-**违规禁则 (Forbidden outcome):** 重复提交分配新的序号或重复生成数据。
+**预期语义行为 (Expected semantic behavior):** 前置条件：两个并发事务若同时提交将共同破坏固件约束。预期结果：可串行化实现至少中止/冲突其中一个事务。
 
----
-
-## KIP2-TX-011 — 相同幂等键使用不同载荷操作失败 (Same idempotency key with different payload fails)
-
-**要求级别 (Level):** MUST
-
-**预期语义行为 (Expected semantic behavior):** 触发操作：复用同一个 `idempotency_key` 但提交不同的请求载荷。预期结果：操作失败并返回 `IdempotencyPayloadMismatch` 错误。
-
-**违规禁则 (Forbidden outcome):** 静默替换原有执行结果。
+**违规禁则 (Forbidden outcome):** 出现不可串行化的最终状态。
 
 ---
 
-## KIP2-TX-012 — 执行中的重复幂等请求安全等待或报错 (In-flight duplicate idempotency request waits or fails safely)
+## KIP2-TX-011 — 相同幂等键返回原始提交凭证 (Same idempotency key returns original Receipt)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：在前一个相同幂等键请求尚在执行期间提交并发重复请求。预期结果：后到的请求要么等待首个请求完成并返回相同凭证，要么安全返回冲突错误。
+**预期语义行为 (Expected semantic behavior):** 触发操作：使用幂等键 K 提交后，再精确重试同一请求。预期结果：返回相同的 `tx_id`/`space_seq`；不产生新的变更信封（Change Envelope）。
 
-**违规禁则 (Forbidden outcome):** 启动两个并发执行的写事务。
+**违规禁则 (Forbidden outcome):** 产生重复的逻辑写入。
 
 ---
 
-## KIP2-TX-013 — 只读请求不能声明事务幂等键 (Ephemeral read cannot claim transaction idempotency key)
+## KIP2-TX-012 — 无关格式差异不破坏幂等性 (Irrelevant formatting does not defeat idempotency)
 
-**要求级别 (Level):** MUST
+**要求级别 (Level):** SHOULD
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：在只读查询中传递事务幂等键并期望获得写入凭证。预期结果：请求被按普通只读处理或报错，绝不生成事务提交凭证。
+**预期语义行为 (Expected semantic behavior):** 触发操作：重试语义相同的指令，仅改变空白字符与注释。预期结果：解析到原始执行结果。
 
-**违规禁则 (Forbidden outcome):** 为只读操作伪造事务持久化记录。
-
----
-
-## KIP2-TX-014 — 请求 ID 不等于幂等键 (request_id is not idempotency_key)
-
-**要求级别 (Level):** MUST
-
-**预期语义行为 (Expected semantic behavior):** 触发操作：在请求中分别传递不同的 `request_id` 与 `idempotency_key`。预期结果：两者在协议层面保持各自独立的语义。
-
-**违规禁则 (Forbidden outcome):** 将二者强制等同混用。
+**违规禁则 (Forbidden outcome):** 因格式敏感而产生逻辑重复写入。
 
 ---
 
-## KIP2-TX-015 — 客户端不可指定内部事务 ID (Client cannot pick tx_id)
+## KIP2-TX-013 — 相同幂等键配不同请求应冲突 (Same key different request conflicts)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：客户端尝试在请求体中直接强加 `tx_id`。预期结果：系统拒绝该字段或由引擎自主生成权威的 `tx_id`。
+**预期语义行为 (Expected semantic behavior):** 触发操作：以不同的绑定参数复用幂等键 K。预期结果：返回 `IdempotencyConflict`；原有状态保持不变。
 
-**违规禁则 (Forbidden outcome):** 由客户端任意指定事务提交身份。
+**违规禁则 (Forbidden outcome):** 幂等键被悄然复用于新的写入意图。
+
+---
+
+## KIP2-TX-014 — request_id 不是幂等键 (request_id is not idempotency key)
+
+**要求级别 (Level):** MUST
+
+**预期语义行为 (Expected semantic behavior):** 触发操作：独立地变化 `request_id` 与幂等键。预期结果：运行时不得将逻辑写入身份与请求关联 ID 混为一谈。
+
+**违规禁则 (Forbidden outcome):** 把基于 `request_id` 的去重当作持久化语义。
+
+---
+
+## KIP2-TX-015 — tx_id 由引擎分配 (tx_id is engine-assigned)
+
+**要求级别 (Level):** MUST
+
+**预期语义行为 (Expected semantic behavior):** 触发操作：客户端在元数据中提供伪造的 `tx_id`。预期结果：实际提交的 `tx_id` 仍由引擎分配。
+
+**违规禁则 (Forbidden outcome):** 由客户端自行选定事务事实。
 
 ---
 
@@ -1921,213 +1936,229 @@ untrusted imported (未受信任的导入数据)
 
 ---
 
-## KIP2-KQL-004 — STRUCTURAL 块查询非命题结构化链接 (STRUCTURAL block queries non-Proposition links)
+## KIP2-KQL-004 — 断言模式匹配可用 (Assertion pattern works)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：在 STRUCTURAL 块中查询经验步骤 `Experience.has_step`。预期结果：仅通过结构化拓扑关系检索到对应步骤，且不依赖任何三元组事实命题。
-
-**违规禁则 (Forbidden outcome):** 在结构化关系缺失时回退到命题匹配。
+**预期语义行为 (Expected semantic behavior):** 触发操作：按 proposition/asserted_by/stance/mode 过滤。预期结果：返回匹配的断言。
 
 ---
 
-## KIP2-KQL-005 — WHERE 块要求接地命题匹配 (WHERE requires grounded Proposition match)
+## KIP2-KQL-005 — 证据模式匹配可用 (Evidence pattern works)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：在普通 WHERE 块中执行模式匹配。预期结果：仅匹配接地并存储的原始命题，不自动推导未存储的虚构事实。
+**预期语义行为 (Expected semantic behavior):** 触发操作：按 `evidence_class` 过滤。预期结果：返回匹配且可见的证据。
 
 ---
 
-## KIP2-KQL-006 — BELIEF 块查找投影信念状态 (BELIEF finds projected state)
+## KIP2-KQL-006 — 活动模式匹配可用 (Activity pattern works)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：使用 BELIEF 块查询命题。预期结果：按照当前生效的认识投影策略返回计算出的信念状态。
+**预期语义行为 (Expected semantic behavior):** 触发操作：按 `activity_class`/status 过滤。预期结果：返回匹配的活动。
 
 ---
 
-## KIP2-KQL-007 — BELIEF SLOT 返回单一确定性胜出者 (BELIEF SLOT returns functional winner)
+## KIP2-KQL-007 — 结构化模式匹配可用 (Structural pattern works)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：针对同一函数型谓词槽位（functional predicate slot）存在处于 `accepted` 状态的胜出断言。触发操作：执行 `BELIEF SLOT` 查询。预期结果：精确返回该单一胜出断言或值。
+**预期语义行为 (Expected semantic behavior):** 触发操作：查询 `has_step`。预期结果：返回结构化结果，且不要求存在对应的语义命题。
 
 ---
 
-## KIP2-KQL-008 — BELIEF ALL 返回所有合格状态 (BELIEF ALL returns all qualified states)
+## KIP2-KQL-008 — FILTER 比较运算可用 (FILTER comparison works)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：执行 `BELIEF ALL` 查询。预期结果：返回该命题的所有合格认识状态（包括处于争议、不确定等状态的相关断言）。
+**预期语义行为 (Expected semantic behavior):** 触发操作：使用确定性的字面量比较。预期结果：返回预期的结果行。
 
 ---
 
-## KIP2-KQL-009 — 开放世界未命中时 BELIEF 返回证据不足 (BELIEF insufficient on open-world miss)
+## KIP2-KQL-009 — NOT 表示无可见匹配而非判假 (NOT is no-visible-match, not false)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：针对完全未存储的开放世界命题执行 BELIEF 查询。预期结果：返回 `insufficient`（证据不足），而非空结果集或否定判定。
+**预期语义行为 (Expected semantic behavior):** 前置条件：不存在可见的素食事实。预期结果：NOT 仅充当查询取反；不会因此创建反对立场断言或信念。
 
-**违规禁则 (Forbidden outcome):** 将未命中的开放世界查询静默等同于否定。
+**违规禁则 (Forbidden outcome):** 世界层面的否定（world-level negation）。
 
 ---
 
-## KIP2-KQL-010 — SEARCH 关键字检索返回候选集 (SEARCH keyword returns candidates)
+## KIP2-KQL-010 — OPTIONAL 缺失表现为空值/无匹配 (OPTIONAL missing is null/no match)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：执行 SEARCH 关键字检索。预期结果：返回已授权可见的候选实体集合及其匹配信息。
+**预期语义行为 (Expected semantic behavior):** 触发操作：查询缺失的可选关系。预期结果：得到 null/未绑定变量，而不是一条判假的断言。
+
+**违规禁则 (Forbidden outcome):** 认识层面的否定。
 
 ---
 
-## KIP2-KQL-011 — SEARCH 评分具备瞬态非持久性 (SEARCH score is non-persistent)
+## KIP2-KQL-011 — UNION 合并已授权分支 (UNION combines authorized branches)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：多次执行 SEARCH 检索。预期结果：返回的相关性评分仅作为当前查询的瞬态指标，绝不持久化回写到实体的置信度或记忆强度中。
+**预期语义行为 (Expected semantic behavior):** 前置条件：每个分支各植入一行数据。预期结果：并集返回可见部分的并集。
 
-**违规禁则 (Forbidden outcome):** 检索评分改变实体底层持久化状态。
+**违规禁则 (Forbidden outcome):** 泄漏不可见记录。
 
 ---
 
-## KIP2-KQL-012 — OPTIONAL 未命中时保留未绑定变量 (OPTIONAL leaves unbound variable on miss)
+## KIP2-KQL-012 — COUNT 只统计已授权解 (COUNT uses authorized solutions)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：在查询中使用 OPTIONAL 匹配不存在的可选关联。预期结果：主匹配行正常返回，可选变量保持未绑定（unbound/null）状态。
+**预期语义行为 (Expected semantic behavior):** 前置条件：固件同时包含可见记录与机密记录。预期结果：仅统计可见记录。
+
+**违规禁则 (Forbidden outcome):** 聚合泄漏。
 
 ---
 
-## KIP2-KQL-013 — NOT 取反运算仅作用于可见匹配 (NOT inverts visible match)
+## KIP2-KQL-013 — COUNT 为零不等于否定信念 (COUNT zero is not negative belief)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：在查询中使用 NOT 逻辑。预期结果：取反计算仅在当前主体可见的实体范围内进行判定，不考虑不可见保密记录。
+**预期语义行为 (Expected semantic behavior):** 原始查询返回零行，不会使后续 BELIEF 查询转为 `rejected`。
 
-**违规禁则 (Forbidden outcome):** 逻辑取反泄漏保密数据的存在。
+**违规禁则 (Forbidden outcome):** 封闭世界捷径。
 
 ---
 
-## KIP2-KQL-014 — FILTER 正确求值布尔表达式 (FILTER evaluates boolean expression)
+## KIP2-KQL-014 — ORDER BY 遵循显式排序键 (ORDER BY honors explicit key)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：在 FILTER 块中应用组合逻辑条件。预期结果：结果集严格按照布尔表达式计算结果进行过滤。
+**预期语义行为 (Expected semantic behavior):** 前置条件：植入互不相同的排序值。预期结果：结果行按其正确排序。
 
 ---
 
-## KIP2-KQL-015 — ORDER BY 实现稳定排序 (ORDER BY stable sorting)
+## KIP2-KQL-015 — 空值排序键排在最后 (Null sort keys order last)
 
-**要求级别 (Level):** MUST
+**要求级别 (Level):** SHOULD
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：指定 ORDER BY 排序字段与方向。预期结果：返回结果严格按照声明的顺序排列，并在键值相同时提供确定性平局决胜（tie-breaking）。
-
----
-
-## KIP2-KQL-016 — LIMIT 与 OFFSET 实现正确分页 (LIMIT and OFFSET paginate)
-
-**要求级别 (Level):** MUST
-
-**预期语义行为 (Expected semantic behavior):** 触发操作：组合使用 LIMIT 与 OFFSET 执行分页查询。预期结果：精确返回对应切片区间的结果子集。
+**预期语义行为 (Expected semantic behavior):** 前置条件：植入部分行的 `ORDER BY` 键为 null。预期结果：空值键排在最后（规范 §44.7）。若实现公开声明了不同的基线行为，应记为一致性警告，而非静默差异。
 
 ---
 
-## KIP2-KQL-017 — AFTER CURSOR 实现一致性分页游标 (AFTER CURSOR paginates consistently)
+## KIP2-KQL-016 — KQL 游标锁定快照 (KQL cursor pins snapshot)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：使用查询返回的分页游标继续执行 `AFTER CURSOR` 查询。预期结果：准确获取下一页数据，且不产生重复或遗漏记录。
+**预期语义行为 (Expected semantic behavior):** 触发操作：取回第一页后提交一条新的匹配行，再用游标继续翻页。预期结果：新行不出现在本次遍历中。
+
+**违规禁则 (Forbidden outcome):** 分页时快照发生漂移。
 
 ---
 
-## KIP2-KQL-018 — 游标结构保持不透明 (Cursor is opaque)
+## KIP2-KQL-017 — 游标与查询不匹配应失败 (Cursor query mismatch fails)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：客户端尝试构造或修改游标内部字节。预期结果：服务器拒绝非法的畸形游标，而非直接解析客户端篡改后的偏移量。
+**预期语义行为 (Expected semantic behavior):** 触发操作：改变查询后复用原游标。预期结果：返回 `CursorMismatch`。
 
-**违规禁则 (Forbidden outcome):** 游标可被客户端任意伪造篡改。
+**违规禁则 (Forbidden outcome):** 游标被复用于任意查询。
 
 ---
 
-## KIP2-KQL-019 — AS OF 查询历史快照 (AS OF queries historical snapshot)
+## KIP2-KQL-018 — 游标类型不匹配应失败 (Cursor type mismatch fails)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：使用 `AS OF space_seq` 查询历史状态。预期结果：精确重构出指定事务序列号时的系统认知状态。
+**预期语义行为 (Expected semantic behavior):** 触发操作：把 KQL 游标用于 SEARCH/CHANGES。预期结果：返回 `CursorTypeMismatch` 或等价错误。
 
-**违规禁则 (Forbidden outcome):** 将当前最新状态误报为历史状态。
+**违规禁则 (Forbidden outcome):** 跨族游标被强行解释。
 
 ---
 
-## KIP2-KQL-020 — VALID AT 查询世界时间快照 (VALID AT queries world-time snapshot)
+## KIP2-KQL-019 — BELIEF 结果是虚拟的 (BELIEF result is virtual)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：使用 `VALID AT timestamp` 查询断言。预期结果：仅选取世界有效时间覆盖该时间戳的断言参与计算。
+**预期语义行为 (Expected semantic behavior):** 触发操作：执行 BELIEF 查询。预期结果：不产生持久化的投影认知元素，也不产生状态变更序号。
+
+**违规禁则 (Forbidden outcome):** 读操作持久化信念。
 
 ---
 
-## KIP2-KQL-021 — 未经授权的跨空间查询被严格阻断 (Cross-Space query blocked without authorization)
+## KIP2-KQL-020 — BELIEF 目标必须有界 (BELIEF target is bounded)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：尝试跨空间查询未授权的目标空间。预期结果：请求被拒绝并返回权限错误。
+**预期语义行为 (Expected semantic behavior):** 触发操作：先尝试目标变量未绑定到任何命题的 BELIEF 查询，再尝试对整个 Brain 执行无界投影。预期结果：前者返回 `ProjectionTargetUnbound`，后者返回 `ProjectionTargetUnbounded` 或等价错误。
 
-**违规禁则 (Forbidden outcome):** 发生跨空间越权访问。
+**违规禁则 (Forbidden outcome):** 无界投影导致爆炸式展开。
 
 ---
 
-## KIP2-KQL-022 — 跨空间连接遵循最小特权原则 (Cross-Space join respects least privilege)
+## KIP2-KQL-021 — 空 BELIEF SLOT 判定为证据不足 (BELIEF SLOT empty is insufficient)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：执行跨空间的 JOIN 连接查询。预期结果：查询结果受两个空间各自访问控制策略的交集约束，遵循最小特权原则。
+**预期语义行为 (Expected semantic behavior):** 触发操作：查询已接地但为空的函数型槽位。预期结果：返回 `insufficient` 且 `accepted_values` 为空数组。
+
+**违规禁则 (Forbidden outcome):** 用零结果行迫使调用方自行推断。
 
 ---
 
-## KIP2-KQL-023 — 切面查询返回结构化属性值 (Facet query returns structured values)
+## KIP2-KQL-022 — BELIEF SLOT 检出函数型冲突 (BELIEF SLOT detects functional conflict)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：查询挂载在实体上的切面数据（如 `MnemonicState`）。预期结果：正确解析并返回切面内部的结构化属性值。
+**预期语义行为 (Expected semantic behavior):** 前置条件：候选取值的有效时间相互重叠。预期结果：结果具备冲突感知能力。
+
+**违规禁则 (Forbidden outcome):** 武断挑选某个候选值。
 
 ---
 
-## KIP2-KQL-024 — 聚合运算忽略不可见记录 (Aggregation ignores hidden rows)
+## KIP2-KQL-023 — 原始路径不传播信念 (Raw path does not propagate belief)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：执行 COUNT、SUM、AVG 等聚合函数。预期结果：计算仅汇总调用主体已授权可见的记录。
+**预期语义行为 (Expected semantic behavior):** 前置条件：原始命题路径存在，但路径上的链接缺乏已接受的断言。预期结果：不产生隐式的信念路径。
 
-**违规禁则 (Forbidden outcome):** 聚合结果受未授权保密数据影响。
+**违规禁则 (Forbidden outcome):** 自行发明信念算术。
 
 ---
 
-## KIP2-KQL-025 — 图遍历遵循最大深度界限 (Graph traversal obeys depth bounds)
+## KIP2-KQL-024 — AS OF 重建旧的可变状态 (AS OF reconstructs old mutable state)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：执行声明了最大深度的多跳图遍历。预期结果：遍历在达到指定深度界限时准确停止。
+**预期语义行为 (Expected semantic behavior):** 触发操作：将概念从 S1 变更到 S2，再执行 AS OF S1 查询。预期结果：返回旧状态。
+
+**违规禁则 (Forbidden outcome):** 历史查询变成当前状态的别名。
 
 ---
 
-## KIP2-KQL-026 — 环状图遍历避免无限循环 (Cyclic graph does not loop infinitely)
+## KIP2-KQL-025 — AS OF 重建生命周期状态 (AS OF reconstructs lifecycle)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：图谱中存在相互引用的环状关系。触发操作：执行连通性遍历查询。预期结果：遍历能够安全终止并正确返回结果，绝不发生无限循环挂死。
+**预期语义行为 (Expected semantic behavior):** 前置条件：断言在 S1 为活跃，在 S2 被撤回。预期结果：AS OF S1 为活跃，当前为已撤回。
+
+**违规禁则 (Forbidden outcome):** 历史被改写。
 
 ---
 
-## KIP2-KQL-027 — 历史查询必须具备当前有效授权 (Historical query requires current authorization)
+## KIP2-KQL-026 — FOR TIME 选取世界时间上有效的状态 (FOR TIME selects world-valid state)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：使用历史查询接口读取在历史上曾经公开但当前已被列为机密的数据。预期结果：请求被当前治理策略严格拒绝。
+**预期语义行为 (Expected semantic behavior):** 前置条件：断言带有世界时间范围。预期结果：投影结果随 FOR TIME 变化，而认知快照坐标保持不变。
 
-**违规禁则 (Forbidden outcome):** 访问控制发生时间穿越漏洞（ACL time travel）。
+**违规禁则 (Forbidden outcome):** 两条时间轴被混同。
+
+---
+
+## KIP2-KQL-027 — 历史读取遵循当前治理策略 (Historical read obeys current Governance)
+
+**要求级别 (Level):** MUST
+
+**预期语义行为 (Expected semantic behavior):** 前置条件：数据曾公开、现已保密。预期结果：受限主体的 AS OF 查询无法找回当前保密的内容。
+
+**违规禁则 (Forbidden outcome):** 访问控制的时间穿越（ACL time travel）。
 
 ---
 
@@ -2448,7 +2479,7 @@ untrusted imported (未受信任的导入数据)
 
 **声明 Profile (Profiles):** KIP-KML (完整版)
 
-**预期语义行为 (Expected semantic behavior):** 语句 `ASSERT ?a (alice, timezone, "+08:00") {by: alice, mode: "stated", confidence: 0.9, evidence: E}` 必须提交且仅提交一个规范命题（新建或复用已有规范命题）、一个包含声明字段且角色为支持的证据引用的断言，除此之外不生成任何额外实体。其在持久化状态上与展开后的 `ENSURE PROPOSITION` + `CREATE ASSERTION` 标准脱糖形式在元素级别完全等价。当附带 `SUPERSEDING :old` 时，旧断言在同一个事务内被新断言废弃替代。
+**预期语义行为 (Expected semantic behavior):** 语句 `ASSERT ?a (:alice, "timezone", "+08:00") {by: :alice, mode: "stated", confidence: 0.9, evidence: :msg}` 必须提交且仅提交一个规范命题（新建或复用已有规范命题）、一个包含声明字段且角色为支持的证据引用的断言，除此之外不生成任何额外实体。其在持久化状态上与展开后的 `ENSURE PROPOSITION` + `CREATE ASSERTION` 标准脱糖形式在元素级别完全等价。当附带 `SUPERSEDING :old` 时，旧断言在同一个事务内被新断言废弃替代。
 
 **后置条件 (Postconditions):** 该元组的 `canonical_proposition_count` 为 1；断言载荷完全匹配声明的成员属性；语法糖未凭空伪造任何额外的证据（Evidence）或活动（Activity）。
 
@@ -2537,7 +2568,9 @@ untrusted imported (未受信任的导入数据)
 
 ## KIP2-META-010 — 声明搜索能力时必须披露索引新鲜度 (Search freshness disclosed when capability claimed)
 
-**要求级别 (Level):** MUST
+**要求级别 (Level):** OPTIONAL
+
+**依赖能力 (Capabilities):** search_index_freshness
 
 **预期语义行为 (Expected semantic behavior):** 触发操作：在声明支持高级搜索的环境下执行 SEARCH。预期结果：响应上下文中明确披露索引的最新同步序号（seq）或新鲜度时间戳。
 
@@ -2744,7 +2777,7 @@ untrusted imported (未受信任的导入数据)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：在原生请求中提交多个操作且未显式声明执行模式。预期结果：除非后续规范明确定义默认模式，否则测试运行器应收到 `InvalidRequestEnvelope` 错误。
+**预期语义行为 (Expected semantic behavior):** 触发操作：在原生请求中提交多个操作且未声明 `execution.mode`。预期结果：返回 `InvalidRequestEnvelope` 错误；规范 §75 要求任何原生多操作请求都必须显式声明执行模式，且未定义任何默认值。
 
 **违规禁则 (Forbidden outcome):** 采用隐式未声明的批处理语义。
 
@@ -2974,7 +3007,7 @@ untrusted imported (未受信任的导入数据)
 
 **依赖能力 (Capabilities):** ingestion_context
 
-**预期语义行为 (Expected semantic behavior):** 请求携带了 `ingest.evidence[{key: "msg", payload: P, client_key: K}]` 以及引用 `:msg` 的认知操作。运行时必须如实铸造且仅铸造一个证据记录，其有效载荷/内容哈希与传输传入的 P 在字节级别完全一致，将 `:msg` 绑定到该证据上，并与事务原子提交。使用相同的幂等键/客户端键重试该请求时，绝不生成重复的证据。若事务中止，则系统中绝不持久化创建该证据。
+**预期语义行为 (Expected semantic behavior):** 请求携带了 `ingest.evidence[{key: "msg", evidence_class: "user_statement", payload: P, client_key: K}]` 以及引用 `:msg` 的认知操作。运行时必须如实铸造且仅铸造一个证据记录，其有效载荷/内容哈希与传输传入的 P 在字节级别完全一致，将 `:msg` 绑定到该证据上，并与事务原子提交。使用相同的幂等键/客户端键重试该请求时，绝不生成重复的证据。若事务中止，则系统中绝不持久化创建该证据。
 
 **后置条件 (Postconditions):** 证据载荷哈希等于 `digest(P)`；该逻辑写入的 `change_envelope_count` 为 1。
 
@@ -3043,7 +3076,7 @@ untrusted imported (未受信任的导入数据)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 前置条件：S2 时新发现的补录证据对 S1 时的事实作出了说明。触发操作：分别执行当时的信念重构（`AS OF S1`）与当前对当时事实的信念评估（`VALID AT T1`）。预期结果：两者在认识论语义上清晰区分，前者反映历史认知状态，后者反映当前对历史事实的最新认知。
+**预期语义行为 (Expected semantic behavior):** 前置条件：事后存在补正。触发操作：分别执行历史认知视角的 `AS OF` + `FOR TIME` 查询，以及当前认知视角的同一 `FOR TIME` 查询。预期结果：两者可分别表达，且结果可以不同。
 
 ---
 
@@ -3258,6 +3291,8 @@ untrusted imported (未受信任的导入数据)
 
 ## KIP2-X-001 — 用户端到端纠错场景 (User correction end-to-end)
 
+**要求级别 (Level):** MUST
+
 涵盖 Profile 组合：
 
 ```text
@@ -3307,6 +3342,8 @@ history rewritten
 
 ## KIP2-X-002 — 第三方异议不等于纠错 (Third-party disagreement is not correction)
 
+**要求级别 (Level):** MUST
+
 Alice 支持命题 P。Bob 反对命题 P。
 
 预期执行结果：
@@ -3320,6 +3357,8 @@ Projection may become contested
 ---
 
 ## KIP2-X-003 — SEARCH 检索接地与 BELIEF 信念计算保持独立 (SEARCH grounding and BELIEF stay separate)
+
+**要求级别 (Level):** MUST
 
 SEARCH 检索匹配到 Alice 的相关记录并返回检索相关性得分。
 
@@ -3336,6 +3375,8 @@ SEARCH relevance and epistemic status remain distinct
 
 ## KIP2-X-004 — 搜索索引延迟与规范状态的一致性边界 (Search lag versus canonical state)
 
+**要求级别 (Level):** MUST
+
 在序列号 101 处提交新概念；故意将搜索索引保持在序列号 100 处产生延迟。
 
 预期执行结果：
@@ -3350,6 +3391,8 @@ search context declares lag/weaker consistency
 
 ## KIP2-X-005 — 数据密级提升后的历史保密性 (Historical secrecy after classification change)
 
+**要求级别 (Level):** MUST
+
 证据记录在序列号 S1 时为公开可见，但在后续被重新定级为机密数据。
 
 受限主体发起针对 S1 的历史 BELIEF 或读取查询时必须服从当前的治理策略。
@@ -3359,6 +3402,8 @@ search context declares lag/weaker consistency
 ---
 
 ## KIP2-X-006 — 已签名的导入技能绝不自我执行 (Signed imported Skill does not execute itself)
+
+**要求级别 (Level):** MUST
 
 完整导入流水线：
 
@@ -3384,6 +3429,8 @@ no tool permission
 
 ## KIP2-X-007 — 胶囊同名实体身份碰撞隔离 (Capsule same-name identity collision)
 
+**要求级别 (Level):** MUST
+
 源空间中的 Alice 与目标空间中互不相关的 Alice 具有完全相同的名称，但缺乏受信任的全局规范身份标识。
 
 预期执行结果：目标空间绝不执行任何自动的概念合并。
@@ -3391,6 +3438,8 @@ no tool permission
 ---
 
 ## KIP2-X-008 — 响应丢失后的复合认知生成幂等重试 (Formation retry after lost response)
+
+**要求级别 (Level):** MUST
 
 复合生成事务同时创建：
 
@@ -3416,6 +3465,8 @@ one Change Envelope
 
 ## KIP2-X-009 — 预览成功但在授权撤销后实际提交失败 (Preview succeeds, commit fails after revocation)
 
+**要求级别 (Level):** MUST
+
 `PREVIEW KML` 预览执行成功。
 
 在发起实际写入提交前，所需的授权（Grant）被管理员撤销。
@@ -3428,6 +3479,8 @@ one Change Envelope
 
 ## KIP2-X-010 — 胶囊 Schema 预览不触发环境激活 (Capsule Schema preview does not activate)
 
+**要求级别 (Level):** MUST
+
 认知胶囊中包含未知的嵌入式 Schema 包，仅用于数据校验目的。
 
 执行 PREVIEW 预览后，目标空间的活动 Schema 环境严格保持不变。
@@ -3435,6 +3488,8 @@ one Change Envelope
 ---
 
 ## KIP2-X-011 — 记忆衰减不改写断言置信度 (Memory decay does not rewrite confidence)
+
+**要求级别 (Level):** MUST
 
 断言置信度为 0.95；关联经验的记忆强度为 0.8。
 
@@ -3451,6 +3506,8 @@ memory_strength = .4
 
 ## KIP2-X-012 — 清除反面证据严禁静默增强信念 (Counter-Evidence purge cannot silently strengthen belief)
 
+**要求级别 (Level):** MUST
+
 命题 P 因同时存在支持证据与质疑证据而处于 `contested`（存争议）状态。
 
 普通维护流程尝试清理其中的质疑证据。
@@ -3462,6 +3519,8 @@ memory_strength = .4
 ---
 
 ## KIP2-X-013 — 概念合并与历史信念评估 (Merge plus historical belief)
+
+**要求级别 (Level):** MUST
 
 断言引用别名概念 A。
 
@@ -3481,6 +3540,8 @@ all Assertions/provenance remain historical
 
 ## KIP2-X-014 — 外部世界行为的事务边界 (External action boundary)
 
+**要求级别 (Level):** MUST
+
 事务 1 记录行动意图（ActionIntent）。
 
 测试框架触发外部世界行为。
@@ -3497,6 +3558,8 @@ external world effect is not rollback-coupled to either KIP transaction
 ---
 
 ## KIP2-X-015 — 调用主体、行动主体与系统来源端到端区分 (Principal/actor/origin end-to-end)
+
+**要求级别 (Level):** MUST
 
 记录员主体（recorder）处理并写入来自 Alice 的消息。
 
@@ -3554,7 +3617,7 @@ no representation authority inferred
 
 # 28. 核心错误注册表覆盖矩阵 (Core Error Registry Coverage)
 
-完整的一致性测试运行器应当覆盖已声明 Profile 中的所有可触发错误。
+完整的一致性测试运行器应当覆盖已声明 Profile 中所有可触发的错误码（规范 §87）。
 
 | 错误码 (Error) | 标准测试向量 (Canonical vector) |
 |---|---|
@@ -3570,32 +3633,54 @@ no representation authority inferred
 | DuplicateMutationTarget | KML-010 |
 | SchemaSymbolNotFound | 未知 Schema 符号测试向量 |
 | SchemaSymbolAmbiguous | SCHEMA-003 |
-| SchemaPackageNotFound | 未安装 Schema 包测试向量 |
-| SchemaConstraintViolation | SCHEMA-005, SCHEMA-006, SCHEMA-007 |
-| ProtectedSchemaState | SCHEMA-010 |
-| ActorBindingRequired | GOV-002 |
-| ActorBindingScopeExceeded | 越界行动主体操作测试向量 |
-| PermissionDenied | GOV-001, GOV-005, GOV-006 |
+| SchemaFieldNotFound | SCHEMA-008 |
+| SchemaPackageUnavailable | 缺失依赖包的认知胶囊测试向量 |
+| SchemaEnvironmentChanged | SCHEMA-014 |
+| HistoricalSchemaUnavailable | 历史保留期外的负面测试向量 |
+| TypeMismatch | SCHEMA-005/006 |
+| ConstraintViolation | SCHEMA-007 |
 | NotFoundOrNotVisible | GOV-007 |
-| CrossSpaceJoinDenied | KQL-021 |
-| ProtectedSystemField | RT-014, KML-013 |
-| ProtectedGovernanceField | KML-014 |
-| ImmutableField | CORE-002, CORE-007, CORE-009, CORE-015 |
-| EpistemicRevisionRequired | CORE-007, KML-015 |
-| EvidenceCorrectionRequired | CORE-009, KML-016 |
-| ActivityTerminal | CORE-015 |
+| ReferenceError | 引用缺失的变更测试向量 |
+| StructuralReferenceInvalid | SCHEMA-007 |
+| IdentitySelectorRequired | KML-003 |
+| NameIdentityForbidden | KML-003 |
+| IdentityConflict | CAP-007 身份冲突变体 |
+| ClientKeyConflict | CORE-013 |
+| IdentityMergeConflict | 合并冲突测试向量 |
+| ImmutableField | CORE-002 |
+| EpistemicRevisionRequired | CORE-007 / KML-015 |
+| EvidenceCorrectionRequired | CORE-009 / KML-016 |
+| InvalidLifecycleTransition | 生命周期非法迁移的负面测试向量 |
+| RetractionNotAuthorized | GOV-019 / KML-021 |
 | SupersessionMismatch | KML-019 |
-| ConceptMerged | 已合并概念非法变更测试向量 |
-| ConceptTombstoned | 已设置墓碑概念变更测试向量 |
-| ConceptPurged | 已物理清除概念访问测试向量 |
+| EvidenceCorrectionConflict | 纠错谱系冲突的负面测试向量 |
+| ActivityTerminal | CORE-015 |
+| ProjectionTargetUnbound | KQL-020 |
+| ProjectionTargetUnbounded | KQL-020 |
+| ProjectionNotAuthorized | GOV-009 |
+| ProjectionPolicyUnavailable | 缺失投影策略测试向量 |
+| Unauthenticated | 未认证的受保护请求 |
+| NotAuthorized | GOV-001 |
+| RequiresApproval | 需审批门控的测试固件 |
+| RequiresStrongerAuthentication | 需二次强认证的测试固件 |
+| ActorBindingRequired | GOV-002 |
+| ProtectedSystemField | GOV-024 / KML-013 |
+| ProtectedGovernanceField | KML-014 |
+| ProtectedSchemaState | SCHEMA-010 |
 | LegalHoldConflict | KML-027 |
 | PurgeDenied | KML-028 |
-| ClientKeyConflict | CORE-013 |
-| IdempotencyPayloadMismatch | TX-011 |
-| InFlightDuplicateRequest | TX-012 |
-| TransactionAborted | TX-001, TX-007, TX-008, TX-018 |
-| TransactionConflict | TX-007, TX-008, TX-009 |
-| SnapshotExpired | 过期快照令牌测试向量 |
+| VersionConflict | TX-009 |
+| PreconditionFailed | 前置条件过期测试向量 |
+| SerializationConflict | TX-010 |
+| IdempotencyConflict | TX-013 |
+| TransactionUnknown | META-018 |
+| OutcomeUnknown | TX-019 |
+| TransactionTooLarge | 超出配置上限测试向量 |
+| HistoricalSnapshotUnavailable | HIST-009 |
+| CursorMismatch | KQL-017 |
+| CursorTypeMismatch | KQL-018 / RT-030 |
+| CursorExpired | 游标 TTL 过期测试向量 |
+| CursorInvalidated | 治理/Schema 变更导致游标失效的测试向量 |
 | ChangeCursorExpired | META-022 |
 | ChangeCursorInvalid | 畸形变更游标测试向量 |
 | SearchModeUnsupported | 不支持的搜索模式测试向量 |
@@ -3611,12 +3696,12 @@ no representation authority inferred
 | CapsuleValidationFailed | CAP-016 |
 | ImportPreviewConflict | CAP-017 |
 | ResourceExhausted | 资源配额耗尽测试向量 |
-| ResultLimitExceeded | 结果超限截断测试向量 |
+| ResultLimitExceeded | 结果超限测试向量 |
 | ExecutionTimeout | 确定性读取超时测试向量 |
 | RateLimited | 限流测试固件 |
 | InternalError | 出现时校验响应格式；不作为预期的成功测试用例 |
 
-测试用例应当精确隔离出单一主导的失败条件。当测试某个具体的错误码时，测试向量不应当同时触发未授权与 Schema 非法等多重错误。
+测试用例应当精确隔离出单一主导的失败条件。当测试某个具体错误码时，测试向量不应当同时触发未授权与 Schema 非法等多重错误。
 
 ---
 
@@ -3842,9 +3927,9 @@ conformance/
   README.md
 
   schemas/
-    test-core-domain-1.0.0.json
-    test-secondary-1.0.0.json
-    cognitive-memory-profile.json
+    test-core-domain-1.0.0.schema.json
+    test-secondary-1.0.0.schema.json
+    cognitive-memory-2.0.0.schema.json
 
   fixtures/
     empty.json
@@ -3884,8 +3969,8 @@ conformance/
     cross-module/
 
   runner-schema/
-    test-vector.schema.json
-    report.schema.json
+    conformance-test-vector.schema.json
+    conformance-report.schema.json
 ```
 
 ---
@@ -3932,22 +4017,28 @@ conformance/
 
 ---
 
-# 43. 未来机器可读交付物清单 (Future Machine-Readable Deliverables)
+# 43. 机器可读交付物清单 (Machine-Readable Deliverables)
 
-后续的可执行标准工件应当包括：
+随本规范版本一同发布的工件：
 
 ```text
-1. kip-request.schema.json                请求协议规范模式
-2. kip-response.schema.json               响应协议规范模式
-3. conformance-test-vector.schema.json    一致性测试向量模式
-4. conformance-report.schema.json         一致性测试报告模式
-5. KQL formal EBNF                        KQL 查询语言形式化 EBNF 文法
-6. KML formal EBNF                        KML 变更语言形式化 EBNF 文法
-7. META formal EBNF                       META 元指令形式化 EBNF 文法
-8. canonical fixture Schema Packages      标准测试固件 Schema 包
-9. canonical fixture state                标准测试固件初始状态
-10. golden Capsule artifacts              标准黄金认知胶囊工件
-11. reference conformance runner          标准参考一致性测试运行器
+1. kip-request.schema.json                   v2/schemas/
+2. kip-response.schema.json                  v2/schemas/
+3. conformance-test-vector.schema.json       v2/conformance/
+4. conformance-report.schema.json            v2/conformance/
+5. KQL formal EBNF                           v2/grammar/KIP-2.0-KQL.ebnf
+6. KML formal EBNF                           v2/grammar/KIP-2.0-KML.ebnf
+7. META formal EBNF                          v2/grammar/KIP-2.0-META.ebnf
+8. canonical fixture Schema Packages         v2/conformance/fixtures/
+9. canonical deterministic Epistemic Policy  v2/conformance/fixtures/
+```
+
+仍待交付的工件：
+
+```text
+10. canonical fixture state                  标准测试固件初始状态
+11. golden Capsule artifacts                 标准黄金认知胶囊工件
+12. reference conformance runner             标准参考一致性测试运行器
 ```
 
 ---

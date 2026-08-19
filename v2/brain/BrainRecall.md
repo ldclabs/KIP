@@ -170,7 +170,9 @@ Retrieve Event, time, participants, summary, outcome, and Evidence only as neede
 
 # 15. Experience Recall
 
-Retrieve Experience, ordered `has_step`, critical Steps, outcome, failure/recovery, prediction error, and source Evidence. Step order is not proof of causality.
+Retrieve Experience, ordered `has_step`, critical Steps, outcome, failure/recovery, prediction error, and source Evidence. Read step order from `?edge.index` on the `STRUCTURAL (?experience, "has_step", ?step)` binding, never from a step attribute.
+
+Step order is not proof of causality: a causal link exists only where an explicit `caused_by` Proposition + Assertion (effect → cause) does.
 
 # 16. Procedural Recall
 

@@ -445,13 +445,13 @@ At startup or after `requires_refresh`, call `DESCRIBE PRIMER`; ground concrete 
 
 ### 6. Cognitive Memory Profile (quick reference)
 
-Types: `Person` `Event` (what happened) `Experience` (goal-directed trajectory; required `goal`, `outcome_status`) `ExperienceStep` (`step_kind`: context|observation|decision|action|feedback|belief_update; `summary`; order = has_step edge index) `Preference` (summary artifact — the claim itself stays Proposition+Assertion) `Insight` `Commitment` (`status`: pending|fulfilled|cancelled|expired|blocked; `due_at` ≠ retention expiry) `Skill` (`skill_class`, `procedure`, `status`: candidate|validated|needs_review|deprecated|archived) `SleepTask` `SelfModel`
+Types: `Person` `Event` (what happened) `Experience` (goal-directed trajectory; required `goal`, `outcome_status`) `ExperienceStep` (`step_kind`: context|observation|decision|action|feedback|belief_update; `summary`; order = has_step edge index) `Preference` (summary artifact — the claim itself stays Proposition+Assertion) `Insight` `Commitment` (`status`: pending|fulfilled|cancelled|expired|blocked; `due_at` ≠ retention expiry) `Skill` (`skill_class`, `summary`, `procedure`, `status`: candidate|validated|needs_review|deprecated|archived) `SleepTask` `SelfModel`
 
 Predicates: `prefers` (Person→Concept) `caused_by` (Step→Step, effect→cause, evidence-backed) `same_as` (identity claim → review)
 
-Facets: `MnemonicState {memory_strength, salience}` `SkillUtility {utility, success_count, failure_count}` — all `[0,1]`, none of them truth.
+Facets: `MnemonicState {memory_strength, salience, last_metabolized_at}` `SkillUtility {utility, success_count, failure_count, last_validated_at}` — the ratios are `[0,1]`, the counts are non-negative integers, the timestamps are nullable; none of them is truth.
 
-Structural fields: `has_step` (ordered) `experienced_by` `involves` `mentions` `about` `derived_from` `consolidated_to` `compiled_from` `compiled_by` `committed_to` `owed_to` `assigned_to`; Core built-ins on records: `evidence` `source` `generated_by` `inputs` `outputs`.
+Structural fields: `has_step` (ordered) `experienced_by` `involves` `mentions` `about` `derived_from` `consolidated_to` `compiled_from` `compiled_by` `committed_to` `owed_to` `assigned_to`; Core built-ins on records: `evidence` `source` `generated_by` `inputs` `outputs` `associated_actors`.
 
 Invariants: failed Experience is first-class memory; one success ≠ validated Skill; validated Skill ≠ execution authority; SelfModel ≠ Governance; imported memory keeps `mode: "imported"` and never becomes local autobiography.
 

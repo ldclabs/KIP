@@ -10,7 +10,7 @@ This document defines the portable cognition architecture of KIP 2.0: how a boun
 
 It builds directly on:
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 - [KIP-2.0-Epistemic-Model.md](KIP-2.0-Epistemic-Model.md)
 - [KIP-2.0-Governance.md](KIP-2.0-Governance.md)
@@ -74,7 +74,7 @@ the destination should execute anything
 
 # 0. Normative Language
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate intended requirements for the future KIP 2.0 specification.
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate requirements of the KIP 2.0 Specification (`../KIP-2.0-SPECIFICATION.md`), which is authoritative where the two differ.
 
 Exact JSON field names, algorithms, and KIP command syntax remain pre-specification unless explicitly stated.
 
@@ -1820,6 +1820,14 @@ These should remain separate.
 # 110. Canonical JSON Baseline
 
 KIP 2.0 SHOULD define canonical JSON as the baseline machine representation.
+
+The draft encoding already used by shipped KIP 2.0 artifacts (Schema Packages, conformance fixtures) is identified as:
+
+```text
+kip-draft-canonical-json-v1
+```
+
+It is not yet the final KIP-wide canonicalization standard; an artifact declaring it MUST also state the rules it applies so its declared digest stays independently reproducible.
 
 A future canonical CBOR representation MAY be defined with equivalent abstract data semantics.
 
@@ -4739,7 +4747,9 @@ safe or true
 
 # 315. Import Error Classes
 
-Recommended:
+The normative wire codes are the Core error registry (Specification §87.9 and §87.2), notably `ArtifactParseError`, `DigestMismatch`, `ProofInvalid`, `SignerUnknown`, `BlobUnavailable`, `CapsuleValidationFailed`, `ImportPreviewConflict`, `SchemaPackageUnavailable`, and `IdentityConflict`.
+
+The classes below are importer diagnostics that refine those stable codes; they are not additional wire codes:
 
 ```text
 CapsuleParseError
@@ -5220,12 +5230,16 @@ Illustrative only:
     "schema": [
       {
         "package": "kip://core",
-        "version": "2.0.0",
-        "digest": "sha256:..."
+        "version": "2.0.0"
       },
       {
         "package": "kip://profiles/cognitive-memory",
         "version": "2.0.0",
+        "digest": "sha256:..."
+      },
+      {
+        "package": "kip://acme/ui",
+        "version": "1.0.0",
         "digest": "sha256:..."
       }
     ],
@@ -5241,6 +5255,15 @@ Illustrative only:
           "name": "Alice",
           "canonical_id": "did:example:alice",
           "attributes": {}
+        },
+        {
+          "ref": "c:2",
+          "source_ref": {
+            "element_id": "C:dark-mode"
+          },
+          "schema_ref": "kip://acme/ui@1.0.0/Theme",
+          "name": "Dark Mode",
+          "attributes": {}
         }
       ],
 
@@ -5249,12 +5272,7 @@ Illustrative only:
           "ref": "p:1",
           "predicate_ref": "kip://profiles/cognitive-memory@2.0.0/prefers",
           "subject": {"$ref": "c:1"},
-          "object": {
-            "$literal": {
-              "type": "string",
-              "value": "dark_mode"
-            }
-          }
+          "object": {"$ref": "c:2"}
         }
       ],
 
@@ -5321,6 +5339,7 @@ Capsule:
 Schema:
     Core 2.0 present
     Cognitive Memory 2.0 present
+    acme/ui 1.0 present
 
 Identity:
     remote Alice canonical_id matches local Alice
@@ -5683,13 +5702,13 @@ KQL/META should eventually support snapshot-consistent selection for export.
 Possible concepts:
 
 ```text
-EXPORT CAPSULE ?x
-WHERE {...}
-AS OF <snapshot>
-WITH CLOSURE ...
+EXPORT CAPSULE ?roots
+WHERE { ... }
+[WITH { closure: "...", provenance_depth: ..., include_schema: true }]
+[AS OF SEQ :seq]
 ```
 
-Exact syntax is deferred.
+The Specification settles this surface (§63.4); the operand names the selection root binding, and `PREVIEW IMPORT CAPSULE` is the matching read-only import preview statement.
 
 ---
 

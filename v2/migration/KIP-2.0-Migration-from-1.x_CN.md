@@ -124,7 +124,8 @@ Domain（业务领域） ≠ MemorySpace（安全边界）
 PrincipalRecord（主体记录）
 ActorBinding（行动者绑定）
 Space 所有权与成员关系
-授权策略 (Grants & Policies)
+Grants（授权）
+Policies（策略）
 ```
 
 严禁仅因为源图中包含 `$system` 节点就直接授予管理员特权。
@@ -409,6 +410,26 @@ v1 命题写入     → 写入 Proposition + 正面 Assertion
 ```
 
 适配层绝不能篡改原生 KIP 2.0 的核心语义。对语义不明确的操作应输出显式警告或错误。
+
+依赖数字错误码分支的 v1 客户端还需要一份错误码映射：KIP 2.0 的错误码是稳定的名称，而非 `KIP_xxxx` 数字（规范 §87）。
+
+```text
+KIP_1001 InvalidSyntax       → InvalidSyntax
+KIP_1002 InvalidIdentifier   → InvalidIdentifier
+KIP_2001 TypeMismatch        → SchemaSymbolNotFound（类型/谓词未定义）
+KIP_2002 ConstraintViolation → ConstraintViolation；写入 `_` 元数据时为 ProtectedSystemField
+KIP_2003 InvalidValueType    → TypeMismatch
+KIP_3001 ReferenceError      → ReferenceError
+KIP_3002 NotFound            → NotFoundOrNotVisible
+KIP_3003 DuplicateExists     → IdentityConflict；合并场景为 IdentityMergeConflict
+KIP_3004 ImmutableTarget     → ProtectedSystemField | ProtectedSchemaState | ImmutableField
+KIP_3005 VersionConflict     → VersionConflict
+KIP_4001 ExecutionTimeout    → ExecutionTimeout
+KIP_4002 ResourceExhausted   → ResourceExhausted | ResultLimitExceeded
+KIP_4003 InternalError       → InternalError
+```
+
+该映射并非一一对应：v2 按成因拆分了若干 v1 错误码，且 `NotFoundOrNotVisible` 刻意不区分“不存在”与“对你不可见”。
 
 # 33. 双读验证 (Dual Read)
 

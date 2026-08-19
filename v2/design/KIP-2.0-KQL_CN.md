@@ -10,7 +10,7 @@
 
 本文档直接建立在以下规范基础之上：
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 - [KIP-2.0-Epistemic-Model.md](KIP-2.0-Epistemic-Model.md)
 - [KIP-2.0-Governance.md](KIP-2.0-Governance.md)
@@ -76,7 +76,7 @@ HISTORICAL QUERY (历史查询)
 ---
 # 0. 规范性用词定义 (Normative Language)
 
-关键字 **MUST**（必须）、**MUST NOT**（严禁）、**REQUIRED**（必需）、**SHOULD**（应当）、**SHOULD NOT**（不应）、**MAY**（可以）和 **OPTIONAL**（可选）用于指示未来 KIP 2.0 规范的预期要求。
+关键字 **MUST**（必须）、**MUST NOT**（严禁）、**REQUIRED**（必需）、**SHOULD**（应当）、**SHOULD NOT**（不应）、**MAY**（可以）和 **OPTIONAL**（可选）用于指示 KIP 2.0 规范 (`../KIP-2.0-SPECIFICATION.md`) 的要求；两者不一致时以该规范为准。
 
 此处展示的语法属于架构级别的语法提案。
 
@@ -634,7 +634,7 @@ valid_time
 asserted_at
 lifecycle
 context_refs
-evidence_refs
+evidence
 facets
 retention
 _system
@@ -747,7 +747,7 @@ payload
 content_digest
 media_type
 observed_at
-source_refs
+source
 generated_by
 lifecycle
 facets
@@ -1983,9 +1983,7 @@ WITH EPISTEMIC {
   policy: "policy-id",
   include_historical: false,
   include_hypothetical: false,
-  explanation: "summary",
-  evidence_ledger: false,
-  context_refs: []
+  explanation: "summary"
 }
 ```
 
@@ -2578,27 +2576,38 @@ FIND(?slot)
 
 KQL 2.0 应当 (SHOULD) 使用上下文对象来扩展成功的响应。
 
-示意如下：
+该上下文对象承载于运行时信封 (`kip-response.schema.json`) 的操作结果之上，
+而不是某种 KQL 专用的回复结构。示意如下：
 
 ```json
 {
-  "result": [...],
+  "kip": "2.0",
+  "status": "succeeded",
 
-  "context": {
-    "space_id": "space-1",
-    "snapshot_seq": 1500,
-    "schema_environment_version": 17,
+  "results": [
+    {
+      "op_id": "q1",
+      "status": "succeeded",
+      "result": [...],
 
-    "epistemic": {
-      "used": true,
-      "policy_id": "default-recall",
-      "policy_version": "3",
-      "valid_at": "...",
-      "purpose": "answer_user"
+      "context": {
+        "space_id": "space-1",
+        "snapshot_seq": 1500,
+        "schema_environment_version": 17,
+
+        "epistemic_policy": {
+          "id": "default-recall",
+          "version": "3"
+        }
+      },
+
+      "next_cursor": "..."
     }
-  },
+  ],
 
-  "next_cursor": "..."
+  "snapshot": {
+    "snapshot_seq": 1500
+  }
 }
 ```
 
@@ -3746,7 +3755,6 @@ HistoricalSchemaUnavailable (历史模式不可用)
 ProjectionTargetUnbound (投影目标未绑定)
 ProjectionTargetUnbounded (投影目标无界)
 ProjectionNotAuthorized (投影未授权)
-ProjectionPolicyNotFound (未找到投影策略)
 ProjectionPolicyUnavailable (投影策略不可用)
 CursorMismatch (游标不匹配)
 CursorExpired (游标已过期)
@@ -3871,6 +3879,7 @@ BELIEF 单命题投影
 结构引用模式 (Structural Reference pattern)
 BELIEF SLOT 信念槽
 历史 AS OF
+FOR TIME 世界有效时间
 切面访问 (Facet access)
 投影台账 (projection ledger)
 快照稳定分页
@@ -4986,8 +4995,10 @@ structural_pattern :=
     "(" term "," structural_field "," term ")"
 
 belief_pattern :=
-      variable "BELIEF" "(" proposition_variable ")"
+      variable "BELIEF" "(" variable ")"
+        (* 内层变量必须已绑定到某个命题 *)
     | variable "BELIEF" "(" "id" ":" scalar ")"
+        (* 与 proposition_tuple 相同的 id 形式 *)
     | variable "BELIEF"
       "(" term "," predicate_term "," term ")"
         (* 仅限确切谓词——不接受原始路径 *)
@@ -5006,14 +5017,28 @@ for_time_clause :=
 
 epistemic_clause :=
     "WITH EPISTEMIC" object_literal
+
+predicate_term :=
+    predicate_atom path_quantifier?
+    ("|" predicate_atom path_quantifier?)*
+        (* 原始谓词路径 (§90) 仅在 proposition_tuple 内合法；
+           BELIEF / BELIEF SLOT 只接受裸的 predicate_atom *)
+
+predicate_atom :=
+    string | parameter | variable
+
+path_quantifier :=
+    "{" integer ("," integer?)? "}"
 ```
 
+规范性的机器可读语法为
+[`../grammar/KIP-2.0-KQL.ebnf`](../grammar/KIP-2.0-KQL.ebnf)，本草案是它的阅读辅助。
 正式的作用域/类型规则将单独规范。
 
 ---
 # 324. 推荐解析规则 (Recommended Parsing Rule)
 
-根据最终语法决策，关键字不区分大小写或规范为全大写。
+协议关键字在 ASCII 范围内不区分大小写；规范书写形式为全大写。
 
 模式符号与字符串值根据其自身定义保持大小写敏感。
 
@@ -5132,7 +5157,7 @@ WHERE {
   }
 }
 ORDER BY ?a.asserted_at DESC
-LIMIT 50
+LIMIT 100
 ```
 
 ---

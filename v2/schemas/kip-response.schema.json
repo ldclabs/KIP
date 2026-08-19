@@ -366,6 +366,11 @@
         "epistemic_policy": {
           "$ref": "#/$defs/PolicyIdentity"
         },
+        "valid_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "World valid-time basis used for the projection (present when FOR TIME / valid_at was applied)."
+        },
         "search": {
           "$ref": "#/$defs/SearchContext"
         },

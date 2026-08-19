@@ -91,17 +91,24 @@ Before execution, the implementation MUST declare its claimed profiles:
     "KIP-META",
     "KIP-Runtime",
     "KIP-Historical",
-    "KIP-High-Assurance"
+    "KIP-High-Assurance",
+    "KIP-1-Migration"
   ],
 
   "optional_capabilities": {
     "belief_slot": true,
     "historical_reads": true,
     "semantic_search": true,
-    "signed_receipts": false
+    "search_index_freshness": true,
+    "signed_receipts": false,
+    "materialized_projection": false,
+    "ingestion_context": true,
+    "serializable_isolation": false
   }
 }
 ```
+
+`KIP-1-Migration` (Spec §89) is claimed only by implementations that support KIP 1.x migration/compatibility; the §25 suite is `NOT_APPLICABLE` otherwise. An advertised `optional_capabilities` entry turns every OPTIONAL vector naming that capability into an obligation (§35).
 
 The runner SHOULD compare this declaration with `DESCRIBE PROTOCOL` and `DESCRIBE CAPABILITIES`.
 
@@ -330,17 +337,17 @@ compiled_from
 compiled_by
 ```
 
-The reserved Core structural fields (`evidence`, `source`, `generated_by`, `inputs`, `outputs`) are built-ins defined by `KIP-2.0-SPECIFICATION.md` §20.13; the test package does not redefine them, and vectors exercising them test the Core built-in constraints directly.
+The reserved Core structural fields (`evidence`, `source`, `generated_by`, `inputs`, `outputs`, `associated_actors`) are built-ins defined by `KIP-2.0-SPECIFICATION.md` §20.13; the test package does not redefine them, and vectors exercising them test the Core built-in constraints directly.
 
 Facets:
 
 ```text
-MnemonicState:
+MnemonicState:                          applicable to Concept
     memory_strength number [0,1], mutable
     salience number [0,1], mutable
     last_metabolized_at timestamp|null, mutable
 
-SkillUtility:
+SkillUtility:                           applicable to Skill
     utility number, mutable
     success_count integer >= 0, mutable
     failure_count integer >= 0, mutable
@@ -708,7 +715,7 @@ Primary profile: `KIP-Core`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Given Assertion confidence .9 and memory_strength .2. When memory_strength changes to .1. Then confidence remains .9.
+**Expected semantic behavior:** Given an Assertion with confidence .9 about a Concept whose MnemonicState memory_strength is .2. When memory_strength changes to .1. Then the Assertion confidence remains .9.
 
 **Forbidden outcome:** mnemonic mutation changes epistemic confidence.
 
@@ -1531,7 +1538,9 @@ Primary profile: `KIP-Transactions`
 
 ## KIP2-TX-010 — Serializable write skew prevented
 
-**Level:** MUST
+**Level:** OPTIONAL
+
+**Capabilities:** serializable_isolation
 
 **Expected semantic behavior:** Two concurrent transactions would jointly violate fixture invariant if both commit. Serializable implementation aborts/conflicts at least one.
 
@@ -2043,11 +2052,11 @@ Primary profile: `KIP-KQL`
 
 ---
 
-## KIP2-KQL-015 — Null ordering follows declared baseline
+## KIP2-KQL-015 — Null sort keys order last
 
 **Level:** SHOULD
 
-**Expected semantic behavior:** If implementation claims default null-last behavior, verify it.
+**Expected semantic behavior:** Seed solutions where the `ORDER BY` key is null for some rows. Null keys sort last (Spec §44.7). A documented different baseline is a conformance warning, not a silent difference.
 
 ---
 
@@ -2095,7 +2104,7 @@ Primary profile: `KIP-KQL`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Attempt unbounded whole-Brain Projection. ProjectionTargetUnbound/Unbounded.
+**Expected semantic behavior:** Attempt BELIEF whose target variable is not bound to a Proposition, then attempt an unbounded whole-Brain Projection. The first fails with `ProjectionTargetUnbound`, the second with `ProjectionTargetUnbounded` or equivalent.
 
 **Forbidden outcome:** unbounded projection explosion.
 
@@ -2491,7 +2500,7 @@ Primary profile: `KIP-KML`
 
 **Profiles:** KIP-KML (full)
 
-**Expected semantic behavior:** `ASSERT ?a (alice, timezone, "+08:00") {by: alice, mode: "stated", confidence: 0.9, evidence: E}` commits exactly one canonical Proposition (created or resolved), one Assertion with the declared fields and a role-support Evidence citation, and nothing else. State is element-for-element equivalent to the desugared `ENSURE PROPOSITION` + `CREATE ASSERTION` form. With `SUPERSEDING :old`, the old Assertion becomes superseded by the new one in the same transaction.
+**Expected semantic behavior:** `ASSERT ?a (:alice, "timezone", "+08:00") {by: :alice, mode: "stated", confidence: 0.9, evidence: :msg}` commits exactly one canonical Proposition (created or resolved), one Assertion with the declared fields and a role-support Evidence citation, and nothing else. State is element-for-element equivalent to the desugared `ENSURE PROPOSITION` + `CREATE ASSERTION` form. With `SUPERSEDING :old`, the old Assertion becomes superseded by the new one in the same transaction.
 
 **Postconditions:** canonical_proposition_count for the tuple = 1; assertion payload equals declared members; no additional Evidence/Activity is fabricated by the sugar.
 
@@ -2572,7 +2581,7 @@ Primary profile: `KIP-META`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Search then query object. No durable `_score`/confidence mutation.
+**Expected semantic behavior:** Search then query object. No durable retrieval score/confidence mutation.
 
 **Forbidden outcome:** retrieval metadata persisted.
 
@@ -2590,7 +2599,9 @@ Primary profile: `KIP-META`
 
 ## KIP2-META-010 — Search freshness disclosed when capability claimed
 
-**Level:** MUST
+**Level:** OPTIONAL
+
+**Capabilities:** search_index_freshness
 
 **Expected semantic behavior:** Sequenced index lag fixture. Response exposes index checkpoint/consistency.
 
@@ -2809,7 +2820,7 @@ Primary profile: `KIP-Runtime`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Submit >1 operations without mode. Draft-native runner expects InvalidRequestEnvelope unless future Spec defines an explicit default.
+**Expected semantic behavior:** Submit >1 operations without `execution.mode`. InvalidRequestEnvelope; Spec §75 requires an explicit mode for every native multi-operation request and defines no default.
 
 **Forbidden outcome:** hidden batch semantics.
 
@@ -3040,7 +3051,7 @@ Primary profile: `KIP-Runtime`
 
 **Capabilities:** ingestion_context
 
-**Expected semantic behavior:** A request carries `ingest.evidence[{key: "msg", payload: P, client_key: K}]` and an operation referencing `:msg`. The runtime mints exactly one Evidence element whose payload/content digest corresponds byte-for-byte to the transport-supplied P, binds `:msg` to it, and commits it atomically with the transaction. Retrying the same request with the same idempotency/client keys yields no duplicate Evidence. If the transaction aborts, no Evidence is durably created.
+**Expected semantic behavior:** A request carries `ingest.evidence[{key: "msg", evidence_class: "user_statement", payload: P, client_key: K}]` and an operation referencing `:msg`. The runtime mints exactly one Evidence element whose payload/content digest corresponds byte-for-byte to the transport-supplied P, binds `:msg` to it, and commits it atomically with the transaction. Retrying the same request with the same idempotency/client keys yields no duplicate Evidence. If the transaction aborts, no Evidence is durably created.
 
 **Postconditions:** evidence payload digest equals digest(P); change_envelope_count for the logical write = 1.
 
@@ -3344,6 +3355,8 @@ These scenarios are REQUIRED whenever all referenced profiles are claimed togeth
 
 ## KIP2-X-001 — User correction end-to-end
 
+**Level:** MUST
+
 Profiles:
 
 ```text
@@ -3393,6 +3406,8 @@ history rewritten
 
 ## KIP2-X-002 — Third-party disagreement is not correction
 
+**Level:** MUST
+
 Alice supports P. Bob rejects P.
 
 Expected:
@@ -3406,6 +3421,8 @@ Projection may become contested
 ---
 
 ## KIP2-X-003 — SEARCH grounding and BELIEF stay separate
+
+**Level:** MUST
 
 SEARCH finds relevant Alice record with retrieval score.
 
@@ -3422,6 +3439,8 @@ SEARCH relevance and epistemic status remain distinct
 
 ## KIP2-X-004 — Search lag versus canonical state
 
+**Level:** MUST
+
 Commit new Concept at seq 101; hold index at 100.
 
 Expected:
@@ -3436,6 +3455,8 @@ search context declares lag/weaker consistency
 
 ## KIP2-X-005 — Historical secrecy after classification change
 
+**Level:** MUST
+
 Public Evidence at S1 becomes secret later.
 
 Restricted historical BELIEF/read at S1 must obey current Governance.
@@ -3445,6 +3466,8 @@ Raw Evidence remains hidden; projection may be denied or safely redacted accordi
 ---
 
 ## KIP2-X-006 — Signed imported Skill does not execute itself
+
+**Level:** MUST
 
 Pipeline:
 
@@ -3470,6 +3493,8 @@ no tool permission
 
 ## KIP2-X-007 — Capsule same-name identity collision
 
+**Level:** MUST
+
 Source Alice and unrelated target Alice share name but no trusted canonical identity.
 
 Expected no automatic merge.
@@ -3477,6 +3502,8 @@ Expected no automatic merge.
 ---
 
 ## KIP2-X-008 — Formation retry after lost response
+
+**Level:** MUST
 
 Formation transaction creates:
 
@@ -3502,6 +3529,8 @@ one Change Envelope
 
 ## KIP2-X-009 — Preview succeeds, commit fails after revocation
 
+**Level:** MUST
+
 PREVIEW KML succeeds.
 
 Required Grant is revoked before actual write.
@@ -3514,6 +3543,8 @@ Preview does not reserve authority.
 
 ## KIP2-X-010 — Capsule Schema preview does not activate
 
+**Level:** MUST
+
 Unknown embedded Package is used validation-only.
 
 After PREVIEW, target Schema Environment remains unchanged.
@@ -3521,6 +3552,8 @@ After PREVIEW, target Schema Environment remains unchanged.
 ---
 
 ## KIP2-X-011 — Memory decay does not rewrite confidence
+
+**Level:** MUST
 
 Assertion confidence .95; Experience memory_strength .8.
 
@@ -3537,6 +3570,8 @@ memory_strength = .4
 
 ## KIP2-X-012 — Counter-Evidence purge cannot silently strengthen belief
 
+**Level:** MUST
+
 P is contested due to support/challenge Evidence.
 
 Ordinary maintenance attempts to purge challenge Evidence.
@@ -3548,6 +3583,8 @@ No silent routine deletion may strengthen future Projection.
 ---
 
 ## KIP2-X-013 — Merge plus historical belief
+
+**Level:** MUST
 
 Assertions reference alias A.
 
@@ -3567,6 +3604,8 @@ all Assertions/provenance remain historical
 
 ## KIP2-X-014 — External action boundary
 
+**Level:** MUST
+
 Transaction 1 records ActionIntent.
 
 External harness action occurs.
@@ -3583,6 +3622,8 @@ external world effect is not rollback-coupled to either KIP transaction
 ---
 
 ## KIP2-X-015 — Principal/actor/origin end-to-end
+
+**Level:** MUST
 
 Recorder handles Alice message.
 
@@ -3951,9 +3992,9 @@ conformance/
   README.md
 
   schemas/
-    test-core-domain-1.0.0.json
-    test-secondary-1.0.0.json
-    cognitive-memory-profile.json
+    test-core-domain-1.0.0.schema.json
+    test-secondary-1.0.0.schema.json
+    cognitive-memory-2.0.0.schema.json
 
   fixtures/
     empty.json
@@ -3993,8 +4034,8 @@ conformance/
     cross-module/
 
   runner-schema/
-    test-vector.schema.json
-    report.schema.json
+    conformance-test-vector.schema.json
+    conformance-report.schema.json
 ```
 
 ---
@@ -4041,22 +4082,28 @@ conformance/
 
 ---
 
-# 43. Future Machine-Readable Deliverables
+# 43. Machine-Readable Deliverables
 
-The next executable artifacts SHOULD be:
+Published with this Specification release:
 
 ```text
-1. kip-request.schema.json
-2. kip-response.schema.json
-3. conformance-test-vector.schema.json
-4. conformance-report.schema.json
-5. KQL formal EBNF
-6. KML formal EBNF
-7. META formal EBNF
-8. canonical fixture Schema Packages
-9. canonical fixture state
-10. golden Capsule artifacts
-11. reference conformance runner
+1. kip-request.schema.json                   v2/schemas/
+2. kip-response.schema.json                  v2/schemas/
+3. conformance-test-vector.schema.json       v2/conformance/
+4. conformance-report.schema.json            v2/conformance/
+5. KQL formal EBNF                           v2/grammar/KIP-2.0-KQL.ebnf
+6. KML formal EBNF                           v2/grammar/KIP-2.0-KML.ebnf
+7. META formal EBNF                          v2/grammar/KIP-2.0-META.ebnf
+8. canonical fixture Schema Packages         v2/conformance/fixtures/
+9. canonical deterministic Epistemic Policy  v2/conformance/fixtures/
+```
+
+Still outstanding:
+
+```text
+10. canonical fixture state
+11. golden Capsule artifacts
+12. reference conformance runner
 ```
 
 ---

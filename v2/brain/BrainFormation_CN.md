@@ -341,7 +341,7 @@ Assertion 的 confidence 仅衡量当前断言立场的确定性强度。它绝�
 + 新证据 E2
 + 新命题（若需要）
 + 新断言 A2
-+ SUPERSEDE A1 BY A2
++ SUPERSEDE ASSERTION A1 BY A2
 + belief_revision Activity
 ```
 

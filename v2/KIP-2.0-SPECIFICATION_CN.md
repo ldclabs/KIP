@@ -13,16 +13,25 @@
 以下 KIP 2.0 设计文档作为参考性说明与设计依据：
 
 - `KIP-2.0-Architecture.md`
-- `KIP-2.0-Core-Data-Model.md`
-- `KIP-2.0-Epistemic-Model.md`
-- `KIP-2.0-Governance.md`
-- `KIP-2.0-Schema-Packages.md`
-- `KIP-2.0-Transactions.md`
-- `KIP-2.0-Capsule.md`
-- `KIP-2.0-KQL.md`
-- `KIP-2.0-KML.md`
-- `KIP-2.0-META.md`
-- `KIP-2.0-Protocol-Runtime.md`
+- `design/KIP-2.0-Core-Data-Model.md`
+- `design/KIP-2.0-Epistemic-Model.md`
+- `design/KIP-2.0-Governance.md`
+- `design/KIP-2.0-Schema-Packages.md`
+- `design/KIP-2.0-Transactions.md`
+- `design/KIP-2.0-Capsule.md`
+- `design/KIP-2.0-KQL.md`
+- `design/KIP-2.0-KML.md`
+- `design/KIP-2.0-META.md`
+- `design/KIP-2.0-Protocol-Runtime.md`
+
+以下工件是本规范的规范性配套件：
+
+- `grammar/KIP-2.0-KQL.ebnf`、`grammar/KIP-2.0-KML.ebnf`、`grammar/KIP-2.0-META.ebnf`——规范性语法定义
+- `schemas/kip-request.schema.json`、`schemas/kip-response.schema.json`——规范性线上报文结构
+- `profiles/cognitive-memory-2.0.0.schema.json` 与 `profiles/CognitiveMemoryProfile-2.0.md`——标准 Profile 包
+- `conformance/KIP-2.0-Conformance-Tests.md`、`conformance/conformance-test-vector.schema.json`、`conformance/conformance-report.schema.json` 与 `conformance/fixtures/`——一致性测试套件
+
+`KIPSyntax.md` 是面向 LLM 的参考性语法速查卡，不属于规范性工件。
 
 若本规范与早期的 KIP 2.0 设计文档发生冲突，**以本规范为准**。
 
@@ -951,7 +960,7 @@ Schema **可以**将布尔候选值关联为互斥关系，但核心层**必须*
 
 ```json
 {
-  "proposition_id": "P-1",
+  "proposition": {"id": "P-1"},
   "asserted_by": {"id": "C-actor"},
 
   "stance": "support",
@@ -965,9 +974,9 @@ Schema **可以**将布尔候选值关联为互斥关系，但核心层**必须*
     "until": null
   },
 
-  "evidence_refs": [
+  "evidence": [
     {
-      "evidence_id": "E-1",
+      "id": "E-1",
       "role": "support"
     }
   ],
@@ -1057,7 +1066,7 @@ imported (外部导入)
 创建之后，历史认识载荷**应当**保持不可变，包括：
 
 ```text
-proposition_id (命题ID)
+proposition (命题)
 asserted_by (断言主体)
 stance (立场)
 mode (模式)
@@ -1160,7 +1169,7 @@ derived_result (衍生计算结果)
   "media_type": "application/json",
   "observed_at": "...",
 
-  "source_refs": [],
+  "source": [],
   "generated_by": null,
 
   "lifecycle": {
@@ -1339,6 +1348,7 @@ Experience.has_step → Step
 未指定显式索引添加的引用按变更顺序追加
 显式 {index: n} 赋值声明预期的从零开始的位置
 单次变更计划中冲突的显式位置必须校验失败
+超出当前稠密范围 0..len 的显式 {index: n} 必须校验失败（位置是稠密的；追加即 len）
 已提交的顺序必须密集 (0..n-1) 且确定
 ```
 
@@ -1688,6 +1698,7 @@ source         Evidence  → Concept | Evidence  观测/构件的来源
 generated_by   Evidence  → Activity            产出该证据的活动
 inputs         Activity  → any Core element    溯源输入元素
 outputs        Activity  → any Core element    溯源输出元素
+associated_actors  Activity  → Concept         参与该过程的语义行动者（非授权方，非 Principal）
 ```
 
 **核心注册枚举值**:
@@ -2100,7 +2111,6 @@ purpose (用途目的)
 risk (风险等级)
 valid_at (世界有效时间点)
 as_of cognitive state (认知状态时间截点)
-context refs (上下文引用)
 policy (策略)
 include historical (是否包含历史记录)
 include hypothetical (是否包含假设)
@@ -3326,6 +3336,11 @@ ORDER BY ?edge.index ASC
 ```text
 == != < > <= >=
 && || !
+```
+
+基线内置函数**应当**包括：
+
+```text
 IN
 CONTAINS
 STARTS_WITH
@@ -3336,7 +3351,10 @@ IS_NOT_NULL
 IS_LITERAL
 IS_ELEMENT
 IS_KIND
+LITERAL_TYPE
 ```
+
+它们是函数而非中缀操作符，必须以调用形式书写，例如 `FILTER(IN(?x.name, ["A", "B"]))`。
 
 ---
 
@@ -3385,6 +3403,8 @@ MAX
 
 聚合计算**必须**在已授权的可见解集上执行。
 
+分组是隐式的：`FIND` 列表中未被聚合的投影表达式构成分组键。聚合忽略空值输入，因此当某个分组内所有行均为空值时，`COUNT(?optional)` 返回 `0`。
+
 `COUNT = 0` 不代表该命题为假。
 
 ---
@@ -3392,8 +3412,10 @@ MAX
 ## 44.7 排序子句 (Ordering)
 
 ```prolog
-ORDER BY <expr> ASC|DESC
+ORDER BY <expr> ASC|DESC [, ...]
 ```
+
+多个排序键从左到右依次生效。
 
 除非未来的显式语法另有规定，空值 (Null) **应当**默认排在最后。
 
@@ -3407,6 +3429,8 @@ CURSOR :cursor
 ```
 
 KQL 分页游标**必须**为该次遍历保留单一规范认知快照。
+
+引擎**必须**在同一次游标遍历内采用确定性的并列打破规则，使 `ORDER BY` 取值相同的解不会在翻页时重复或遗漏。
 
 在翻页继续查询时，当前的治理权限仍然有效。
 
@@ -3648,6 +3672,7 @@ snapshot_seq (快照序列号)
 schema_environment_version (Schema 环境版本)
 resolved Epistemic Policy/version when used (生效的认识策略与版本)
 world valid time when used (生效的现实世界有效时间)
+materialized projection policy identity and snapshot basis when a cached projection is served (物化投射的策略身份与快照基准，见 §21.9)
 ```
 
 该上下文可在后续作为决策依据完整保留。
@@ -3950,6 +3975,7 @@ SUPERSEDE ASSERTION :old_assertion BY ?a
 - `ASSERT` **必须**严格提交与其脱糖形式完全相同的语义；**严禁**产生额外或偏离的状态。
 - 句柄是可选的；一旦指定，它将绑定新创建的断言。
 - `ASSERT` **可以**作为独立语句出现，也可在 `MUTATE` 块内部使用。
+- 脱糖后的各子句构成一个变更计划，而非彼此独立的多条命令：独立使用的 `ASSERT` **必须**如同这些子句同处于一个 `MUTATE` 块中一样整体提交 (§53.1)；位于 `MUTATE` 内部时，它们并入外层计划。
 - 语法糖支持属于完整的 KIP-KML 合规 Profile (§97)。
 
 ---
@@ -4078,6 +4104,7 @@ SUPERSEDE ASSERTION :old BY ?new
 
 ```prolog
 UPDATE ?target
+EXPECT VERSION :version
 
 SET FIELDS {...}
 SET ATTRIBUTES {...}
@@ -4160,6 +4187,21 @@ memory_strength (记忆强度)
 
 # 60. 归档、墓碑与清除 (Archive / Tombstone / Purge)
 
+推荐语法：
+
+```text
+SET RETENTION <target> {retention_class: "...", expires_at: ...}
+                       [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]
+ARCHIVE       <target> [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]
+TOMBSTONE     <target> [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]
+PURGE         <target> [WHERE {...}] [LIMIT :n]
+                       [REFERENCE POLICY "..."] CONFIRM "PURGE"
+```
+
+`<target>` 遵循与通用 UPDATE (§58) 相同的规则：`?variable` 目标由 `WHERE` 块绑定，而 `:parameter` / `"id"` 已经直接指明元素，因而**可以**省略 `WHERE`。
+
+---
+
 ## 60.1 归档 (Archive)
 
 归档操作在保留历史记录的同时，将其从日常召回中移除或降低优先级。
@@ -4176,7 +4218,15 @@ memory_strength (记忆强度)
 
 物理清除在严格的重大影响策略下从物理上抹除字节数据。
 
-默认的引用策略在必要引用将被破坏时**应当**拒绝物理清除。
+引用策略取值如下：
+
+```text
+deny_if_referenced      存在必要引用时拒绝执行清除
+tombstone_reference     清除字节，并将悬空引用置为墓碑
+authorized_cascade      在显式授权下级联清除引用方元素
+```
+
+默认值为 `deny_if_referenced`：当必要引用将被破坏时**应当**拒绝物理清除。`CONFIRM "PURGE"` 是**必需**的，且不能被引用策略取代。
 
 物理清除**可以**留下一个极小的、不可恢复的**存根 (stub)** —— 包括元素类型、内容摘要、类别、观测时间以及执行清除的活动引用 —— 以确保引用完整性、溯源根源标识 (§23.3) 以及独立性计数能够在字节被销毁后依然有效。存根不是内容本身，也不是可恢复的证据。
 
@@ -4273,6 +4323,24 @@ SNAPSHOT
 EXPORT CAPSULE
 ```
 
+`DESCRIBE` 的自省目标：
+
+```text
+PRIMER | PROTOCOL | EXECUTION CONTEXT | CAPABILITIES
+SPACE | SCHEMA ENVIRONMENT | PACKAGE | TYPE | PREDICATE | FACET
+STRUCTURAL FIELD | COMPATIBILITY | ERROR | TRANSACTION | SNAPSHOT
+CAPSULE | EPISTEMIC POLICY | PROJECTION CAPABILITY | TRUST | ACCESS
+```
+
+`LIST` 的枚举目标：
+
+```text
+SPACES | SCHEMA PACKAGES | TYPES | PREDICATES | FACETS
+STRUCTURAL FIELDS | EPISTEMIC POLICIES
+```
+
+`LIST` 支持 `LIMIT` / `CURSOR` 分页。
+
 ---
 
 ## 63.4 EXPORT CAPSULE (导出胶囊)
@@ -4291,10 +4359,12 @@ WHERE {
   include_blobs: false,
   proof_profile: "..."
 }]
-[AS OF SEQ :seq]
+[AS OF SEQ :seq | AS OF TX :tx | AS OF TIME :time]
 ```
 
-操作数指定了**选定根绑定 (selection root binding)**：所有通过 `WHERE` 块绑定到 `?roots` 的元素均属于导出根集合。操作数也可以是指定单个根元素的参数或字符串。
+操作数指定了**选定根绑定 (selection root binding)**：所有通过 `WHERE` 块绑定到 `?roots` 的元素均属于导出根集合。操作数也可以是指定单个根元素的参数或字符串，此时 `WHERE` 块仅用于约束该根元素。
+
+`WHERE` 是**必需**的，且**必须**至少包含一条选定模式：无边界的导出不构成胶囊。`closure` 使用 §40.3 定义的取值。
 
 生成的胶囊包含根集合加上 `WITH` 中声明的闭包，受治理策略及 §41.1 的快照一致性规则约束。结果是一个胶囊构件 (§85)；不修改任何认知状态。
 
@@ -4303,6 +4373,10 @@ WHERE {
 # 64. DESCRIBE PRIMER (引导说明)
 
 `DESCRIBE PRIMER` 返回紧凑的、面向模型的引导启动构件。
+
+```text
+DESCRIBE PRIMER [MODE "compact" | "full"]
+```
 
 推荐包含的层次：
 
@@ -4357,9 +4431,9 @@ DESCRIBE TYPE
 DESCRIBE PREDICATE
 DESCRIBE FACET
 DESCRIBE STRUCTURAL FIELD
-DESCRIBE COMPATIBILITY
+DESCRIBE COMPATIBILITY FROM :from TO :to
 
-LIST SCHEMA PACKAGES
+LIST SCHEMA PACKAGES [STATUS :status]
 LIST TYPES
 LIST PREDICATES
 LIST FACETS
@@ -4507,12 +4581,12 @@ limits (配额限制)
 ```text
 DESCRIBE TRANSACTION :tx_id
 DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :key
-DESCRIBE SNAPSHOT
-HISTORY ELEMENT :id
-HISTORY SPACE
-CHANGES SINCE :cursor
-CHANGES AFTER SEQ :seq
-SNAPSHOT
+DESCRIBE SNAPSHOT [AS OF ...]
+HISTORY ELEMENT :id [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]
+HISTORY SPACE [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]
+CHANGES SINCE :cursor [LIMIT :n]
+CHANGES AFTER SEQ :seq [LIMIT :n]
+SNAPSHOT [AS OF ...]
 ```
 
 ---
@@ -4543,6 +4617,10 @@ KQL AS OF
 
 ## 69.1 验证 `VERIFY` (VERIFY)
 
+```text
+VERIFY CAPSULE | SCHEMA PACKAGE | RECEIPT | BLOB | CHECKPOINT <artifact>
+```
+
 检查：
 
 ```text
@@ -4557,6 +4635,10 @@ VERIFY 不负责建立信任度或证明真实性。
 ---
 
 ## 69.2 校验 `VALIDATE` (VALIDATE)
+
+```text
+VALIDATE KQL | KML | CAPSULE | SCHEMA PACKAGE | IMPORT PLAN <input> [WITH {...}]
+```
 
 在不提交的前提下检查：
 
@@ -4688,7 +4770,7 @@ JSON 文本**必须**采用 UTF-8 编码。
   "operations": [
     {
       "language": "KML",
-      "command": "ASSERT (:alice, "prefers", :dark_mode) { by: :alice, mode: "stated", evidence: :msg }"
+      "command": "ASSERT (:alice, \"prefers\", :dark_mode) { by: :alice, mode: \"stated\", evidence: :msg }"
     }
   ]
 }
@@ -5306,6 +5388,8 @@ TransactionUnknown (未知事务)
 OutcomeUnknown (结果未知)
 TransactionTooLarge (事务规模过大)
 ```
+
+`TransactionUnknown` 同样覆盖这样一种情形：事务 id 格式合法，但运行时已不再保留其结果。一旦 §32.8 / §34.3 规定的结果保留窗口过期，对该 id 的查询或重放**必须**报告 `TransactionUnknown`，而不得报告“未产生任何影响”。
 
 ---
 
@@ -6063,9 +6147,21 @@ for_time_clause :=
 
 epistemic_clause :=
     "WITH EPISTEMIC" object_literal
+
+predicate_term :=
+    predicate_atom path_quantifier?
+    ("|" predicate_atom path_quantifier?)*
+        (* 原始谓词路径仅在 proposition_tuple 内合法；
+           BELIEF / BELIEF SLOT 只接受裸 predicate_atom *)
+
+predicate_atom :=
+    string | parameter | variable
+
+path_quantifier :=
+    "{" integer ("," integer?)? "}"
 ```
 
-形式化的解析器语法将在最终规范正式发布时完整提供。
+形式化的解析器语法随本规范一同发布，见 [`grammar/KIP-2.0-KQL.ebnf`](./grammar/KIP-2.0-KQL.ebnf)、[`grammar/KIP-2.0-KML.ebnf`](./grammar/KIP-2.0-KML.ebnf) 与 [`grammar/KIP-2.0-META.ebnf`](./grammar/KIP-2.0-META.ebnf)。当本附录中的草图不如对应 EBNF 完整时，语法以 EBNF 为准。本附录中被引用但未展开的产生式（`structural_field`、`order_clause`、`limit_clause`、`cursor_clause`、`scalar`、`value` 等）在 [`grammar/KIP-2.0-KQL.ebnf`](./grammar/KIP-2.0-KQL.ebnf) 中定义。
 
 ---
 
@@ -6103,6 +6199,8 @@ mutate_statement :=
 ensure_proposition :=
     "ENSURE PROPOSITION" handle?
     "(" term "," predicate_term "," term ")"
+    expect_version_clause?
+    (* EXPECT VERSION 0 为仅创建形式，§35.2 *)
 
 assert_statement :=
     "ASSERT" handle?
@@ -6122,13 +6220,48 @@ update_statement :=
 supersede_assertion :=
     "SUPERSEDE ASSERTION" target
     "BY" target
+    expect_state_clause?
 
 correct_evidence :=
     "CORRECT EVIDENCE" target
     "BY" target
+    expect_state_clause?
+
+set_retention :=
+    "SET RETENTION" target
+    assignment_object
+    ("WHERE" "{" where_clause* "}")?
+    limit_clause?
+    expect_version_clause?
+
+archive_statement :=
+    "ARCHIVE" target
+    ("WHERE" "{" where_clause* "}")?
+    limit_clause?
+    expect_state_clause?
+
+tombstone_statement :=
+    "TOMBSTONE" target
+    ("WHERE" "{" where_clause* "}")?
+    limit_clause?
+    expect_state_clause?
+
+purge_statement :=
+    "PURGE" target
+    ("WHERE" "{" where_clause* "}")?
+    limit_clause?
+    ("REFERENCE POLICY" value)?
+    "CONFIRM" "\"PURGE\""
+
+merge_concept :=
+    "MERGE CONCEPT" target
+    "INTO" target
+    ("WHERE" "{" where_clause* "}")?
+    expect_version_clause?
+        (* 无 limit_clause：源与目标都已直接指名 *)
 ```
 
-最终语法**必须**在 MUTATE 块内完整保留声明式本地句柄语义与前向引用支持。
+规范性语法**必须**在 MUTATE 块内完整保留声明式本地句柄语义与前向引用支持。
 
 ---
 
@@ -6383,7 +6516,19 @@ Alice 变更时区：
 
 ```prolog
 MUTATE {
-  CREATE EVIDENCE ?e {...}
+  CREATE EVIDENCE ?e {
+    CLIENT KEY :evidence_key
+
+    SET FIELDS {
+      evidence_class: "user_statement",
+      payload: :payload,
+      observed_at: :time
+    }
+
+    SET STRUCTURAL {
+      ("source", :alice)
+    }
+  }
 
   ENSURE PROPOSITION ?p_new (
     :alice,
@@ -6391,7 +6536,22 @@ MUTATE {
     "+01:00"
   )
 
-  CREATE ASSERTION ?a_new {...}
+  CREATE ASSERTION ?a_new {
+    CLIENT KEY :assertion_key
+
+    SET FIELDS {
+      proposition: ?p_new,
+      asserted_by: :alice,
+      stance: "support",
+      mode: "stated",
+      confidence: 1.0,
+      asserted_at: :time
+    }
+
+    SET STRUCTURAL {
+      ("evidence", ?e) {role: "support"}
+    }
+  }
 
   SUPERSEDE ASSERTION :a_old BY ?a_new
 

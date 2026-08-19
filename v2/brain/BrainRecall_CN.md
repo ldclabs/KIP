@@ -172,7 +172,9 @@ BELIEF 属于虚拟计算视图，完全只读。
 
 # 15. 经验召回 (Experience Recall)
 
-检索 Experience 节点、有序的 `has_step` 结构、关键 Steps、最终结果、故障与恢复过程、预测偏差及来源 Evidence。步骤的时序先后不能作为因果关系的证据。
+检索 Experience 节点、有序的 `has_step` 结构、关键 Steps、最终结果、故障与恢复过程、预测偏差及来源 Evidence。步骤顺序应从 `STRUCTURAL (?experience, "has_step", ?step)` 绑定上的 `?edge.index` 读取，绝不能依赖步骤自身的属性字段。
+
+步骤的时序先后不能作为因果关系的证据：只有存在显式的 `caused_by` 命题 + 断言（结果 → 起因）时，因果关系才成立。
 
 # 16. 程序性技能召回 (Procedural Recall)
 

@@ -10,7 +10,7 @@
 
 本文档直接建立在以下文档的基础之上：
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 - [KIP-2.0-Epistemic-Model.md](KIP-2.0-Epistemic-Model.md)
 
@@ -48,9 +48,11 @@
 
 # 0. 规范性用语 (Normative Language)
 
-关键字 **必须 (MUST)**、**严禁 (MUST NOT)**、**必需 (REQUIRED)**、**应当 (SHOULD)**、**不得 (SHOULD NOT)**、**可以 (MAY)** 和 **可选 (OPTIONAL)** 用于表示未来 KIP 2.0 规范的预期要求。
+关键字 **必须 (MUST)**、**严禁 (MUST NOT)**、**必需 (REQUIRED)**、**应当 (SHOULD)**、**不得 (SHOULD NOT)**、**可以 (MAY)** 和 **可选 (OPTIONAL)** 用于表示 KIP 2.0 规范 (`../KIP-2.0-SPECIFICATION.md`) 的要求；两者不一致时以该规范为准。
 
 除非另有明确说明，否则具体的 API 与传输层语法仅作示意说明。
+
+凡是 `KIP-2.0-SPECIFICATION.md` 已经确定的权限名称、错误码或线路结构，均以规范为准，本文档与之保持一致。写作 `Specification §N` 的引用指向该规范文档；裸写的 `§N` 指向本文档。
 
 ---
 
@@ -639,9 +641,11 @@ assert_as_actor (以行动者身份断言)
   "default_policy_id": "policy-default",
   "trust_policy_id": "epistemic-policy-default",
 
+  "self_identity": "concept:yan",
+
   "schema_packages": [
-    "kip://core@2.0",
-    "kip://profiles/cognitive-memory@2.0"
+    "kip://core@2.0.0",
+    "kip://profiles/cognitive-memory@2.0.0"
   ],
 
   "governance": {
@@ -652,6 +656,8 @@ assert_as_actor (以行动者身份断言)
 ```
 
 具体底层存储由具体实现定义。
+
+`self_identity` 是该 Space 指定的语义 `$self`（规范 §5.6）：至多一个 Concept 引用，属于受保护的 Space/治理配置状态。普通 KML **严禁 (MUST NOT)** 创建或修改它，且 Space **可以 (MAY)** 不设置它。
 
 ---
 
@@ -1068,6 +1074,17 @@ require_approval (需审批)
 
 在审批条件被满足之前，该操作保持受阻状态。
 
+在协议层面，阻断性决策会表现为已注册的治理错误码之一（规范 §87.5）：
+
+```text
+Unauthenticated                  无已认证主体
+NotAuthorized                    被拒绝
+RequiresApproval                 审批缺失/过期/已被消耗
+RequiresStrongerAuthentication   认证强度低于策略要求
+ActorBindingRequired             未经 ActorBinding 就尝试代表他人
+NotFoundOrNotVisible             发现权限被拒（存在性中立）
+```
+
 ---
 
 # 41. 基线策略规则 (Baseline Policy Rule)
@@ -1255,6 +1272,14 @@ quarantine state (隔离状态)
 
 必须需要专用的治理权限。
 
+未经授权的尝试会以对应的受保护字段错误码被拒绝（规范 §87.5）：
+
+```text
+ProtectedGovernanceField   治理所有的元素字段
+ProtectedSystemField       引擎所有的 _system 字段
+ProtectedSchemaState       模式环境/模式锁状态
+```
+
 ---
 
 # 51. 元素治理挂钩 (Element Governance Hook)
@@ -1391,10 +1416,11 @@ Principal **可以 (MAY)** 被允许接收：
 create (创建)
 update (更新)
 derive (派生)
-tombstone (墓碑标记)
 ```
 
 这些权限适用于受类型/模式作用域约束的普通认知元素。
+
+移除类动词（`archive`、`tombstone`、`purge`）属于生命周期权限（§80），而不属于认知变更。
 
 它们不代表具备认识论或治理权限。
 
@@ -1443,7 +1469,10 @@ tombstone (墓碑标记)
 密级传播 (classification propagation)
 来源/血统保留 (origin/provenance preservation)
 权限非放大 (authority non-amplification)
+同空间引用闭包 (Same-Space reference closure)
 ```
+
+派生写入与维护写入 **必须 (MUST)** 与主写入一样重新校验引用闭包（规范 §29.6）。派生不是可豁免的写入通道。
 
 ---
 
@@ -1529,6 +1558,8 @@ status = retracted
 
 这确保了历史源头的立场依然准确。
 
+未持有代表权限而尝试撤回，**必须 (MUST)** 以 `RetractionNotAuthorized` 失败（规范 §87.4）；**严禁 (MUST NOT)** 被悄悄降级为一次审查动作。
+
 ---
 
 # 69. `supersede_own`
@@ -1563,7 +1594,7 @@ status = retracted
 推荐权限：
 
 ```text
-bind_actor (绑定行动者)
+manage_actor_binding (管理行动者绑定)
 bind_canonical_identity (绑定规范身份)
 merge_identity (合并身份)
 ```
@@ -1574,7 +1605,7 @@ merge_identity (合并身份)
 
 ---
 
-# 72. `bind_actor`
+# 72. `manage_actor_binding`
 
 创建/更新受保护的 Principal ↔ 语义行动者绑定。
 
@@ -1616,7 +1647,6 @@ merge_identity (合并身份)
 
 ```text
 maintain (维护)
-archive (归档)
 quarantine (隔离)
 ```
 
@@ -1697,10 +1727,11 @@ tombstone (墓碑标记)
 purge (彻底清除)
 manage_retention (管理留存)
 legal_hold (法定留存)
-declassify (降密/解密)
 ```
 
 物理上的彻底清除（purge）在后果严重性上严格高于记忆/归档层面的遗忘。
+
+`declassify` 属于治理权限（§88），而不属于生命周期权限。
 
 ---
 
@@ -1712,6 +1743,8 @@ declassify (降密/解密)
 
 清除 Evidence 尤为敏感。
 
+被拒绝的清除返回 `PurgeDenied`（规范 §87.5）。在策略允许擦除的情况下，清除仍 **应当 (SHOULD)** 留下规范 §60.3 定义的最小摘要存根，以便引用完整性与来源根身份得以保留。
+
 ---
 
 # 82. `legal_hold`
@@ -1719,6 +1752,8 @@ declassify (降密/解密)
 在法定留存处于激活状态期间，阻止策略驱动的物理清除。
 
 即使是正常的 Space 所有者，也可能无权覆盖系统/法定留存。
+
+被激活的法定留存拦下的清除返回 `LegalHoldConflict`（规范 §87.5），它与 `PurgeDenied` 不同：该操作并非被永久禁止，而是被推迟到留存解除之后。
 
 ---
 
@@ -1729,7 +1764,7 @@ declassify (降密/解密)
 ```text
 manage_membership (管理成员资格)
 manage_grants (管理授权)
-delegate (委托)
+manage_delegation (管理委托)
 manage_policy (管理策略)
 manage_trust (管理信任)
 manage_schema (管理模式)
@@ -1804,7 +1839,7 @@ Trust Resolver 绑定
 ```text
 read_audit (读取审计)
 read_raw_origin (读取原始来源)
-read_governance_history (读取治理历史)
+read_history (读取历史)
 ```
 
 审计人员可以具备：
@@ -2132,7 +2167,13 @@ secret-element-id
 
 的请求**应当 (SHOULD)** 产生存在性中立的结果。
 
-具体的错误行为规范属于 KQL/运行时规范范畴。
+已注册的存在性中立错误码为：
+
+```text
+NotFoundOrNotVisible
+```
+
+（规范 §86.4、规范 §87.3）。当发现权限被拒绝时，运行时 **严禁 (MUST NOT)** 在 code、message、hint 或 `details` 中区分“不存在”与“被隐藏”。
 
 ---
 
@@ -2238,6 +2279,8 @@ Space 可以通过受保护的治理状态绑定：
 # 114. 信任策略版本化 (Trust Policy Versioning)
 
 信任策略的变更**必须 (MUST)** 具有版本并可被审计。
+
+修改信任状态需要 `manage_trust`，且每次变更 **应当 (SHOULD)** 作为控制平面转换出现在变更/审计流上（规范 §22.6）。
 
 历史决策应当能够回答：
 
@@ -3118,9 +3161,19 @@ Profile 可以请求留存提示。
 
 隐私/法律删除可以覆盖审计留存要求。
 
-在受允许的情况下，系统**应当 (SHOULD)** 仅保留极简的非敏感删除凭单。
+在受允许的情况下，系统**应当 (SHOULD)** 仅保留规范 §60.3 定义的最小且不可还原的**摘要存根 (digest stub)**：
 
-绝不能仅仅为了认识论的完整优美而保留被禁用的内容。
+```text
+element kind (元素种类)
+content digest (内容摘要)
+class (类别)
+observation time (观察时间)
+purging Activity reference (执行清除的活动引用)
+```
+
+以便在字节被销毁之后，引用完整性、来源根身份与独立性计数仍然成立。存根不是内容，也不是可还原的证据。
+
+若连存根都被禁止，历史应返回“不可用”。绝不能仅仅为了认识论的完整优美而保留被禁用的内容。
 
 ---
 
@@ -3571,7 +3624,7 @@ Schema Packages 塑造了记忆的解释方式。
 示例：
 
 ```text
-kip://profiles/cognitive-memory@2.x/Skill
+kip://profiles/cognitive-memory@2.0.0/Skill
 ```
 
 而非：
@@ -3720,17 +3773,29 @@ Space **可以 (MAY)** 授权自动化的信任学习。
 
 **应当 (SHOULD)** 受到严格控制。
 
+每次修订 **应当 (SHOULD)** 携带溯源信息——例如一条引用结果 Evidence 的信任修订 Activity——以便大脑日后能够回答**它为什么信任某个来源**（规范 §22.6）。
+
 高影响力的信任变更可能需要人工复核。
 
 ---
 
 # 200. `$self` 的治理 (Governance of `$self`)
 
-`$self` 隶属于 Cognitive Memory Profile，而非 KIP Core。
+MemorySpace **可以 (MAY)** 指定至多一个**自我身份 (self identity)**：该 Space 视为其语义 `$self` 的那个 Concept（规范 §5.6）。
 
-语义上的 `$self` Concept 不会自动拥有治理所有者特权。
+该指定属于受保护的 Space/治理配置状态，而非普通认知内容：
 
-部署环境显式将 Principal 绑定到 `$self`。
+```text
+ordinary KML MUST NOT create or change it (普通 KML 严禁创建或修改它)
+changing it requires a protected Governance operation (修改它需要受保护的治理操作)
+a Space MAY have no self identity at all (Space 可以完全不设置自我身份)
+```
+
+`$self` 是文档用名，而非字面的 KIP 语法；智能体通过 `DESCRIBE PRIMER` 获得所指定 Concept 的精确引用。围绕它的更丰富的自传体建模隶属于 Cognitive Memory Profile。
+
+被指定为自我身份不会赋予任何治理特权。语义上的 `$self` Concept 既不是所有者，也不是 Principal。
+
+部署环境通过 ActorBinding 显式将 Principal 绑定到 `$self`。
 
 ---
 
@@ -3893,7 +3958,7 @@ executable → quarantined
 manage_policy
 manage_trust
 manage_schema
-bind_actor
+manage_actor_binding
 elevate_authority
 ```
 
@@ -4608,40 +4673,38 @@ retract_own (撤回自身断言)
 supersede_own (替代自身断言)
 moderate_assertion (审查断言)
 
-bind_actor (绑定行动者)
+manage_actor_binding (管理行动者绑定)
 bind_canonical_identity (绑定规范身份)
 merge_identity (合并身份)
 
 maintain (系统维护)
-archive (归档)
 quarantine (隔离)
 
 import (导入)
 export (导出)
 share (共享)
 
-manage_retention (管理留存)
-legal_hold (法定留存)
+archive (归档)
 tombstone (墓碑标记)
 purge (彻底清除)
-declassify (降密)
+manage_retention (管理留存)
+legal_hold (法定留存)
 
 manage_membership (管理成员)
 manage_grants (管理授权)
-delegate (委托)
+manage_delegation (管理委托)
 manage_policy (管理策略)
 manage_trust (管理信任)
 manage_schema (管理模式)
 elevate_authority (权限提升)
+declassify (降密)
 approve_high_risk (审批高风险)
 
 read_audit (读取审计)
-read_governance_history (读取治理历史)
+read_history (读取历史)
 ```
 
-确切名称可能会有所演进。
-
-但其核心区分不应改变。
+规范 §29 确定了基线名称。实现 **可以 (MAY)** 细化名称/作用域，但要声明完整的治理一致性，就 **必须 (MUST)** 保留等价的语义区分。
 
 ---
 

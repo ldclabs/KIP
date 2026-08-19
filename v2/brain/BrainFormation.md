@@ -344,7 +344,7 @@ old Assertion A1
 new Evidence E2
 new Proposition if needed
 new Assertion A2
-SUPERSEDE A1 BY A2
+SUPERSEDE ASSERTION A1 BY A2
 belief_revision Activity
 ```
 

@@ -10,7 +10,7 @@
 
 它直接构建于以下规范之上：
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 - [KIP-2.0-Epistemic-Model.md](KIP-2.0-Epistemic-Model.md)
 - [KIP-2.0-Governance.md](KIP-2.0-Governance.md)
@@ -84,7 +84,7 @@ META 在实现这一目标的同时，不会将自省权限转变为变更授权
 
 # 0. 规范性用词定义 (Normative Language)
 
-关键字 **必须 (MUST)**、**严禁 (MUST NOT)**、**必需 (REQUIRED)**、**应当 (SHOULD)**、**不得 (SHOULD NOT)**、**可以 (MAY)** 和 **可选 (OPTIONAL)** 用于表示未来 KIP 2.0 规范的预期要求。
+关键字 **必须 (MUST)**、**严禁 (MUST NOT)**、**必需 (REQUIRED)**、**应当 (SHOULD)**、**不得 (SHOULD NOT)**、**可以 (MAY)** 和 **可选 (OPTIONAL)** 用于表示 KIP 2.0 规范 (`../KIP-2.0-SPECIFICATION.md`) 的要求；两者不一致时以该规范为准。
 
 此处展示的命令语法为架构级提案。
 
@@ -263,7 +263,7 @@ LIST TYPES
 
 # 9. 兼容类别名 (Compatibility Aliases)
 
-为符合模型习惯，实现应当 (SHOULD) 接受诸如以下的等价命令：
+为符合模型习惯，显式启用的兼容性配置档 (§306) 应当 (SHOULD) 接受诸如以下的等价命令：
 
 ```text
 DESCRIBE TYPES
@@ -277,6 +277,8 @@ DESCRIBE PACKAGES
 ```
 
 响应语义应当保持一致。
+
+这些复数形式的 `DESCRIBE` 拼写并不属于原生 KIP 2.0 META 文法：原生端点会将其作为无效语法拒绝，而不会静默地当作别名接受。
 
 ---
 
@@ -417,19 +419,22 @@ META 结果在相关时应当 (SHOULD) 标识足够的上下文，使智能体�
 
 ```json
 {
+  "op_id": "op-1",
+  "status": "succeeded",
   "result": {},
   "context": {
     "space_id": "space-1",
     "snapshot_seq": 1500,
-    "schema_environment_version": 17,
-    "principal_context": "redacted-or-summary"
+    "schema_environment_version": 17
   },
   "warnings": [],
-  "next_cursor": null
+  "next_cursor": "opaque-cursor"
 }
 ```
 
 并非每个操作都需要包含所有字段。
+
+主体/行动者 (Principal/actor) 坐标不承载于此信封中；它们由 `DESCRIBE EXECUTION CONTEXT` (§42) 在治理约束下返回。
 
 ---
 
@@ -1423,7 +1428,7 @@ META 分别报告声明状态与校验状态。
 DESCRIBE ERROR "ImmutableField"
 ```
 
-或使用数字/注册表错误代码。
+操作数是稳定的注册表错误代码 (规范 §87)；KIP 2.0 不定义数字型错误代码。
 
 ---
 
@@ -1887,12 +1892,14 @@ pagination 分页
 
 ```json
 {
-  "search_context": {
+  "context": {
     "space_id": "space-1",
-    "index_seq": 1498,
-    "current_space_seq": 1500,
-    "freshness": "lagging",
-    "mode": "hybrid"
+    "search": {
+      "index_seq": 1498,
+      "current_space_seq": 1500,
+      "consistency": "lagging",
+      "mode": "hybrid"
+    }
   }
 }
 ```
@@ -1914,7 +1921,7 @@ pagination 分页
 如果搜索后端无法提供精确的提交序号对齐，它必须 (MUST) 声明：
 
 ```text
-index_consistency = eventual_unsequenced
+consistency = eventual_unsequenced
 ```
 
 或等效信息。
@@ -2312,6 +2319,7 @@ ensure_proposition
 create_evidence
 create_assertion
 create_activity
+assert_sugar
 facet_mutation
 structural_mutation
 assertion_retraction
@@ -2321,6 +2329,7 @@ activity_transition
 archive
 tombstone
 purge
+set_retention
 non_destructive_merge
 dry_run
 client_key
@@ -3312,10 +3321,10 @@ META `PREVIEW` 的含义是：
 ```text
 PREVIEW KML
 PREVIEW IMPORT CAPSULE
-PREVIEW MERGE
-PREVIEW PURGE
-PREVIEW SCHEMA MIGRATION
 ```
+
+`PREVIEW MERGE`、`PREVIEW PURGE` 与 `PREVIEW SCHEMA MIGRATION` 属于保留的预览目标：
+其操作数语法尚未在 KIP 2.0 META 文法中冻结，因此 2.0 运行时严禁 (MUST NOT) 将其作为基线语法接受。
 
 部分操作可以委托给受保护的子系统 dry-run 逻辑。
 
@@ -3583,17 +3592,17 @@ EXPORT CAPSULE ?target
 WHERE {
   ...
 }
-WITH {
+[WITH {
   closure: "...",
   provenance_depth: ...,
   include_schema: true,
   include_blobs: false,
   proof_profile: "..."
-}
-AS OF SEQ :seq
+}]
+[AS OF SEQ :seq]
 ```
 
-具体语法可能会进一步演进。
+操作数命名的是**选择根绑定 (selection root binding)**：`WHERE` 块绑定到它的每个元素都属于导出根集合。它也可以 (MAY) 是命名单个根元素的参数或字符串。`WITH` 与 `AS OF` 均为可选。
 
 ---
 
@@ -3803,6 +3812,15 @@ explanation levels
 
 # 244. 信任规则可能包含敏感信息 (Trust Rules May Be Sensitive)
 
+信任状态自省使用：
+
+```text
+DESCRIBE TRUST
+DESCRIBE TRUST :signer
+```
+
+并与其他控制平面自省一样受治理约束。
+
 详细的：
 
 ```text
@@ -3862,13 +3880,16 @@ DESCRIBE ACCESS
 
 > 为什么我可以/不能执行此项协议操作？
 
-可能的输入：
+输入列表通过可选的 `WITH` 对象传递：
 
 ```text
-operation
-resource kind/type
-Space
-purpose
+DESCRIBE ACCESS
+WITH {
+  operation: "purge",
+  resource_kind: "Concept",
+  space: :space_id,
+  purpose: "maintenance"
+}
 ```
 
 ---
@@ -3894,7 +3915,7 @@ requires ActorBinding
 调用方严禁通过：
 
 ```text
-DESCRIBE ACCESS resource=X
+DESCRIBE ACCESS WITH {resource: :guessed_id}
 ```
 
 枚举猜测的机密 ID 并推断其是否存在。
@@ -3991,12 +4012,13 @@ DESCRIBE QUERY PLAN
 或：
 
 ```text
-VALIDATE KQL ... WITH PLAN
+VALIDATE KQL :query WITH {plan: true}
 ```
 
 可以暴露数据库执行计划。
 
-这不属于强制的基线要求。
+这不属于强制的基线要求。`DESCRIBE QUERY PLAN` 并不属于 KIP 2.0 META 文法；
+只有 `VALIDATE ... WITH {...}` 选项形式是合法语法，且两者都仍受能力开关约束，仅作诊断用途。
 
 ---
 
@@ -4266,7 +4288,6 @@ CursorTypeMismatch
 
 ```text
 InvalidSyntax
-UnsupportedMetaOperation
 UnsupportedCapability
 
 NotFoundOrNotVisible
@@ -4278,14 +4299,14 @@ SchemaSymbolNotFound
 SchemaSymbolAmbiguous
 SchemaPackageUnavailable
 HistoricalSchemaUnavailable
+ConstraintViolation
 
 SearchModeUnsupported
 SearchIndexUnavailable
-SearchCursorInvalid
+CursorInvalidated
 HistoricalSearchUnavailable
 
 TransactionUnknown
-TransactionReceiptUnavailable
 HistoricalSnapshotUnavailable
 ChangeCursorExpired
 ChangeCursorInvalid
@@ -4295,13 +4316,14 @@ DigestMismatch
 ProofInvalid
 SignerUnknown
 BlobUnavailable
-SchemaValidationFailed
 CapsuleValidationFailed
 ImportPreviewConflict
 
 ResourceExhausted
 ExecutionTimeout
 ```
+
+以上每个代码均来自核心错误注册表 (规范 §87)；META 不新增私有错误代码命名空间。
 
 ---
 
@@ -4335,7 +4357,7 @@ NotFoundOrNotVisible
 DigestMismatch
     verification failure
 
-SchemaValidationFailed
+ConstraintViolation / CapsuleValidationFailed
     validation failure
 
 ImportPreviewConflict
@@ -4355,13 +4377,14 @@ invalid.
 META 错误应当分类说明：
 
 ```text
-retryable
+safe_same_request
+requires_refresh
 requires_different_input
-requires_schema
 requires_authority
 requires_new_snapshot
 requires_reacquire_artifact
-non_retryable_integrity_failure
+outcome_lookup_required
+non_retryable
 ```
 
 ---
@@ -4541,7 +4564,7 @@ Checkpoint
 
 ```text
 PREVIEW KML
-PREVIEW IMPORT
+PREVIEW IMPORT CAPSULE
 high-impact mutation dry-run
 ```
 
@@ -5296,7 +5319,7 @@ current Governance controls historical visibility.
 错误做法 (Bad)：
 
 ```text
-DESCRIBE DOMAIN MAP says Public
+Primer Domain/Topic Map says Public
 → bypass Governance.
 ```
 
@@ -5524,9 +5547,7 @@ preview_statement :=
 preview_target :=
       "KML"
     | "IMPORT CAPSULE"
-    | "MERGE"
-    | "PURGE"
-    | "SCHEMA MIGRATION"
+    (* reserved, not 2.0 syntax: "MERGE" | "PURGE" | "SCHEMA MIGRATION" *)
 
 history_statement :=
       "HISTORY ELEMENT" element_ref history_options?

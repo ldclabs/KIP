@@ -10,7 +10,7 @@
 
 本文档直接建立在以下规范基础之上：
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 - [KIP-2.0-Epistemic-Model.md](KIP-2.0-Epistemic-Model.md)
 - [KIP-2.0-Governance.md](KIP-2.0-Governance.md)
@@ -136,7 +136,7 @@ Concept.display_name (概念展示名称)
 ---
 # 0. 规范性用词定义 (Normative Language)
 
-关键字 **MUST**（必须）、**MUST NOT**（严禁）、**REQUIRED**（必需）、**SHOULD**（应当）、**SHOULD NOT**（不应）、**MAY**（可以）和 **OPTIONAL**（可选）用于指示未来 KIP 2.0 规范的预期要求。
+关键字 **MUST**（必须）、**MUST NOT**（严禁）、**REQUIRED**（必需）、**SHOULD**（应当）、**SHOULD NOT**（不应）、**MAY**（可以）和 **OPTIONAL**（可选）用于指示 KIP 2.0 规范 (`../KIP-2.0-SPECIFICATION.md`) 的要求；两者不一致时以该规范为准。
 
 此处展示的语法属于架构层面的提案。
 
@@ -1451,7 +1451,6 @@ CORRECT EVIDENCE E1 BY E2
 
 ```text
 source
-source_refs
 ```
 
 不会自动成为可信的引擎起源信息。
@@ -2449,7 +2448,21 @@ validated use counters (验证使用计数器)
 单纯的读取绝不会自动强化记忆。
 
 ---
-# 132. UPDATE 上的 `LIMIT` (`LIMIT` on UPDATE)
+# 132. 受限变更上的 `LIMIT` (`LIMIT` on Bounded Mutation)
+
+凡是 `WHERE` 可能选中无界集合的变更语句，都可以在该 `WHERE` 之后紧跟一个可选的
+`LIMIT` (规范 §52.7)：
+
+```text
+UPDATE
+RETRACT ASSERTION
+SET RETENTION
+ARCHIVE
+TOMBSTONE
+PURGE
+```
+
+`MERGE CONCEPT` 不接受 `LIMIT`：它的源与目标已被直接命名，其 `WHERE` 只起守卫作用。
 
 `LIMIT` 是爆炸半径上限控制，而不是语义排序机制。
 
@@ -2801,7 +2814,17 @@ TO "completed"
 EXPECT STATE "running"
 ```
 
-可同时附带允许变更的终态字段。
+允许变更的终态字段在同一语句中、守卫之前一并最终确定：
+
+```prolog
+TRANSITION ACTIVITY :activity_id
+TO "completed"
+SET FIELDS {ended_at: :time}
+SET STRUCTURAL {
+  ("outputs", :assertion_id)
+}
+EXPECT STATE "running"
+```
 
 ---
 # 157. 完成一项活动 (Completing an Activity)
@@ -2990,12 +3013,16 @@ WHERE {
   ?target EVIDENCE {id: :evidence_id}
 }
 
+LIMIT :limit
+
 REFERENCE POLICY "deny_if_referenced"
 
 CONFIRM "PURGE"
 ```
 
-具体的确认语法可以调整，但显式确认的要求必须严格保留。
+确认语法已固定为 `CONFIRM "PURGE"`。
+
+除必需的确认之外，清理扫描还应当 (SHOULD) 用 `LIMIT` 加以限界 (§132)。
 
 ---
 # 171. 物理清理权限 (Purge Permission)
@@ -4038,6 +4065,7 @@ ASSERT ?a (
   mode: "stated",
   confidence: 1.0,
   at: :time,
+  valid: {from: :valid_from, until: null},
 
   evidence: [?e, :message],
 
@@ -4045,7 +4073,15 @@ ASSERT ?a (
 }
 ```
 
-`by` 与 `mode` **必须**书写，其余为可选。`by` 成为断言的 `asserted_by`，`at` 成为其 `asserted_at`，`key` 成为其 `client_key`。`evidence` 是一个引用或引用数组；每一项都成为一条 `("evidence", ref) {role: "support"}` 结构性引证。带其它角色（`challenge`、`context`）的引证不属于语法糖范畴——请写脱糖后的 `CREATE ASSERTION` 并使用 `SET STRUCTURAL`（§74）。
+`by` 与 `mode` **必须**书写，其余为可选。`by` 成为断言的 `asserted_by`，`at` 成为其 `asserted_at`，`valid` 成为其 `valid_time`，`key` 成为其 `client_key`。`stance` 缺省为 `"support"`；省略 `at` 时缺省为引擎事务时间。`evidence` 是一个引用或引用数组；每一项都成为一条 `("evidence", ref) {role: "support"}` 结构性引证。带其它角色（`challenge`、`context`）的引证不属于语法糖范畴——请写脱糖后的 `CREATE ASSERTION` 并使用 `SET STRUCTURAL`（§74）。
+
+取代关系通过一个可选的尾随子句表达：
+
+```prolog
+ASSERT ?a (...) {...} SUPERSEDING :old_assertion
+```
+
+它脱糖为 `SUPERSEDE ASSERTION :old_assertion BY ?a`。
 
 ---
 # 229. ASSERT 的语法糖脱敏展开 (ASSERT Desugaring)
@@ -4056,9 +4092,17 @@ ASSERT ?a (
 ENSURE PROPOSITION 元组
 +
 CREATE ASSERTION 指向该规范命题
++
+出现 SUPERSEDING 时追加 SUPERSEDE ASSERTION old BY new
 ```
 
-引用的证据必须已经存在，或者为同一个 `MUTATE` 块中的局部句柄。
+该脱糖过程是规范且确定的（规范 §55.1）：`ASSERT` 必须 (MUST) 恰好提交其脱糖形式的语义，
+且严禁 (MUST NOT) 产生额外或不一致的状态。
+
+`ASSERT` 既可独立出现，也可置于 `MUTATE` 内。引用的证据必须已经存在，或者为同一个 `MUTATE` 块中的局部句柄。
+
+此处不接受命题 id 形式 `(id: :p)`：`ASSERT` 经由 `ENSURE PROPOSITION` 脱糖，
+而后者按结构解析或创建（§58）。
 
 ---
 # 230. ASSERT 不代表信念被接受 (ASSERT Does Not Mean Accepted)
@@ -4956,6 +5000,7 @@ ensure_proposition
 create_evidence
 create_assertion
 create_activity
+assert_sugar
 
 update
 update_expressions
@@ -4970,6 +5015,7 @@ activity_transition
 archive
 tombstone
 purge
+set_retention
 non_destructive_merge
 
 expect_version
@@ -5012,6 +5058,7 @@ EXPECT VERSION
 
 ```text
 MUTATE 复合块
+ASSERT 语法糖（规范性脱糖）
 前向局部引用
 结构引用变更
 配置文件切面 (Profile Facets)
@@ -5408,11 +5455,16 @@ v1 的 UPSERT 胶囊可以通过迁移/导入适配器进行转换。
       stance:"support",
       mode:"stated",
       confidence:0.9,
-      asserted_at::time
+      asserted_at: :time
     }
     SET STRUCTURAL {
       ("evidence", ?e) {role:"support"}
     }
+  }
+
+同一主张的语法糖写法:
+  ASSERT ?a (?s, "predicate", ?o) {
+    by: ?actor, mode: "stated", confidence: 0.9, evidence: ?e
   }
 
 溯源记录:
@@ -6091,6 +6143,8 @@ upsert_concept :=
 ensure_proposition :=
     "ENSURE PROPOSITION" handle?
     "(" term "," predicate_term "," term ")"
+    expect_version_clause?
+        (* EXPECT VERSION 0 即"仅创建"形式（§32）*)
 
 assert_statement :=
     "ASSERT" handle?
@@ -6147,32 +6201,73 @@ update_clause :=
 
 retract_assertion :=
     "RETRACT ASSERTION" target
-    where_clause?
+    ("WHERE" "{" kql_clause* "}")?
     limit_clause?
     expect_state_clause?
 
 supersede_assertion :=
     "SUPERSEDE ASSERTION" target
     "BY" target
+    expect_state_clause?
 
 correct_evidence :=
     "CORRECT EVIDENCE" target
     "BY" target
+    expect_state_clause?
 
 transition_activity :=
     "TRANSITION ACTIVITY" target
     "TO" value
+    transition_finalize_clause*
     expect_state_clause?
 
+transition_finalize_clause :=
+      set_fields_clause
+    | set_structural_clause
+        (* 终态输出 / ended_at 可原子最终确定（§157）*)
+
+set_retention :=
+    "SET RETENTION" target
+    assignment_object
+    ("WHERE" "{" kql_clause* "}")?
+    limit_clause?
+    expect_version_clause?
+
+archive_statement :=
+    "ARCHIVE" target
+    ("WHERE" "{" kql_clause* "}")?
+    limit_clause?
+    expect_state_clause?
+
+tombstone_statement :=
+    "TOMBSTONE" target
+    ("WHERE" "{" kql_clause* "}")?
+    limit_clause?
+    expect_state_clause?
+
+purge_statement :=
+    "PURGE" target
+    ("WHERE" "{" kql_clause* "}")?
+    limit_clause?
+    ("REFERENCE POLICY" value)?
+    "CONFIRM" "\"PURGE\""
+
 merge_concept :=
-    "MERGE CONCEPT" variable
-    "INTO" variable
-    "WHERE" "{"
-      kql_clause*
-    "}"
+    "MERGE CONCEPT" target
+    "INTO" target
+    ("WHERE" "{" kql_clause* "}")?
+    expect_version_clause?
+        (* 无 limit_clause：源与目标已被直接命名 *)
+
+target :=
+    variable | parameter | string
+        (* ?variable 目标由 WHERE 绑定，或是 MUTATE 内的局部句柄；
+           直接引用目标可省略 WHERE（§102）*)
 ```
 
-正式语法将需要针对独立 ID、局部句柄、字段、引用和生命周期选项制定精确规则。
+规范性的机器可读语法为
+[`../grammar/KIP-2.0-KML.ebnf`](../grammar/KIP-2.0-KML.ebnf)，本草案是它的阅读辅助。
+局部句柄、字段可变性、引用解析与生命周期合法性仍是语法之外的语义校验规则。
 
 ---
 # 341. 推荐的语法设计哲学 (Recommended Syntax Philosophy)

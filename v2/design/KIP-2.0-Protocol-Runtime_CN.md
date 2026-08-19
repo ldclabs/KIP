@@ -10,7 +10,7 @@
 
 它直接构建于以下规范之上：
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 - [KIP-2.0-Epistemic-Model.md](KIP-2.0-Epistemic-Model.md)
 - [KIP-2.0-Governance.md](KIP-2.0-Governance.md)
@@ -76,7 +76,7 @@ JSON response
 
 # 0. 规范性用词定义 (Normative Language)
 
-关键字 **必须 (MUST)**、**严禁 (MUST NOT)**、**必需 (REQUIRED)**、**应当 (SHOULD)**、**不得 (SHOULD NOT)**、**可以 (MAY)** 和 **可选 (OPTIONAL)** 用于指示未来 KIP 2.0 规范中预期的协议要求。
+关键字 **必须 (MUST)**、**严禁 (MUST NOT)**、**必需 (REQUIRED)**、**应当 (SHOULD)**、**不得 (SHOULD NOT)**、**可以 (MAY)** 和 **可选 (OPTIONAL)** 用于指示 KIP 2.0 规范 (`../KIP-2.0-SPECIFICATION.md`) 中的协议要求；两者不一致时以该规范为准。
 
 此处展示的 JSON 字段名称是提议的基准连线表示。
 
@@ -247,6 +247,33 @@ KIP 请求/响应 JSON 是一种交互格式。
 
 并非每个字段都是必需的。
 
+信封还 **可以 (MAY)** 携带摄入上下文 (ingestion context)，使被观测的源材料直接从传输信封进入
+Evidence，而不是在模型生成的命令文本中被重新誊写：
+
+```json
+{
+  "ingest": {
+    "evidence": [
+      {
+        "key": "msg",
+        "evidence_class": "user_statement",
+        "payload": "I prefer dark mode.",
+        "media_type": "text/plain",
+        "observed_at": "2026-08-14T01:00:00Z",
+        "source_actor": "alice",
+        "client_key": "message:msg-123"
+      }
+    ]
+  }
+}
+```
+
+每个条目在该请求的事务范围内铸造 (mint) 一个 Evidence 元素，并将其 `key` 绑定为请求参数，
+参数值即所铸造 Evidence 的引用，因此命令以 `:msg` 引用它（例如 `evidence: :msg`）。每个条目
+**必须 (MUST)** 且只能声明 `payload` / `payload_artifact` 之一；运行时 **必须 (MUST)** 原样保留
+所提供的载荷，严禁由模型改写；`source_actor` 仅记录为 Evidence 来源，绝不作为 Principal 身份；
+摄入是事务性的：如果事务中止，则不会持久创建任何 Evidence。
+
 ---
 
 # 8. 最小化请求 (Minimal Request)
@@ -403,10 +430,10 @@ tx_id
 如果存在多个候选空间且无法安全做出显式选择：
 
 ```text
-SpaceRequired
+InvalidRequestEnvelope
 ```
 
-返回空间缺失错误优于盲目猜测。
+返回显式的请求信封错误优于盲目猜测。
 
 ---
 
@@ -1337,7 +1364,7 @@ on_error = 遗留语义 (legacy semantics)
 
 即已足够。
 
-对于多个原生 v2 操作，运行时 **应当 (SHOULD)** 要求显式提供 `execution.mode` 而不是盲目猜测。
+对于多个原生 v2 操作，运行时 **必须 (MUST)** 要求显式提供 `execution.mode` 而不是盲目猜测。
 
 ---
 
@@ -1952,7 +1979,7 @@ export
 
 # 122. 预览在语义上属于只读 (Preview Is Readonly Semantically)
 
-`PREVIEW KML` 与 `PREVIEW IMPORT` 不会进行提交。
+`PREVIEW KML` 与 `PREVIEW IMPORT CAPSULE` 不会进行提交。
 
 对预览尝试进行的安全审计属于单独的管理性副作用，不属于认知状态。
 
@@ -2288,13 +2315,19 @@ KIP 不管理外部现实世界行动的回滚。
 ```json
 {
   "options": {
-    "max_result_rows": 100,
-    "max_write_elements": 50
+    "extensions": {
+      "vendor.example/limits": {
+        "max_result_rows": 100,
+        "max_write_elements": 50
+      }
+    }
   }
 }
 ```
 
 以降低影响爆炸半径（blast radius）。
+
+基线 `options` 仅定义 `dry_run` 与 `deadline_ms`；在后续协议修订将其标准化之前，请求级上限属于带命名空间的扩展字段。
 
 ---
 
@@ -2564,6 +2597,7 @@ rolled_back
 
   "receipt": {
     "tx_id": "tx-900",
+    "space_id": "space-1",
     "snapshot_seq": 1500,
     "space_seq": 1501,
     "committed_at": "...",
@@ -2997,6 +3031,7 @@ space_id
 snapshot_seq
 schema_environment_version
 认识论策略 (epistemic policy)
+valid_at (世界有效时间基准)
 搜索索引检查点 (search index checkpoint)
 游标 (cursor)
 ```
@@ -4334,7 +4369,11 @@ UnsupportedCapability
 ```json
 {
   "options": {
-    "search_fallback": ["hybrid", "keyword"]
+    "extensions": {
+      "vendor.example/search_fallback": {
+        "modes": ["hybrid", "keyword"]
+      }
+    }
   }
 }
 ```
@@ -5658,6 +5697,8 @@ KQL 流式数据行全部共享相同的快照
 
 ```json
 {
+  "kip": "2.0",
+  "request_id": "req-101",
   "status": "succeeded",
 
   "results": [
@@ -5687,6 +5728,10 @@ KQL 流式数据行全部共享相同的快照
   }
 }
 ```
+
+此处为便于阅读，将被观测的载荷表示为绑定参数。当运行时提供摄入上下文 (§7) 时，载荷
+**应当 (SHOULD)** 通过 `ingest.evidence[]` 传输，命令 **应当 (SHOULD)** 以 `:key` 引用所铸造的
+Evidence，而不是携带由模型撰写的被观测内容。
 
 ---
 
@@ -5723,6 +5768,8 @@ DESCRIBE TRANSACTION BY IDEMPOTENCY KEY
 
 ```json
 {
+  "kip": "2.0",
+
   "execution": {
     "mode": "sequence",
     "on_error": "stop"
@@ -5742,6 +5789,7 @@ DESCRIBE TRANSACTION BY IDEMPOTENCY KEY
 
     {
       "op_id": "write",
+      "command": "MUTATE { ... }",
       "idempotency_key": "..."
     }
   ]
@@ -5778,6 +5826,8 @@ ground.result[0].id
 
 ```json
 {
+  "kip": "2.0",
+
   "execution": {
     "mode": "independent"
   },
@@ -5806,6 +5856,8 @@ ground.result[0].id
 
 ```json
 {
+  "kip": "2.0",
+
   "execution": {
     "mode": "atomic"
   },
@@ -6313,6 +6365,7 @@ request :=
   compatibility_profile?,
   execution?,
   read?,
+  ingest?,
   preconditions?,
   operations[1..N],
   parameters?,
@@ -6329,7 +6382,8 @@ operation :=
   command | ast,
   parameters?,
   idempotency_key?,
-  options?
+  options?,
+  extensions?
 }
 
 execution :=
@@ -6337,7 +6391,8 @@ execution :=
   mode: independent | sequence | atomic,
   on_error?: stop | continue,
   isolation?,
-  idempotency_key?
+  idempotency_key?,
+  extensions?
 }
 
 response :=
@@ -6352,7 +6407,8 @@ response :=
   receipt?,
   warnings?,
   next_cursor?,
-  error?
+  error?,
+  extensions?
 }
 ```
 

@@ -10,7 +10,7 @@
 
 它直接构建于以下规范基础之上：
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 - [KIP-2.0-Epistemic-Model.md](KIP-2.0-Epistemic-Model.md)
 - [KIP-2.0-Governance.md](KIP-2.0-Governance.md)
@@ -56,11 +56,13 @@ a list of mutations (一系列变更突变列表)
 
 # 0. 规范性用词定义 (Normative Language)
 
-关键词 **必须 (MUST)**、**严禁 (MUST NOT)**、**必需 (REQUIRED)**、**应当 (SHOULD)**、**不得 (SHOULD NOT)**、**可以 (MAY)** 和 **可选 (OPTIONAL)** 用于表示未来 KIP 2.0 规范的预期要求。
+关键词 **必须 (MUST)**、**严禁 (MUST NOT)**、**必需 (REQUIRED)**、**应当 (SHOULD)**、**不得 (SHOULD NOT)**、**可以 (MAY)** 和 **可选 (OPTIONAL)** 用于表示 KIP 2.0 规范 (`../KIP-2.0-SPECIFICATION.md`) 的要求；两者不一致时以该规范为准。
 
 除非另有明确说明，具体的 API 名称、请求 JSON 和 KML 语法仅作为说明性示例。
 
 事务的语义才是规范的核心所在。
+
+凡是 `KIP-2.0-SPECIFICATION.md` 已经确定的名称、错误码或线路结构，均以规范为准，本文档与之保持一致。写作 `Specification §N` 的引用指向该规范文档；裸写的 `§N` 指向本文档。
 
 ---
 
@@ -177,20 +179,20 @@ inside one explicit transaction (在单个显式事务内运行)
 传输批处理（Transport Batch）：
 
 ```text
-commands[]
+operations[] with execution.mode = independent | sequence
 ```
 
 其存在的目的是减少网络往返延迟。
 
-各命令依据常规命令语义独立执行。
+每个改变状态的操作依据常规命令语义在各自的事务中提交。
 
-先前的成功写入绝不会仅仅因为后续命令失败而发生回滚。
+先前的成功写入绝不会仅仅因为后续操作失败而发生回滚。
 
 ---
 
 ## 4.2 原子事务 (Atomic Transaction)
 
-显式事务（Explicit Transaction）意味着：
+`execution.mode = atomic` 意味着：
 
 ```text
 all durable mutations commit (所有持久化突变全部提交)
@@ -590,37 +592,40 @@ space_seq
 
 # 24. 事务信封 (Transaction Envelope)
 
-说明性的逻辑请求结构：
+原子事务并非独立的信封结构，它就是普通的 KIP 请求信封加上 `execution.mode = atomic`：
 
 ```json
 {
-  "space_id": "space-1",
+  "kip": "2.0",
+  "space": {
+    "id": "space-1"
+  },
 
-  "transaction": {
+  "execution": {
     "mode": "atomic",
+    "isolation": "serializable",
+    "idempotency_key": "formation:run-42"
+  },
 
-    "idempotency_key": "formation:run-42",
+  "preconditions": {
+    "schema_environment_version": 12
+  },
 
-    "options": {
-      "isolation": "serializable",
-      "dry_run": false
-    },
+  "operations": [
+    {
+      "op_id": "op-1",
+      "language": "KML",
+      "command": "..."
+    }
+  ],
 
-    "preconditions": {
-      "schema_environment_version": 12
-    },
-
-    "operations": [
-      {
-        "language": "KML",
-        "command": "..."
-      }
-    ]
+  "options": {
+    "dry_run": false
   }
 }
 ```
 
-具体线路传输格式在此不作硬性限定。
+规范性的线路结构见规范 §71/§75 与 `v2/schemas/kip-request.schema.json`。
 
 ---
 
@@ -786,10 +791,10 @@ KIP 不限定具体的底层机制。
 高保障客户端 **可以 (MAY)** 要求：
 
 ```text
-serializable
+execution.isolation = "serializable"
 ```
 
-并拒绝连接较弱的端点。
+无法满足所请求隔离级别的运行时 **必须 (MUST)** 以 `UnsupportedIsolation` 失败（规范 §32.2、规范 §87.1），**严禁 (MUST NOT)** 静默降级并报告成功。
 
 基准 KIP 实现 **应当 (SHOULD)** 以可串行化语义为目标。
 
@@ -895,6 +900,7 @@ snapshot_token_ttl (快照令牌生存时间)
 element version (元素版本)
 element exists (元素存在)
 element absent (元素不存在)
+element lifecycle state (元素生命周期状态)
 Space revision (空间修订号)
 Schema Environment version (模式环境版本)
 Governance version/binding (治理版本/绑定)
@@ -902,7 +908,16 @@ query/result guard (查询/结果守卫)
 client logical key expectation (客户端逻辑键预期)
 ```
 
-具体的 KML/请求语法在此不作硬性限定。
+KIP 2.0 已经确定了可移植的表达面：
+
+```text
+EXPECT VERSION n        KML 元素版本 / 仅创建守卫
+EXPECT STATE "active"   KML 生命周期状态守卫
+preconditions.space_seq
+preconditions.schema_environment_version
+```
+
+治理/查询守卫仍属于引擎内部的可串行化校验（§50、§62）。
 
 ---
 
@@ -1237,15 +1252,15 @@ not writable (不可写)
 
 # 60. 模式变更冲突 (Schema Change Conflict)
 
-推荐返回的错误包括：
+推荐返回的错误（规范 §87.2）：
 
 ```text
 SchemaEnvironmentChanged
 or
-SchemaVersionNoLongerWritable
+SchemaPackageUnavailable
 ```
 
-并附带安全的重试指引。
+并附带安全的重试指引（`requires_refresh`）。
 
 ---
 
@@ -1724,15 +1739,15 @@ tentative results must not be presented as committed truth (暂存结果严禁�
 
 # 90. KQL 与 KML 混合 (KQL and KML Mixing)
 
-未来的显式事务 API **可以 (MAY)** 允许在单个事务内：
+`atomic` 请求 **可以 (MAY)** 在单个事务内混合多种语言：
 
 ```text
 KQL read (KQL 读取)
 KML write (KML 写入)
-KQL verify (KQL 校验)
+VERIFY / VALIDATE (校验)
 ```
 
-具体语法在此不作硬性限定。
+运行时以实际解析出的语义为准分类；声明的 `language` 标签不能把写操作降级为只读（规范 §73.1）。
 
 ---
 
@@ -1948,13 +1963,12 @@ status = retracted
 
 # 105. 生命周期转换历史 (Lifecycle Transition History)
 
-以下状态转换：
+断言生命周期的基线状态为 `active`、`retracted`、`superseded`、`expired`（规范 §14）。以下状态转换：
 
 ```text
 active → superseded (活跃 → 被废弃替代)
 active → retracted (活跃 → 已撤回)
 active → expired (活跃 → 已过期)
-active → quarantined [Governance] (活跃 → 已隔离 [治理])
 ```
 
 对于声明支持历史投影的部署，**必须 (MUST)** 能够从以下途径重构：
@@ -1964,6 +1978,8 @@ transaction/change history (事务/变更历史)
 or (或者)
 equivalent append-preserving version history (等价的仅追加版本历史)
 ```
+
+治理隔离（quarantine）是作用于同一元素的控制平面状态转换，而不是断言生命周期状态：隔离并不宣称断言者撤回了什么（治理文档 §133–§134）。它按同样的规则通过治理/审计历史重构。
 
 ---
 
@@ -2073,6 +2089,8 @@ record merge Activity/audit (记录合并活动/审计)
 ```
 
 且无需重写原始的历史引用。
+
+`merged_into` **必须 (MUST)** 保持无环（规范 §11.1）。这是一个真实的并发风险：分别执行 `A → B` 与 `B → A` 的两个事务，各自对照自身起始快照都能通过校验，但双双提交后仍会形成环。提交校验 **必须 (MUST)** 针对最终写集评估无环不变式，并以 `IdentityMergeConflict` 或 `SerializationConflict` 中止失败方。
 
 ---
 
@@ -2256,13 +2274,19 @@ audit receipts (审计回执)
 
 事务历史 **严禁 (MUST NOT)** 伪造已删除的内容。
 
-在法律/策略允许的前提下，它可以保留合法的回执说明，例如：
+在法律/策略允许的前提下，清除 **应当 (SHOULD)** 留下规范 §60.3 定义的最小且不可还原的**摘要存根 (digest stub)**：
 
 ```text
-element existed (元素曾经存在)
-purged under policy X at seq N (在序列 N 依据策略 X 被清除)
-content unavailable (内容不可用)
+element kind (元素种类)
+content digest (内容摘要)
+class (类别)
+observation time (观察时间)
+purging Activity reference (执行清除的活动引用)
 ```
+
+以便在字节被销毁之后，引用完整性、来源根身份与独立性计数仍然成立。
+
+存根不是内容，也不是可还原的证据。若连存根都被禁止，历史应返回“不可用”，而不是伪造内容。
 
 ---
 
@@ -2415,7 +2439,7 @@ exactly-once durable memory commit (幂等键下的精准一次持久化记忆�
 
 # 133. 回执逻辑形态 (Receipt Logical Shape)
 
-说明性结构：
+回执的规范形态见规范 §33.2 以及 `v2/schemas/kip-response.schema.json` 中的 `Receipt` 定义。它是一个扁平对象；超出其具名字段的内容放入 `change_summary` 或带命名空间的 `extensions` 条目。
 
 ```json
 {
@@ -2428,37 +2452,32 @@ exactly-once durable memory commit (幂等键下的精准一次持久化记忆�
 
   "committed_at": "2026-08-13T14:00:00Z",
 
-  "idempotency": {
-    "key": "formation:991",
-    "request_digest": "sha256:..."
-  },
+  "transaction_class": "cognitive",
 
-  "execution": {
-    "transaction_class": "cognitive",
-    "isolation": "serializable"
-  },
+  "request_digest": "sha256:...",
+  "semantic_plan_digest": "sha256:...",
+  "result_digest": "sha256:...",
 
-  "schema": {
-    "environment_version": 17
-  },
+  "schema_environment_version": 17,
 
-  "governance": {
-    "decision_ref": "gov-decision-...",
-    "policy_versions": []
-  },
-
-  "changes": {
+  "change_summary": {
     "created": ["evidence-1", "assertion-2"],
     "updated": ["assertion-1"],
     "tombstoned": [],
-    "purged": []
+    "purged": [],
+    "change_cursor": "opaque-cursor"
   },
 
-  "change_cursor": "opaque-cursor",
-
-  "warnings": []
+  "extensions": {
+    "kip.governance/decision": {
+      "decision_ref": "gov-decision-...",
+      "policy_versions": []
+    }
+  }
 }
 ```
+
+幂等键与请求的隔离级别属于请求状态，不是回执字段：它们回显在响应信封的 `execution` 中，而不在回执内部。
 
 ---
 
@@ -2556,14 +2575,13 @@ receipt_digest
 {
   "tx_id": "tx-124",
   "status": "aborted",
-  "snapshot_seq": 912,
-  "error": {
-    "code": "VersionConflict"
-  }
+  "snapshot_seq": 912
 }
 ```
 
 对于未改变状态的中止，不会分配 `space_seq`。
+
+失败码（`VersionConflict`、`SerializationConflict`、`NotAuthorized` 等）属于信封/操作层的 `error` 对象（规范 §86.1），而不属于回执。
 
 ---
 
@@ -2575,12 +2593,13 @@ receipt_digest
 {
   "tx_id": "tx-125",
   "status": "no_effect",
-  "snapshot_seq": 912,
-  "space_seq": null
+  "snapshot_seq": 912
 }
 ```
 
-幂等映射可以保留该结果。
+`space_seq` 是省略而非置空：`no_effect` 事务不分配认知提交位置（§17、§85）。
+
+幂等注册表 **必须 (MUST)** 保留该结果，并在完全一致的重试上重放它（规范 §34.3）。
 
 ---
 
@@ -2606,6 +2625,14 @@ idempotency key
 
 网络连接中断。
 
+在运行时仍能作答的情况下，它必须显式地表达这种不确定性，而不是谎报为中止：
+
+```text
+top-level status = outcome_unknown
+error code       = OutcomeUnknown
+retry class      = outcome_lookup_required
+```
+
 正确的恢复流程为：
 
 ```text
@@ -2617,6 +2644,8 @@ lookup/retry same idempotency key (使用相同的幂等键查询或重试)
 ```text
 blindly submit a fresh logical transaction (盲目提交一个全新的逻辑事务)
 ```
+
+仅凭客户端超时并不能证明事务已中止（§210、规范 §80.2）。
 
 ---
 
@@ -2736,6 +2765,7 @@ at-least-once delivery (至少一次交付保证)
 消费者通过以下标识去重：
 
 ```text
+space_id
 space_seq
 tx_id
 ```
@@ -2918,29 +2948,29 @@ historical_governance (历史治理)
 
 ---
 
-# 161. `AS OF space_seq`
+# 161. `AS OF SEQ`
 
-在概念上，历史读取可以请求：
+历史读取按提交位置请求空间状态：
 
-```text
-Space state as of sequence N (截至序列 N 为止的空间状态)
+```prolog
+AS OF SEQ 1500
 ```
 
-具体的 KQL/META 语法在此不作硬性限定。
+`AS OF` 选择认知事务时间，`FOR TIME` 选择世界有效时间，二者相互独立（规范 §48）。
 
 ---
 
-# 162. `AS OF tx_id`
+# 162. `AS OF TX`
 
-因为每个已提交的事务都映射到一个序列号，具体实现 **可以 (MAY)** 支持：
+因为每个已提交的事务都映射到一个序列号，运行时会把事务标识解析为其提交位置：
 
-```text
-AS OF tx_id
+```prolog
+AS OF TX "tx-900"
 ```
 
 ---
 
-# 163. `AS OF time`
+# 163. `AS OF TIME`
 
 基于时间的历史查询可以解析为：
 
@@ -3327,43 +3357,50 @@ A2 supersedes A1 (A2 废弃替代 A1)
 
 # 186. 事务失败分类 (Transaction Failure Categories)
 
-推荐类别：
+事务中止使用核心错误注册表（规范 §87）中的稳定错误码。与事务相关的子集为：
 
 ```text
-SyntaxError (语法错误)
-ValidationError (验证错误)
-AuthorizationDenied (授权拒绝)
-ApprovalRequired (需要审批)
-VersionConflict (版本冲突)
-SerializationConflict (可串行化冲突)
-PreconditionFailed (前置条件失败)
-SchemaResolutionError (模式解析错误)
-SchemaEnvironmentChanged (模式环境已改变)
-SchemaVersionBlocked (模式版本已被封锁)
-IdempotencyConflict (幂等冲突)
-ReferenceConflict (引用冲突)
-UniquenessConflict (唯一性冲突)
-ResourceExhausted (资源耗尽)
-TransactionTooLarge (事务过大)
-CrossSpaceAtomicityUnsupported (不支持跨空间原子性)
-ExternalSideEffectUnsupported (不支持外部副作用)
-InternalError (内部错误)
+InvalidSyntax                语法错误
+ConstraintViolation          核心/模式校验失败
+TypeMismatch                 模式类型不匹配
+NotAuthorized                授权被拒
+RequiresApproval             审批缺失/过期
+SchemaSymbolNotFound         别名/符号解析失败
+SchemaSymbolAmbiguous        别名/符号有歧义
+SchemaPackageUnavailable     模式包被封锁/不可写
+SchemaEnvironmentChanged     事务执行期间模式环境发生变更
+VersionConflict              EXPECT VERSION 不匹配
+PreconditionFailed           EXPECT STATE / 信封前置条件失败
+SerializationConflict        可串行化校验冲突
+IdempotencyConflict          相同幂等键但请求不同
+ReferenceError               引用完整性错误
+IdentityConflict             逻辑身份/唯一性冲突
+ClientKeyConflict            client_key 被复用于不同载荷
+TransactionTooLarge          超出事务规模上限
+ResourceExhausted            超出运行时资源上限
+UnsupportedCapability        例如未提供跨空间原子性
+UnsupportedIsolation         未提供所请求的隔离级别
+OutcomeUnknown               无法确定提交结果
+InternalError                引擎内部故障
 ```
 
-具体的 KIP 错误代码在此不作硬性限定。
+实现 **严禁 (MUST NOT)** 为这些情形另造一套并行的名称。
 
 ---
 
 # 187. 可重试性 (Retryability)
 
-错误 **应当 (SHOULD)** 标明：
+每个错误都携带一个来自规范 §86.3 的重试类别：
 
 ```text
-retryable (可直接重试)
-non_retryable (不可重试)
-retry_after_refresh (刷新状态后重试)
-requires_approval (需要审批)
-requires_schema_update (需要模式更新)
+safe_same_request            以完全相同的请求重试（沿用同一幂等键）
+requires_refresh             重新读取状态/重新解析模式后再构建请求
+requires_different_input     请求本身有误
+requires_authority           需要不同的权限或审批
+requires_new_snapshot        基于新的快照重试
+requires_reacquire_artifact  重新上传/暂存工件
+outcome_lookup_required      先确定不明确的结果
+non_retryable                不要重试
 ```
 
 ---
@@ -4362,90 +4399,89 @@ outcome delivered twice (结果被投递两次)
 
 ---
 
-# 251. 推荐事务 API 形式 (Recommended Transaction API Shape)
+# 251. 事务请求形态 (Transaction Request Shape)
 
-说明性结构：
+KIP 2.0 已在规范 §71/§75 中确定：一个请求信封，一个必填的 `execution.mode`。
 
 ```json
 {
-  "space_id": "space-1",
+  "kip": "2.0",
+  "space": {
+    "id": "space-1"
+  },
 
-  "transaction": {
+  "execution": {
     "mode": "atomic",
-
-    "idempotency_key": "memory-formation:msg-991",
-
     "isolation": "serializable",
+    "idempotency_key": "memory-formation:msg-991"
+  },
 
-    "preconditions": {
-      "schema_environment_version": 17
+  "preconditions": {
+    "schema_environment_version": 17
+  },
+
+  "operations": [
+    {
+      "op_id": "op-1",
+      "command": "..."
     },
-
-    "operations": [
-      {
-        "command": "..."
-      },
-      {
-        "command": "..."
-      }
-    ]
-  }
+    {
+      "op_id": "op-2",
+      "command": "..."
+    }
+  ]
 }
 ```
 
-最终 API 也可以提供：
-
-```text
-execute_transaction(...)
-```
-
-以确保原子性边界绝不会与已有的 `execute_kip(commands=...)` 发生混淆。
-
 ---
 
-# 252. 推荐命名决策 (Recommended Naming Decision)
+# 252. 命名决策 (Naming Decision)
 
-因为 KIP 1.x 已经使用：
+KIP 1.x 使用：
 
 ```text
 commands[]
 ```
 
-来表示非原子的批处理执行，因此 KIP 2.0 **应当 (SHOULD)** 避免通过添加隐蔽的标记参数：
+表示非原子的批处理执行，而原子性在请求中完全不可见。
+
+KIP 2.0 不保留该名称，也不给它加一个布尔标记。它把该数组改名为 `operations[]`，并且在存在多个操作时，把原子性边界表达为一个显式且 **必填 (REQUIRED)** 的枚举：
 
 ```text
-commands[] + transaction=true
+execution.mode = independent | sequence | atomic
 ```
 
-来引入事务。
-
-采用一个独立的顶层事务形式或专用 API 更加安全且具备自解释性。
+缺少 `execution` 的多操作请求是非法的，因此批处理永远不会被误当作事务。
 
 ---
 
-# 253. 可能的接口分离 (Possible Interface Separation)
+# 253. 运行时接口分离 (Runtime Interface Separation)
 
-推荐的概念接口：
+已确定的运行时表达面是两条执行路径加上 META（规范 §68、§76、§77）：
 
 ```text
 execute_kip
-    one command / transport batch (单命令 / 传输批处理)
-
-execute_kip_transaction
-    explicit atomic transaction (显式原子事务)
+    在治理约束下执行 KQL / KML / META
+    由 execution.mode 区分批处理与原子事务
 
 execute_kip_readonly
-    ordinary read (常规只读读取)
+    只读路径；必须拒绝任何改变状态的语义
 
-execute_kip_snapshot
-    multiple reads pinned to one snapshot (绑定至单一快照的多重读取)
+read.snapshot_token
+    将多次读取绑定到同一个快照 (§37)
 
-transaction_status
-    lookup by tx_id / idempotency key (按 tx_id / 幂等键查询事务状态)
+DESCRIBE TRANSACTION :tx_id
+DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :key
+    事务查找 (§141)
 
-changes
-    resumable Space Change Stream (可恢复的空间变更流)
+CHANGES SINCE :cursor
+CHANGES AFTER SEQ :seq
+    可恢复的空间变更流 (§146)
 ```
+
+不存在独立的 `execute_kip_transaction` 端点：边界由 mode 承载。
+
+具体的 MCP/HTTP 绑定仍由传输层决定。
 
 ---
 
@@ -4460,7 +4496,7 @@ changes
 并主动选择：
 
 ```text
-transaction (事务)
+execution.mode = atomic (原子模式)
 ```
 
 而不是意外依赖批处理的非原子行为。
@@ -4924,15 +4960,16 @@ source/destination transaction lineage (源/目标事务历史血统)
 
 # 274. 与 KQL 的关系 (Relationship to KQL)
 
-KQL 最终应当支持：
+KQL 提供历史/事务读取表达面：
 
-```text
-snapshot/as-of reads (快照 / as-of 读取)
-transaction-pinned reads (事务绑定的读取)
-transaction ID/system history lookup where authorized (在授权下进行事务 ID/系统历史查询)
+```prolog
+AS OF SEQ :seq
+AS OF TX :tx_id
+AS OF TIME :t
+FOR TIME :world_time
 ```
 
-具体语法在此不作硬性限定。
+以及用于把多次读取绑定到同一快照的 `read.snapshot_token`。事务/系统历史查询属于 META（§276）。
 
 ---
 
@@ -4968,10 +5005,17 @@ change stream capability (变更流能力)
 history capability (历史能力)
 ```
 
-并且可以包含：
+并通过以下语句：
 
 ```text
-DESCRIBE TRANSACTION (描述事务)
+DESCRIBE TRANSACTION :tx_id
+DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :key
+DESCRIBE SNAPSHOT
+HISTORY ELEMENT :id
+HISTORY SPACE
+CHANGES SINCE :cursor
+CHANGES AFTER SEQ :seq
+SNAPSHOT
 ```
 
 用于授权审计。

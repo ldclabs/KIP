@@ -10,7 +10,7 @@ This document defines the execution and wire-level runtime contract of KIP 2.0: 
 
 It builds directly on:
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 - [KIP-2.0-Epistemic-Model.md](KIP-2.0-Epistemic-Model.md)
 - [KIP-2.0-Governance.md](KIP-2.0-Governance.md)
@@ -76,7 +76,7 @@ Its central thesis is:
 
 # 0. Normative Language
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate intended requirements for the future KIP 2.0 specification.
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate requirements of the KIP 2.0 Specification (`../KIP-2.0-SPECIFICATION.md`), which is authoritative where the two differ.
 
 The JSON field names shown here are a proposed baseline wire representation.
 
@@ -247,6 +247,36 @@ Recommended baseline:
 
 Not every field is required.
 
+An envelope MAY additionally carry an ingestion context so observed source
+material enters Evidence from the transport envelope instead of being re-typed
+inside model-generated command text:
+
+```json
+{
+  "ingest": {
+    "evidence": [
+      {
+        "key": "msg",
+        "evidence_class": "user_statement",
+        "payload": "I prefer dark mode.",
+        "media_type": "text/plain",
+        "observed_at": "2026-08-14T01:00:00Z",
+        "source_actor": "alice",
+        "client_key": "message:msg-123"
+      }
+    ]
+  }
+}
+```
+
+Each entry mints one Evidence element inside the request's transaction scope and
+binds its `key` as a request parameter whose value is the minted Evidence
+reference, so a command cites it as `:msg` (for example `evidence: :msg`). An
+entry MUST declare exactly one of `payload` / `payload_artifact`, the runtime
+MUST preserve the supplied payload without model rewriting, `source_actor` is
+recorded as Evidence source and never as Principal identity, and ingestion is
+transactional: if the transaction aborts, no Evidence is durably created.
+
 ---
 
 # 8. Minimal Request
@@ -403,7 +433,7 @@ A session/runtime MAY define one unambiguous default Space.
 If more than one candidate exists and no explicit selection is safe:
 
 ```text
-SpaceRequired
+InvalidRequestEnvelope
 ```
 
 is preferable to guessing.
@@ -1345,7 +1375,7 @@ implicit single-operation execution
 
 is sufficient.
 
-For multiple native v2 operations, the runtime SHOULD require explicit `execution.mode` rather than guess.
+For multiple native v2 operations, the runtime MUST require explicit `execution.mode` rather than guess.
 
 ---
 
@@ -1968,7 +1998,7 @@ permission stronger than ordinary read.
 
 # 122. Preview Is Readonly Semantically
 
-`PREVIEW KML` and `PREVIEW IMPORT` do not commit.
+`PREVIEW KML` and `PREVIEW IMPORT CAPSULE` do not commit.
 
 A security audit of the attempted preview is a separate administrative side effect and not cognitive state.
 
@@ -2308,13 +2338,19 @@ A request may ask for stricter limits:
 ```json
 {
   "options": {
-    "max_result_rows": 100,
-    "max_write_elements": 50
+    "extensions": {
+      "vendor.example/limits": {
+        "max_result_rows": 100,
+        "max_write_elements": 50
+      }
+    }
   }
 }
 ```
 
 to reduce blast radius.
+
+Baseline `options` defines only `dry_run` and `deadline_ms`; request-scoped ceilings are a namespaced extension until a later protocol revision standardizes them.
 
 ---
 
@@ -2584,6 +2620,7 @@ Recommended:
 
   "receipt": {
     "tx_id": "tx-900",
+    "space_id": "space-1",
     "snapshot_seq": 1500,
     "space_seq": 1501,
     "committed_at": "...",
@@ -3021,6 +3058,7 @@ space_id
 snapshot_seq
 schema_environment_version
 epistemic policy
+valid_at
 search index checkpoint
 cursor
 ```
@@ -4384,7 +4422,11 @@ Example:
 ```json
 {
   "options": {
-    "search_fallback": ["hybrid", "keyword"]
+    "extensions": {
+      "vendor.example/search_fallback": {
+        "modes": ["hybrid", "keyword"]
+      }
+    }
   }
 }
 ```
@@ -5724,6 +5766,8 @@ Response:
 
 ```json
 {
+  "kip": "2.0",
+  "request_id": "req-101",
   "status": "succeeded",
 
   "results": [
@@ -5753,6 +5797,11 @@ Response:
   }
 }
 ```
+
+The observed payload is shown here as a bound parameter for readability. Where
+the runtime offers an ingestion context (§7), the payload SHOULD travel in
+`ingest.evidence[]` and the command SHOULD cite the minted Evidence as `:key`
+instead of carrying observed content authored by the model.
 
 ---
 
@@ -5789,6 +5838,8 @@ may return:
 
 ```json
 {
+  "kip": "2.0",
+
   "execution": {
     "mode": "sequence",
     "on_error": "stop"
@@ -5808,6 +5859,7 @@ may return:
 
     {
       "op_id": "write",
+      "command": "MUTATE { ... }",
       "idempotency_key": "..."
     }
   ]
@@ -5846,6 +5898,8 @@ This keeps the wire protocol typed and predictable.
 
 ```json
 {
+  "kip": "2.0",
+
   "execution": {
     "mode": "independent"
   },
@@ -5874,6 +5928,8 @@ The searches can run concurrently.
 
 ```json
 {
+  "kip": "2.0",
+
   "execution": {
     "mode": "atomic"
   },
@@ -6385,6 +6441,7 @@ request :=
   compatibility_profile?,
   execution?,
   read?,
+  ingest?,
   preconditions?,
   operations[1..N],
   parameters?,
@@ -6401,7 +6458,8 @@ operation :=
   command | ast,
   parameters?,
   idempotency_key?,
-  options?
+  options?,
+  extensions?
 }
 
 execution :=
@@ -6409,7 +6467,8 @@ execution :=
   mode: independent | sequence | atomic,
   on_error?: stop | continue,
   isolation?,
-  idempotency_key?
+  idempotency_key?,
+  extensions?
 }
 
 response :=
@@ -6424,7 +6483,8 @@ response :=
   receipt?,
   warnings?,
   next_cursor?,
-  error?
+  error?,
+  extensions?
 }
 ```
 

@@ -490,7 +490,7 @@ Assertion (断言)
 ├ stance (立场)
 ├ mode (模式)
 ├ confidence (置信度)
-├ valid_from / valid_until (有效时间区间)
+├ valid_time (from / until，有效时间区间)
 ├ asserted_at (断言时间)
 ├ status (状态)
 ├ evidence links (证据链接)
@@ -592,8 +592,8 @@ human_feedback      (人类反馈)
 断言应当 (SHOULD) 能够同时引用：
 
 ```text
-supported_by   (支持证据)
-challenged_by  (质疑 / 反面证据)
+evidence 引用且 role 为 "support"    (支持证据)
+evidence 引用且 role 为 "challenge"  (质疑 / 反面证据)
 ```
 
 这允许智能体保留未决的认识论张力，而不是过早地塌缩为单一事实。
@@ -736,8 +736,8 @@ KIP 2.0 应当 (SHOULD) 显式区分多个时间维度。
 断言在现实世界中被声称成立的时间：
 
 ```text
-valid_from
-valid_until
+valid_time.from
+valid_time.until
 ```
 
 示例：
@@ -767,9 +767,9 @@ asserted_at
 认知中枢记录或变更元素的时间：
 
 ```text
-_created_at
-_updated_at
-_transaction_id
+_system.created_at
+_system.updated_at
+_system.created_tx / _system.updated_tx
 ```
 
 这些字段是引擎层事实，应当 (SHOULD) 是不可变的或由引擎维护的。
@@ -898,6 +898,9 @@ KIP 2.0 应当 (SHOULD) 停止使用单一的“遗忘 (forgetting)”词汇来�
 
 归档性遗忘 (Archival forgetting)
     从正常召回中排除，但保留以供审计
+
+逻辑删除 (Logical deletion)
+    标记墓碑 (tombstone)；标识与审计引用仍然保留
 
 治理性遗忘 (Governance forgetting)
     访问权限被撤销
@@ -1044,7 +1047,7 @@ executable (可执行)
 外部导入的技能默认应当 (SHOULD) 为：
 
 ```text
-status = candidate (候选) 或 inactive (未激活)
+status = candidate (候选)
 execution authority = none (无执行权限)
 ```
 
@@ -1218,7 +1221,7 @@ KIP 2.0 架构预设了至少三种概念性查询视图：
 
 返回经过 Profile 感知、使用记忆和任务相关性信号排序后的记忆。
 
-具体语法在此故意留待后续定义。
+规范此后已经固定了具体语法：原始视图即针对 Concept/Proposition/Assertion/Evidence/Activity 模式的普通 `FIND`，认识视图即 `WITH EPISTEMIC` 下的 `BELIEF` / `BELIEF SLOT`，记忆视图则是由大脑自行拥有的 Profile 感知排序策略，而非协议子句。
 
 ## 13.2 变更 (Mutation)
 
@@ -1244,9 +1247,11 @@ KIP 2.0 应当 (SHOULD) 支持原子批处理执行模式。
 
 ```json
 {
-  "commands": ["...", "...", "..."],
-  "transaction": "atomic",
-  "idempotency_key": "..."
+  "operations": ["...", "...", "..."],
+  "execution": {
+    "mode": "atomic",
+    "idempotency_key": "..."
+  }
 }
 ```
 
@@ -1383,12 +1388,12 @@ compatibility range (兼容范围)
 示例逻辑标识符：
 
 ```text
-kip://core@2.0
-kip://profiles/cognitive-memory@2.0
-kip://ldclabs/organization@1.0
+kip://core@2.0.0
+kip://profiles/cognitive-memory@2.0.0
+kip://ldclabs/organization@1.0.0
 ```
 
-上述 URI 格式仅作说明之用，暂非规范性定义。
+规范此后已将该引用语法固定为 `kip://<package-path>@<exact-version>[/<symbol>]`，且持久化状态必须 (MUST) 记录确切版本号而非浮动别名（规范 §20.2、§20.4）。
 
 ## 14.2 规范模式标识 (Canonical Schema Identity)
 
@@ -1603,7 +1608,7 @@ selective deletion of counter-evidence (选择性删除反面证据)
 
 # 17. 自身 ($self) 与智能体标识 (Self and Agent Identity)
 
-`$self` 和 `$system` 仍是非常有价值的认知抽象，但它们应当 (SHOULD) 存在于认知记忆 Profile 中，而非 KIP 核心层。
+`$self` 和 `$system` 仍是非常有价值的认知抽象，但它们只是语义行动者的文档化称谓，绝非 KIP 语法。核心层仅拥有受保护的自我标识指派；行动者本身归属于认知记忆 Profile。
 
 KIP 核心层理解：
 
@@ -1611,15 +1616,15 @@ KIP 核心层理解：
 Principal (调用主体)
 Space (空间)
 identity references (标识引用)
+每个 Space 至多一个被指派的自我标识（受保护的治理状态）
 ```
 
 认知记忆 Profile 定义：
 
 ```text
-$self
-$system
 Person
 SelfModel
+文档中以 $self / $system 指代的语义行动者
 ```
 
 部署根据策略将 `$self` 映射到一个或多个经认证的 Principal。
@@ -1663,7 +1668,7 @@ Conformance (一致性标准)
 
 ```text
 Person (人)
-$self / $system (自身 / 系统)
+文档中以 $self / $system 指代的语义行动者
 Event (事件)
 Experience (经验)
 ExperienceStep (经验步骤)
@@ -1753,7 +1758,8 @@ replication (数据复制)
 断言 B (Assertion B)
    ↓
 若针对同一命题:
-    置信度 / 立场可能改变
+    由断言 B 承载新的立场/置信度
+    仅在同一行动者修订时废弃替代 A；A 本身绝不被就地编辑
 
 若产生新的不兼容命题:
     保留两个命题
@@ -1879,7 +1885,7 @@ space membership (空间归属)
 
 ## 20.5 `confidence` (置信度)
 
-现有的命题 `metadata.confidence` 转变为迁移后 Assertion 的 confidence。
+仅当现有命题的 `metadata.confidence` 确实表达认识论承诺时，才将其转变为迁移后 Assertion 的 confidence（规范 §103.4）。若它实际编码的是可提取性、重要性或时效性，则应分别归类为 `memory_strength`、salience 或投影的新鲜度策略。
 
 如果旧版部署曾将置信度的时间衰减作为记忆强度的替代指标，迁移无法完美重构丢失的认识论置信度。应当保留历史并审慎地初始化 `memory_strength`。
 
@@ -2166,21 +2172,31 @@ causal memory utility (因果记忆实用度)
 
 协议应当允许 URI/DID/URN/自定义标识符，而不强制规定单一方案。
 
+**已决议**：按推荐方案采纳 —— Concept 可以携带 `canonical_id`，其命名方案不受限制，但赋值受 Governance 保护；未经核验的同一性主张仍表示为 `same_as` 命题 + 断言 (规范 §7.4)。
+
 ## Q7. 策略应当应用于元素、断言、命题还是子图级别？(Q7. Should policy apply at element, assertion, proposition, or subgraph level?)
 
 所有级别都可能是必需的。初始模型应当在添加任意策略图之前，优先针对空间默认值加元素级例外进行优化。
+
+**已决议**：按推荐方案采纳 —— 采用以 Space 为范围的权限族与拒绝优先的评估顺序，并作用于元素存在性、计数、检索排名、历史与来源，而不仅仅是载荷字段；不引入通用策略图 (规范 §§29–30、§30.4)。
 
 ## Q8. 规范胶囊格式是什么？(Q8. What is the canonical Capsule format?)
 
 很可能是带有严格规范化规则的 JSON，而 KIP DSL 继续作为面向模型的变更表示。
 
+**已决议**：与预期一致 —— 规范化 JSON 是用于散列/签名的基线序列化目标，KIP DSL 继续作为面向模型的变更表面 (规范 §37.7)。
+
 ## Q9. 大型证据载荷应如何处理？(Q9. How should large Evidence payloads be handled?)
 
 很可能是外部基于内容寻址的引用 + 摘要散列 + 元数据，而不是将每个原始制品直接存储在图中。
 
+**已决议**：与预期一致 —— Evidence 载荷分为 `inline` 与 `external` 两种模式，配合 `content_ref` + `content_digest` + `media_type`；大型制品通过不透明的运行时 Artifact 句柄传递，且绝不会被当作 URL 自动解引用 (规范 §15.3、§85)。
+
 ## Q10. 哪些记忆字段属于核心层，哪些属于 Profile？(Q10. Which mnemonic fields are Core versus Profile?)
 
 `expires_at` 和归档状态可以保留为横切的核心生命周期字段。`memory_strength`、`salience` 和 `utility` 最好由认知记忆 Profile 定义。
+
+**已决议**：按推荐方案采纳 —— 核心层保留 `retention {retention_class, expires_at, legal_hold}` 以及 archive/tombstone/purge，而 `memory_strength` / `salience` 归入 Profile 的 `MnemonicState` Facet，`utility` 归入 `SkillUtility` (规范 §19、§18；认知记忆 Profile 2.0)。
 
 ---
 
@@ -2360,8 +2376,7 @@ Assertion C
   stance: support
   mode: observed
   confidence: 0.95
-  valid_from: 2024-01-01
-  valid_until: 2024-12-31
+  valid_time: {from: 2024-01-01, until: 2024-12-31}
 ```
 
 认知中枢无需将 P1 重写三次。
@@ -2411,10 +2426,10 @@ P2 = (Alice, timezone, "+01:00")
 
 ```text
 A1 支持 P1
-valid_until = 2026-09-01
+valid_time.until = 2026-09-01
 
 A2 支持 P2
-valid_from = 2026-09-01
+valid_time.from = 2026-09-01
 ```
 
 现在记忆大脑可以同时回答：
@@ -2449,7 +2464,7 @@ External Skill Sx
   authority: descriptive only
 
 Local Skill S1
-  derived_from: E1, E2
+  compiled_from: E1, E2
   status: candidate
   authority: advisory
 ```
@@ -2458,7 +2473,7 @@ Local Skill S1
 
 ```text
 S1
-  status: active
+  status: validated
   utility: 0.87
   authority: behavioral
 ```
@@ -2690,6 +2705,7 @@ epistemic-test-deterministic.json
 KIP/
 ├── KIP-2.0-SPECIFICATION.md
 ├── KIP-2.0-Architecture.md
+├── KIPSyntax.md
 ├── design/
 │   ├── KIP-2.0-Core-Data-Model.md
 │   ├── KIP-2.0-Epistemic-Model.md
@@ -2720,10 +2736,9 @@ KIP/
 │   └── kip-response.schema.json
 └── conformance/
     ├── KIP-2.0-Conformance-Tests.md
-    ├── schemas/
-    ├── fixtures/
-    ├── policies/
-    └── vectors/
+    ├── conformance-test-vector.schema.json
+    ├── conformance-report.schema.json
+    └── fixtures/
 ```
 
 物理代码仓路径可以不同；分层结构不应改变。
@@ -2758,16 +2773,14 @@ KIP 核心层
 
 ## E.10 当前完成状态 (Current Completion State)
 
-最初的架构设计文档编写于具体的核心数据模型、认识模型、治理模型、模式包、事务、胶囊、KQL/KML/META、协议运行时、统合规范、形式化 EBNF 和一致性制品存在之前。这些层级现已全部就绪。
+最初的架构设计文档编写于具体的核心数据模型、认识模型、治理模型、模式包、事务、胶囊、KQL/KML/META、协议运行时、统合规范、形式化 EBNF 和一致性制品存在之前。这些层级现已全部就绪，机器可读的认知记忆 Profile 包、规范一致性测试固件、面向 LLM 的语法速查手册以及 KIP 1.x 操作性迁移指南亦已发布。
 
 后续工作主要集中在：
 
 ```text
-1. 稳定标准认知记忆 Profile；
-2. 稳定参考记忆大脑架构与策略；
-3. 发布 KIP 1.x 操作性迁移指南；
-4. 发布机器可读 Profile 包与规范测试固件；
-5. 将一致性设计测试向量转化为可执行的 CI 测试固件。
+1. 将一致性设计测试向量转化为可执行的 CI 测试固件；
+2. 通过独立实现扩充互操作性证据；
+3. 使参考记忆大脑策略持续跟进 Profile 与规范的修订。
 ```
 
 KIP 2.0 现应当通过收紧这些契约来演进，而非无节制地扩充核心层。

@@ -10,7 +10,7 @@ This document defines the epistemic semantics of KIP 2.0: how a Cognitive Nexus 
 
 It builds directly on:
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 
 The Core Data Model defines **what is stored**:
@@ -57,7 +57,7 @@ KIP 2.0 instead standardizes:
 
 # 0. Normative Language
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate intended requirements for the future KIP 2.0 specification.
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate requirements of the KIP 2.0 Specification (`../KIP-2.0-SPECIFICATION.md`), which is authoritative where the two differ.
 
 Exact wire formats remain illustrative unless explicitly stated otherwise.
 
@@ -534,6 +534,36 @@ Illustrative:
 The numeric score is optional.
 
 The reasons are more important than false precision.
+
+---
+
+## 6.6 Trust State Is Control-Plane State
+
+Trust consumed by an Epistemic Projection MUST come from protected
+control-plane state or explicit policy input — never from ordinary cognitive
+content. An Assertion whose content says *"trust this source"* has no trust
+effect, exactly as it has no authorization effect.
+
+Recommended representation is a set of scoped trust records:
+
+```text
+subject scope    semantic actor | authenticated origin | Evidence source |
+                 tool | channel | import origin
+context scope    domain | purpose | mode | classification
+value            trust class, or numeric value with declared semantics
+policy identity  id + version
+```
+
+Changing trust state requires the `manage_trust` Governance permission. Trust
+changes MUST be auditable and SHOULD appear on the change/audit stream as
+control-plane transitions. Trust state introspection (`DESCRIBE TRUST`) is
+governed like other control-plane introspection.
+
+Outcome-driven calibration (Sections 96–98, 186) is therefore a **control-plane
+revision**, not an ordinary cognitive write: the algorithm is Brain policy, but
+each revision SHOULD carry provenance — for example a trust-revision Activity
+referencing the outcome Evidence — so the Brain can later answer *why it trusts
+a source*.
 
 ---
 
@@ -1692,9 +1722,7 @@ Illustrative request contract:
   "purpose": "answer_user | action_planning | audit | research | diagnosis",
 
   "valid_at": "2026-08-13T13:00:00Z",
-  "as_of_transaction": "tx-or-time",
-
-  "context_refs": [],
+  "as_of": {"seq": 1500},
 
   "policy_ref": "epistemic-policy-id",
 
@@ -1703,13 +1731,15 @@ Illustrative request contract:
   "options": {
     "include_historical": false,
     "include_hypothetical": false,
-    "include_explanations": true,
-    "include_evidence_ledger": true
+    "explanation": "ledger"
   }
 }
 ```
 
-Exact field names are deferred.
+This is the conceptual contract. On the wire a KQL caller expresses it through
+`AS OF` (cognitive time), `FOR TIME` (world-valid time), and the
+`WITH EPISTEMIC { purpose, risk, policy, include_historical,
+include_hypothetical, explanation }` block.
 
 ---
 
@@ -2157,7 +2187,7 @@ unknown ≠ false
 
 # 74. Optional `not_applicable`
 
-A future profile MAY expose:
+An implementation MAY add belief statuses beyond the five baseline ones only if they are **namespaced and capability-negotiated**. The most likely candidate is:
 
 ```text
 not_applicable
@@ -2165,7 +2195,7 @@ not_applicable
 
 for a Proposition whose valid/context domain does not apply.
 
-Baseline KIP can usually represent this through explanation rather than a required sixth status.
+Baseline KIP can usually represent this through explanation rather than a sixth status, and a caller that has not negotiated the extension MUST NOT be served one.
 
 ---
 
@@ -2203,7 +2233,7 @@ Illustrative:
 
   "temporal": {
     "valid_at": "2026-08-13T13:00:00Z",
-    "as_of_transaction": "tx-991"
+    "as_of_seq": 1500
   },
 
   "policy": {
@@ -2710,7 +2740,7 @@ The Brain/Governance profile defines the learning algorithm.
 
 # 97. Trust Learning
 
-Trust may itself be represented as cognitive state.
+Reliability claims may themselves be represented as cognitive state.
 
 Example semantic claims:
 
@@ -2720,9 +2750,9 @@ Example semantic claims:
 
 with Assertions/Evidence.
 
-However, the Projection system must avoid unrestricted self-reference where a source can assert its own trust and thereby elevate itself.
+Such claims are **input to trust revision, never trust itself**. A Projection MUST NOT consume them directly; trust comes only from control-plane trust state (Section 6.6). A Brain reads reliability claims, decides under its own calibration policy, and then performs an auditable `manage_trust` revision.
 
-Governance should control which trust state influences projection.
+This closes the self-reference hole in which a source asserts its own trust and thereby elevates itself.
 
 ---
 
@@ -3055,6 +3085,20 @@ relevant state version/change cursor
 ```
 
 A cached projection is invalid when relevant underlying epistemic state or policy changes.
+
+A **materialized** projection — one cached so that stable beliefs can be recalled at lookup cost — MUST be identified by at least:
+
+```text
+Projection Policy identity + version
+snapshot_seq basis
+valid-time basis
+```
+
+and:
+
+- serving a materialized result MUST disclose its policy identity and snapshot basis through the result context; presenting it as freshly computed at the current snapshot is non-conforming;
+- the materialization MUST be invalidated, or its basis revalidated against `space_seq` / Change Envelopes, before being served as current;
+- it remains a view: it MUST NOT be written back as Evidence or Assertion, and MUST NOT corroborate its own inputs (Sections 46, 114, 148).
 
 ---
 
@@ -3622,38 +3666,40 @@ MemorySpace + Schema + Projection Policy define the environment.
 
 # 136. Projection Explanation Levels
 
-Recommended levels:
+A KQL request selects the explanation level through
+`WITH EPISTEMIC { explanation: ... }`. The levels are:
 
 ```text
 none
 summary
-evidence
-audit
+ledger
 ```
 
 ## `summary`
 
 Human/Agent-friendly reason summary.
 
-## `evidence`
+## `ledger`
 
-Includes contributing Assertions/Evidence roots.
-
-## `audit`
-
-Includes:
+The full Epistemic Ledger (Section 79):
 
 ```text
-policy
+contributing Assertions
+opposing Assertions
+Evidence roots
+corroboration groups
 trust decisions
-provenance paths
-excluded Assertions
+excluded Assertions and exclusion reasons
+temporal exclusions
 conflict sets
-scores
-temporal filtering
+scores and their declared semantics
+policy identity/version
+warnings / missing information
 ```
 
-subject to Governance.
+subject to Governance: a caller MAY be authorized to receive projection status
+without raw Evidence, and the result SHOULD disclose when explanation or
+Evidence was redacted.
 
 ---
 
@@ -4629,7 +4675,7 @@ Examples:
 
 These are ordinary Propositions + Assertions.
 
-Governance decides whether they influence trust.
+They never influence Projection trust directly (Section 6.6). They inform a governed `manage_trust` revision, which Governance authorizes and audits.
 
 ---
 
@@ -4762,19 +4808,26 @@ Projection must filter/evaluate it.
 
 # 196. Search Over Raw vs. Accepted State
 
-Future KQL/META may expose:
+KIP 2.0 keeps the two surfaces separate rather than adding belief-filtered
+search variants:
 
 ```text
-SEARCH RAW
-SEARCH ACCEPTED
-SEARCH CONTESTED
+SEARCH        raw associative grounding only
+              its MODE is a retrieval mode — keyword | semantic | hybrid —
+              never a belief filter
+
+BELIEF        the Epistemic Projection surface
+BELIEF SLOT   the candidate/conflict set for one subject-predicate slot
+              both configured through WITH EPISTEMIC
 ```
 
-or equivalent views.
+So the pipeline is *ground with SEARCH, then project with BELIEF*. A belief-mode
+SEARCH keyword was deliberately not adopted, because it would re-collapse
+retrieval relevance into epistemic support — the exact conflation this document
+forbids.
 
-The exact syntax is deferred.
-
-The Epistemic Model requires the conceptual distinction.
+The Epistemic Model requires the conceptual distinction; KQL expresses it with
+two different statements.
 
 ---
 
@@ -4985,7 +5038,7 @@ That would recreate the KIP 1.x coupling problem.
 
 ---
 
-# 205. Proposed Small Core Refinement: Auditable Lifecycle Transitions
+# 205. Core Refinement (Adopted): Auditable Lifecycle Transitions
 
 Historical epistemic projection requires knowing not only the current Assertion lifecycle state but when transitions happened.
 
@@ -5009,9 +5062,11 @@ The Epistemic Model does not require one storage representation.
 
 It does require historical reconstructability from implementations advertising historical projection.
 
+KIP 2.0 provides this: one state-changing commit yields one logical Change Envelope, and `HISTORY ELEMENT :id` returns the transition chronology of one element (as distinct from `AS OF`, which returns historical content).
+
 ---
 
-# 206. Proposed Small Core Refinement: Provenance Root Visibility
+# 206. Core Refinement (Adopted): Provenance Root Visibility
 
 Projection benefits if Evidence/Activity APIs can efficiently expose:
 
@@ -5025,7 +5080,7 @@ record mode
 
 This does not require a new Core element.
 
-It should influence KQL/META query design.
+KIP 2.0 exposes it through Structural Patterns over the reserved Core structural fields (`evidence`, `source`, `generated_by`, `inputs`, `outputs`, `associated_actors`) plus the `ledger` explanation level (Section 136). `record mode` remains a profile-level Facet rather than a Core field.
 
 ---
 

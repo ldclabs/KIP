@@ -105,14 +105,10 @@ Activity      (活动)
 ```text
                      认知元素 (Cognitive Element)
                             │
-           ┌────────────────┼─────────────────┐
-           │                │                 │
-     概念 (Concept)    命题 (Proposition)  断言 (Assertion)
-           │                │                 │
-           │                │                 │
-           └──────────┬─────┘                 │
-                      │                       │
-                证据 (Evidence)          活动 (Activity)
+     ┌───────────┬───────────┼───────────┬───────────┐
+     │           │           │           │           │
+  概念        命题         断言        证据        活动
+Concept   Proposition  Assertion   Evidence    Activity
 ```
 
 这些元素类型的存在理由各不相同，**严禁 (MUST NOT)** 仅仅为了图结构的统一性而将它们合并混淆。
@@ -321,7 +317,7 @@ name = legacy name
 
 适用于依赖名称标识的旧类型。
 
-未来的 KML 规范可能会允许将 `{type, name}` 寻址作为符合人体工程学的语法糖，但原生的 Core 唯一标识永远是 `id`。
+原生 KML 2.0 **不**接受 `{type, name}` 作为标识：原生 `UPSERT` 必须以 `id` 或 `key` 进行选择，仅凭名称的 upsert 是被禁止的。只有 `kip-1-compat` 兼容 Profile 才可以将遗留的 `type + name` 转译为迁移后的 `key`。原生的 Core 唯一标识永远是 `id`。
 
 ---
 
@@ -348,7 +344,7 @@ KIP 不强制指定任何外部标识方案。
 
 > “该用户的 DID 是 X”
 
-通常**应当 (SHOULD)** 表示为“命题 + 断言 (Proposition + Assertion)”，直到该身份绑定获得充分信任。
+通常**应当 (SHOULD)** 表示为“命题 + 断言 (Proposition + Assertion)”，直到该身份绑定获得充分信任。认知记忆 Profile 正是为此提供了 `same_as` 谓词：它只喂给身份复核流程，不会自动合并，也不会凭自身确立 `canonical_id`。
 
 ---
 
@@ -484,13 +480,26 @@ KIP 2.0 拥有两种本质不同的图关系：
 示例：
 
 ```text
-Assertion.proposition_id      → Proposition  (断言指向的命题)
-Assertion.evidence_refs       → Evidence     (断言引用的证据)
+Assertion.proposition         → Proposition  (断言指向的命题)
+Assertion.evidence            → Evidence     (断言引用的证据)
 Assertion.supersedes          → Assertion    (断言替代的前序断言)
+Evidence.source               → Concept | Evidence (证据的来源)
 Evidence.generated_by         → Activity     (证据生成的来源活动)
 Activity.inputs               → Cognitive Elements (活动的输入元素)
 Activity.outputs              → Cognitive Elements (活动的输出元素)
 Experience.has_step           → ExperienceStep     [Profile 定义的经验步骤]
+```
+
+Core 保留六个结构**字段名**供查询与变更使用，它们由源元素的 Core 类别解析，
+而不经由 Package 别名解析：
+
+```text
+evidence       Assertion → Evidence            带 role 限定的证据引用
+source         Evidence  → Concept | Evidence  观测/制品的来源
+generated_by   Evidence  → Activity            生成该证据的活动
+inputs         Activity  → 任意 Core 元素       溯源输入
+outputs        Activity  → 任意 Core 元素       溯源输出
+associated_actors  Activity  → Concept         参与该过程的语义行动者（非授权方，非 Principal）
 ```
 
 这些链接属于记录本身的结构组成部分。
@@ -643,7 +652,7 @@ number  → 按规范化后的有限数值进行比较
 ```json
 {
   "value": "苹果",
-  "datatype": "kip:string",
+  "datatype": "string",
   "language": "zh-Hans"
 }
 ```
@@ -703,7 +712,7 @@ Profile 定义的认知对象 (profile-defined cognitive object)
   "kind": "concept",
   "space_id": "space-1",
 
-  "schema_ref": "kip://profiles/example@2.0/Person",
+  "schema_ref": "kip://profiles/example@2.0.0/Person",
   "key": "alice",
   "name": "Alice",
   "canonical_id": null,
@@ -810,8 +819,8 @@ KIP 2.0 **应当 (SHOULD)** 采用更为保守的语义模型：
 
 ```text
 Concept A
-   status = merged
-   merged_into = Concept B
+   _system.state = merged
+   merged_into   = Concept B
 ```
 
 Concept A 依然保留为一个可寻址的历史身份记录。
@@ -829,6 +838,8 @@ Concept A 依然保留为一个可寻址的历史身份记录。
 ```text
 resolve_concept(A) → B
 ```
+
+`resolve_concept` 沿 `merged_into` 迭代至不动点，因此合并**严禁 (MUST NOT)** 制造环：若目标已经（可传递地）解析回源头，运行时**必须 (MUST)** 拒绝该次合并。
 
 默认的语义查询**可以 (MAY)** 规范化已合并的身份。
 
@@ -902,7 +913,7 @@ P2 = (ConceptB, knows, Bob)
   "space_id": "space-1",
 
   "subject": {"id": "concept-alice"},
-  "predicate_ref": "kip://profiles/personal@2.0/prefers",
+  "predicate_ref": "kip://profiles/personal@2.0.0/prefers",
   "object": {"id": "concept-dark-mode"},
 
   "governance": {},
@@ -917,10 +928,10 @@ P2 = (ConceptB, knows, Bob)
 ```json
 {
   "subject": {"id": "concept-alice"},
-  "predicate_ref": "kip://profiles/personal@2.0/timezone",
+  "predicate_ref": "kip://profiles/personal@2.0.0/timezone",
   "object": {
     "value": "+08:00",
-    "datatype": "kip:string"
+    "datatype": "string"
   }
 }
 ```
@@ -974,7 +985,7 @@ Activity      (活动)
 这与 Core 核心结构字段截然不同：
 
 ```text
-Assertion42.evidence_refs
+Assertion42.evidence
 ```
 
 后者属于记录的物理拓扑结构。
@@ -1187,7 +1198,7 @@ stance = reject
   "kind": "assertion",
   "space_id": "space-1",
 
-  "proposition_id": "prop-123",
+  "proposition": {"id": "prop-123"},
 
   "asserted_by": {
     "id": "concept-alice"
@@ -1204,9 +1215,9 @@ stance = reject
 
   "asserted_at": "2026-08-13T10:00:00Z",
 
-  "evidence_refs": [
+  "evidence": [
     {
-      "evidence_id": "evidence-1",
+      "id": "evidence-1",
       "role": "support"
     }
   ],
@@ -1336,7 +1347,7 @@ KIP 2.0 的核心目标是完整保留认识论历史。
 创建后，以下字段**应当 (SHOULD)** 是不可变的：
 
 ```text
-proposition_id
+proposition
 asserted_by
 stance
 mode
@@ -1512,7 +1523,7 @@ expired     (已过期)
 
   "observed_at": "2026-08-13T10:00:00Z",
 
-  "source_refs": [
+  "source": [
     {"id": "concept-service-api"}
   ],
 
@@ -1667,9 +1678,9 @@ context    (背景上下文)
 示意：
 
 ```json
-"evidence_refs": [
-  {"evidence_id": "E1", "role": "support"},
-  {"evidence_id": "E2", "role": "challenge"}
+"evidence": [
+  {"id": "E1", "role": "support"},
+  {"id": "E2", "role": "challenge"}
 ]
 ```
 
@@ -1818,7 +1829,7 @@ Alice 说了 X
 
 ```text
 asserted_by
-Evidence.source_refs
+Evidence.source
 Activity.associated_actors
 语义命题 (semantic Propositions)
 ```
@@ -1834,8 +1845,7 @@ Activity.associated_actors
 ```json
 {
   "principal_id": "principal:agent-42",
-  "channel": "brain-formation",
-  "transaction_id": "tx-123",
+  "channel": "formation",
   "import_id": null
 }
 ```
@@ -1958,8 +1968,8 @@ Activity.associated_actors
   "default_policy_ref": "policy-1",
 
   "schema_packages": [
-    "kip://core@2.0",
-    "kip://profiles/cognitive-memory@2.0"
+    "kip://core@2.0.0",
+    "kip://profiles/cognitive-memory@2.0.0"
   ],
 
   "status": "active",
@@ -2088,12 +2098,12 @@ Activity      (活动)
 
 ---
 
-# 34. `expires_at` 不等于 `valid_until` (`expires_at` Is Not `valid_until`)
+# 34. `expires_at` 不等于 `valid_time.until` (`expires_at` Is Not `valid_time.until`)
 
 这两个字段回答完全不同的问题：
 
 ```text
-Assertion.valid_until
+Assertion.valid_time.until
     在客观世界中，该声明从何时起不再为真/不再适用？
 
 Element.retention.expires_at
@@ -2110,8 +2120,8 @@ Alice 旧的时区在 2025 年已经失效。
 因此：
 
 ```text
-valid_until = 2025
-expires_at  = null
+valid_time.until = 2025
+expires_at       = null
 ```
 
 是完全合理且合法的配置。
@@ -2130,7 +2140,7 @@ KIP 2.0 采用**切面（Facets）**机制。
 
 ```json
 "facets": {
-  "kip://profiles/cognitive-memory@2.0": {
+  "kip://profiles/cognitive-memory@2.0.0/MnemonicState": {
     "memory_strength": 0.72,
     "salience": 0.91
   }
@@ -2141,10 +2151,10 @@ KIP 2.0 采用**切面（Facets）**机制。
 
 ## 35.2 切面规则 (Facet Rules)
 
-每个 Facet 的命名空间都**必须 (MUST)** 解析为：
+每个 Facet 的键就是精确的 Facet 符号引用，且**必须 (MUST)** 解析为：
 
 ```text
-一个 Schema Package
+Schema Package 中的一个 Facet 符号
 或
 一个已注册的扩展定义
 ```
@@ -2197,8 +2207,8 @@ KIP 2.0 识别并支持四种不同的时间时钟。
 在 Assertion 上：
 
 ```text
-valid_from   (生效时间)
-valid_until  (失效时间)
+valid_time.from    (生效时间)
+valid_time.until   (失效时间)
 ```
 
 表示命题声称在客观世界中成立的时间区间。
@@ -2254,7 +2264,7 @@ updated_tx  (更新事务 ID)
 
 > 截至认知事务时间 T，该智能体知道/相信了什么？
 
-具体的 KQL 语法细节稍后制定。
+KQL 已经确定了对应语法：`AS OF` 选择认知事务状态，`FOR TIME` 选择客观世界有效时间，二者**必须 (MUST)** 保持相互独立。
 
 数据模型必须原生具备该能力，而无需在未来进行重构。
 
@@ -2537,13 +2547,15 @@ Skill          → Concept (技能)
 并配合 Profile 定义的结构引用：
 
 ```text
-Experience.has_step       → ExperienceStep (经验包含的步骤)
+Experience.has_step       → ExperienceStep (经验包含的步骤，有序)
 Experience.experienced_by → actor Concept  (经历经验的主体)
-Experience.compiled_to    → Skill          (编译生成的技能)
-Skill.derived_from        → Experience     (技能派生自的经验)
+Skill.compiled_from       → Experience     (技能编译自的经验)
+Skill.compiled_by         → Activity       (完成编译的活动)
 ```
 
 这些可以是 Profile 原生的结构字段，也可以是 Profile 定义的图关系。
+
+步骤顺序归属于有序的 `has_step` 引用（见第 74 节），查询侧以 `?edge.index` 暴露。步骤本身不携带独立的顺序属性。
 
 如果 Profile 希望某个关系能够被独立地在认识论上提出质疑，则必须改用“命题 + 断言 (Proposition + Assertion)”。
 
@@ -2593,9 +2605,9 @@ facet namespace
 示意：
 
 ```text
-kip://core@2.0/Assertion
-kip://profiles/cognitive-memory@2.0/Experience
-kip://ldclabs/organization@1.3/works_for
+kip://core@2.0.0/Assertion
+kip://profiles/cognitive-memory@2.0.0/Experience
+kip://ldclabs/organization@1.3.0/works_for
 ```
 
 确切的标识符语法详见 KIP-2.0-Schema-Packages.md。
@@ -2785,9 +2797,11 @@ KIP 1.x 兼容查询**可以 (MAY)** 将一个被接受的命题呈现为传统�
 | Concept `name` | 是 | 语义接地展示标签 |
 | Concept `canonical_id` | 受限 | 属于身份绑定特权操作 |
 | Concept `attributes` | 是 | 受 Schema 和安全策略管控 |
+| Concept 结构引用 | 是 | 按引用逐条 SET/UNSET；基数在提交时校验 |
 | Proposition 元组 | 否 | 新的元组 = 创建新的 Proposition |
 | Assertion 认识论载荷 | 否 | 新的信念 = 创建新的 Assertion |
 | Assertion 生命周期 | 是 | 撤回 / 替代覆盖操作 |
+| Assertion / Evidence 结构引用 | 否 | 错误的引用只能通过新建记录来修正，绝不通过删除 |
 | Evidence 载荷 | 否 | 修正错误 = 创建新的 Evidence |
 | Evidence 生命周期 | 是 | 纠错 / 撤回 / 归档操作 |
 | Activity 输入/输出 | 完成后不可变 | 维护溯源完整性 |
@@ -3069,7 +3083,7 @@ confidence = 0.6
 (Mention17, refers_to, Alice)
 Assertion confidence = 0.6
 
-(Alice, canonical_identity, did:...)
+(Alice, same_as, DidConceptX)
 Assertion confidence = 0.95
 ```
 
@@ -3269,7 +3283,9 @@ client_key (客户端幂等键)
 来自运行 Run ID 的 Experience
 ```
 
-确切的 KML 语法细节稍后制定。
+KML 通过 `CREATE CONCEPT` / `CREATE EVIDENCE` / `CREATE ASSERTION` / `CREATE ACTIVITY`
+上的 `CLIENT KEY :key` 子句来表达这一点。
+
 ---
 
 # 71. 命题幂等性无需客户端键 (Proposition Idempotency Needs No Client Key)
@@ -3336,10 +3352,10 @@ Core 核心结构引用字段具有明确定义的基数约束。
 示例：
 
 ```text
-Assertion.proposition_id
+Assertion.proposition
     严格为 1 (exactly 1)
 
-Assertion.evidence_refs
+Assertion.evidence
     0..N
 
 Assertion.supersedes
@@ -3356,6 +3372,30 @@ Activity.outputs
 ```
 
 Schema / Profile 结构自行定义各自的引用基数。
+
+结构字段还**可以 (MAY)** 被声明为**有序 (ordered)**。对于有序字段，引擎为每个源元素维护一份稳定、稠密、从零开始的全序：
+
+```text
+未显式指定 index 的引用按变更顺序追加
+显式的 {index: n} 赋值声明期望的零基位置
+同一变更计划中相互冲突的显式位置必须校验失败
+提交后的顺序必须稠密 (0..n-1) 且确定
+移除某个引用后，剩余顺序会重新致密化
+```
+
+超出当前稠密范围 `0..len` 的显式 `{index: n}` **必须 (MUST)** 校验失败：位置是稠密的，因此最后一条已有引用之后唯一合法的位置就是 `len`（追加）。
+
+顺序归属于引用本身，而非被引用的目标。Profile **严禁 (MUST NOT)** 在被引用元素上再加一个
+`ordinal`/`sequence` 属性，否则同一份顺序就会出现第二个事实来源。查询通过结构模式绑定上的
+虚拟字段 `?edge.index` 读取当前位置；无序字段不暴露 index。
+
+顺序仅仅是记录拓扑：
+
+```text
+索引顺序 ≠ 因果关系
+```
+
+被引用元素之间的因果主张属于语义命题 + 断言（见第 47 节）。
 
 ---
 
@@ -3702,14 +3742,15 @@ Alice ──────────────┐
               命题 P1 (Proposition P1)
        (Alice, prefers, DarkMode)
                     ▲
-                    │ target (指向目标)
+                    │ proposition (指向目标命题)
                断言 A1 (Assertion A1)
-                 │      │
-          support│      │generated_by (生成于)
-                 ▼      ▼
+                    │
+                    │ evidence {role: "support"}
+                    ▼
               证据 E1 (Evidence E1)
-                    ▲
-                    │ output (产出输出)
+                 │      ▲
+    generated_by │      │ outputs (产出输出)
+        (生成于)  ▼      │
                活动 X (Activity X)
 ```
 
@@ -4048,7 +4089,7 @@ Assertion A1
   evidence = E1
 
 Activity X1
-  class = memory_formation
+  class = extraction
   inputs = E1
   outputs = A1
 ```
@@ -4248,6 +4289,8 @@ C1.merged_into = C2
 # 103. 数据模型待决问题讨论 (Open Data Model Questions)
 
 目前的架构约束已经足够严谨清晰，剩余的问题范围更加聚焦。
+
+KIP 2.0 规范此后已经采纳了下列多数问题的推荐答案。凡是规范已作出裁定之处，以规范为准，此处的答案仅作为设计依据保留。
 
 ## Q1. 结构引用是否应该拥有专用的通用持久化边记录？
 
@@ -4484,13 +4527,13 @@ MemorySpace (记忆空间)
     object  (宾语) ─────────> 认知元素 (Cognitive Element) | 字面量 (Literal)
 
 断言 (Assertion):
-    proposition_id ─────────> 命题 (Proposition)
+    proposition ────────────> 命题 (Proposition)
     asserted_by ────────────> 语义主体引用 (semantic actor reference)
-    evidence_refs ──────────> 证据 (Evidence)
+    evidence ───────────────> 证据 (Evidence)
     supersedes ─────────────> 断言 (Assertion)
 
 证据 (Evidence):
-    source_refs ────────────> 语义 / 外部来源
+    source ─────────────────> 语义 / 外部来源
     generated_by ───────────> 活动 (Activity)
 
 活动 (Activity):

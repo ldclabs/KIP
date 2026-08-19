@@ -10,7 +10,7 @@ This document defines the introspection, grounding, verification, validation, ca
 
 It builds directly on:
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 - [KIP-2.0-Epistemic-Model.md](KIP-2.0-Epistemic-Model.md)
 - [KIP-2.0-Governance.md](KIP-2.0-Governance.md)
@@ -84,7 +84,7 @@ META does this without turning introspection into mutation authority.
 
 # 0. Normative Language
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate intended requirements for the future KIP 2.0 specification.
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate requirements of the KIP 2.0 Specification (`../KIP-2.0-SPECIFICATION.md`), which is authoritative where the two differ.
 
 The command syntax shown here is an architecture-level proposal.
 
@@ -263,7 +263,7 @@ LIST TYPES
 
 # 9. Compatibility Aliases
 
-For model familiarity, implementations SHOULD accept equivalents such as:
+For model familiarity, an explicit compatibility profile (§306) SHOULD accept equivalents such as:
 
 ```text
 DESCRIBE TYPES
@@ -277,6 +277,8 @@ DESCRIBE PACKAGES
 ```
 
 The response semantics should remain the same.
+
+These plural `DESCRIBE` spellings are not part of the native KIP 2.0 META grammar: a native endpoint rejects them as invalid syntax rather than silently aliasing them.
 
 ---
 
@@ -419,19 +421,22 @@ Recommended common response envelope:
 
 ```json
 {
+  "op_id": "op-1",
+  "status": "succeeded",
   "result": {},
   "context": {
     "space_id": "space-1",
     "snapshot_seq": 1500,
-    "schema_environment_version": 17,
-    "principal_context": "redacted-or-summary"
+    "schema_environment_version": 17
   },
   "warnings": [],
-  "next_cursor": null
+  "next_cursor": "opaque-cursor"
 }
 ```
 
 Not every operation needs every field.
+
+Principal/actor coordinates are not carried in this envelope; they are returned by `DESCRIBE EXECUTION CONTEXT` (§42) under Governance.
 
 ---
 
@@ -1435,7 +1440,7 @@ Recommended:
 DESCRIBE ERROR "ImmutableField"
 ```
 
-or numeric/registry code.
+The operand is a stable registry code (§87 of the Specification); KIP 2.0 defines no numeric error codes.
 
 ---
 
@@ -1910,12 +1915,14 @@ Recommended:
 
 ```json
 {
-  "search_context": {
+  "context": {
     "space_id": "space-1",
-    "index_seq": 1498,
-    "current_space_seq": 1500,
-    "freshness": "lagging",
-    "mode": "hybrid"
+    "search": {
+      "index_seq": 1498,
+      "current_space_seq": 1500,
+      "consistency": "lagging",
+      "mode": "hybrid"
+    }
   }
 }
 ```
@@ -1939,7 +1946,7 @@ Exact multi-index semantics may require an index checkpoint descriptor.
 If a search backend cannot provide exact commit alignment, it MUST advertise:
 
 ```text
-index_consistency = eventual_unsequenced
+consistency = eventual_unsequenced
 ```
 
 or equivalent.
@@ -2341,6 +2348,7 @@ ensure_proposition
 create_evidence
 create_assertion
 create_activity
+assert_sugar
 facet_mutation
 structural_mutation
 assertion_retraction
@@ -2350,6 +2358,7 @@ activity_transition
 archive
 tombstone
 purge
+set_retention
 non_destructive_merge
 dry_run
 client_key
@@ -3355,10 +3364,11 @@ Recommended:
 ```text
 PREVIEW KML
 PREVIEW IMPORT CAPSULE
-PREVIEW MERGE
-PREVIEW PURGE
-PREVIEW SCHEMA MIGRATION
 ```
+
+`PREVIEW MERGE`, `PREVIEW PURGE`, and `PREVIEW SCHEMA MIGRATION` are reserved
+preview targets: their operand syntax is not frozen in the KIP 2.0 META grammar,
+so a 2.0 runtime MUST NOT accept them as baseline syntax.
 
 Some may delegate to protected subsystem dry-run logic.
 
@@ -3630,17 +3640,17 @@ EXPORT CAPSULE ?target
 WHERE {
   ...
 }
-WITH {
+[WITH {
   closure: "...",
   provenance_depth: ...,
   include_schema: true,
   include_blobs: false,
   proof_profile: "..."
-}
-AS OF SEQ :seq
+}]
+[AS OF SEQ :seq]
 ```
 
-Exact syntax may evolve.
+The operand names the selection root binding: every element bound to it by the `WHERE` block belongs to the export root set. It MAY instead be a parameter or string naming a single root element. `WITH` and `AS OF` are optional.
 
 ---
 
@@ -3850,6 +3860,15 @@ explanation levels
 
 # 244. Trust Rules May Be Sensitive
 
+Trust state introspection uses:
+
+```text
+DESCRIBE TRUST
+DESCRIBE TRUST :signer
+```
+
+and is governed like other control-plane introspection.
+
 Detailed:
 
 ```text
@@ -3909,13 +3928,16 @@ Recommended use:
 
 > Why can/can't I perform this protocol operation?
 
-Possible input:
+The input list travels in the optional `WITH` object:
 
 ```text
-operation
-resource kind/type
-Space
-purpose
+DESCRIBE ACCESS
+WITH {
+  operation: "purge",
+  resource_kind: "Concept",
+  space: :space_id,
+  purpose: "maintenance"
+}
 ```
 
 ---
@@ -3941,7 +3963,7 @@ without exposing hidden policy internals.
 A caller cannot enumerate guessed secret IDs through:
 
 ```text
-DESCRIBE ACCESS resource=X
+DESCRIBE ACCESS WITH {resource: :guessed_id}
 ```
 
 and infer which exist.
@@ -4038,12 +4060,14 @@ DESCRIBE QUERY PLAN
 or:
 
 ```text
-VALIDATE KQL ... WITH PLAN
+VALIDATE KQL :query WITH {plan: true}
 ```
 
 may expose database execution planning.
 
-This is not required baseline.
+This is not required baseline. `DESCRIBE QUERY PLAN` is not part of the KIP 2.0
+META grammar; only the `VALIDATE ... WITH {...}` option form is grammatical, and
+both remain capability-gated diagnostics.
 
 ---
 
@@ -4319,7 +4343,6 @@ Recommended:
 
 ```text
 InvalidSyntax
-UnsupportedMetaOperation
 UnsupportedCapability
 
 NotFoundOrNotVisible
@@ -4331,14 +4354,14 @@ SchemaSymbolNotFound
 SchemaSymbolAmbiguous
 SchemaPackageUnavailable
 HistoricalSchemaUnavailable
+ConstraintViolation
 
 SearchModeUnsupported
 SearchIndexUnavailable
-SearchCursorInvalid
+CursorInvalidated
 HistoricalSearchUnavailable
 
 TransactionUnknown
-TransactionReceiptUnavailable
 HistoricalSnapshotUnavailable
 ChangeCursorExpired
 ChangeCursorInvalid
@@ -4348,13 +4371,14 @@ DigestMismatch
 ProofInvalid
 SignerUnknown
 BlobUnavailable
-SchemaValidationFailed
 CapsuleValidationFailed
 ImportPreviewConflict
 
 ResourceExhausted
 ExecutionTimeout
 ```
+
+Every code above comes from the Core Error Registry (§87 of the Specification); META adds no private code namespace.
 
 ---
 
@@ -4392,7 +4416,7 @@ Example:
 DigestMismatch
     verification failure
 
-SchemaValidationFailed
+ConstraintViolation / CapsuleValidationFailed
     validation failure
 
 ImportPreviewConflict
@@ -4412,13 +4436,14 @@ invalid.
 META errors SHOULD classify:
 
 ```text
-retryable
+safe_same_request
+requires_refresh
 requires_different_input
-requires_schema
 requires_authority
 requires_new_snapshot
 requires_reacquire_artifact
-non_retryable_integrity_failure
+outcome_lookup_required
+non_retryable
 ```
 
 ---
@@ -4600,7 +4625,7 @@ Adds:
 
 ```text
 PREVIEW KML
-PREVIEW IMPORT
+PREVIEW IMPORT CAPSULE
 high-impact mutation dry-run
 ```
 
@@ -5363,7 +5388,7 @@ current Governance controls historical visibility.
 Bad:
 
 ```text
-DESCRIBE DOMAIN MAP says Public
+Primer Domain/Topic Map says Public
 → bypass Governance.
 ```
 
@@ -5416,8 +5441,7 @@ The following are normative design targets.
 18. Schema aliases always resolve to exact canonical refs in responses.
 19. Ambiguous Schema symbols fail rather than guess.
 20. Package signature validity is separate from Package trust/activation.
-21. Type/P
-redicate/Facet/Structural Field introspection exposes mutability/constraints needed for KQL/KML.
+21. Type/Predicate/Facet/Structural Field introspection exposes mutability/constraints needed for KQL/KML.
 22. Structural Fields are never silently represented as semantic Predicates.
 23. SEARCH remains associative grounding, not canonical KQL.
 24. SEARCH may be eventually consistent.
@@ -5592,9 +5616,7 @@ preview_statement :=
 preview_target :=
       "KML"
     | "IMPORT CAPSULE"
-    | "MERGE"
-    | "PURGE"
-    | "SCHEMA MIGRATION"
+    (* reserved, not 2.0 syntax: "MERGE" | "PURGE" | "SCHEMA MIGRATION" *)
 
 history_statement :=
       "HISTORY ELEMENT" element_ref history_options?

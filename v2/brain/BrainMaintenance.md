@@ -150,6 +150,8 @@ Example policy formula:
 new_strength = clamp(old_strength × decay + salience protection + explicit reinforcement)
 ```
 
+Apply it with `UPDATE ... SET FACET "MnemonicState" { ... }` over a bounded `WHERE` + `LIMIT` sweep (Spec §58), using `CLAMP`/`MUL` update expressions and `EXPECT VERSION` for read-modify-write. Stamp `MnemonicState.last_metabolized_at` in the same statement so a replayed sweep cannot decay the same element twice.
+
 The formula is implementation-specific. Read frequency is not a required protocol signal.
 
 # 14. Salience Protection
@@ -159,6 +161,8 @@ Identity, high-impact Commitments, important relationships, major failures, vali
 # 15. Identity Review
 
 Candidate duplicates may use canonical identity, stable key, strong alias evidence, shared external identifiers, or human review. Name similarity alone is insufficient.
+
+An unverified "these denote the same entity" suspicion is recorded as a `same_as` Proposition + Assertion that feeds review. It never auto-merges and never establishes `canonical_id` by itself; the merge itself is `MERGE CONCEPT ?source INTO ?target`.
 
 Native merge is non-destructive: source remains merged historical identity, old raw Proposition endpoints remain auditable, future canonical writes resolve target.
 
@@ -221,11 +225,11 @@ Maintenance may identify purge candidates without permission to purge. In that c
 
 # 25. Retention Expiry
 
-`retention.expires_at` is storage policy state, not Assertion.valid_until, Commitment.due_at, or Evidence.observed_at. Expiry may trigger review rather than immediate deletion.
+`retention.expires_at` is storage policy state, not `Assertion.valid_time.until`, `Commitment.due_at`, or `Evidence.observed_at`. Expiry may trigger review rather than immediate deletion.
 
 # 26. Evidence Correction
 
-Never overwrite Evidence payload. Use new Evidence + `corrects` lineage + optional revised Assertion + correction Activity.
+Never overwrite Evidence payload. Use `CORRECT EVIDENCE :old BY :new` — new Evidence plus `corrects` / `corrected_by` lineage, an optional revised Assertion, and a correction Activity.
 
 # 27. Confidence
 

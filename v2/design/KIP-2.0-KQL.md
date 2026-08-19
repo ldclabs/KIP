@@ -10,7 +10,7 @@ This document defines the read/query semantics of KIP 2.0: how an Agent retrieve
 
 It builds directly on:
 
-- [KIP-2.0-Architecture.md](KIP-2.0-Architecture.md)
+- [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md)
 - [KIP-2.0-Core-Data-Model.md](KIP-2.0-Core-Data-Model.md)
 - [KIP-2.0-Epistemic-Model.md](KIP-2.0-Epistemic-Model.md)
 - [KIP-2.0-Governance.md](KIP-2.0-Governance.md)
@@ -77,7 +77,7 @@ Its central principle is:
 
 # 0. Normative Language
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate intended requirements for the future KIP 2.0 specification.
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, **MAY**, and **OPTIONAL** indicate requirements of the KIP 2.0 Specification (`../KIP-2.0-SPECIFICATION.md`), which is authoritative where the two differ.
 
 The grammar shown here is an architecture-level grammar proposal.
 
@@ -668,7 +668,7 @@ valid_time
 asserted_at
 lifecycle
 context_refs
-evidence_refs
+evidence
 facets
 retention
 _system
@@ -787,7 +787,7 @@ payload
 content_digest
 media_type
 observed_at
-source_refs
+source
 generated_by
 lifecycle
 facets
@@ -2126,9 +2126,7 @@ WITH EPISTEMIC {
   policy: "policy-id",
   include_historical: false,
   include_hypothetical: false,
-  explanation: "summary",
-  evidence_ledger: false,
-  context_refs: []
+  explanation: "summary"
 }
 ```
 
@@ -2772,27 +2770,38 @@ They are marked as virtual/read-only where necessary.
 
 KQL 2.0 SHOULD extend successful response with a context object.
 
-Illustrative:
+The context object rides on the operation result of the runtime envelope
+(`kip-response.schema.json`), not on a KQL-specific reply shape. Illustrative:
 
 ```json
 {
-  "result": [...],
+  "kip": "2.0",
+  "status": "succeeded",
 
-  "context": {
-    "space_id": "space-1",
-    "snapshot_seq": 1500,
-    "schema_environment_version": 17,
+  "results": [
+    {
+      "op_id": "q1",
+      "status": "succeeded",
+      "result": [...],
 
-    "epistemic": {
-      "used": true,
-      "policy_id": "default-recall",
-      "policy_version": "3",
-      "valid_at": "...",
-      "purpose": "answer_user"
+      "context": {
+        "space_id": "space-1",
+        "snapshot_seq": 1500,
+        "schema_environment_version": 17,
+
+        "epistemic_policy": {
+          "id": "default-recall",
+          "version": "3"
+        }
+      },
+
+      "next_cursor": "..."
     }
-  },
+  ],
 
-  "next_cursor": "..."
+  "snapshot": {
+    "snapshot_seq": 1500
+  }
 }
 ```
 
@@ -4042,7 +4051,6 @@ HistoricalSchemaUnavailable
 ProjectionTargetUnbound
 ProjectionTargetUnbounded
 ProjectionNotAuthorized
-ProjectionPolicyNotFound
 ProjectionPolicyUnavailable
 CursorMismatch
 CursorExpired
@@ -4177,6 +4185,7 @@ Adds:
 Structural Reference pattern
 BELIEF SLOT
 historical AS OF
+FOR TIME
 Facet access
 projection ledger
 snapshot-stable pagination
@@ -5372,8 +5381,10 @@ structural_pattern :=
     "(" term "," structural_field "," term ")"
 
 belief_pattern :=
-      variable "BELIEF" "(" proposition_variable ")"
+      variable "BELIEF" "(" variable ")"
+        (* the inner variable must be bound to a Proposition *)
     | variable "BELIEF" "(" "id" ":" scalar ")"
+        (* same id form as proposition_tuple *)
     | variable "BELIEF"
       "(" term "," predicate_term "," term ")"
         (* exact predicate only — no raw path *)
@@ -5392,15 +5403,30 @@ for_time_clause :=
 
 epistemic_clause :=
     "WITH EPISTEMIC" object_literal
+
+predicate_term :=
+    predicate_atom path_quantifier?
+    ("|" predicate_atom path_quantifier?)*
+        (* raw predicate paths (§90) are legal only inside
+           proposition_tuple; BELIEF / BELIEF SLOT take a bare
+           predicate_atom *)
+
+predicate_atom :=
+    string | parameter | variable
+
+path_quantifier :=
+    "{" integer ("," integer?)? "}"
 ```
 
-Formal scope/type rules are specified separately.
+The normative machine-readable grammar is
+[`../grammar/KIP-2.0-KQL.ebnf`](../grammar/KIP-2.0-KQL.ebnf); this sketch is a
+reading aid for it. Formal scope/type rules are specified separately.
 
 ---
 
 # 324. Recommended Parsing Rule
 
-Keywords are case-insensitive or canonical uppercase according to final grammar decision.
+Protocol keywords are ASCII case-insensitive; canonical rendering uses uppercase spelling.
 
 Schema symbols and string values remain case-sensitive according to their own definitions.
 

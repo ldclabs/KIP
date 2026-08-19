@@ -152,6 +152,8 @@ SleepTask 属于认知层面的工作说明清单。在执行具体操作前必�
 new_strength = clamp(old_strength × decay + salience protection + explicit reinforcement)
 ```
 
+衰减通过 `UPDATE ... SET FACET "MnemonicState" { ... }` 执行，配合受约束的 `WHERE` + `LIMIT` 扫描（规范 §58）、`CLAMP`/`MUL` 更新表达式，以及用于读-改-写的 `EXPECT VERSION`。同一语句中应一并写入 `MnemonicState.last_metabolized_at`，使得重放的扫描不会对同一元素重复衰减。
+
 公式具体实现由业务策略决定。读取频次并非协议层强制要求的信号。
 
 # 14. 显著性保护机制 (Salience Protection)
@@ -161,6 +163,8 @@ new_strength = clamp(old_strength × decay + salience protection + explicit rein
 # 15. 实体对齐与合并审查 (Identity Review)
 
 重复实体候选的判定依据：权威全局标识、稳定业务键、强别名证据、共享的外部标识符或人工审核。单纯的名称相似度不足以作为合并依据。
+
+未经核验的“二者指向同一实体”的怀疑，应记录为 `same_as` 命题 + 断言并进入审查流程。它绝不会自动触发合并，也不会凭此确立 `canonical_id`；真正的合并由 `MERGE CONCEPT ?source INTO ?target` 完成。
 
 原生合并是非破坏性的：源实体作为已合并的历史标识依然可被寻址，旧的原始 Proposition 端点依然可被审计，后续新的规范写入会自动规范化到目标实体。
 
@@ -223,11 +227,11 @@ Maintenance 可以识别物理清除候选对象，但在未获得清除授权�
 
 # 25. 留存过期语义 (Retention Expiry)
 
-`retention.expires_at` 属于存储策略维度的配置，绝非 `Assertion.valid_until`、`Commitment.due_at` 或 `Evidence.observed_at`。留存过期到达时可触发审查流程，而非强制直接物理删除。
+`retention.expires_at` 属于存储策略维度的配置，绝非 `Assertion.valid_time.until`、`Commitment.due_at` 或 `Evidence.observed_at`。留存过期到达时可触发审查流程，而非强制直接物理删除。
 
 # 26. 证据更正规范
 
-严禁直接覆写或原地修改 Evidence 载荷。必须通过创建新 Evidence + `corrects` 更正血统 + 可选的修订 Assertion + correction Activity 完成。
+严禁直接覆写或原地修改 Evidence 载荷。必须使用 `CORRECT EVIDENCE :old BY :new`——创建新 Evidence，配合 `corrects` / `corrected_by` 更正血统、可选的修订 Assertion 以及 correction Activity。
 
 # 27. 置信度代谢禁则
 

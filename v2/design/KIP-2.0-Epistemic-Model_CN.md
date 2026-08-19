@@ -56,7 +56,7 @@ KIP 2.0 标准化的是：
 
 # 0. 规范性用词定义 (Normative Language)
 
-关键字 **必须 (MUST)**、**严禁 (MUST NOT)**、**必需 (REQUIRED)**、**应当 (SHOULD)**、**不得 (SHOULD NOT)**、**可以 (MAY)** 和 **可选 (OPTIONAL)** 用于指示未来 KIP 2.0 规范中预期的协议要求。
+关键字 **必须 (MUST)**、**严禁 (MUST NOT)**、**必需 (REQUIRED)**、**应当 (SHOULD)**、**不得 (SHOULD NOT)**、**可以 (MAY)** 和 **可选 (OPTIONAL)** 用于指示 KIP 2.0 规范 (`../KIP-2.0-SPECIFICATION.md`) 中的协议要求；两者不一致时以该规范为准。
 
 除非另有明确说明，具体的连线格式仍仅供说明参考。
 
@@ -531,6 +531,32 @@ KIP 不强制要求将该向量持久化存储。
 数值评分是可选的。
 
 明确的解释原因比虚假的数值精度重要得多。
+
+---
+
+## 6.6 信任状态属于控制平面状态 (Trust State Is Control-Plane State)
+
+被认识论投影消费的信任**必须 (MUST)** 来自受保护的控制平面状态或显式的策略输入，
+**绝不能**来自普通的认知内容。一条内容为“信任该来源”的断言不产生任何信任效果，
+正如它不产生任何授权效果一样。
+
+推荐的表示形式是一组带作用域的信任记录：
+
+```text
+主体作用域 (subject scope)  语义行动者 | 已认证来源 | 证据来源 |
+                            工具 | 通道 | 导入来源
+上下文作用域 (context scope) 领域 | 用途 | 模式 | 密级
+取值 (value)                信任等级，或带明确声明语义的数值
+策略标识 (policy identity)  id + version
+```
+
+变更信任状态需要 `manage_trust` 治理权限。信任变更**必须 (MUST)** 可审计，并**应当 (SHOULD)**
+作为控制平面转换出现在变更/审计流中。信任状态的自省（`DESCRIBE TRUST`）与其他控制平面自省
+受到同等治理约束。
+
+因此，由结果驱动的校准（见第 96–98、186 节）是一次**控制平面修订**，而非普通的认知写入：
+算法属于 Brain 策略，但每次修订都**应当 (SHOULD)** 携带溯源信息——例如一个引用了结果证据的
+信任修订活动——以便 Brain 日后能够回答*它为何信任某个来源*。
 
 ---
 
@@ -1685,9 +1711,7 @@ A_self 绝不能被计为一个全新的独立来源。
   "purpose": "answer_user | action_planning | audit | research | diagnosis",
 
   "valid_at": "2026-08-13T13:00:00Z",
-  "as_of_transaction": "tx-or-time",
-
-  "context_refs": [],
+  "as_of": {"seq": 1500},
 
   "policy_ref": "epistemic-policy-id",
 
@@ -1696,13 +1720,14 @@ A_self 绝不能被计为一个全新的独立来源。
   "options": {
     "include_historical": false,
     "include_hypothetical": false,
-    "include_explanations": true,
-    "include_evidence_ledger": true
+    "explanation": "ledger"
   }
 }
 ```
 
-确切的连线字段名称稍后确定。
+以上是概念层面的契约。在实际链路上，KQL 调用方通过 `AS OF`（认知时间）、`FOR TIME`（客观世界有效时间）
+以及 `WITH EPISTEMIC { purpose, risk, policy, include_historical, include_hypothetical, explanation }`
+块来表达它。
 
 ---
 
@@ -2148,7 +2173,7 @@ insufficient (证据不足)
 
 # 74. 可选的不可用状态 `not_applicable` (Optional `not_applicable`)
 
-未来的 Profile **可以 (MAY)** 暴露：
+实现**可以 (MAY)** 在五种基准信念状态之外增加状态，但仅限于**带命名空间且经过能力协商 (capability-negotiated)** 的情况。最可能的候选是：
 
 ```text
 not_applicable
@@ -2156,7 +2181,7 @@ not_applicable
 
 用于表示生效或上下文领域不适用的命题。
 
-基准 KIP 通常可以通过解释信息来表达该语义，而无需将其作为强制要求的第六种状态。
+基准 KIP 通常可以通过解释信息来表达该语义，而无需引入第六种状态；未协商该扩展的调用方**严禁 (MUST NOT)** 收到此状态。
 
 ---
 
@@ -2194,7 +2219,7 @@ not_applicable
 
   "temporal": {
     "valid_at": "2026-08-13T13:00:00Z",
-    "as_of_transaction": "tx-991"
+    "as_of_seq": 1500
   },
 
   "policy": {
@@ -2701,7 +2726,7 @@ KIP 认识论模型定义了这种机制的可能性。
 
 # 97. 信任状态的学习与固化 (Trust Learning)
 
-信任本身也可以表示为认知状态。
+关于可靠性的主张本身也可以表示为认知状态。
 
 语义主张示例：
 
@@ -2711,9 +2736,9 @@ KIP 认识论模型定义了这种机制的可能性。
 
 附带断言与证据。
 
-然而，投影系统必须严格杜绝无限制的自指提升（即某个来源断言自身高度可信从而自我提权）。
+此类主张是**信任修订的输入，而非信任本身**。投影**严禁 (MUST NOT)** 直接消费它们；信任只能来自控制平面的信任状态（见第 6.6 节）。Brain 读取可靠性主张，依据自身的校准策略作出判断，然后执行一次可审计的 `manage_trust` 修订。
 
-安全治理层应严格控制哪些信任状态允许影响投影计算。
+这就堵住了“某个来源断言自身高度可信从而自我提权”的自指漏洞。
 
 ---
 
@@ -3046,6 +3071,20 @@ relevant state version (相关状态版本 / 变更游标)
 ```
 
 当底层相关的认识论状态或策略发生变化时，缓存的投影立即失效。
+
+**物化 (materialized)** 投影——即为让稳定信念以查表成本被召回而缓存的投影——**必须 (MUST)** 至少由以下要素标识：
+
+```text
+投影策略标识 + 版本 (Projection Policy identity + version)
+snapshot_seq 基准
+有效时间基准 (valid-time basis)
+```
+
+并且：
+
+- 提供物化结果时**必须 (MUST)** 通过结果上下文披露其策略标识与快照基准；把它呈现为“在当前快照上刚刚计算得出”属于不合规行为；
+- 在作为当前结果提供之前，该物化**必须 (MUST)** 被失效，或者其基准**必须 (MUST)** 对照 `space_seq` / 变更信封重新校验；
+- 它依然只是视图：**严禁 (MUST NOT)** 被回写为证据或断言，也**严禁 (MUST NOT)** 为自身的输入提供佐证（见第 46、114、148 节）。
 
 ---
 
@@ -3612,36 +3651,37 @@ MemorySpace + Schema + Projection Policy 共同定义具体的执行环境。
 
 # 136. 投影解释级别 (Projection Explanation Levels)
 
-推荐的解释级别：
+KQL 请求通过 `WITH EPISTEMIC { explanation: ... }` 选择解释级别。级别为：
 
 ```text
 none     (不提供解释)
 summary  (摘要级别)
-evidence (证据级别)
-audit    (全审计级别)
+ledger   (完整认识论账本)
 ```
 
 ## `summary` (摘要级别)
 
 面向人类或智能体友好的核心理由概要。
 
-## `evidence` (证据级别)
+## `ledger` (完整认识论账本)
 
-包含贡献力量的断言与证据根节点。
-
-## `audit` (全审计级别)
-
-在安全治理许可下包含：
+即完整的认识论账本（见第 79 节），在安全治理许可下包含：
 
 ```text
-策略信息 (policy)
+提供支持的断言 (contributing Assertions)
+提出反对的断言 (opposing Assertions)
+证据根节点 (Evidence roots)
+佐证分组 (corroboration groups)
 信任决策依据 (trust decisions)
-完整溯源路径 (provenance paths)
-被排除的断言 (excluded Assertions)
+被排除的断言及其排除原因 (excluded Assertions and reasons)
+时态排除细节 (temporal exclusions)
 冲突集合 (conflict sets)
-各项具体评分 (scores)
-时态过滤细节 (temporal filtering)
+各项评分及其声明的语义 (scores and declared semantics)
+策略标识与版本 (policy identity/version)
+警告与缺失信息 (warnings / missing information)
 ```
+
+调用方**可以 (MAY)** 被授权只获取投影结论而不获取原始证据；此时结果**应当 (SHOULD)** 披露解释或证据已被删节。
 
 ---
 
@@ -4618,7 +4658,7 @@ KIP 赋能大脑不仅能够学习客观事实，更能够学习：
 
 这些属于标准的“命题 + 断言”。
 
-安全治理层决定它们是否能够实际影响信任解析。
+它们绝不会直接影响投影所使用的信任（见第 6.6 节），而只是作为受治理的 `manage_trust` 修订的输入；该修订由安全治理层授权并审计。
 
 ---
 
@@ -4751,19 +4791,22 @@ Primer 本身不是权威的真理来源。
 
 # 196. 针对原始状态与已接受状态的检索 (Search Over Raw vs. Accepted State)
 
-未来 KQL / META 可以暴露：
+KIP 2.0 选择把两个面分开，而不是增加带信念过滤的检索变体：
 
 ```text
-SEARCH RAW        (检索原始状态)
-SEARCH ACCEPTED   (检索已接受信念)
-SEARCH CONTESTED  (检索争议状态)
+SEARCH        仅做原始的联想式落地 (associative grounding)
+              其 MODE 是检索模式 —— keyword | semantic | hybrid ——
+              绝不是信念过滤器
+
+BELIEF        认识论投影面
+BELIEF SLOT   针对某个“主语-谓词”槽位的候选/冲突集合
+              二者均通过 WITH EPISTEMIC 配置
 ```
 
-或等价的视图。
+因此流程是*先用 SEARCH 落地，再用 BELIEF 投影*。带信念模式的 SEARCH 关键字被刻意排除，
+因为它会重新把检索相关度塌缩为认识论支持度——而这恰恰是本文档明令禁止的混淆。
 
-具体语法稍后制定。
-
-认识论模型要求在概念上对它们进行严格区分。
+认识论模型要求在概念上对它们进行严格区分；KQL 用两条不同的语句来表达这一区分。
 
 ---
 
@@ -4972,7 +5015,7 @@ Proposition.accepted
 
 ---
 
-# 205. 建议的核心模型微调：可审计的生命周期流转 (Proposed Small Core Refinement: Auditable Lifecycle Transitions)
+# 205. 已采纳的核心模型微调：可审计的生命周期流转 (Core Refinement (Adopted): Auditable Lifecycle Transitions)
 
 历史认识论投影不仅需要知道断言当前的生命周期状态，更需要知道状态流转发生的时间点。
 
@@ -4996,9 +5039,11 @@ active → expired
 
 但对于声明支持历史投影的实现，必须满足历史可重构性的要求。
 
+KIP 2.0 已经提供了该能力：一次改变状态的提交产生一个逻辑变更信封 (Change Envelope)，`HISTORY ELEMENT :id` 返回单个元素的流转编年史（与返回历史内容的 `AS OF` 相区分）。
+
 ---
 
-# 206. 建议的核心模型微调：溯源根节点的可见性 (Proposed Small Core Refinement: Provenance Root Visibility)
+# 206. 已采纳的核心模型微调：溯源根节点的可见性 (Core Refinement (Adopted): Provenance Root Visibility)
 
 如果 Evidence / Activity API 能够高效暴露以下内容，将大幅提升投影计算性能：
 
@@ -5012,7 +5057,7 @@ active → expired
 
 这无需引入全新的 Core 核心元素。
 
-应当作为指导 KQL / META 查询设计的输入。
+KIP 2.0 通过针对保留的 Core 结构字段（`evidence`、`source`、`generated_by`、`inputs`、`outputs`、`associated_actors`）的结构模式，配合 `ledger` 解释级别（见第 136 节）来暴露这些信息。`record mode`（记录模式）仍属于 Profile 层的 Facet，而非 Core 字段。
 
 ---
 
