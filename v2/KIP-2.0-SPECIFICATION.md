@@ -597,11 +597,21 @@ Duplicate names are allowed.
 
 A Concept MAY have an immutable Space-local logical `key`.
 
-Recommended uniqueness scope:
+A `key` MUST be unique within:
 
 ```text
 (space_id, schema_ref, key)
 ```
+
+A `key` is therefore identity within its Concept Type, not across types: a
+`Person` and a `Preference` may both be keyed `"alice"` and they are two
+identities, which is what lets a 1.x database whose identity was `(type, name)`
+migrate those names into keys without merging unrelated Concepts.
+
+A selector that names a `key` without a type MAY match more than one Concept. A
+runtime MUST NOT resolve such a selector by choosing among them; it reports
+`IdentityConflict`. Choosing would be the arbitrary winner §7.2 forbids for
+names, reached through `key` instead.
 
 `key` is useful for:
 
@@ -770,7 +780,13 @@ plus the common envelope.
 
 ## 10.3 `schema_ref`
 
-Every native typed Concept MUST refer to an exact Schema symbol identity.
+Every Concept MUST identify its Concept Type through a `schema_ref` naming an
+exact Schema symbol identity, and that `schema_ref` MUST resolve to a Concept
+Type definition in the Space's Schema Environment.
+
+There is no untyped Concept. A `schema_ref` is fixed at creation, so a runtime
+that minted one without a type would have created an element no later write
+could repair and no `{type: …}` pattern could ever match.
 
 ---
 
@@ -3916,6 +3932,28 @@ key
 ```
 
 Name-only universal upsert is forbidden.
+
+---
+
+## 54.4 The MATCH type
+
+`MATCH` is an object pattern, so a `type` member inside it is the same
+schema-resolution sugar for an exact `schema_ref` that it is in a Concept
+Pattern (§43.1). It is not decoration, and a runtime MUST honor it in both
+halves of an upsert:
+
+```text
+resolve   type participates in the identity address (§7.3)
+create    type is the only source of the new Concept's schema_ref
+```
+
+An upsert that would create a Concept and declares no type MUST fail rather
+than mint an untyped one (§10.3).
+
+A declared type that the resolved element does not carry is not a match. Where
+the selector is `key`, the upsert proceeds to create under that type; where it
+is `id`, the upsert cannot create (§53) and MUST fail existence-neutrally,
+without reporting the type it found.
 
 ---
 

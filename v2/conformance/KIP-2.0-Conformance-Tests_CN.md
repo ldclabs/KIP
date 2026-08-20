@@ -2486,6 +2486,34 @@ untrusted imported (未受信任的导入数据)
 **违规禁则 (Forbidden outcome):** 语法糖引入非规范的额外副作用；执行结果与规范脱糖定义存在偏差；立场默认值被隐式设置为除 support 之外的值。
 
 ---
+
+## KIP2-KML-032 — UPSERT 按其 MATCH 声明的类型创建概念 (UPSERT creates the type its MATCH declares)
+
+**要求级别 (Level):** MUST
+
+**声明 Profile (Profiles):** KIP-KML (完整版)
+
+**预期语义行为 (Expected semantic behavior):** 对一个尚不存在的键执行 `UPSERT CONCEPT ?p {MATCH {type: "Person", key: "alice"} SET FIELDS {name: "Alice"}}`，必须提交一个 `schema_ref` 等于 `Person` 所解析出的确切符号的概念，使得其后 `?p CONCEPT {type: "Person", key: "alice"}` 能够匹配到它 (§54.4)。同一条 upsert 若不含 `type` 成员，则**必须**失败，而不是创建一个无类型概念 (§10.3)。
+
+**后置条件 (Postconditions):** 所创建概念的 `schema_ref` 能解析到一个概念类型定义；无类型的创建操作报告 `SchemaSymbolNotFound` 且不提交任何内容。
+
+**违规禁则 (Forbidden outcome):** 产生 `schema_ref` 为空或无法解析的概念；MATCH 中声明的类型被解析后遭到忽略。
+
+---
+
+## KIP2-KML-033 — 逻辑键是其类型之内的身份标识 (A logical key is identity within its type)
+
+**要求级别 (Level):** MUST
+
+**声明 Profile (Profiles):** KIP-KML (完整版)
+
+**预期语义行为 (Expected semantic behavior):** 在同一空间内，同一类型的两个概念**严禁**共用同一个 `key`；而*不同*类型的两个概念**可以**共用 (§7.3)。因此在已存在一个以 `alice` 为键的 Person 的情况下，执行 `{type: "Preference", key: "alice"}` 的 upsert 会创建出第二个彼此独立的概念。当两者都存在后，以 `{key: "alice"}` 且不带类型作为选择器的 upsert 必须报告 `IdentityConflict`。
+
+**后置条件 (Postconditions):** 两个同键概念拥有不同的 id 与不同的 `schema_ref`；不带类型的选择器不解析到其中任何一个。
+
+**违规禁则 (Forbidden outcome):** 将共用同一个键的两个类型化身份合并；通过从中挑选一个来解析有歧义的键。
+
+---
 # 21. 元操作套件 (META Suite)
 
 主 Profile 归属：`KIP-META`

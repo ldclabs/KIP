@@ -253,13 +253,13 @@ CREATE CONCEPT ?exp {                       // historically distinct thing
 
 ```kip
 UPSERT CONCEPT ?proj {                      // stable identity-bearing Concept
-  MATCH { type: "Project", key: "kip-2" }   // identity = id/key; name-only upsert is forbidden
+  MATCH { type: "Project", key: "kip-2" }   // identity = type + id/key; name-only upsert is forbidden
   EXPECT VERSION :v                         // optional; 0 = create-only
   SET FIELDS { name: "KIP 2.0" }
 }
 ```
 
-Clause menus (any order inside the braces, each at most once except `SET/UNSET FACET`): `CREATE CONCEPT` — `TYPE` (required), `CLIENT KEY`, `NAME`, `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`. `UPSERT CONCEPT` — `MATCH` (required), `EXPECT VERSION`, `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`, `UNSET ATTRIBUTES | FACET | STRUCTURAL`. `MATCH { type: "Person", key: "alice" }` may create; `MATCH { id: :id }` only matches. Where a value goes: Core fields (`name`, `key`) → `SET FIELDS`; schema-declared attributes (`goal`, `status`, …) → `SET ATTRIBUTES`; Profile facet values → `SET FACET "Facet"`; references → `SET STRUCTURAL`.
+Clause menus (any order inside the braces, each at most once except `SET/UNSET FACET`): `CREATE CONCEPT` — `TYPE` (required), `CLIENT KEY`, `NAME`, `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`. `UPSERT CONCEPT` — `MATCH` (required), `EXPECT VERSION`, `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`, `UNSET ATTRIBUTES | FACET | STRUCTURAL`. `MATCH { type: "Person", key: "alice" }` may create; `MATCH { id: :id }` only matches. The `type` is not decoration: a key is identity *within* its type (a Person and a Preference may both be keyed `alice`), and on a create it is the only source of the new Concept's type — so an upsert that must create without one is rejected, and a bare `{key: …}` that names two Concepts is an `IdentityConflict` rather than a coin flip. Where a value goes: Core fields (`name`, `key`) → `SET FIELDS`; schema-declared attributes (`goal`, `status`, …) → `SET ATTRIBUTES`; Profile facet values → `SET FACET "Facet"`; references → `SET STRUCTURAL`.
 
 #### 3.4. `MUTATE` — one atomic cognitive transition
 

@@ -253,13 +253,13 @@ CREATE CONCEPT ?exp {                       // 历史上独立的实体
 
 ```kip
 UPSERT CONCEPT ?proj {                      // 具备稳定标识的 Concept
-  MATCH { type: "Project", key: "kip-2" }   // 标识匹配仅限 id/key；严禁仅凭 name 进行 upsert
+  MATCH { type: "Project", key: "kip-2" }   // 标识 = type + id/key；严禁仅凭 name 进行 upsert
   EXPECT VERSION :v                         // 可选；0 = 仅创建
   SET FIELDS { name: "KIP 2.0" }
 }
 ```
 
-子句清单（花括号内顺序不限，除 `SET/UNSET FACET` 外每种至多一次）：`CREATE CONCEPT`——`TYPE`（必填）、`CLIENT KEY`、`NAME`、`SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`。`UPSERT CONCEPT`——`MATCH`（必填）、`EXPECT VERSION`、`SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`、`UNSET ATTRIBUTES | FACET | STRUCTURAL`。`MATCH { type: "Person", key: "alice" }` 可创建；`MATCH { id: :id }` 仅匹配已有元素。值该写在哪：核心字段（`name`、`key`）→ `SET FIELDS`；模式声明的属性（`goal`、`status` 等）→ `SET ATTRIBUTES`；Profile 切面值 → `SET FACET "Facet"`；引用 → `SET STRUCTURAL`。
+子句清单（花括号内顺序不限，除 `SET/UNSET FACET` 外每种至多一次）：`CREATE CONCEPT`——`TYPE`（必填）、`CLIENT KEY`、`NAME`、`SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`。`UPSERT CONCEPT`——`MATCH`（必填）、`EXPECT VERSION`、`SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`、`UNSET ATTRIBUTES | FACET | STRUCTURAL`。`MATCH { type: "Person", key: "alice" }` 可创建；`MATCH { id: :id }` 仅匹配已有元素。其中 `type` 不是装饰：key 是其类型*之内*的身份标识（一个 Person 与一个 Preference 可以同时以 `alice` 为键），且在创建时它是新概念类型的唯一来源——因此不带 type 却需要创建的 upsert 会被拒绝，而裸 `{key: …}` 若匹配到两个概念则报 `IdentityConflict`，而不是抛硬币。值该写在哪：核心字段（`name`、`key`）→ `SET FIELDS`；模式声明的属性（`goal`、`status` 等）→ `SET ATTRIBUTES`；Profile 切面值 → `SET FACET "Facet"`；引用 → `SET STRUCTURAL`。
 
 #### 3.4. `MUTATE` — 原子认知状态迁移
 

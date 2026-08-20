@@ -2508,6 +2508,34 @@ Primary profile: `KIP-KML`
 
 ---
 
+## KIP2-KML-032 — UPSERT creates the type its MATCH declares
+
+**Level:** MUST
+
+**Profiles:** KIP-KML (full)
+
+**Expected semantic behavior:** `UPSERT CONCEPT ?p {MATCH {type: "Person", key: "alice"} SET FIELDS {name: "Alice"}}` against an absent key commits a Concept whose `schema_ref` is the exact symbol `Person` resolves to, so `?p CONCEPT {type: "Person", key: "alice"}` matches it afterwards (§54.4). The same upsert with no `type` member MUST fail rather than create an untyped Concept (§10.3).
+
+**Postconditions:** the created Concept's `schema_ref` resolves to a Concept Type definition; the type-less create reports `SchemaSymbolNotFound` and commits nothing.
+
+**Forbidden outcome:** a Concept with an empty or unresolvable `schema_ref`; a declared MATCH type parsed and then ignored.
+
+---
+
+## KIP2-KML-033 — A logical key is identity within its type
+
+**Level:** MUST
+
+**Profiles:** KIP-KML (full)
+
+**Expected semantic behavior:** Two Concepts of the same type MUST NOT share a `key` in one Space. Two Concepts of *different* types MAY (§7.3), so upserting `{type: "Preference", key: "alice"}` beside an existing Person keyed `alice` creates a second, distinct Concept. Once both exist, an upsert selecting `{key: "alice"}` with no type reports `IdentityConflict`.
+
+**Postconditions:** the two same-key Concepts have distinct ids and distinct `schema_ref`s; the type-less selector resolves to neither.
+
+**Forbidden outcome:** merging two typed identities that share a key; resolving an ambiguous key by choosing one of its Concepts.
+
+---
+
 
 # 21. META Suite
 
