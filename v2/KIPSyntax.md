@@ -25,13 +25,13 @@ batch ≠ transaction; timeout ≠ abort; progress ≠ commit
 
 #### 1.1. Five Core element kinds
 
-| Kind            | What it is                                                    | Mutability |
-| --------------- | ------------------------------------------------------------- | ---------- |
-| **Concept**     | Referable entity/typed object (`schema_ref`, `key`, `name`, `attributes`) | mutable state |
-| **Proposition** | Truth-neutral statement `(subject, predicate, object)`        | immutable tuple |
+| Kind            | What it is                                                                                                                                        | Mutability                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| **Concept**     | Referable entity/typed object (`schema_ref`, `key`, `name`, `attributes`)                                                                         | mutable state                              |
+| **Proposition** | Truth-neutral statement `(subject, predicate, object)`                                                                                            | immutable tuple                            |
 | **Assertion**   | Actor's stance toward one Proposition (`asserted_by`, `stance`, `mode`, `confidence`, `asserted_at`, `valid_time`, evidence citations, lifecycle) | payload immutable; revise by new Assertion |
-| **Evidence**    | Observed artifact (`evidence_class`, payload, `observed_at`)  | payload immutable; correct via lineage |
-| **Activity**    | Provenance process (`activity_class`, inputs → outputs)       | immutable once terminal |
+| **Evidence**    | Observed artifact (`evidence_class`, payload, `observed_at`)                                                                                      | payload immutable; correct via lineage     |
+| **Activity**    | Provenance process (`activity_class`, inputs → outputs)                                                                                           | immutable once terminal                    |
 
 Profile objects (`Experience`, `Skill`, `Event`, ...) are typed Concepts + Facets + Structural References — not new kinds.
 

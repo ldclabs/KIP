@@ -25,13 +25,13 @@ SEARCH 检索得分 (score)           ≠ 置信度 (confidence)
 
 #### 1.1. 五大核心元素类型
 
-| 类型 (Kind) | 说明 | 可变性 |
-| :--- | :--- | :--- |
-| **Concept（概念）** | 可引用的实体/类型化对象（`schema_ref`、`key`、`name`、`attributes`） | 可变状态 |
-| **Proposition（命题）** | 价值中立的陈述三元组 `(subject, predicate, object)` | 不可变元组 |
-| **Assertion（断言）** | 行动者对某一命题的立场陈述（`asserted_by`、`stance`、`mode`、`confidence`、`asserted_at`、`valid_time`、证据引用、生命周期） | 载荷不可变；通过新断言修订 |
-| **Evidence（证据）** | 观测到的人工制品（`evidence_class`、载荷、`observed_at`） | 载荷不可变；通过血统链更正 |
-| **Activity（活动）** | 溯源过程记录（`activity_class`、inputs → outputs） | 一旦进入终态即不可变 |
+| 类型 (Kind)             | 说明                                                                                                                         | 可变性                     |
+| :---------------------- | :--------------------------------------------------------------------------------------------------------------------------- | :------------------------- |
+| **Concept（概念）**     | 可引用的实体/类型化对象（`schema_ref`、`key`、`name`、`attributes`）                                                         | 可变状态                   |
+| **Proposition（命题）** | 价值中立的陈述三元组 `(subject, predicate, object)`                                                                          | 不可变元组                 |
+| **Assertion（断言）**   | 行动者对某一命题的立场陈述（`asserted_by`、`stance`、`mode`、`confidence`、`asserted_at`、`valid_time`、证据引用、生命周期） | 载荷不可变；通过新断言修订 |
+| **Evidence（证据）**    | 观测到的人工制品（`evidence_class`、载荷、`observed_at`）                                                                    | 载荷不可变；通过血统链更正 |
+| **Activity（活动）**    | 溯源过程记录（`activity_class`、inputs → outputs）                                                                           | 一旦进入终态即不可变       |
 
 Profile 定义的对象（`Experience`、`Skill`、`Event` 等）属于类型化 Concept + Facet + 结构引用（Structural Reference），而非新增的核心底层类型。
 
