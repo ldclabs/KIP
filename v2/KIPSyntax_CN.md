@@ -445,7 +445,7 @@ SEARCH 仅用于检索接地：检索得分 ≠ 置信度 ≠ 确信事实；未
 
 ### 6. 认知记忆 Profile（速查）
 
-核心类型：`Person`、`Event`（发生了什么）、`Experience`（目标导向轨迹；必须包含 `goal`、`outcome_status`）、`ExperienceStep`（`step_kind`: context|observation|decision|action|feedback|belief_update；`summary`；顺序由 has_step 边索引决定）、`Preference`（总结性产物——主张本身仍为 Proposition+Assertion）、`Insight`、`Commitment`（`status`: pending|fulfilled|cancelled|expired|blocked；`due_at` 与 retention 过期时间不同）、`Skill`（`skill_class`、`summary`、`procedure`、`status`: candidate|validated|needs_review|deprecated|archived）、`SleepTask`、`SelfModel`。
+核心类型：`Person`、`Event`（发生了什么）、`Experience`（目标导向轨迹；必须包含 `goal`、`outcome_status`）、`ExperienceStep`（`step_kind`: context|observation|decision|action|feedback|belief_update；`summary`；顺序由 has_step 边索引决定）、`Preference`（总结性产物——主张本身仍为 Proposition+Assertion）、`Insight`、`Commitment`（`status`: pending|fulfilled|cancelled|expired|blocked；`due_at` 与 retention 过期时间不同）、`Skill`（`skill_class`、`summary`、`procedure`、`status`: candidate|validated|needs_review|deprecated|archived）、`SleepTask`（`task_class`: consolidate|review_conflict|review_skill|resolve_identity|review_retention|refresh_self_model|inspect_quarantine；`summary`；`status`: pending|running|completed|cancelled|blocked|failed）、`SelfModel`。
 
 核心谓词：`prefers`（Person→Concept）、`caused_by`（Step→Step，结果→起因，基于证据）、`same_as`（同一性主张 → 触发审核）。
 

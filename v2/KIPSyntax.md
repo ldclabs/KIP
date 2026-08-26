@@ -445,7 +445,7 @@ At startup or after `requires_refresh`, call `DESCRIBE PRIMER`; ground concrete 
 
 ### 6. Cognitive Memory Profile (quick reference)
 
-Types: `Person` `Event` (what happened) `Experience` (goal-directed trajectory; required `goal`, `outcome_status`) `ExperienceStep` (`step_kind`: context|observation|decision|action|feedback|belief_update; `summary`; order = has_step edge index) `Preference` (summary artifact — the claim itself stays Proposition+Assertion) `Insight` `Commitment` (`status`: pending|fulfilled|cancelled|expired|blocked; `due_at` ≠ retention expiry) `Skill` (`skill_class`, `summary`, `procedure`, `status`: candidate|validated|needs_review|deprecated|archived) `SleepTask` `SelfModel`
+Types: `Person` `Event` (what happened) `Experience` (goal-directed trajectory; required `goal`, `outcome_status`) `ExperienceStep` (`step_kind`: context|observation|decision|action|feedback|belief_update; `summary`; order = has_step edge index) `Preference` (summary artifact — the claim itself stays Proposition+Assertion) `Insight` `Commitment` (`status`: pending|fulfilled|cancelled|expired|blocked; `due_at` ≠ retention expiry) `Skill` (`skill_class`, `summary`, `procedure`, `status`: candidate|validated|needs_review|deprecated|archived) `SleepTask` (`task_class`: consolidate|review_conflict|review_skill|resolve_identity|review_retention|refresh_self_model|inspect_quarantine; `summary`; `status`: pending|running|completed|cancelled|blocked|failed) `SelfModel`
 
 Predicates: `prefers` (Person→Concept) `caused_by` (Step→Step, effect→cause, evidence-backed) `same_as` (identity claim → review)
 

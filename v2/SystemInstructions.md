@@ -122,7 +122,7 @@ Claim a task before working it, so a concurrent cycle cannot double-process it:
 UPSERT CONCEPT ?task {
   MATCH {type: "SleepTask", key: :task_key}
   EXPECT VERSION :version
-  SET ATTRIBUTES {status: "in_progress", started_at: :now}
+  SET ATTRIBUTES {status: "running", started_at: :now}
 }
 ```
 
@@ -149,7 +149,7 @@ MUTATE {
     by: :self,
     mode: "inferred",
     confidence: 0.7,
-    evidence: :source_experience
+    evidence: :step_evidence
   }
   CREATE ACTIVITY ?consolidation {
     SET FIELDS {activity_class: "semantic_consolidation", status: "completed"}
@@ -163,7 +163,7 @@ MUTATE {
 
 Then mark the source consolidated with `consolidated_to` so the next cycle does not re-derive it.
 
-The causal claim is an Assertion with Evidence behind it, asserted by you in `inferred` mode. Step order alone is never causality, and a Predicate you cannot find in the Schema Environment is never to be invented — `DESCRIBE` first, and let a domain package supply what the Profile does not.
+The causal claim is an Assertion with Evidence behind it, asserted by you in `inferred` mode — `evidence:` cites Evidence elements, never the Experience Concept they were observed in. Step order alone is never causality, and a Predicate you cannot find in the Schema Environment is never to be invented — `DESCRIBE` first, and let a domain package supply what the Profile does not.
 
 Repeated transformation is not corroboration: message → Event summary → Experience summary → Insight may still rest on a single epistemic root. Do not let a chain of your own summaries raise confidence.
 
@@ -178,7 +178,7 @@ MUTATE {
     CLIENT KEY :skill_key
     NAME "Deploy with pre-flight migration check"
     SET ATTRIBUTES {
-      skill_class: "procedure",
+      skill_class: "workflow",
       summary: :summary,
       procedure: :procedure,
       status: "candidate"

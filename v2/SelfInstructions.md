@@ -216,7 +216,7 @@ MUTATE {
       summary: :summary,
       started_at: :started_at,
       ended_at: :ended_at,
-      outcome_status: "completed"
+      outcome_status: "success"
     }
     SET FACET "MnemonicState" {memory_strength: 0.7, salience: :salience}
     SET STRUCTURAL {
@@ -313,7 +313,7 @@ CREATE CONCEPT ?task {
     task_class: "consolidate",
     status: "pending",
     priority: 1,
-    reason: "Several preferences stated in one turn; extraction needs care"
+    summary: "Several preferences stated in one turn; extraction needs care"
   }
   SET STRUCTURAL {
     ("assigned_to", :system)

@@ -80,7 +80,7 @@ fact PropositionObjectIsExactlyOne {
 
 sig Assertion extends Element {
   proposition: one Proposition,   // §13.1 exactly one Proposition
-  evidence: set Evidence,         // §13.2 evidence_refs (initial, immutable §13.7)
+  evidence: set Evidence,         // §13.2 evidence (initial, immutable §13.7)
   var status: one Status,
   var superseded_by: lone Assertion
 }

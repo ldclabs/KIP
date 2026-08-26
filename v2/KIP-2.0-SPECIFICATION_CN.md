@@ -3859,6 +3859,7 @@ CREATE CONCEPT ?exp {
   NAME "Deployment failure"
 
   SET ATTRIBUTES {
+    goal: :goal,
     outcome_status: "failure"
   }
 

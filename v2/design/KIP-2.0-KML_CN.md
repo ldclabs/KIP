@@ -2611,7 +2611,7 @@ MUTATE {
     CLIENT KEY :activity_key
 
     SET FIELDS {
-      activity_class: "assertion_retraction",
+      activity_class: "belief_revision",
       started_at: :time,
       ended_at: :time,
       status: "completed"
@@ -3395,7 +3395,7 @@ MUTATE {
     CLIENT KEY :activity_key
 
     SET FIELDS {
-      activity_class: "tool_observation",
+      activity_class: "tool_execution",
       started_at: :time,
       ended_at: :time,
       parameters_digest: :params_digest,
@@ -3676,7 +3676,7 @@ MUTATE {
       initial_state_summary: :initial_state,
       outcome_summary: :outcome,
       outcome_status: :outcome_status,
-      surprise_score: :surprise,
+      surprise: :surprise,
       learning_value: :learning_value
     }
 
@@ -3690,7 +3690,6 @@ MUTATE {
       ("has_step", ?step0) {index: 0}
       ("has_step", ?step1) {index: 1}
       ("has_step", ?step2) {index: 2}
-      ("formed_by", ?formation)
     }
   }
 
@@ -3699,7 +3698,7 @@ MUTATE {
     CLIENT KEY :step0_key
 
     SET ATTRIBUTES {
-      kind: "observation",
+      step_kind: "observation",
       summary: :step0_summary
     }
   }
@@ -3709,7 +3708,7 @@ MUTATE {
     CLIENT KEY :step1_key
 
     SET ATTRIBUTES {
-      kind: "action",
+      step_kind: "action",
       summary: :step1_summary,
       decision_summary: :decision_summary
     }
@@ -3720,7 +3719,7 @@ MUTATE {
     CLIENT KEY :step2_key
 
     SET ATTRIBUTES {
-      kind: "feedback",
+      step_kind: "feedback",
       summary: :step2_summary
     }
   }

@@ -122,7 +122,7 @@ LIMIT 50
 UPSERT CONCEPT ?task {
   MATCH {type: "SleepTask", key: :task_key}
   EXPECT VERSION :version
-  SET ATTRIBUTES {status: "in_progress", started_at: :now}
+  SET ATTRIBUTES {status: "running", started_at: :now}
 }
 ```
 
@@ -149,7 +149,7 @@ MUTATE {
     by: :self,
     mode: "inferred",
     confidence: 0.7,
-    evidence: :source_experience
+    evidence: :step_evidence
   }
   CREATE ACTIVITY ?consolidation {
     SET FIELDS {activity_class: "semantic_consolidation", status: "completed"}
@@ -163,7 +163,7 @@ MUTATE {
 
 随后用 `consolidated_to` 标记来源已固化，使下一周期不再重复推导。
 
-因果主张是一条背后有证据、由你以 `inferred` 模式作出的 Assertion。步骤顺序本身永远不是因果；而在 Schema 环境中找不到的 Predicate 永远不能杜撰 —— 先 `DESCRIBE`，Profile 未定义的交由领域包提供。
+因果主张是一条背后有证据、由你以 `inferred` 模式作出的 Assertion —— `evidence:` 引用的必须是 Evidence 元素，而不是观测所在的 Experience 概念。步骤顺序本身永远不是因果；而在 Schema 环境中找不到的 Predicate 永远不能杜撰 —— 先 `DESCRIBE`，Profile 未定义的交由领域包提供。
 
 重复转写不构成佐证：消息 → Event 摘要 → Experience 摘要 → Insight，其认知根源可能自始至终只有一个。绝不让你自己的一串摘要抬高置信度。
 
@@ -178,7 +178,7 @@ MUTATE {
     CLIENT KEY :skill_key
     NAME "Deploy with pre-flight migration check"
     SET ATTRIBUTES {
-      skill_class: "procedure",
+      skill_class: "workflow",
       summary: :summary,
       procedure: :procedure,
       status: "candidate"
