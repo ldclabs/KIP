@@ -8,6 +8,7 @@
 
 <p align="center">
   <a href="./SPECIFICATION_CN.md"><img src="https://img.shields.io/badge/core-v1.0--RC11-blue.svg" alt="KIP 核心规范"></a>
+  <a href="./v2/KIP-2.0-SPECIFICATION_CN.md"><img src="https://img.shields.io/badge/next-v2.0--draft-orange.svg" alt="KIP 2.0 规范草案"></a>
   <a href="#经验学习-profile"><img src="https://img.shields.io/badge/profile-Experience%20Learning-purple.svg" alt="经验学习 Profile"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="许可证：MIT"></a>
 </p>
@@ -475,11 +476,32 @@ capsules/compiled_to.kip
 | [Anda Cognitive Nexus Python](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py) | Cognitive Nexus Python 绑定 |
 | [Anda Bot](https://github.com/ldclabs/anda-bot) | 基于 KIP 与 Anda Brain 的 AI 智能体 |
 
+## KIP 2.0（草案）
+
+下一版 Core 正在 [`v2/`](./v2/) 中起草。它**尚未发布**：上文的 v1.0-RC11 仍是当前生效的契约，现有客户端今天无需做任何改动。
+
+KIP 2.0 把 Core 重建在五种元素之上 —— Concept、Proposition、Assertion、Evidence、Activity —— 从而让「这条陈述存在」与「这条陈述被相信」不再是同一个事实。信念成为对相互竞争的 Assertion 做的显式认知投影（`BELIEF` / `BELIEF SLOT`），证据与来源从元数据升格为一等元素，模式则被收进带版本、以摘要锁定的模式包。[从 1.x 迁移 →](./v2/migration/KIP-2.0-Migration-from-1.x_CN.md)
+
+| 文档 | 内容 |
+| --- | --- |
+| [📖 2.0 规范](./v2/KIP-2.0-SPECIFICATION_CN.md) | 规范性草案（[English](./v2/KIP-2.0-SPECIFICATION.md)） |
+| [🏛 2.0 架构](./v2/KIP-2.0-Architecture_CN.md) | 规范背后的设计理据（[English](./v2/KIP-2.0-Architecture.md)） |
+| [📐 2.0 语法速查](./v2/KIPSyntax_CN.md) | 面向 LLM 的 KQL / KML / META 速查卡（[English](./v2/KIPSyntax.md)） |
+| [🧩 2.0 认知记忆 Profile](./v2/profiles/CognitiveMemoryProfile-2.0_CN.md) | Experience、Skill、Commitment 等记忆类型 |
+| [🧠 2.0 Brain](./v2/brain/README_CN.md) | 2.0 版的 Formation / Recall / Maintenance（[English](./v2/brain/README.md)） |
+| [🤖 `$self` / ⚙️ `$system`](./v2/SelfInstructions_CN.md) | 单智能体精简提示词组合（[`$system`](./v2/SystemInstructions_CN.md)） |
+| [🗂 设计文档](./v2/design/) | 十份分子系统的参考性文档 |
+| [🔤 语法与 Schema](./v2/grammar/) | 规范性 EBNF，以及[传输层 Schema](./v2/schemas/) |
+| [🧪 一致性测试套件](./v2/conformance/KIP-2.0-Conformance-Tests_CN.md) | 覆盖 13 个一致性 Profile 的 298 条可移植测试向量 |
+| [🔬 形式化验证](./v2/formal/README_CN.md) | Alloy 与 TLA+ 模型及其验证结论 |
+
+`v2/` 下的每份文档都是中英双语的：每个 `X.md` 都有对应的 `X_CN.md`。
+
 ## 版本策略
 
 KIP Core 与认知记忆 Profile 分开演进：
 
-- 顶部徽章标识 KIP Core 的语法和执行约定。
+- 顶部蓝色徽章标识 KIP Core 的语法和执行约定；橙色徽章对应上文的 2.0 草案。
 - 胶囊可以新增或扩宽认知类型和谓词，不必修改 Core。
 - 只有语法、执行语义、返回结构或协议级不变量发生变化时，才需要发布新的 Core 修订。
 

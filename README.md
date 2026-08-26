@@ -8,6 +8,7 @@
 
 <p align="center">
   <a href="./SPECIFICATION.md"><img src="https://img.shields.io/badge/core-v1.0--RC11-blue.svg" alt="KIP Core Specification"></a>
+  <a href="./v2/KIP-2.0-SPECIFICATION.md"><img src="https://img.shields.io/badge/next-v2.0--draft-orange.svg" alt="KIP 2.0 Draft Specification"></a>
   <a href="#the-experience-learning-profile"><img src="https://img.shields.io/badge/profile-Experience%20Learning-purple.svg" alt="Experience Learning Profile"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License: MIT"></a>
 </p>
@@ -475,11 +476,32 @@ The type capsules precede predicate capsules so schema references are already gr
 | [Anda Cognitive Nexus Python](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py) | Python binding for the Cognitive Nexus |
 | [Anda Bot](https://github.com/ldclabs/anda-bot) | AI agent built with KIP and Anda Brain |
 
+## KIP 2.0 (Draft)
+
+The next Core revision is being drafted in [`v2/`](./v2/). It is **not released**: v1.0-RC11 above remains the shipping contract, and existing clients need to change nothing today.
+
+KIP 2.0 rebuilds Core around five element kinds — Concept, Proposition, Assertion, Evidence, Activity — so that *this statement exists* and *this statement is believed* stop being the same fact. Belief becomes an explicit Epistemic Projection (`BELIEF` / `BELIEF SLOT`) over competing Assertions, evidence and provenance become first-class elements rather than metadata, and schema moves into versioned, digest-pinned packages. [Migrating from 1.x →](./v2/migration/KIP-2.0-Migration-from-1.x.md)
+
+| Document | Description |
+| --- | --- |
+| [📖 Specification 2.0](./v2/KIP-2.0-SPECIFICATION.md) | The normative draft ([中文](./v2/KIP-2.0-SPECIFICATION_CN.md)) |
+| [🏛 Architecture 2.0](./v2/KIP-2.0-Architecture.md) | Design rationale behind the Specification ([中文](./v2/KIP-2.0-Architecture_CN.md)) |
+| [📐 Syntax Reference 2.0](./v2/KIPSyntax.md) | LLM-facing KQL / KML / META card ([中文](./v2/KIPSyntax_CN.md)) |
+| [🧩 Cognitive Memory Profile 2.0](./v2/profiles/CognitiveMemoryProfile-2.0.md) | Experience, Skill, Commitment, and the rest of the memory types |
+| [🧠 Brain 2.0](./v2/brain/README.md) | Formation / Recall / Maintenance for 2.0 ([中文](./v2/brain/README_CN.md)) |
+| [🤖 `$self` / ⚙️ `$system`](./v2/SelfInstructions.md) | Compact single-agent prompt pair ([`$system`](./v2/SystemInstructions.md)) |
+| [🗂 Design Notes](./v2/design/) | Ten informative per-subsystem documents |
+| [🔤 Grammars & Schemas](./v2/grammar/) | Normative EBNF, plus the [wire schemas](./v2/schemas/) |
+| [🧪 Conformance Suite](./v2/conformance/KIP-2.0-Conformance-Tests.md) | 298 portable vectors across 13 conformance profiles |
+| [🔬 Formal Verification](./v2/formal/README.md) | Alloy and TLA+ models, and what they proved |
+
+Every document in `v2/` is bilingual: each `X.md` has an `X_CN.md` twin.
+
 ## Versioning
 
 KIP Core and Cognitive Memory Profiles evolve independently:
 
-- The badge at the top identifies the KIP Core grammar and execution contract.
+- The blue badge at the top identifies the KIP Core grammar and execution contract; the orange one tracks the 2.0 draft above.
 - Capsule changes may add or widen cognitive types and predicates without changing Core.
 - A future Core revision is required only when syntax, execution semantics, result shapes, or protocol-level invariants change.
 
