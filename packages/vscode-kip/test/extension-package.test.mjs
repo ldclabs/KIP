@@ -3,11 +3,16 @@ import { readFile } from 'node:fs/promises'
 import { describe, test } from 'node:test'
 
 import {
+  checkBudget,
   diagnose,
+  tokenize,
   KEYWORDS,
   FUNCTIONS,
   AGGREGATES,
-  KIP_SPEC_REVISION
+  KipSyntaxError,
+  TokenType,
+  KIP_SPEC_REVISION,
+  MAX_KIP_INPUT_LEN
 } from '@ldclabs/kip-lang'
 
 const readJson = async (relative) =>
@@ -63,14 +68,34 @@ describe('VS Code extension package', () => {
       new URL('../syntaxes/kip.tmLanguage.json', import.meta.url),
       'utf8'
     )
-    for (const name of KEYWORDS.keys()) {
-      assert.ok(grammarText.includes(name), `missing keyword ${name}`)
-    }
-    for (const name of new Set([...FUNCTIONS, ...AGGREGATES])) {
-      assert.ok(grammarText.includes(name), `missing function ${name}`)
-    }
-
     const grammar = JSON.parse(grammarText)
+
+    // Compared as sets, not as substrings: `includes('IN')` is satisfied by
+    // any rule, comment or longer word that happens to contain those letters,
+    // so a keyword dropped from an alternation would still pass.
+    const highlighted = new Set()
+    for (const name of [
+      'function',
+      'keyword-element',
+      'keyword-statement',
+      'keyword-modifier'
+    ]) {
+      const alternation = grammar.repository[name].match.match(/\(\?:([^)]*)\)/)
+      assert.ok(alternation, `${name} must list its words in one alternation`)
+      for (const word of alternation[1].split('|')) highlighted.add(word)
+    }
+    const registered = new Set([...KEYWORDS.keys(), ...FUNCTIONS, ...AGGREGATES])
+    assert.deepEqual(
+      [...registered].filter((name) => !highlighted.has(name)),
+      [],
+      'registered but never highlighted'
+    )
+    assert.deepEqual(
+      [...highlighted].filter((name) => !registered.has(name)),
+      [],
+      'highlighted but not a KIP word'
+    )
+
     for (const rule of [
       grammar.repository.function,
       grammar.repository['keyword-element'],
@@ -82,6 +107,43 @@ describe('VS Code extension package', () => {
         `${rule.name} must leave whitespace-separated object keys uncolored`
       )
     }
+  })
+
+  test('a string is highlighted only to the end of its line', async () => {
+    // A KIP string never crosses a newline: the lexer closes one there, and an
+    // escaped newline is invalid JSON either way. A rule that ends only at the
+    // closing quote colors the rest of the file after one stray `"`.
+    const grammar = await readJson('../syntaxes/kip.tmLanguage.json')
+    assert.equal(grammar.repository.string.end, '"|$')
+
+    const [token] = tokenize('"unterminated\nFIND(?x)').filter(
+      (t) => t.type === TokenType.String
+    )
+    assert.equal(token.value, '"unterminated')
+  })
+
+  test('a brace inside a string or a comment is not a brace', () => {
+    // The folding fallback runs on documents the parser rejected — exactly
+    // when a brace is most likely to be sitting inside a half-typed string —
+    // so it counts the lexer's tokens rather than raw characters.
+    const braces = (source) =>
+      tokenize(source).filter(
+        (t) => t.type === TokenType.LBrace || t.type === TokenType.RBrace
+      ).length
+    assert.equal(braces('{name: "a { b"}'), 2)
+    assert.equal(braces('{ // close the } later\n}'), 2)
+  })
+
+  test('the editor applies the protocol input budget', () => {
+    // `diagnose` deliberately does not: budgets are the embedder's call. The
+    // editor is an embedder, and without the check it reports a clean file
+    // that every KIP engine refuses with KIP_4002.
+    const tooLong = `// ${'x'.repeat(MAX_KIP_INPUT_LEN)}`
+    assert.deepEqual(diagnose(tooLong), [])
+    assert.throws(
+      () => checkBudget(tooLong),
+      (err) => err instanceof KipSyntaxError && err.code === 'KIP_4002'
+    )
   })
 
   test('language configuration indents blocks whose header contains strings', async () => {

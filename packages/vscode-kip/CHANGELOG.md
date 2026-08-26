@@ -2,6 +2,34 @@
 
 All notable changes to the **KIP Language** extension are documented here.
 
+## 2.0.1
+
+Bundles `@ldclabs/kip-lang` 2.0.2, whose formatter no longer rewrites what a
+filter means — this extension formats on save, so that fix only reaches an
+editor through a new build.
+
+### Fixed
+
+- **An unterminated string no longer colors the rest of the file.** The
+  TextMate rule ended only at a closing quote, and a `begin`/`end` rule spans
+  lines, so one stray `"` turned everything below it into string scope. A KIP
+  string never crosses a newline — the lexer closes it there, and an escaped
+  newline is invalid JSON either way — so the rule now ends at end-of-line too,
+  matching the lexer the diagnostics in the same window already use.
+- **Folding no longer counts braces inside strings and comments.** The fallback
+  used when a document does not parse scanned raw characters, so
+  `{name: "a { b"}` or `// close the } later` shifted every marker after it.
+  It reads the lexer's tokens now — and that fallback runs exactly while a
+  command is half-typed, which is when a stray brace is most likely.
+- **Brackets no longer auto-close inside strings and comments**, where a
+  closing character is text rather than structure.
+
+### Added
+
+- Diagnostics apply the protocol's parser budgets (`KIP_4002`). Without them
+  the editor reported a clean file that every KIP engine refuses on size or
+  nesting.
+
 ## 2.0.0
 
 Targets KIP specification revision `2.0-draft`, tracking `@ldclabs/kip-lang`

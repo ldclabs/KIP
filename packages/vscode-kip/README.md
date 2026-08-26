@@ -61,6 +61,8 @@ Error squiggles as you type (300ms debounce):
   filter function, a `?variable` where the language requires an exact
   predicate, a write to an engine-maintained field — reported with their KIP
   error code
+- Documents past the protocol's own parser budgets (`KIP_4002`), so a file no
+  KIP engine would accept is not reported as clean
 
 ### Code Folding
 
@@ -76,7 +78,9 @@ Fold/unfold blocks:
 
 ### Bracket Matching & Auto-closing
 
-Automatic matching and closing for `{}`, `()`, `[]`, and `""`.
+Automatic matching and closing for `{}`, `()`, `[]`, and `""` — suppressed
+inside strings and comments, where a closing character is text rather than
+structure.
 
 ## Requirements
 
@@ -90,13 +94,13 @@ Automatic matching and closing for `{}`, `()`, `[]`, and `""`.
 cd packages/vscode-kip
 pnpm install
 pnpm build
-pnpm package   # produces vscode-kip-2.0.0.vsix
+pnpm package   # produces vscode-kip-2.0.1.vsix
 ```
 
 Then install the `.vsix`:
 
 ```
-code --install-extension vscode-kip-2.0.0.vsix
+code --install-extension vscode-kip-2.0.1.vsix
 ```
 
 ### Development

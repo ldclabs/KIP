@@ -52,9 +52,10 @@
       "match": "//.*$"
     },
     "string": {
+      "comment": "A KIP string never crosses a line: the lexer closes one at the newline, and an escaped newline is invalid JSON, so it is always a diagnostic. Ending the rule at end-of-line too keeps one stray quote from coloring the rest of the file as a string.",
       "name": "string.quoted.double.kip",
       "begin": "\"",
-      "end": "\"",
+      "end": "\"|$",
       "beginCaptures": {
         "0": {
           "name": "punctuation.definition.string.begin.kip"

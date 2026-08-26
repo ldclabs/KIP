@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { parse } from '@ldclabs/kip-lang'
+import { parse, tokenize, TokenType } from '@ldclabs/kip-lang'
 import type {
   Program,
   Statement,
@@ -244,21 +244,29 @@ export class KipFoldingProvider implements vscode.FoldingRangeProvider {
     ranges.push(new vscode.FoldingRange(range.start.line, range.end.line))
   }
 
+  /**
+   * Brace folding for a document the parser could not read.
+   *
+   * This runs precisely while a command is half-typed, which is also when a
+   * brace is most likely to be sitting inside a string or a comment —
+   * `{name: "a { b"}` or `// close the { later`. Counting those characters
+   * folds the wrong regions, so the braces are read from the lexer's tokens
+   * rather than from the raw text. `tokenize` is total: it classifies
+   * anything it cannot recognize instead of throwing, so it still works on
+   * exactly the input that made `parse` give up.
+   */
   private collectBraceFolding(
     document: vscode.TextDocument,
     ranges: vscode.FoldingRange[]
   ): void {
     const stack: number[] = []
-    for (let i = 0; i < document.lineCount; i++) {
-      const line = document.lineAt(i).text
-      for (const ch of line) {
-        if (ch === '{') {
-          stack.push(i)
-        } else if (ch === '}' && stack.length > 0) {
-          const startLine = stack.pop()!
-          if (i > startLine) {
-            ranges.push(new vscode.FoldingRange(startLine, i))
-          }
+    for (const token of tokenize(document.getText())) {
+      if (token.type === TokenType.LBrace) {
+        stack.push(token.line)
+      } else if (token.type === TokenType.RBrace && stack.length > 0) {
+        const startLine = stack.pop()!
+        if (token.line > startLine) {
+          ranges.push(new vscode.FoldingRange(startLine, token.line))
         }
       }
     }
