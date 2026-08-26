@@ -1270,7 +1270,20 @@ class Formatter {
     return this.expr(ref)
   }
 
-  private expr(expr: Expression): string {
+  /**
+   * Renders an expression, restoring the grouping the AST does not carry.
+   *
+   * `parsePrimaryExpression` unwraps `( ... )` and returns the inner node, so
+   * by the time the formatter sees `A && (B || C)` it is indistinguishable
+   * from `A && B || C` — except by shape. Printing operators flat therefore
+   * reparses as `(A && B) || C`: a different predicate, silently, on a file
+   * that formats without an error. `minPrec` is the tightest binding the
+   * surrounding context accepts unparenthesized; anything looser gets its
+   * parentheses back, and nothing else does.
+   */
+  private expr(expr: Expression, minPrec: number = 0): string {
+    const prec = expressionPrecedence(expr)
+    if (prec < minPrec) return `(${this.expr(expr)})`
     switch (expr.kind) {
       case 'StringLiteral':
         return expr.value
@@ -1297,10 +1310,17 @@ class Formatter {
         return `${expr.name.toUpperCase()}(${expr.args.map((a) => this.expr(a)).join(', ')})`
       case 'AggregateExpr':
         return `${expr.name}(${expr.distinct ? 'DISTINCT ' : ''}${this.expr(expr.argument)})`
-      case 'BinaryExpression':
-        return `${this.expr(expr.left)} ${expr.operator} ${this.expr(expr.right)}`
+      case 'BinaryExpression': {
+        // Relational is the one non-associative level: `parseRelational`
+        // takes a unary on both sides, so `A < B < C` is a grammar error and
+        // a relational operand must never be re-emitted bare.
+        const left = prec === REL_PREC ? UNARY_PREC : prec
+        const right = prec === REL_PREC ? UNARY_PREC : prec + 1
+        return `${this.expr(expr.left, left)} ${expr.operator} ${this.expr(expr.right, right)}`
+      }
       case 'UnaryExpression':
-        return `${expr.operator}${this.expr(expr.operand)}`
+        // `parseUnary` reads a *primary*, so anything looser needs brackets.
+        return `${expr.operator}${this.expr(expr.operand, PRIMARY_PREC)}`
       case 'ArrayLiteral':
         return `[${expr.elements.map((e) => this.expr(e)).join(', ')}]`
       case 'ObjectLiteral':
@@ -1335,5 +1355,39 @@ class Formatter {
 
   private newline(): void {
     this.output += '\n'
+  }
+}
+
+/**
+ * Binding strength, loosest first, mirroring the parser's descent:
+ * `parseOr` → `parseAnd` → `parseEquality` → `parseRelational` → `parseUnary`
+ * → `parsePrimary`. A change here without the matching change there prints
+ * parentheses that mean something else.
+ */
+const OR_PREC = 1
+const AND_PREC = 2
+const EQ_PREC = 3
+const REL_PREC = 4
+const UNARY_PREC = 5
+const PRIMARY_PREC = 6
+
+function expressionPrecedence(expr: Expression): number {
+  switch (expr.kind) {
+    case 'BinaryExpression':
+      switch (expr.operator) {
+        case '||':
+          return OR_PREC
+        case '&&':
+          return AND_PREC
+        case '==':
+        case '!=':
+          return EQ_PREC
+        default:
+          return REL_PREC
+      }
+    case 'UnaryExpression':
+      return UNARY_PREC
+    default:
+      return PRIMARY_PREC
   }
 }

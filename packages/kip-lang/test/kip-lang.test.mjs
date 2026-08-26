@@ -9,7 +9,8 @@ import {
   analyzeSemantics,
   TokenType,
   checkBudget,
-  MAX_KIP_INPUT_LEN
+  MAX_KIP_INPUT_LEN,
+  MAX_KIP_NESTING_DEPTH
 } from '../dist/index.js'
 
 /** Parses and asserts the source is clean, returning the single statement. */
@@ -817,6 +818,52 @@ WHERE { ?m {} }`,
     }
   })
 
+  test('restores the grouping the AST does not carry', () => {
+    // `( ... )` is unwrapped by the parser, so the formatter has to rebuild
+    // it from precedence. Printing operators flat turns `A && (B || C)` into
+    // `A && B || C`, which reparses as `(A && B) || C` — a different
+    // predicate, on a file that formatted without an error.
+    const filterOf = (source) => {
+      const stmt = parseOne(source)
+      return stmt.where.patterns.find((p) => p.kind === 'FilterClause').expression
+    }
+    const shape = (e) => {
+      if (e.kind === 'BinaryExpression') {
+        return `(${shape(e.left)} ${e.operator} ${shape(e.right)})`
+      }
+      if (e.kind === 'UnaryExpression') return `${e.operator}${shape(e.operand)}`
+      if (e.kind === 'FunctionCallExpr') return `${e.name}()`
+      return e.kind
+    }
+    const filters = [
+      '?x.a > 1 || ?x.b > 2 && ?x.c > 3',
+      '(?x.a > 1 || ?x.b > 2) && ?x.c > 3',
+      '?x.a > 1 && (?x.b > 2 || ?x.c > 3)',
+      '?x.a > 1 && (?x.b > 2 || ?x.c > 3) && ?x.d > 4',
+      '(?x.a > 1 && ?x.b > 2) || (?x.c > 3 && ?x.d > 4)',
+      '!(?x.a > 1 && ?x.b > 2)',
+      '!(?x.a > 1) && !(?x.b > 2)',
+      '(?x.a != 1 || ?x.b != 2) && !(?x.c == 3)',
+      'IS_NULL(?x.a) || ?x.a > 1',
+      '-?x.n < 0'
+    ]
+    for (const filter of filters) {
+      const source = `FIND(?x) WHERE { ?x {} FILTER(${filter}) }`
+      const once = format(source)
+      assert.equal(
+        shape(filterOf(once)),
+        shape(filterOf(source)),
+        `formatting changed what this filter means:\n  in : ${filter}\n  out: ${once}`
+      )
+      assert.equal(format(once), once, `not idempotent:\n${once}`)
+    }
+  })
+
+  test('adds no parentheses default precedence already gives', () => {
+    const flat = format('FIND(?x) WHERE { ?x {} FILTER(?x.a > 1 && ?x.b > 2 || ?x.c > 3) }')
+    assert.match(flat, /FILTER\(\?x\.a > 1 && \?x\.b > 2 \|\| \?x\.c > 3\)/)
+  })
+
   test('refuses to format invalid KIP', () => {
     assert.throws(() => format('FIND(?x WHERE {'), /Cannot format invalid KIP/)
   })
@@ -872,6 +919,64 @@ describe('semantics', () => {
     assert.ok(!found.includes('KIP_2102'))
   })
 
+  test('the Evidence role registry is checked like stance and mode', () => {
+    const cite = (role) =>
+      `CREATE ASSERTION ?a { SET STRUCTURAL { ("evidence", :e) {role: ${role}} } }`
+    for (const role of ['"support"', '"challenge"', '"context"']) {
+      assert.deepEqual(codes(cite(role)), [], role)
+    }
+    assert.ok(codes(cite('"corroborates"')).includes('KIP_2001'))
+    // Bound later, so uncheckable; and `role` on another field is the
+    // Schema Environment's business, not this package's.
+    assert.deepEqual(codes(cite(':role')), [])
+    assert.deepEqual(
+      codes('CREATE CONCEPT ?c { SET STRUCTURAL { ("involves", :p) {role: "x"} } }'),
+      []
+    )
+  })
+
+  test('EXPECT STATE uses the Assertion registry only where the target is one', () => {
+    // RETRACT and SUPERSEDE name an Assertion by construction.
+    assert.ok(
+      codes('RETRACT ASSERTION :a EXPECT STATE "archived"').includes('KIP_2001')
+    )
+    assert.ok(
+      codes('SUPERSEDE ASSERTION :o BY :n EXPECT STATE "archived"').includes(
+        'KIP_2001'
+      )
+    )
+    assert.deepEqual(codes('RETRACT ASSERTION :a EXPECT STATE "active"'), [])
+
+    // ARCHIVE and TOMBSTONE take any element. Core registers no element
+    // lifecycle vocabulary, and guarding an idempotent sweep with the state
+    // the sweep produces is exactly what an author would write.
+    assert.deepEqual(codes('ARCHIVE :c EXPECT STATE "archived"'), [])
+    assert.deepEqual(codes('TOMBSTONE :c EXPECT STATE "archived"'), [])
+  })
+
+  test('every bounded-selection family warns when its sweep is unbounded', () => {
+    // Spec §52.7 names six; warning on the read and staying silent on the
+    // removal ladder had it backwards.
+    const sweeps = [
+      'UPDATE ?x SET FIELDS {name: "n"} WHERE { ?x {} }',
+      'RETRACT ASSERTION ?a WHERE { ?a ASSERTION {} }',
+      'SET RETENTION ?x {retention_class: "standard"} WHERE { ?x {} }',
+      'ARCHIVE ?x WHERE { ?x {} }',
+      'TOMBSTONE ?x WHERE { ?x {} }',
+      'PURGE ?x WHERE { ?x {} } CONFIRM "PURGE"'
+    ]
+    for (const sweep of sweeps) {
+      assert.ok(codes(sweep).includes('KIP_4002'), sweep)
+    }
+    assert.deepEqual(codes('ARCHIVE ?x WHERE { ?x {} } LIMIT 10'), [])
+    assert.deepEqual(codes('ARCHIVE ?x WHERE { ?x {type: "Event"} }'), [])
+  })
+
+  test('a Core field is range-checked wherever it is written', () => {
+    assert.ok(codes('UPDATE :a SET FIELDS {confidence: 5}').includes('KIP_2001'))
+    assert.deepEqual(codes('UPDATE :a SET FIELDS {confidence: 0.5}'), [])
+  })
+
   test('an unconstrained scan without LIMIT is warned about', () => {
     assert.ok(codes('FIND(?x) WHERE { ?x {} }').includes('KIP_4002'))
     assert.ok(!codes('FIND(?x) WHERE { ?x {} } LIMIT 10').includes('KIP_4002'))
@@ -909,5 +1014,26 @@ describe('budget', () => {
 
   test('accepts ordinary input', () => {
     assert.doesNotThrow(() => checkBudget('FIND(?x) WHERE { ?x {a: 1} }'))
+  })
+
+  test('rejects nesting past the ceiling', () => {
+    assert.throws(
+      () => checkBudget('['.repeat(MAX_KIP_NESTING_DEPTH + 1)),
+      /nesting exceeds maximum/
+    )
+  })
+
+  test('the scan closes a string where the lexer closes it', () => {
+    // The lexer refuses to carry a string across a raw newline. A scan that
+    // did carry it would stay in string mode for the rest of the input, and
+    // every bracket after it would go uncounted — the depth ceiling would
+    // still be in the code and defend nothing.
+    const deep = '['.repeat(MAX_KIP_NESTING_DEPTH + 1)
+    assert.throws(() => checkBudget(`"\n${deep}`), /nesting exceeds maximum/)
+    assert.throws(() => checkBudget(`// "\n${deep}`), /nesting exceeds maximum/)
+
+    // An *escaped* newline does continue the string, in the lexer and here.
+    assert.doesNotThrow(() => checkBudget(`"a\\\n${deep}"`))
+    assert.doesNotThrow(() => checkBudget(`"${deep}"`))
   })
 })

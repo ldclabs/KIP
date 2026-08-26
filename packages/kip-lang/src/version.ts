@@ -7,7 +7,7 @@
  * has to load in runtimes with no filesystem; `test/lower.test.mjs` asserts the
  * two stay in step.
  */
-export const PARSER_VERSION = '2.0.1'
+export const PARSER_VERSION = '2.0.2'
 
 /** The KIP specification revision this grammar targets. */
 export const KIP_SPEC_REVISION = '2.0-draft'

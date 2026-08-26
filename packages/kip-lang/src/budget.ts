@@ -22,11 +22,12 @@ export const MAX_KIP_BATCH_COMMANDS = 256
 /**
  * Rejects source that exceeds a parser budget.
  *
- * The bracket scan must skip line comments exactly the way the lexer does.
- * Counting a `"` inside a comment would latch the scanner into string mode
- * for the rest of the input, after which every bracket goes uncounted and the
- * depth ceiling silently stops existing — the failure mode is a guard that
- * looks present and defends nothing.
+ * The scan must treat comments and strings exactly the way the lexer does,
+ * or the guard stops guarding. Counting a `"` inside a comment would latch the
+ * scanner into string mode for the rest of the input; so would running past
+ * the end of an unterminated string, which the lexer closes at the newline.
+ * Either way every later bracket goes uncounted and the depth ceiling silently
+ * stops existing — a guard that looks present and defends nothing.
  *
  * @throws {KipSyntaxError} `KIP_4002` when a budget is exceeded.
  */
@@ -58,8 +59,11 @@ export function checkBudget(source: string): void {
         escaped = false
         continue
       }
+      // A closing quote ends the string; so does a raw newline, because the
+      // lexer refuses to carry a string across one. An *escaped* newline is
+      // consumed above and does not reach here, matching `scanString`.
       if (ch === '\\') escaped = true
-      else if (ch === '"') inString = false
+      else if (ch === '"' || ch === '\n') inString = false
       continue
     }
 

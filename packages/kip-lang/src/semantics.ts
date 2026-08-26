@@ -11,7 +11,8 @@ import type {
   ScalarValue,
   MutateStatement,
   AssertStatement,
-  SetFacetClause
+  SetFacetClause,
+  SetStructuralClause
 } from './ast.js'
 import type { Range } from './token.js'
 
@@ -54,6 +55,7 @@ const ASSERTION_STATES = new Set([
   'expired'
 ])
 const ACTIVITY_TERMINAL = new Set(['completed', 'failed', 'cancelled'])
+const EVIDENCE_ROLES = new Set(['support', 'challenge', 'context'])
 
 /** Signals the Profile fixes to `[0,1]`; none of them is truth. */
 const UNIT_INTERVAL_FIELDS = new Set([
@@ -96,11 +98,11 @@ function analyzeMutationClause(stmt: Statement, diags: Diagnostic[]): void {
       break
 
     case 'CreateConceptStatement':
-      for (const facet of stmt.setFacets) checkFacet(facet, diags)
-      break
-
     case 'UpsertConceptStatement':
+    case 'CreateEvidenceStatement':
+    case 'CreateActivityStatement':
       for (const facet of stmt.setFacets) checkFacet(facet, diags)
+      checkStructural(stmt.setStructural, diags)
       break
 
     case 'CreateAssertionStatement':
@@ -108,30 +110,61 @@ function analyzeMutationClause(stmt: Statement, diags: Diagnostic[]): void {
         checkAssignmentValues(stmt.setFields.assignments, diags)
       }
       for (const facet of stmt.setFacets) checkFacet(facet, diags)
-      break
-
-    case 'CreateEvidenceStatement':
-    case 'CreateActivityStatement':
-      for (const facet of stmt.setFacets) checkFacet(facet, diags)
+      checkStructural(stmt.setStructural, diags)
       break
 
     case 'UpdateStatement':
       for (const action of stmt.actions) {
         if (action.kind === 'SetFacetClause') checkFacet(action, diags)
+        // Core fields are Core-typed wherever they are written, so an UPDATE
+        // that sets one gets the same check `CREATE ASSERTION` already gets.
+        else if (action.kind === 'SetFieldsClause') {
+          checkAssignmentValues(action.assignments, diags)
+        } else if (action.kind === 'SetStructuralClause') {
+          checkStructural(action, diags)
+        }
       }
       if (stmt.where) checkWhere(stmt.where, !!stmt.limit, diags)
       break
 
+    // `EXPECT STATE` is checkable only where the target's kind is fixed by the
+    // statement itself. RETRACT and SUPERSEDE always name an Assertion, so the
+    // Assertion lifecycle registry applies. ARCHIVE and TOMBSTONE take any
+    // element — a Concept is not `retracted` and may well be `archived` — and
+    // Core registers no element-lifecycle vocabulary, so checking them here
+    // rejected commands the Specification admits.
     case 'RetractAssertionStatement':
-    case 'ArchiveStatement':
-    case 'TombstoneStatement':
+      if (stmt.expectState) {
+        checkEnum(stmt.expectState.value, ASSERTION_STATES, 'EXPECT STATE', diags)
+      }
+      if (stmt.where) checkWhere(stmt.where, !!stmt.limit, diags)
+      break
+
+    case 'SupersedeAssertionStatement':
       if (stmt.expectState) {
         checkEnum(stmt.expectState.value, ASSERTION_STATES, 'EXPECT STATE', diags)
       }
       break
 
+    case 'ArchiveStatement':
+    case 'TombstoneStatement':
+      if (stmt.where) checkWhere(stmt.where, !!stmt.limit, diags)
+      break
+
     case 'TransitionActivityStatement':
       checkEnum(stmt.to, ACTIVITY_TERMINAL, 'TRANSITION ACTIVITY TO', diags)
+      checkStructural(stmt.finalize.find(
+        (c): c is SetStructuralClause => c.kind === 'SetStructuralClause'
+      ), diags)
+      break
+
+    // Spec §52.7 names six statements whose WHERE can select an unbounded set
+    // and which SHOULD therefore carry a LIMIT. Warning on the read and on
+    // UPDATE while staying silent on the removal ladder had it backwards: an
+    // over-broad PURGE is the one that cannot be undone.
+    case 'PurgeStatement':
+    case 'SetRetentionStatement':
+      if (stmt.where) checkWhere(stmt.where, !!stmt.limit, diags)
       break
   }
 }
@@ -174,6 +207,26 @@ function checkAssert(stmt: AssertStatement, diags: Diagnostic[]): void {
 
 function checkFacet(clause: SetFacetClause, diags: Diagnostic[]): void {
   checkAssignmentValues(clause.assignments, diags)
+}
+
+/**
+ * `role` on an `("evidence", ...)` citation comes from the Core registry
+ * (Spec §20.13, §56.2), so a misspelling is as checkable here as a bad
+ * `stance`. Other structural fields carry engine- or package-defined options,
+ * which only the Schema Environment can judge.
+ */
+function checkStructural(
+  clause: SetStructuralClause | undefined,
+  diags: Diagnostic[]
+): void {
+  if (!clause) return
+  for (const edge of clause.assignments) {
+    if (edge.field.kind === 'ParameterRef' || edge.field.parsed !== 'evidence') {
+      continue
+    }
+    const role = edge.options?.entries.find((e) => e.key === 'role')
+    if (role) checkEnum(role.value, EVIDENCE_ROLES, 'Evidence role', diags)
+  }
 }
 
 function checkAssignmentValues(
