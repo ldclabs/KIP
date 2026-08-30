@@ -1,0 +1,371 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "KIP 2.0 Information Architecture",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1360,
+      680
+    ],
+    "views": [
+      {
+        "id": "recall-path",
+        "label": "Recall path",
+        "focus": [
+          "agent",
+          "kql",
+          "projection",
+          "state"
+        ],
+        "note": "Ask what the Brain believes: KQL projects eligible claims into a virtual belief; WorkingState resumes without raw scrollback."
+      },
+      {
+        "id": "formation-path",
+        "label": "Formation path",
+        "focus": [
+          "agent",
+          "kml",
+          "tx",
+          "state"
+        ],
+        "note": "One coherent cognitive change commits as one atomic transaction, or none of it does."
+      },
+      {
+        "id": "proactivity-loop",
+        "label": "Proactivity loop",
+        "focus": [
+          "tx",
+          "changes",
+          "agent",
+          "kml"
+        ],
+        "note": "Commits publish Change Envelopes; an armed Watch turns a delta into act, ask, defer, or a deliberate action_gate silence."
+      },
+      {
+        "id": "control-planes",
+        "label": "Control planes",
+        "focus": [
+          "governance",
+          "schema",
+          "projection",
+          "state"
+        ],
+        "note": "Authority and meaning are protected engine state: no cognitive content can widen either."
+      },
+      {
+        "id": "portability",
+        "label": "Portability",
+        "focus": [
+          "state",
+          "capsule",
+          "meta"
+        ],
+        "note": "Cognition leaves as an inspectable Capsule; a signature proves origin, never truth or authority."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "governance",
+      "type": "security",
+      "label": "Governance Control Plane",
+      "sublabel": "Principal · permissions · trust state",
+      "pos": [
+        690,
+        50
+      ],
+      "size": [
+        240,
+        66
+      ]
+    },
+    {
+      "id": "schema",
+      "type": "cloud",
+      "label": "Schema Packages",
+      "sublabel": "kip://core@2.0.0",
+      "tag": "Cognitive Memory Profile",
+      "pos": [
+        1055,
+        50
+      ],
+      "size": [
+        250,
+        66
+      ]
+    },
+    {
+      "id": "agent",
+      "type": "external",
+      "label": "Agent / Brain",
+      "sublabel": "$self waking · $system sleeping",
+      "pos": [
+        40,
+        335
+      ],
+      "size": [
+        175,
+        70
+      ]
+    },
+    {
+      "id": "kql",
+      "type": "frontend",
+      "label": "KQL",
+      "sublabel": "FIND · BELIEF · BELIEF SLOT",
+      "tag": "read",
+      "pos": [
+        340,
+        190
+      ],
+      "size": [
+        225,
+        70
+      ]
+    },
+    {
+      "id": "projection",
+      "type": "backend",
+      "label": "Epistemic Projection",
+      "sublabel": "accepted · contested · insufficient",
+      "tag": "virtual view",
+      "pos": [
+        690,
+        190
+      ],
+      "size": [
+        240,
+        70
+      ]
+    },
+    {
+      "id": "state",
+      "type": "database",
+      "label": "Cognitive State",
+      "sublabel": "Proposition · Assertion · Evidence",
+      "tag": "+ Concept · Activity",
+      "pos": [
+        1055,
+        190
+      ],
+      "size": [
+        250,
+        70
+      ]
+    },
+    {
+      "id": "kml",
+      "type": "frontend",
+      "label": "KML",
+      "sublabel": "ASSERT · MUTATE · PURGE PAYLOAD",
+      "tag": "write",
+      "pos": [
+        340,
+        335
+      ],
+      "size": [
+        225,
+        70
+      ]
+    },
+    {
+      "id": "tx",
+      "type": "backend",
+      "label": "Transaction Runtime",
+      "sublabel": "atomic commit · space_seq · Receipt",
+      "pos": [
+        690,
+        335
+      ],
+      "size": [
+        240,
+        70
+      ]
+    },
+    {
+      "id": "meta",
+      "type": "frontend",
+      "label": "META",
+      "sublabel": "DESCRIBE · SEARCH · LIST DEPENDENTS",
+      "tag": "read-only",
+      "pos": [
+        340,
+        480
+      ],
+      "size": [
+        225,
+        70
+      ]
+    },
+    {
+      "id": "changes",
+      "type": "messagebus",
+      "label": "Change Stream",
+      "sublabel": "Change Envelope · filtered delivery",
+      "pos": [
+        690,
+        480
+      ],
+      "size": [
+        240,
+        70
+      ]
+    },
+    {
+      "id": "capsule",
+      "type": "external",
+      "label": "Cognitive Capsule",
+      "sublabel": "verify → validate → preview",
+      "tag": "not authority",
+      "pos": [
+        1055,
+        335
+      ],
+      "size": [
+        250,
+        70
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "Protected control plane · not writable by cognition",
+      "wraps": [
+        "governance",
+        "schema"
+      ],
+      "pad": 20
+    },
+    {
+      "kind": "region",
+      "label": "Protocol Runtime · Wire Contract",
+      "wraps": [
+        "kql",
+        "kml",
+        "meta"
+      ],
+      "pad": 20
+    }
+  ],
+  "connections": [
+    {
+      "id": "agent-recall",
+      "from": "agent",
+      "to": "kql",
+      "label": "recall",
+      "variant": "emphasis"
+    },
+    {
+      "id": "agent-formation",
+      "from": "agent",
+      "to": "kml",
+      "label": "formation",
+      "labelDy": 13
+    },
+    {
+      "id": "agent-grounding",
+      "from": "agent",
+      "to": "meta",
+      "label": "grounding"
+    },
+    {
+      "id": "kql-projects",
+      "from": "kql",
+      "to": "projection",
+      "label": "BELIEF",
+      "variant": "emphasis"
+    },
+    {
+      "id": "projection-reads",
+      "from": "projection",
+      "to": "state",
+      "label": "reads",
+      "variant": "emphasis"
+    },
+    {
+      "id": "kml-plan",
+      "from": "kml",
+      "to": "tx",
+      "label": "mutation plan"
+    },
+    {
+      "id": "tx-commit",
+      "from": "tx",
+      "to": "state",
+      "label": "atomic commit"
+    },
+    {
+      "id": "governance-authorizes",
+      "from": "governance",
+      "to": "projection",
+      "label": "authorize",
+      "variant": "security",
+      "labelDy": 50
+    },
+    {
+      "id": "schema-validates",
+      "from": "schema",
+      "to": "state",
+      "label": "validates",
+      "variant": "security",
+      "labelDy": 50
+    },
+    {
+      "id": "tx-publishes",
+      "from": "tx",
+      "to": "changes",
+      "label": "Change Envelope",
+      "variant": "dashed",
+      "labelDy": 50
+    },
+    {
+      "id": "delta-wakes",
+      "from": "changes",
+      "to": "agent",
+      "label": "delta vs. armed Watch",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "labelDx": -240
+    },
+    {
+      "id": "state-export",
+      "from": "state",
+      "to": "capsule",
+      "label": "EXPORT CAPSULE",
+      "variant": "dashed",
+      "labelDy": 50
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Three questions kept apart",
+      "items": [
+        "Meaning — what can be represented",
+        "Belief — what the Brain currently accepts",
+        "Authority — who may read, write, or elevate"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Write once, never rewrite",
+      "items": [
+        "Observed payloads enter Evidence from the transport envelope, never re-typed by the model",
+        "Correction is a new Assertion plus supersession, never an edit",
+        "Reading never reinforces memory or raises confidence"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Attention, then forgetting",
+      "items": [
+        "Proactivity is a state differential: Change Envelopes meet armed Watch conditions, not a timer",
+        "LIST DEPENDENTS makes cognition downstream of a revised root reviewable",
+        "PURGE PAYLOAD destroys observed bytes while the Evidence record, digest, and citations survive"
+      ]
+    }
+  ]
+}

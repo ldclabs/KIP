@@ -15,6 +15,12 @@
 
 ---
 
+> **KIP 2.0 is in draft — [start here →](./v2/README.md)**
+> Belief becomes an explicit projection over competing assertions instead of a stored field, evidence and provenance become first-class elements, and a proactivity layer lets a Brain act on a state differential rather than a timer: [`Watch`](./v2/profiles/CognitiveMemoryProfile-2.0.md#511-watch), [`action_gate`](./v2/profiles/CognitiveMemoryProfile-2.0.md#9-activities), [`LIST DEPENDENTS`](./v2/KIP-2.0-SPECIFICATION.md#635-list-dependents), [`PURGE PAYLOAD`](./v2/KIP-2.0-SPECIFICATION.md#606-payload-purge).
+> v1.0-RC11 below remains the shipping contract; implementations are being brought up against the draft.
+
+---
+
 ## Why KIP?
 
 > An intelligence that cannot accumulate experience cannot truly learn.
@@ -478,9 +484,11 @@ The type capsules precede predicate capsules so schema references are already gr
 
 ## KIP 2.0 (Draft)
 
-The next Core revision is being drafted in [`v2/`](./v2/). It is **not released**: v1.0-RC11 above remains the shipping contract, and existing clients need to change nothing today.
+The next Core revision is being drafted in [`v2/`](./v2/README.md). It is **not released**: v1.0-RC11 above remains the shipping contract, and existing clients need to change nothing today.
 
 KIP 2.0 rebuilds Core around five element kinds — Concept, Proposition, Assertion, Evidence, Activity — so that *this statement exists* and *this statement is believed* stop being the same fact. Belief becomes an explicit Epistemic Projection (`BELIEF` / `BELIEF SLOT`) over competing Assertions, evidence and provenance become first-class elements rather than metadata, and schema moves into versioned, digest-pinned packages. [Migrating from 1.x →](./v2/migration/KIP-2.0-Migration-from-1.x.md)
+
+It also gives a Brain the half of memory that runs when nobody is asking. [`Watch`](./v2/profiles/CognitiveMemoryProfile-2.0.md#511-watch) is durable attention state evaluated against committed Change Envelopes — including *silence* watches that fire when nothing arrives in time — so proactivity is a state differential rather than a timer, and firing grants attention, never authority. [`action_gate`](./v2/profiles/CognitiveMemoryProfile-2.0.md#9-activities) records what the gate decided: `act`, `ask`, `defer`, or deliberate `silence`. [`LIST DEPENDENTS`](./v2/KIP-2.0-SPECIFICATION.md#635-list-dependents) makes the cognition compiled from a revised root discoverable instead of quietly stale ([§57.5](./v2/KIP-2.0-SPECIFICATION.md#575-revision-and-derived-cognition)). And [`PURGE PAYLOAD`](./v2/KIP-2.0-SPECIFICATION.md#606-payload-purge) destroys observed bytes while keeping the Evidence record, its digest and its citations — data minimization that costs no provenance. [The full picture →](./v2/README.md)
 
 | Document | Description |
 | --- | --- |

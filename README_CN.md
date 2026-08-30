@@ -15,6 +15,12 @@
 
 ---
 
+> **KIP 2.0 规范草案 —— [从这里开始 →](./v2/README_CN.md)**
+> 信念由静态存储字段升级为针对竞争断言的显式认知投影；证据与溯源活动升格为头等元素；新增的主动性层使智能体能够基于状态差分而非定时轮询发起行动：[`Watch`](./v2/profiles/CognitiveMemoryProfile-2.0_CN.md#511-watch守望监听)、[`action_gate`](./v2/profiles/CognitiveMemoryProfile-2.0_CN.md#9-活动-activities)、[`LIST DEPENDENTS`](./v2/KIP-2.0-SPECIFICATION_CN.md#635-list-dependents-列举依赖方)、[`PURGE PAYLOAD`](./v2/KIP-2.0-SPECIFICATION_CN.md#606-载荷清除-payload-purge)。
+> 下文的 v1.0-RC11 仍为当前生效的正式规范；2.0 规范实现正在推进中。
+
+---
+
 ## 为什么需要 KIP？
 
 一次会话中的有效做法，未必会自动进入下一次会话。更长的上下文可以延后遗忘，向量检索可以找回相似文字，但它们通常不会明确记录：当时要完成什么、哪个动作改变了局面、哪项观察推翻了预期，以及这些信息应怎样影响下一步。
@@ -478,9 +484,11 @@ capsules/compiled_to.kip
 
 ## KIP 2.0（草案）
 
-下一版 Core 正在 [`v2/`](./v2/) 中起草。它**尚未发布**：上文的 v1.0-RC11 仍是当前生效的契约，现有客户端今天无需做任何改动。
+下一代 Core 规范正在 [`v2/`](./v2/README_CN.md) 中起草。该版本**尚未正式发布**：上文的 v1.0-RC11 仍是当前生效的正式规范，现有客户端目前无需进行调整。
 
-KIP 2.0 把 Core 重建在五种元素之上 —— Concept、Proposition、Assertion、Evidence、Activity —— 从而让「这条陈述存在」与「这条陈述被相信」不再是同一个事实。信念成为对相互竞争的 Assertion 做的显式认知投影（`BELIEF` / `BELIEF SLOT`），证据与来源从元数据升格为一等元素，模式则被收进带版本、以摘要锁定的模式包。[从 1.x 迁移 →](./v2/migration/KIP-2.0-Migration-from-1.x_CN.md)
+KIP 2.0 将核心数据模型建立在五种基本元素之上——Concept、Proposition、Assertion、Evidence、Activity——彻底解耦「命题陈述的存在性」与「命题的真实性信念」。信念体现为对多个相互竞争的 Assertion 进行动态计算的显式认知投影（`BELIEF` / `BELIEF SLOT`），证据与溯源活动由元数据字段升格为头等元素，数据模式则统一纳入带版本且经摘要锁定的模式包。[从 1.x 迁移指南 →](./v2/migration/KIP-2.0-Migration-from-1.x_CN.md)
+
+同时，2.0 补全了智能体在非交互期间的主动认知机制：[`Watch`](./v2/profiles/CognitiveMemoryProfile-2.0_CN.md#511-watch守望监听) 是基于已提交变更外壳（Change Envelope）进行增量匹配的持久化注意力状态，其中 silence 类在预期变更超时未发生时触发，使主动性建立在精确的状态差分而非盲目轮询之上，且触发仅产生关注而不授予权限；[`action_gate`](./v2/profiles/CognitiveMemoryProfile-2.0_CN.md#9-活动-activities) 完整记录行动门控的显式裁决（`act`、`ask`、`defer` 或主动静默 `silence`）；[`LIST DEPENDENTS`](./v2/KIP-2.0-SPECIFICATION_CN.md#635-list-dependents-列举依赖方) 支持在溯源根节点修订后精准发现下游派生认知，避免隐性失效（[§57.5](./v2/KIP-2.0-SPECIFICATION_CN.md#575-修订与派生认知-revision-and-derived-cognition)）；[`PURGE PAYLOAD`](./v2/KIP-2.0-SPECIFICATION_CN.md#606-载荷清除-payload-purge) 则在销毁原始观测字节的同时完整保留证据记录、摘要与引用拓扑，实现无损于溯源体系的数据最小化。[查看完整架构与规范 →](./v2/README_CN.md)
 
 | 文档 | 内容 |
 | --- | --- |
