@@ -4,7 +4,7 @@
 
 ## 状态
 
-**规范性草案。** KIP [v1.0-RC11](../SPECIFICATION_CN.md) 仍为当前生效的正式规范，现有客户端目前无需进行调整。2.0 草案的核心功能集已完成收敛，并获得[一致性测试套件](./conformance/KIP-2.0-Conformance-Tests_CN.md)与[形式化模型验证](./formal/README_CN.md)的支持；各语言实现正在稳步对齐该草案并已接近完成。`v2/` 目录下的所有内容暂未正式发布。
+**规范性草案。** KIP [v1.0-RC11](../SPECIFICATION_CN.md) 仍为当前生效的正式规范，现有客户端目前无需进行调整。2.0 草案的核心功能集已完成收敛，并获得[形式化模型验证](./formal/README_CN.md)的支持；两个相互独立的引擎已经与之同步 —— [Rust](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) 参考实现，以及运行在 [Cloudflare Durable Object](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do) 上的实现，二者由同一套[一致性测试套件](./conformance/KIP-2.0-Conformance-Tests_CN.md)相互约束。`v2/` 目录下的所有内容暂未正式发布。
 
 <p align="center">
   <picture>

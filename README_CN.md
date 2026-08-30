@@ -17,7 +17,7 @@
 
 > **KIP 2.0 规范草案 —— [从这里开始 →](./v2/README_CN.md)**
 > 信念由静态存储字段升级为针对竞争断言的显式认知投影；证据与溯源活动升格为头等元素；新增的主动性层使智能体能够基于状态差分而非定时轮询发起行动：[`Watch`](./v2/profiles/CognitiveMemoryProfile-2.0_CN.md#511-watch守望监听)、[`action_gate`](./v2/profiles/CognitiveMemoryProfile-2.0_CN.md#9-活动-activities)、[`LIST DEPENDENTS`](./v2/KIP-2.0-SPECIFICATION_CN.md#635-list-dependents-列举依赖方)、[`PURGE PAYLOAD`](./v2/KIP-2.0-SPECIFICATION_CN.md#606-载荷清除-payload-purge)。
-> 下文的 v1.0-RC11 仍为当前生效的正式规范；2.0 规范实现正在推进中。
+> 下文的 v1.0-RC11 仍为当前生效的正式规范；已有两个相互独立的引擎 —— Rust 与 Cloudflare Durable Object —— 与该草案同步。
 
 ---
 
@@ -477,9 +477,10 @@ capsules/compiled_to.kip
 | 项目 | 内容 |
 | --- | --- |
 | [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip) | KIP Rust SDK |
-| [Anda Cognitive Nexus](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) | 基于 Anda DB 的 KIP 实现 |
+| [Anda Cognitive Nexus](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) | 基于 Anda DB 的 KIP 实现（Rust 参考引擎） |
+| [KIP on Durable Objects](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do) | 运行于 SQLite 支撑的 Cloudflare Durable Object 上的 KIP 2.0 Cognitive Nexus —— 每个对象一个 Nexus；是同门引擎而非绑定 |
 | [Anda Brain](https://github.com/ldclabs/anda-brain) | 面向 AI 智能体的自主记忆与经验学习层 |
-| [Anda Cognitive Nexus Python](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py) | Cognitive Nexus Python 绑定 |
+| [Anda Cognitive Nexus Python](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py) | Rust 引擎之上的 Python 封装 |
 | [Anda Bot](https://github.com/ldclabs/anda-bot) | 基于 KIP 与 Anda Brain 的 AI 智能体 |
 
 ## KIP 2.0（草案）

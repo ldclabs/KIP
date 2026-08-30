@@ -4,7 +4,7 @@
 
 ## Status
 
-**Normative draft.** KIP [v1.0-RC11](../SPECIFICATION.md) remains the shipping contract, and existing clients need to change nothing today. The 2.0 draft is feature-complete and backed by a [conformance suite](./conformance/KIP-2.0-Conformance-Tests.md) and [formal models](./formal/README.md); implementations are being brought up against it and are close to complete. Nothing in `v2/` is released.
+**Normative draft.** KIP [v1.0-RC11](../SPECIFICATION.md) remains the shipping contract, and existing clients need to change nothing today. The 2.0 draft is feature-complete and backed by [formal models](./formal/README.md), and two independent engines already track it — a [Rust](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) reference implementation and a [Cloudflare Durable Object](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do) one, held to each other by a shared [conformance suite](./conformance/KIP-2.0-Conformance-Tests.md). Nothing in `v2/` is released.
 
 <p align="center">
   <picture>

@@ -17,7 +17,7 @@
 
 > **KIP 2.0 is in draft — [start here →](./v2/README.md)**
 > Belief becomes an explicit projection over competing assertions instead of a stored field, evidence and provenance become first-class elements, and a proactivity layer lets a Brain act on a state differential rather than a timer: [`Watch`](./v2/profiles/CognitiveMemoryProfile-2.0.md#511-watch), [`action_gate`](./v2/profiles/CognitiveMemoryProfile-2.0.md#9-activities), [`LIST DEPENDENTS`](./v2/KIP-2.0-SPECIFICATION.md#635-list-dependents), [`PURGE PAYLOAD`](./v2/KIP-2.0-SPECIFICATION.md#606-payload-purge).
-> v1.0-RC11 below remains the shipping contract; implementations are being brought up against the draft.
+> v1.0-RC11 below remains the shipping contract; two independent engines — Rust and Cloudflare Durable Objects — already track the draft.
 
 ---
 
@@ -477,9 +477,10 @@ The type capsules precede predicate capsules so schema references are already gr
 | Project | Description |
 | --- | --- |
 | [Anda KIP SDK](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip) | Rust SDK for KIP applications |
-| [Anda Cognitive Nexus](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) | Anda DB-based KIP implementation |
+| [Anda Cognitive Nexus](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) | Anda DB-based KIP implementation (Rust reference engine) |
+| [KIP on Durable Objects](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do) | KIP 2.0 Cognitive Nexus on SQLite-backed Cloudflare Durable Objects — one Nexus per object; a sibling engine, not a binding |
 | [Anda Brain](https://github.com/ldclabs/anda-brain) | Autonomous memory and experience-learning layer for AI agents |
-| [Anda Cognitive Nexus Python](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py) | Python binding for the Cognitive Nexus |
+| [Anda Cognitive Nexus Python](https://github.com/ldclabs/anda-db/tree/main/py/anda_cognitive_nexus_py) | Python wrapper over the Rust engine |
 | [Anda Bot](https://github.com/ldclabs/anda-bot) | AI agent built with KIP and Anda Brain |
 
 ## KIP 2.0 (Draft)
