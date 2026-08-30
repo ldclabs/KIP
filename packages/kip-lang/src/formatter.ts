@@ -42,6 +42,7 @@ import type {
   ArchiveStatement,
   TombstoneStatement,
   PurgeStatement,
+  PurgePayloadStatement,
   MergeConceptStatement,
   DescribeStatement,
   ListStatement,
@@ -257,6 +258,9 @@ class Formatter {
         break
       case 'PurgeStatement':
         this.formatPurge(stmt)
+        break
+      case 'PurgePayloadStatement':
+        this.formatPurgePayload(stmt)
         break
       case 'MergeConceptStatement':
         this.formatMerge(stmt)
@@ -899,6 +903,19 @@ class Formatter {
     this.indentLevel--
   }
 
+  private formatPurgePayload(stmt: PurgePayloadStatement): void {
+    this.writeIndent()
+    this.write(`PURGE PAYLOAD ${this.targetRef(stmt.target)}`)
+    this.newline()
+    if (stmt.where) this.formatWhere(stmt.where, 'WHERE')
+    if (stmt.limit) this.formatLimit(stmt.limit)
+    this.indentLevel++
+    this.writeIndent()
+    this.write(`CONFIRM ${stmt.confirm.value}`)
+    this.newline()
+    this.indentLevel--
+  }
+
   private formatMerge(stmt: MergeConceptStatement): void {
     this.writeIndent()
     this.write(
@@ -1043,9 +1060,12 @@ class Formatter {
       PREDICATES: 'PREDICATES',
       FACETS: 'FACETS',
       STRUCTURAL_FIELDS: 'STRUCTURAL FIELDS',
-      EPISTEMIC_POLICIES: 'EPISTEMIC POLICIES'
+      EPISTEMIC_POLICIES: 'EPISTEMIC POLICIES',
+      DEPENDENTS: 'DEPENDENTS'
     }
     this.write(`LIST ${words[stmt.target]}`)
+    if (stmt.element) this.write(` ${this.scalar(stmt.element)}`)
+    if (stmt.depth) this.write(` DEPTH ${this.scalar(stmt.depth)}`)
     if (stmt.status) this.write(` STATUS ${this.scalar(stmt.status)}`)
     if (stmt.limit) this.write(` LIMIT ${this.scalar(stmt.limit.value)}`)
     if (stmt.cursor) this.write(` CURSOR ${this.scalar(stmt.cursor.value)}`)

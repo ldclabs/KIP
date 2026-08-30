@@ -85,6 +85,22 @@ The key conceptual change is:
 
 This enables contradictory beliefs, multi-source evidence, temporal truth, provenance-aware memory, shared organizational brains, safe memory exchange, and experience-driven learning without collapsing all of those concerns into proposition metadata.
 
+### The Compiler View
+
+A second reading of the same architecture: agent memory is a compiler, not an archive. Storing every transcript and searching it later is a tape recorder; a memory system earns its keep by deciding what to admit, compressing experience into durable structure, and deciding when a change in the world deserves action. In that reading the Brain is the compiler, and KIP is the typed target and runtime that compilation emits into — governed, auditable, portable state instead of an opaque private heap.
+
+| Compiler stage | KIP mechanism |
+| --- | --- |
+| Ephemeral ingestion | the ingestion context mints Evidence transactionally; the empty write is valid; `PURGE PAYLOAD` later discards raw bytes without destroying the evidence event |
+| Append-only semantic ledger | Evidence + truth-neutral Proposition + attributed Assertion, with lifecycle instead of overwrites |
+| Current belief | Epistemic Projection — belief is derived, not stored, so a reversal needs no cleanup; materialized views disclose their basis |
+| Working state | the `WorkingState` digest with its `basis_seq`; wake = Primer + WorkingState + changes since basis |
+| Commitments and waiting | `Commitment` for the obligation, `Watch` for the trigger — delta or silence — evaluated against the Change Stream |
+| Invalidation | provenance topology + `LIST DEPENDENTS` + `DerivationState`, so a revised root reaches its derivations instead of leaving ghosts |
+| Restraint | the action gate records act / ask / defer / silence, so deliberate silence stays explainable |
+
+The compiled state stays inspectable and portable (Capsule, Governance): the value lies in the compilation, not in a lock on the raw data. Aggressive payload minimization after digestion is a feature of this design, not a loss — the durable facts are the asset; the uncompressed exhaust is a liability.
+
 ---
 
 # 1. Goals
@@ -882,6 +898,8 @@ It answers:
 
 Repeated failure can increase the *learning value* of an Experience while decreasing the utility of a Skill.
 
+Beyond Skills, the Cognitive Memory Profile carries `utility` as a general mnemonic signal: the admission bet — expected future decision value — recorded when a memory is stored and calibrated against outcomes afterwards. Without that signal a memory system cannot tell which of its admissions earn their keep, and admission policy never learns.
+
 ## 9.7 Forgetting Has Multiple Meanings
 
 KIP 2.0 SHOULD stop using a single word “forgetting” for several unrelated operations.
@@ -901,6 +919,10 @@ Logical deletion
 
 Governance forgetting
     access revoked
+
+Payload forgetting
+    raw bytes destroyed while the evidence event, digest,
+    and citations survive
 
 Physical forgetting
     bytes actually purged
@@ -1672,11 +1694,14 @@ ExperienceStep
 Preference
 Insight
 Commitment
+Watch
 Skill
 SleepTask
+WorkingState
 memory_strength
 salience
 utility
+DerivationState
 profile-specific lifecycle
 ```
 
@@ -1686,6 +1711,7 @@ Anda Brain SHOULD own cognitive algorithms and policy such as:
 
 ```text
 formation thresholds
+admission utility estimation
 experience boundary detection
 salience scoring
 prediction-error estimation
@@ -1693,7 +1719,11 @@ semantic consolidation
 contrastive procedural consolidation
 Skill validation
 self-model synthesis
+working-state synthesis
 memory-strength metabolism
+utility calibration
+watch evaluation / delta detection
+interruption gating (act / ask / defer / silence)
 retrieval reranking
 Action Briefing synthesis
 maintenance scheduling

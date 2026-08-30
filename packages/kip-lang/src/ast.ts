@@ -47,6 +47,7 @@ export type MutationClause =
   | ArchiveStatement
   | TombstoneStatement
   | PurgeStatement
+  | PurgePayloadStatement
   | MergeConceptStatement
 
 /** META — introspection, grounding, verification, history, export. */
@@ -617,6 +618,19 @@ export interface PurgeStatement extends BaseNode {
   confirm: StringLiteral
 }
 
+/**
+ * Erases Evidence payload bytes while the element survives (Spec §60.6).
+ * The element survives, so there is no REFERENCE POLICY clause; the
+ * confirmation literal is the same `CONFIRM "PURGE"` as element purge.
+ */
+export interface PurgePayloadStatement extends BaseNode {
+  kind: 'PurgePayloadStatement'
+  target: TargetRef
+  where?: WhereClause
+  limit?: LimitClause
+  confirm: StringLiteral
+}
+
 /** Non-destructive: the source stays addressable as merged history. */
 export interface MergeConceptStatement extends BaseNode {
   kind: 'MergeConceptStatement'
@@ -677,12 +691,17 @@ export type ListTargetKind =
   | 'FACETS'
   | 'STRUCTURAL_FIELDS'
   | 'EPISTEMIC_POLICIES'
+  | 'DEPENDENTS'
 
 export interface ListStatement extends BaseNode {
   kind: 'ListStatement'
   target: ListTargetKind
   /** `LIST SCHEMA PACKAGES STATUS ...` */
   status?: ScalarValue
+  /** `LIST DEPENDENTS :id` — the element whose derived cognition is listed. */
+  element?: ScalarValue
+  /** `LIST DEPENDENTS ... DEPTH :n` — traversal bound (Spec §63.5). */
+  depth?: ScalarValue
   limit?: LimitClause
   cursor?: CursorClause
 }

@@ -88,7 +88,7 @@ Experience ──reflect───> Insight / SelfModel
 | --------------- | -------------------------------------------------- | ------------------------------------------- | --------------------------- |
 | **Formation**   | [BrainFormation_CN.md](./BrainFormation_CN.md)     | 编码证据、主张、Event 与有价值的 Experience | 对话或结构化轨迹            |
 | **Recall**      | [BrainRecall_CN.md](./BrainRecall_CN.md)           | 检索知识、经验、技能与行动相关上下文        | 业务智能体查询 / 行动前简报 |
-| **Maintenance** | [BrainMaintenance_CN.md](./BrainMaintenance_CN.md) | 固化、对照、编译、复核、代谢与保留记忆      | 定时或阈值触发              |
+| **Maintenance** | [BrainMaintenance_CN.md](./BrainMaintenance_CN.md) | 固化、对照、编译、复核、代谢与保留记忆      | 定时、阈值或变更驱动触发    |
 
 若某个智能体直接持有自己的认知中枢、前端不挂载大脑服务，其精简替代方案是 [`$self`](../SelfInstructions_CN.md) / [`$system`](../SystemInstructions_CN.md) 这一对策略。
 
@@ -143,11 +143,14 @@ Experience         ──> 程序性固化 ──> Skill
 它同时负责：
 
 - 复核矛盾，保留行动者之间的分歧，且只对同一行动者的自我修订执行取代；
+- 在实质性修订之后执行 `LIST DEPENDENTS`，将相关派生制品标记为 `stale` 待审，防止被修订的根节点在下游派生认知中遗留隐性失效状态；
+- 基于变更流对已布防的 Watch 进行求值（对 delta 变更与 silence 静默超时均规范处理）：将每次触发记录为 `watch_fire` Activity，对外决策记录为 `action_gate` 结果（act / ask / defer / silence），确保主动克制同样具备完整解释性；
 - 对照成功与失败的经验，识别具有判别力的动作或条件；
 - 通过 `SkillUtility` 验证、强化、削弱或废弃技能；
 - 在任何非破坏性 `MERGE CONCEPT` 之前复核身份怀疑（`same_as`）；
 - 基于证据刷新 `$self` 的 SelfModel，而不是照抄最近一次会话；
-- 代谢 `MnemonicState.memory_strength`，并沿 归档 → tombstone → purge 阶梯管理保留期。
+- 维护下一次会话恢复上下文所需的 WorkingState 摘要，并明确标注其构建基准 `basis_seq`；
+- 代谢 `MnemonicState.memory_strength`，按实际使用成效校准 `utility`，并沿 归档 → tombstone → purge 阶梯管理保留期。
 
 维护是特权过程，但其权限来自 Governance 对其鉴权 Principal 的授予 —— 绝不来自「某个语义行动者恰好叫 `$system`」这一事实。
 
@@ -191,6 +194,7 @@ KIP 2.0 让这些维度保持正交，并且各自有不同的归属位置：
 | `confidence`      | 某行动者对某条 Proposition 的立场强度 | Assertion             | 新证据 → 新 Assertion |
 | `memory_strength` | 某段记忆对未来认知的可及程度          | `MnemonicState` Facet | 强化与弃用            |
 | `salience`        | 某段记忆的重要／显著程度              | `MnemonicState` Facet | 影响、纠错、身份权重  |
+| `utility`         | 预期的未来决策价值（准入效用评估；Skill 使用 `SkillUtility`） | `MnemonicState` Facet | 基于实际结果的显式校准 |
 | 取代关系          | 某行动者对自己早先主张的修订          | Assertion 生命周期    | 明确纠错              |
 | 保留期            | 存储生命周期                          | `retention` 状态      | 策略、复核、归档阶梯  |
 | 信任度            | 对某个来源的采信程度                  | Governance            | 策略，绝非认知        |
@@ -218,6 +222,8 @@ KIP 2.0 让这些维度保持正交，并且各自有不同的归属位置：
 14. **溯源在固化后依然存在** —— 派生出的知识与技能保留回溯其来源的 Activity 谱系。
 15. **纠错保留历史** —— 任何修复都不能靠让过去变得不那么真来完成。
 16. **过去必须影响未来** —— 功能性记忆以行为影响衡量，而不是存储量。
+17. **等待是主动的状态监测** —— 承诺的触发条件声明于 Watch 中（delta 变更或 silence 静默超时），门控决策（act、ask、defer 或主动静默 silence）均完整留存，确保克制行为始终可追溯与可解释。
+18. **基于聚合视图快速恢复** —— 会话唤醒流程 = Primer + WorkingState + 其 `basis_seq` 之后的增量变更，避免重复扫描与重放全量原始历史。
 
 ## 自我意识闭环
 

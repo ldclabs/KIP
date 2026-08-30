@@ -26,9 +26,12 @@
         EXPECT STATE guard, formalizing the design text that terminal outputs
         and ended_at may be finalized atomically.
      6. PURGE freezes the explicit confirmation spelling as CONFIRM "PURGE".
+        PURGE PAYLOAD reuses it; it takes no REFERENCE POLICY clause because
+        the Evidence element survives a payload purge (Spec §60.6).
      6a. Every mutation whose WHERE can select an unbounded set accepts an
         optional LIMIT immediately after that WHERE (UPDATE, RETRACT,
-        SET RETENTION, ARCHIVE, TOMBSTONE, PURGE). MERGE CONCEPT does not:
+        SET RETENTION, ARCHIVE, TOMBSTONE, PURGE, PURGE PAYLOAD).
+        MERGE CONCEPT does not:
         its source and target are already named, and its WHERE only guards.
      6b. Every statement that takes a `target_ref` treats WHERE the same way,
         UPDATE included: a `?variable` target is bound by the WHERE block, a
@@ -165,6 +168,7 @@ kml_statement    = mutate_statement
                  | archive_statement
                  | tombstone_statement
                  | purge_statement
+                 | purge_payload_statement
                  | merge_concept ;
 
 mutate_statement = "MUTATE", "{", { mutation_clause }, "}" ;
@@ -185,6 +189,7 @@ mutation_clause  = create_concept
                  | archive_statement
                  | tombstone_statement
                  | purge_statement
+                 | purge_payload_statement
                  | merge_concept ;
 
 (* ------------------------------------------------------------------------- *)
@@ -362,6 +367,12 @@ purge_statement  = "PURGE", target_ref,
                    [ "WHERE", where_block ],
                    [ limit_clause ],
                    [ "REFERENCE", "POLICY", scalar_or_parameter ],
+                   "CONFIRM", '"PURGE"' ;
+
+purge_payload_statement
+                 = "PURGE", "PAYLOAD", target_ref,
+                   [ "WHERE", where_block ],
+                   [ limit_clause ],
                    "CONFIRM", '"PURGE"' ;
 
 merge_concept    = "MERGE", "CONCEPT", target_ref,

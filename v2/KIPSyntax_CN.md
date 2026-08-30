@@ -310,7 +310,7 @@ UNSET STRUCTURAL { ("has_step", :wrong_step) }
 
 **UPDATE 严禁触碰的区域**：Proposition 元组、Assertion 认识载荷及初始引证、Evidence 载荷/拓扑、Activity 拓扑、`_system`、Governance、Schema。未终结 Activity 通过 `TRANSITION ACTIVITY` 完成字段/拓扑；终态 Activity 不可变。违规重写将抛出 `EpistemicRevisionRequired` / `EvidenceCorrectionRequired` / `ImmutableField`。**严禁随时间推移衰减 Assertion 置信度**——未被调用的记忆衰减的是 `memory_strength`；时效性由认识投影负责；认知更新必须创建新 Assertion。
 
-#### 3.6. 生命周期与移除（四类不同操作）
+#### 3.6. 生命周期与移除（每一种都是不同的事）
 
 ```text
 RETRACT ASSERTION :a [WHERE {...}] [LIMIT :n] [EXPECT STATE "active"]   // 断言者撤回自身的主张
@@ -321,11 +321,12 @@ ARCHIVE :target [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]     // 移出常�
 TOMBSTONE :target [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]   // 逻辑删除；保留标识与审计记录
 PURGE :target [WHERE {...}] [LIMIT :n]                             // 物理抹除；极端特殊操作
   [REFERENCE POLICY "deny_if_referenced"] CONFIRM "PURGE"          // 策略：deny_if_referenced | tombstone_reference | authorized_cascade
+PURGE PAYLOAD :evidence [WHERE {...}] [LIMIT :n] CONFIRM "PURGE"   // 仅清除证据载荷字节；记录、摘要、引用拓扑与溯源完整保留
 SET RETENTION :target { retention_class: "standard", expires_at: :t } [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]
 MERGE CONCEPT ?src INTO ?tgt [WHERE {...}] [EXPECT VERSION :v]
 ```
 
-凡 `WHERE` 可能选中无界集合的变更语句，都在其后接受可选的 `LIMIT`（`UPDATE`、`RETRACT ASSERTION`、`SET RETENTION`、`ARCHIVE`、`TOMBSTONE`、`PURGE`）——请为你的扫描设界。`LIMIT` 限定影响的数量而非选择的对象：不要假定顺序。`MERGE CONCEPT` 不接受 `LIMIT`。
+凡 `WHERE` 可能选中无界集合的变更语句，都在其后接受可选的 `LIMIT`（`UPDATE`、`RETRACT ASSERTION`、`SET RETENTION`、`ARCHIVE`、`TOMBSTONE`、`PURGE`、`PURGE PAYLOAD`）——请为你的扫描设界。`LIMIT` 限定影响的数量而非选择的对象：不要假定顺序。`MERGE CONCEPT` 不接受 `LIMIT`。
 
 `MERGE CONCEPT` 为非破坏性合并：源节点作为已合并历史依然可寻址；后续新写入会自动规范化到目标节点。会制造环的合并（目标已传递解析回源）将被拒绝。
 
@@ -346,6 +347,7 @@ DESCRIBE ERROR :code | CAPSULE :artifact | EPISTEMIC POLICY [:id] | TRUST [:scop
 DESCRIBE TRANSACTION :tx_id | DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :key
 LIST SPACES | TYPES | PREDICATES | FACETS | STRUCTURAL FIELDS | EPISTEMIC POLICIES [LIMIT :n] [CURSOR :c]
 LIST SCHEMA PACKAGES [STATUS "active" | :status] [LIMIT :n] [CURSOR :c]
+LIST DEPENDENTS :id [DEPTH :n] [LIMIT :n] [CURSOR :c]   // 某元素派生出的下游认知，沿 Activity inputs→outputs（及派生字段）遍历
 HISTORY ELEMENT :id [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]   // 查看状态迁移时间线
 HISTORY SPACE [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]
 CHANGES SINCE :cursor [LIMIT :n] | CHANGES AFTER SEQ :seq [LIMIT :n]   // 事务级变更流
@@ -445,15 +447,15 @@ SEARCH 仅用于检索接地：检索得分 ≠ 置信度 ≠ 确信事实；未
 
 ### 6. 认知记忆 Profile（速查）
 
-核心类型：`Person`、`Event`（发生了什么）、`Experience`（目标导向轨迹；必须包含 `goal`、`outcome_status`）、`ExperienceStep`（`step_kind`: context|observation|decision|action|feedback|belief_update；`summary`；顺序由 has_step 边索引决定）、`Preference`（总结性产物——主张本身仍为 Proposition+Assertion）、`Insight`、`Commitment`（`status`: pending|fulfilled|cancelled|expired|blocked；`due_at` 与 retention 过期时间不同）、`Skill`（`skill_class`、`summary`、`procedure`、`status`: candidate|validated|needs_review|deprecated|archived）、`SleepTask`（`task_class`: consolidate|review_conflict|review_skill|resolve_identity|review_retention|refresh_self_model|inspect_quarantine；`summary`；`status`: pending|running|completed|cancelled|blocked|failed）、`SelfModel`。
+核心类型：`Person`、`Event`（发生了什么）、`Experience`（目标导向轨迹；必须包含 `goal`、`outcome_status`）、`ExperienceStep`（`step_kind`: context|observation|decision|action|feedback|belief_update；`summary`；顺序由 has_step 边索引决定）、`Preference`（总结性产物——主张本身仍为 Proposition+Assertion）、`Insight`、`Commitment`（`status`: pending|fulfilled|cancelled|expired|blocked；`due_at` 与 retention 过期时间不同）、`Watch`（布防的注意力；`watch_class`: delta|silence；`condition`；`status`: armed|fired|expired|disarmed；触发不授予权限）、`Skill`（`skill_class`、`summary`、`procedure`、`status`: candidate|validated|needs_review|deprecated|archived）、`SleepTask`（`task_class`: consolidate|review_conflict|review_skill|resolve_identity|review_retention|review_derived|refresh_self_model|inspect_quarantine；`summary`；`status`: pending|running|completed|cancelled|blocked|failed）、`SelfModel`、`WorkingState`（当前工作上下文与未决事项；必须包含 `basis_seq`；派生视图，绝非 Evidence）。
 
 核心谓词：`prefers`（Person→Concept）、`caused_by`（Step→Step，结果→起因，基于证据）、`same_as`（同一性主张 → 触发审核）。
 
-核心 Facet：`MnemonicState {memory_strength, salience, last_metabolized_at}`、`SkillUtility {utility, success_count, failure_count, last_validated_at}`——比率字段取值为 `[0,1]`，计数字段为非负整数，时间戳字段可为 null；均不代表真假。
+核心 Facet：`MnemonicState {memory_strength, salience, utility, last_metabolized_at}`、`SkillUtility {utility, success_count, failure_count, last_validated_at}`、`DerivationState {basis_seq, status: current|stale|under_review, reviewed_at}`——比率字段取值为 `[0,1]`，计数字段为非负整数，时间戳字段可为 null；均不代表真假，且 `stale` 是复审标记而非撤回。
 
-结构引用字段：`has_step`（有序）、`experienced_by`、`involves`、`mentions`、`about`、`derived_from`、`consolidated_to`、`compiled_from`、`compiled_by`、`committed_to`、`owed_to`、`assigned_to`；内置底层记录字段：`evidence`、`source`、`generated_by`、`inputs`、`outputs`、`associated_actors`。
+结构引用字段：`has_step`（有序）、`experienced_by`、`involves`、`mentions`、`about`、`derived_from`、`consolidated_to`、`compiled_from`、`compiled_by`、`committed_to`、`owed_to`、`assigned_to`、`watches`；内置底层记录字段：`evidence`、`source`、`generated_by`、`inputs`、`outputs`、`associated_actors`。
 
-核心不变式：失败的 Experience 是头等记忆；单次成功 ≠ 已验证的 Skill；已验证的 Skill ≠ 执行权限；SelfModel ≠ Governance 权限策略；导入的记忆保持 `mode: "imported"`，绝不会伪造成本地亲历传记。
+核心不变式：失败的 Experience 是头等记忆；单次成功 ≠ 已验证的 Skill；已验证的 Skill ≠ 执行权限；SelfModel ≠ Governance 权限策略；触发的 Watch 是注意力而非执行权限——门控决策须以 `action_gate` Activity 记录（act|ask|defer|silence），主动静默亦同；WorkingState 对外必须披露其 `basis_seq` 且绝不被引用为 Evidence；导入的记忆保持 `mode: "imported"`，绝不会伪造成本地亲历传记。
 
 ---
 

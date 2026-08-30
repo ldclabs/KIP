@@ -74,6 +74,7 @@ import type {
   ArchiveStatement,
   TombstoneStatement,
   PurgeStatement,
+  PurgePayloadStatement,
   MergeConceptStatement,
   DescribeStatement,
   DescribeTargetKind,
@@ -1907,10 +1908,13 @@ class Parser {
     }
   }
 
-  private parsePurgeStatement(): PurgeStatement {
+  private parsePurgeStatement(): PurgeStatement | PurgePayloadStatement {
     const leadingComments = this.collectLeadingComments()
     const start = this.currentPos()
-    this.expectKeywordWithSpace(TokenType.Purge)
+    const purge = this.expectKeywordWithSpace(TokenType.Purge)
+    if (this.check(TokenType.Payload)) {
+      return this.parsePurgePayloadTail(start, purge, leadingComments)
+    }
     const target = this.parseTargetRef()
 
     let where: WhereClause | undefined
@@ -1948,6 +1952,49 @@ class Parser {
       where,
       limit,
       referencePolicy,
+      confirm,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
+  /**
+   * `PURGE PAYLOAD` erases Evidence bytes while the element survives
+   * (Spec §60.6), so there is no REFERENCE POLICY clause; the confirmation
+   * literal is the same as element purge.
+   */
+  private parsePurgePayloadTail(
+    start: Position,
+    purge: Token,
+    leadingComments: string[]
+  ): PurgePayloadStatement {
+    this.expectSecondWord(TokenType.Payload, purge)
+    const target = this.parseTargetRef()
+
+    let where: WhereClause | undefined
+    if (this.check(TokenType.Where)) {
+      this.expectKeywordWithSpace(TokenType.Where)
+      this.dialect = 'raw'
+      where = this.parseWhereClause()
+    }
+
+    const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
+
+    this.expect(TokenType.Confirm)
+    const confirmTok = this.current()
+    const confirm = this.parseStringLiteral()
+    if (confirm.parsed !== 'PURGE') {
+      this.error(
+        `PURGE PAYLOAD must be confirmed with the exact literal "PURGE", got ${confirmTok.value}`,
+        confirmTok
+      )
+    }
+
+    return {
+      kind: 'PurgePayloadStatement',
+      target,
+      where,
+      limit,
       confirm,
       range: { start, end: this.endPos() },
       leadingComments: leadingComments.length ? leadingComments : undefined
@@ -2123,6 +2170,8 @@ class Parser {
 
     let target: ListTargetKind
     let status: ScalarValue | undefined
+    let element: ScalarValue | undefined
+    let depth: ScalarValue | undefined
 
     switch (tok.type) {
       case TokenType.Spaces:
@@ -2160,6 +2209,14 @@ class Parser {
         target = 'EPISTEMIC_POLICIES'
         break
       }
+      case TokenType.Dependents:
+        // Bounded reverse provenance closure (Spec §63.5): the operand is
+        // required, the DEPTH bound is optional and defaults engine-side to 1.
+        this.expectSecondWord(TokenType.Dependents, list)
+        target = 'DEPENDENTS'
+        element = this.parseScalarValue()
+        if (this.match(TokenType.Depth)) depth = this.parseScalarValue()
+        break
       default:
         this.error(`Unknown LIST target '${tok.value}'`, tok)
         throw new ParseAbort()
@@ -2174,6 +2231,8 @@ class Parser {
       kind: 'ListStatement',
       target,
       status,
+      element,
+      depth,
       limit,
       cursor,
       range: { start, end: this.endPos() },

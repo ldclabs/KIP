@@ -104,6 +104,7 @@ Proposition + Assertion
 Preference artifact
 Insight candidate
 Commitment
+Watch
 SelfModel candidate
 Activity provenance
 MnemonicState
@@ -132,6 +133,8 @@ stable self-model signal
 ```
 
 Usually skip acknowledgements, low-value small talk, temporary formatting requests, duplicate retries, process noise, speculative low-value inference, and private chain-of-thought.
+
+Storing is a bet that the element will matter to a future decision. Record the bet: where `MnemonicState` is set at formation, set `utility` too, so Maintenance can later calibrate it against actual use instead of guessing which memories earn their keep.
 
 # 5. Workflow
 
@@ -396,6 +399,8 @@ If the trace explicitly contains expected and actual observation, preserve both.
 Create Commitment for promises, deadlines, follow-ups, reminders, and future obligations. Resolve maker, beneficiary, due time, status, and topic when possible.
 
 Commitment does not automatically schedule an external action.
+
+A Commitment that waits on the world gets its trigger stated as a Watch — delta ("when the reply arrives") or silence ("if nothing by Thursday") — referencing the Commitment through `derived_from`. The Watch holds the condition; firing it later grants nothing.
 
 # 23. Preference Formation
 

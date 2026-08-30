@@ -43,11 +43,14 @@ ExperienceStep
 Preference
 Insight
 Commitment
+Watch
 Skill
 SleepTask
 SelfModel
+WorkingState
 MnemonicState
 SkillUtility
+DerivationState
 ```
 
 > **Core defines cognitive truth, provenance, authority, and durability semantics; the Profile defines portable memory forms.**
@@ -56,7 +59,7 @@ The Profile does not mandate one formation, ranking, consolidation, or forgettin
 
 # 1. Goals
 
-The Profile SHOULD support portable episodic memory, goal-directed experience, procedural memory, prospective memory, preference patterns, self-reflective lessons, self-model artifacts, mnemonic accessibility, procedural utility, and maintenance tasks.
+The Profile SHOULD support portable episodic memory, goal-directed experience, procedural memory, prospective memory, attention state, preference patterns, self-reflective lessons, self-model artifacts, working state, mnemonic accessibility, procedural utility, and maintenance tasks.
 
 It SHOULD make the following questions answerable:
 
@@ -67,6 +70,8 @@ What did the actor learn?
 What tends to work?
 What failed?
 What is still pending?
+What change — or what silence — deserves attention?
+What is the current working picture?
 What should be easier to recall?
 What changed in the self-model?
 ```
@@ -87,7 +92,10 @@ Skill Concept ≠ tool permission
 Person Concept ≠ authenticated Principal
 SelfModel Concept ≠ Governance policy
 SleepTask Concept ≠ maintenance authority
+Watch Concept ≠ scheduler or permission
+WorkingState Concept ≠ Evidence
 MnemonicState ≠ Assertion confidence
+DerivationState ≠ Assertion lifecycle
 ```
 
 Profile Facets and Structural Fields MUST NOT bypass Core immutability, origin, Governance, or Epistemic semantics.
@@ -291,7 +299,7 @@ candidate → validated → needs_review → deprecated/archived
 
 ## 5.9 SleepTask
 
-A durable maintenance work item. Suggested classes include consolidate, review_conflict, review_skill, resolve_identity, review_retention, refresh_self_model, and inspect_quarantine.
+A durable maintenance work item. Suggested classes include consolidate, review_conflict, review_skill, resolve_identity, review_retention, review_derived, refresh_self_model, and inspect_quarantine.
 
 Semantic assignment to `$system` does not grant permission.
 
@@ -301,6 +309,77 @@ A derived artifact describing the Brain's current model of its identity, capabil
 
 SelfModel content MUST NOT modify Principal identity, ActorBinding, Governance Policy, tool permission, or Schema authority.
 
+## 5.11 Watch
+
+**A Watch is durable attention state: a declared condition under which a change — or the absence of one — deserves the Brain's attention.**
+
+Recommended fields:
+
+```text
+watch_class
+summary
+condition
+due_at
+status
+priority
+created_at
+fired_at
+```
+
+Suggested classes:
+
+```text
+delta      fire when a matching change is committed
+silence    fire when due_at passes with no matching change
+```
+
+Suggested lifecycle:
+
+```text
+armed → fired | expired | disarmed
+```
+
+`condition` declares what counts as a matching change: the observed element or slot, the kind of transition, thresholds. The Profile does not fix a condition language; a deployment may use structured filters over Change Envelopes or plain text that a maintenance process interprets.
+
+Evaluation is a differential loop: the runtime or Brain compares committed Change Envelopes (Specification §36) against the armed Watch set; a silence Watch fires when `due_at` passes without a match. Firing is recorded as a `watch_fire` Activity — inputs: the Watch and, where representable, the changed element or observation Evidence; outputs: the SleepTask or notification artifact it produced — and the Watch transitions through ordinary UPDATE.
+
+**A fired Watch grants nothing.** It creates attention — typically a SleepTask or a wake signal — never an external action. Whatever the Brain does next passes the action gate (§9) and Governance like any other act.
+
+A Watch that encodes the waiting half of a Commitment ("if no reply by Thursday, escalate") references that Commitment through `derived_from`. The Commitment holds the obligation; the Watch holds the trigger.
+
+## 5.12 WorkingState
+
+**A WorkingState is a derived, versioned digest of what matters now: the consolidated state a waking Agent resumes from instead of re-reading raw history.**
+
+Recommended fields:
+
+```text
+summary
+horizon
+basis_seq
+refreshed_at
+```
+
+`basis_seq` is the `space_seq` the digest was built at. Wake-up then reads:
+
+```text
+DESCRIBE PRIMER               who am I, what vocabulary
+WorkingState                  what matters now
+CHANGES AFTER SEQ basis_seq   what moved since it was built
+```
+
+Typical inputs, linked through `derived_from`: open Commitments, armed Watches, contested belief slots, recent high-salience Events, and active threads. Refresh is a `working_state_refresh` Activity, normally run by maintenance.
+
+A WorkingState is a derived recall surface (Specification §66.7): it is served with its declared basis, never presented as transaction-snapshot-consistent when it is not. It is a view of cognition, not cognition's source:
+
+```text
+WorkingState is never cited as Evidence
+WorkingState never corroborates its own inputs
+WorkingState answers "what is my situation"; SelfModel answers "who am I"
+```
+
+A Space SHOULD keep at most one active WorkingState per actor scope, under a stable `key`.
+
 # 6. Standard Facets
 
 ## 6.1 MnemonicState
@@ -309,18 +388,22 @@ SelfModel content MUST NOT modify Principal identity, ActorBinding, Governance P
 {
   "memory_strength": 0.8,
   "salience": 0.9,
+  "utility": 0.6,
   "last_metabolized_at": "2026-08-14T00:00:00Z"
 }
 ```
 
-`memory_strength` asks how available the memory should be for future cognitive use. `salience` asks how important/noteworthy it is.
+`memory_strength` asks how available the memory should be for future cognitive use. `salience` asks how important/noteworthy it is. `utility` asks how much future decision value the memory is expected to carry — the admission bet made when it was stored, revised as outcomes come in.
 
 ```text
 memory_strength ≠ confidence
 salience ≠ trust
+utility ≠ truth, salience, or permission
 ```
 
 Mnemonic metabolism MUST NOT rewrite Assertion confidence, trust, valid time, or Governance authority.
+
+Utility calibration is explicit mutation like any other reinforcement: a recall that used the memory, or an outcome that vindicated or wasted the bet, may adjust `utility` through Formation/Maintenance writes. Reading alone never does (Specification §2.13).
 
 ## 6.2 SkillUtility
 
@@ -334,6 +417,33 @@ Mnemonic metabolism MUST NOT rewrite Assertion confidence, trust, valid time, or
 ```
 
 Utility is procedural usefulness on a `[0,1]` scale, not probability and not authority.
+
+## 6.3 DerivationState
+
+```json
+{
+  "basis_seq": 1500,
+  "status": "current",
+  "reviewed_at": "2026-08-14T00:00:00Z"
+}
+```
+
+DerivationState marks how a derived artifact — Insight, Preference, Skill, SelfModel, WorkingState — stands relative to its provenance roots. `basis_seq` is the `space_seq` at which the derivation was made or last revalidated.
+
+Suggested `status`:
+
+```text
+current | stale | under_review
+```
+
+`stale` means a provenance root was revised after `basis_seq` and the derivation has not been re-examined. It is a review flag on the artifact, not an epistemic verdict:
+
+```text
+DerivationState ≠ Assertion lifecycle
+stale ≠ retracted, wrong, or excluded from recall
+```
+
+Maintenance sets `stale` after finding the artifact through `LIST DEPENDENTS` on a revised root (Specification §57.5, §63.5), reviews it, and resolves it to `current` (revalidated), a revised artifact, or an ordinary lifecycle action.
 
 # 7. Standard Structural Fields and Predicates
 
@@ -350,7 +460,8 @@ compiled_by     Skill → Activity
 consolidated_to Event/Experience → derived memory artifact
 committed_to    Commitment → Person
 owed_to         Commitment → Person
-assigned_to     SleepTask → semantic Actor
+assigned_to     SleepTask/Watch → semantic Actor
+watches         Watch → observed cognition
 about           Profile artifact → topical Concept
 ```
 
@@ -398,9 +509,24 @@ skill_validation
 self_model_refresh
 mnemonic_metabolism
 commitment_review
+watch_fire
+action_gate
+derivation_review
+working_state_refresh
 ```
 
 Activity records provenance; Activity is not Transaction.
+
+An `action_gate` Activity records the decision a state change was put through before anything outward happened. Its outcomes:
+
+```text
+act       acted without asking — authorized, reversible, worth it
+ask       escalated to a person
+defer     scheduled for later attention
+silence   deliberately did nothing
+```
+
+Recording `defer` and `silence` is what makes restraint accountable: "why didn't you tell me" is answered from the same provenance as "why did you". The gate threshold — which changes get an evaluation at all — is Brain policy; low-value noise needs no gate record.
 
 # 10. Event Formation
 
@@ -482,6 +608,8 @@ SelfModel evolution SHOULD be conservative. Prefer multiple observations, explic
 
 A due time passing does not necessarily transition status until policy/Evidence does so. A Commitment may remain highly salient even without recent recall. Disuse alone is not justification to weaken its importance.
 
+The waiting half of a Commitment — escalate if nothing happens — is a Watch (§5.11) referencing the Commitment through `derived_from`. The due date stays on the Commitment; the trigger stays on the Watch.
+
 # 18. Mnemonic Metabolism
 
 Typical legal changes:
@@ -489,6 +617,7 @@ Typical legal changes:
 ```text
 memory_strength ↓/↑
 salience adjustment
+utility calibration
 archive eligibility
 review scheduling
 SkillUtility updates
@@ -500,6 +629,7 @@ Generic time-based decay MUST NOT mutate Assertion confidence.
 new epistemic evidence → new/revised Assertion
 staleness → Projection freshness/validity
 forgetting → memory_strength
+wasted or vindicated admission bet → utility
 storage lifecycle → retention/archive/tombstone/purge
 ```
 
@@ -512,11 +642,14 @@ Person/stable identity     durable
 Commitment                 durable through lifecycle
 Skill                      durable while useful/auditable
 SelfModel                  durable/versioned
+WorkingState               durable/versioned; superseded digests may archive
 Experience                 standard/durable by learning value
 Event                      standard; may archive
 ExperienceStep             follows Experience
 SleepTask                  standard; terminal may archive
+Watch                      standard; terminal may archive
 Evidence                   policy-specific; provenance often favors durability
+                           (payload bytes may be purged separately, Spec §60.6)
 ```
 
 Retention MUST NOT remove counter-Evidence merely to improve future Projection.
@@ -530,6 +663,7 @@ Episodic Recall   = Event + selected Evidence
 Experience Recall = Experience + ordered Steps + Outcome
 Procedural Recall = Skill + applicability + utility + positive/negative Experience
 Action Briefing   = accepted knowledge + contested assumptions + Skills + successes + failures + Commitments + constraints + warnings
+Wake Briefing     = WorkingState + CHANGES AFTER its basis_seq
 ```
 
 The consuming Agent remains final action authority unless separate Governance grants otherwise.
@@ -540,9 +674,11 @@ A Cognitive Capsule carrying Profile cognition SHOULD preserve exact Profile Pac
 
 Destination import MUST NOT automatically transfer source self identity, source trust, Skill authority, tool permission, or Governance policy. Remote autobiographical memory remains remote autobiography under ordinary merge import.
 
+A source's Watches and WorkingState are that Brain's attention and situation: under ordinary merge import they arrive disarmed and non-current. A destination re-arms its own attention and rebuilds its own working picture.
+
 # 22. Conformance Expectations
 
-Profile conformance SHOULD test Experience/Step structural validity, failed Experience preservation, MnemonicState mutability, confidence/memory-strength separation, SkillUtility mutability, Skill authority non-amplification, Capsule portability, SelfModel non-authority, Commitment lifecycle, formation atomicity, and procedural provenance.
+Profile conformance SHOULD test Experience/Step structural validity, failed Experience preservation, MnemonicState mutability, confidence/memory-strength separation, SkillUtility mutability, Skill authority non-amplification, Capsule portability, SelfModel non-authority, Commitment lifecycle, Watch non-authority, DerivationState/epistemic separation, WorkingState non-evidence, formation atomicity, and procedural provenance.
 
 # 23. Profile Invariants
 
@@ -566,6 +702,11 @@ Profile conformance SHOULD test Experience/Step structural validity, failed Expe
 18. Read frequency is not a required mnemonic signal.
 19. Profile Facets cannot override Core fields.
 20. Brain algorithms remain outside Profile conformance.
+21. A fired Watch grants nothing; it creates attention, not action.
+22. Deliberate silence at the action gate is a recordable outcome.
+23. DerivationState is review state; stale is not retracted.
+24. WorkingState is a derived view; it is never Evidence and never corroborates its inputs.
+25. utility is the admission bet, revised by outcomes; it is not truth, salience, or permission.
 
 # 24. Minimal Profile Primer
 
@@ -579,9 +720,12 @@ caused_by: explicit effect→cause claim between steps; edge order alone is not 
 Insight: declarative lesson derived from memory
 Skill: reusable procedure; content does not grant execution authority
 Commitment: prospective memory
+Watch: armed attention — a delta or a silence worth waking for; firing grants nothing
 SelfModel: derived cognition about self; not Governance
-MnemonicState: memory_strength + salience; not confidence
+WorkingState: what matters now, stamped with its basis_seq; never Evidence
+MnemonicState: memory_strength + salience + utility; not confidence
 SkillUtility: procedural usefulness; not authority
+DerivationState: basis_seq + current|stale|under_review; review state, not belief
 
 Truth-sensitive claims use Proposition + Assertion + Evidence.
 Transformations preserve Activity provenance.

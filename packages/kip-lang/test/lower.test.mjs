@@ -531,7 +531,7 @@ describe('lower: KML invariants', () => {
     )
   })
 
-  test('the removal ladder lowers to four distinct clauses', () => {
+  test('the removal ladder lowers to distinct clauses', () => {
     assert.ok('Archive' in lowerOne('ARCHIVE :t').Kml.clauses[0])
     assert.ok('Tombstone' in lowerOne('TOMBSTONE :t').Kml.clauses[0])
     assert.ok('Purge' in lowerOne('PURGE :t CONFIRM "PURGE"').Kml.clauses[0])
@@ -539,6 +539,21 @@ describe('lower: KML invariants', () => {
       'SetRetention' in
         lowerOne('SET RETENTION :t {retention_class: "standard"}').Kml.clauses[0]
     )
+  })
+
+  test('PURGE PAYLOAD lowers without a reference policy slot (Spec §60.6)', () => {
+    const clause = lowerOne('PURGE PAYLOAD :e CONFIRM "PURGE"').Kml.clauses[0]
+    assert.ok('PurgePayload' in clause)
+    assert.equal(clause.PurgePayload.confirm, 'PURGE')
+    assert.equal('reference_policy' in clause.PurgePayload, false)
+  })
+
+  test('LIST DEPENDENTS lowers its root and depth', () => {
+    const cmd = lowerOne('LIST DEPENDENTS :id DEPTH 2 LIMIT 100').Meta
+    assert.equal(cmd.List.target, 'Dependents')
+    assert.deepEqual(cmd.List.element, { Param: 'id' })
+    assert.notEqual(cmd.List.depth, null)
+    assert.notEqual(cmd.List.limit, null)
   })
 
   test('LIMIT lowers on every WHERE-scanning mutation', () => {

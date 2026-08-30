@@ -478,6 +478,8 @@ Preference
 Commitment
 Insight
 SelfModel
+Watch
+WorkingState
 ```
 
 SHOULD be represented as typed Concepts plus validated Facets/Structural References unless a future Core version explicitly promotes them.
@@ -1213,6 +1215,8 @@ The original Evidence payload and observation identity SHOULD be immutable.
 
 A wrong Evidence artifact SHOULD be corrected by creating new Evidence and correction lineage.
 
+Immutability forbids rewriting the payload into a different value. It does not forbid authorized destruction: payload purge (§60.6) erases the bytes while the record, `content_digest`, citations, and provenance role survive.
+
 ---
 
 ## 15.6 Evidence role is contextual
@@ -1451,11 +1455,14 @@ ExperienceStep
 Preference
 Insight
 Commitment
+Watch
 Skill
 SleepTask
 SelfModel
+WorkingState
 MnemonicState
 SkillUtility
+DerivationState
 ```
 
 The exact Profile Package version is separate from Core.
@@ -1486,6 +1493,7 @@ mnemonic weakening
 archive
 tombstone
 Governance exclusion
+payload purge
 physical purge
 ```
 
@@ -1526,6 +1534,8 @@ Physical purge is a high-impact operation.
 Evidence/counter-Evidence purge SHOULD be especially conservative and audited.
 
 Where policy permits, purge SHOULD leave a digest stub (§60.3) so audit and provenance-root identity survive byte destruction.
+
+Byte destruction that targets only an Evidence payload uses payload purge (§60.6), which preserves the Evidence record itself.
 
 ---
 
@@ -2843,6 +2853,8 @@ Consumers MUST be able to deduplicate by:
 space_id + space_seq + tx_id
 ```
 
+A runtime MAY offer filtered change delivery — for example, only envelopes touching declared elements, kinds, or types — as a negotiated capability (§67). Filtering is a transport convenience: it MUST NOT change envelope content, atomicity, or `space_seq` ordering within the delivered subset.
+
 ---
 
 ## 36.4 Replay
@@ -3757,6 +3769,7 @@ SET RETENTION
 ARCHIVE
 TOMBSTONE
 PURGE
+PURGE PAYLOAD
 
 MERGE CONCEPT
 ```
@@ -3817,6 +3830,7 @@ SET RETENTION
 ARCHIVE
 TOMBSTONE
 PURGE
+PURGE PAYLOAD
 ```
 
 A maintenance sweep that matches more elements than its author expected is a
@@ -4169,6 +4183,16 @@ Supersession MUST NOT be used merely because another actor disagrees.
 
 ---
 
+## 57.5 Revision and derived cognition
+
+Superseding or retracting an Assertion, or correcting Evidence, changes what Projection reports. It does not automatically change cognition that was derived from the revised root: an Insight, a Preference summary, a compiled Skill, or a SelfModel built while the old claim stood is still active state.
+
+A runtime MUST NOT auto-retract, auto-archive, or auto-rewrite derived cognition because one of its provenance roots was revised. Whether a derived element survives its root is a review decision, not a protocol rule.
+
+A runtime SHOULD make that review possible. Where `LIST DEPENDENTS` (§63.5) is supported, the cognition downstream of a revised root is discoverable in one operation, and a Brain SHOULD review those dependents after a material revision. The Cognitive Memory Profile provides `DerivationState` and the `review_derived` maintenance task class for recording the outcome.
+
+---
+
 # 58. Generic UPDATE
 
 Recommended:
@@ -4272,6 +4296,7 @@ ARCHIVE       <target> [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]
 TOMBSTONE     <target> [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]
 PURGE         <target> [WHERE {...}] [LIMIT :n]
                        [REFERENCE POLICY "..."] CONFIRM "PURGE"
+PURGE PAYLOAD <target> [WHERE {...}] [LIMIT :n] CONFIRM "PURGE"
 ```
 
 `<target>` follows the same rule as generic UPDATE (§58): a `?variable` is bound
@@ -4318,9 +4343,42 @@ Native KIP 2.0 MUST NOT make v1-style destructive `DETACH` cascade the default d
 
 ## 60.5 Bounded removal
 
-All three removal families accept an optional `LIMIT` after their `WHERE`
-(§52.7). A removal sweep SHOULD be bounded, and a `PURGE` sweep SHOULD be
-bounded in addition to its required `CONFIRM "PURGE"`.
+All removal families accept an optional `LIMIT` after their `WHERE`
+(§52.7). A removal sweep SHOULD be bounded, and a `PURGE` or `PURGE PAYLOAD`
+sweep SHOULD be bounded in addition to its required `CONFIRM "PURGE"`.
+
+---
+
+## 60.6 Payload purge
+
+`PURGE PAYLOAD` erases the payload bytes of an Evidence element while preserving the element itself.
+
+After a payload purge the Evidence record keeps:
+
+```text
+element identity and lifecycle
+evidence_class
+content_digest
+media_type
+observed_at
+source / generated_by references
+citations from Assertions
+```
+
+Its payload is marked purged; the bytes — inline content, or the runtime-held content addressed by `content_ref` — are destroyed and not recoverable.
+
+Rules:
+
+- The target MUST be Evidence; other kinds have no payload to purge.
+- `CONFIRM "PURGE"` is REQUIRED: byte destruction is irreversible.
+- Payload purge requires `purge` authority; a Governance policy MAY scope payload purge separately from element purge.
+- `legal_hold` blocks payload purge exactly as it blocks element purge.
+- There is no `REFERENCE POLICY` clause: the element survives, so no reference can dangle.
+- Payload purge is an ordinary state-changing mutation for transaction purposes; purging an already-purged payload yields `no_effect`.
+- Corroboration grouping and independence counting (§23) continue to operate on the surviving digest and provenance; a payload purge MUST NOT alter them.
+- A Projection policy MAY weigh the loss of inspectable content (for example under §22.4 verifiability), but the Evidence event itself remains real.
+
+Payload purge is the data-minimization instrument: a Space can discard observed raw bytes after digestion without destroying the evidence event, its citations, or its provenance role. Element purge (§60.3) remains the instrument for destroying the record itself.
 
 ---
 
@@ -4416,7 +4474,7 @@ CAPSULE | EPISTEMIC POLICY | PROJECTION CAPABILITY | TRUST | ACCESS
 
 ```text
 SPACES | SCHEMA PACKAGES | TYPES | PREDICATES | FACETS
-STRUCTURAL FIELDS | EPISTEMIC POLICIES
+STRUCTURAL FIELDS | EPISTEMIC POLICIES | DEPENDENTS
 ```
 
 A `LIST` accepts `LIMIT` / `CURSOR` paging.
@@ -4447,6 +4505,40 @@ The operand names the **selection root binding**: every element bound to `?roots
 `WHERE` is REQUIRED and MUST contain at least one selection pattern: an unbounded export is not a Capsule. `closure` uses the vocabulary of §40.3.
 
 The produced Capsule contains the root set plus the closure declared in `WITH`, subject to Governance and to the snapshot-consistency rules of §41.1. The result is a Capsule artifact (§85); no cognitive state is mutated.
+
+---
+
+## 63.5 LIST DEPENDENTS
+
+Recommended syntax:
+
+```text
+LIST DEPENDENTS :id
+  [DEPTH :n]
+  [LIMIT :limit]
+  [CURSOR :cursor]
+```
+
+`LIST DEPENDENTS` enumerates the cognition derived from one element, by bounded traversal of provenance topology in the derived direction:
+
+```text
+X ∈ Activity.inputs
+    → that Activity
+    → each element in Activity.outputs
+```
+
+Each output is a dependent of `X` at distance 1; traversal repeats from each dependent up to `DEPTH` (default 1). A runtime MAY additionally traverse Structural Fields that the active Schema Environment documents as derivation lineage. Each such field is traversed in whichever direction runs from root to derived artifact, which is not the same direction for every field: a field declared derived artifact → root (`derived_from`, `compiled_from` in the Cognitive Memory Profile) is traversed inbound — the dependents of `X` are the elements whose field references `X` — while a field declared root → derived artifact (`consolidated_to`) is traversed outbound. Traversing a lineage field in the wrong direction yields the element's sources, not its dependents.
+
+A result row SHOULD carry the dependent's exact id, kind, distance, and the Activity (or Structural Field) through which it was reached.
+
+Rules:
+
+- `LIST DEPENDENTS` is a read; it MUST NOT change any element.
+- Governance applies per row: an element the caller may not discover is omitted, and omission is indistinguishable from absence (§30.4).
+- The traversal is bounded: a runtime MAY cap `DEPTH` and pages results through `LIMIT` / `CURSOR` like other `LIST` targets.
+- Reachability is provenance topology, not judgment: a listed dependent is not thereby stale, wrong, or in need of change (§57.5).
+
+A transformation that recorded no Activity provenance is not discoverable here. That is a property of the write, not of this command; consolidation guidance already requires Activity lineage.
 
 ---
 
@@ -5843,6 +5935,7 @@ forward local refs
 Facets
 Structural mutation
 archive/tombstone/purge
+payload purge
 non-destructive merge
 ```
 
@@ -5869,6 +5962,7 @@ Advanced profile adds:
 semantic/hybrid SEARCH
 transaction history
 CHANGES
+LIST DEPENDENTS
 VERIFY
 VALIDATE
 PREVIEW
@@ -5977,6 +6071,8 @@ A conforming native KIP 2.0 implementation MUST preserve these cross-cutting inv
 31. `ASSERT` commits exactly the semantics of its normative desugaring.
 32. A served materialized projection discloses its policy identity and snapshot basis.
 33. Runtime-ingested Evidence preserves the transport-supplied payload without model re-typing.
+34. Payload purge destroys Evidence bytes, never the Evidence record's identity, citations, or provenance topology.
+35. Revising a provenance root does not silently retract or rewrite cognition derived from it.
 
 ---
 
@@ -6285,6 +6381,7 @@ kml_statement :=
     | archive_statement
     | tombstone_statement
     | purge_statement
+    | purge_payload_statement
     | merge_concept
 
 mutate_statement :=
@@ -6350,6 +6447,14 @@ purge_statement :=
     ("REFERENCE POLICY" value)?
     "CONFIRM" "\"PURGE\""
 
+purge_payload_statement :=
+    "PURGE PAYLOAD" target
+    ("WHERE" "{" where_clause* "}")?
+    limit_clause?
+    "CONFIRM" "\"PURGE\""
+        (* Evidence bytes only; the element survives, so there is
+           no REFERENCE POLICY clause *)
+
 merge_concept :=
     "MERGE CONCEPT" target
     "INTO" target
@@ -6400,6 +6505,17 @@ describe_target :=
     | TRUST
     | ACCESS
     | CAPSULE
+
+list_target :=
+      SPACES
+    | SCHEMA_PACKAGES
+    | TYPES
+    | PREDICATES
+    | FACETS
+    | STRUCTURAL_FIELDS
+    | EPISTEMIC_POLICIES
+    | DEPENDENTS
+        (* LIST DEPENDENTS :id [DEPTH :n] [LIMIT :n] [CURSOR :c], §63.5 *)
 ```
 
 ---

@@ -85,6 +85,22 @@ KIP 2.0 的核心客体不再仅仅是一个**知识图谱 (Knowledge Graph)**�
 
 这使得矛盾的信念、多源证据、时间维度的真实性、具备来源感知的记忆、共享的组织大脑、安全的记忆交换以及经验驱动的学习得以原生支持，而无需将所有这些关注点粗暴地塞入命题的元数据中。
 
+### 编译器视角 (The Compiler View)
+
+从另一个视角审视该架构：智能体记忆的本质是编译器，而非简单的档案馆。若只是机械存储所有会话记录并依赖事后检索，充其量只是一台录音机；记忆系统的核心价值在于决定哪些信息值得准入、将经验提炼压缩为持久结构，并研判外部环境的变更何时值得触发行动。在此视角下，Brain 扮演编译器的角色，而 KIP 则是编译产物的类型化目标格式与运行时环境——提供受治理、可审计、可迁移的状态，而非封闭不透明的私有堆栈。
+
+| 编译阶段 | KIP 机制 |
+| --- | --- |
+| 临时摄取 | 摄取上下文在事务内生成 Evidence；支持空写入（empty write）；`PURGE PAYLOAD` 可在事后清理原始载荷字节而不破坏证据事件 |
+| 只增语义账本 | Evidence + 真值中立 Proposition + 有归属的 Assertion，以生命周期流转代替破坏性覆写 |
+| 当前信念 | 认识投影——信念是由规则推导而非物理固化的，立场反转无需额外清理；物化视图对外披露其推导基准 |
+| 工作状态 | 带 `basis_seq` 的 `WorkingState` 摘要；会话恢复流程 = Primer + WorkingState + 基准版本后的增量变更 |
+| 承诺与等待 | 责任约束由 `Commitment` 承载，触发条件由 `Watch` 承载——支持 delta 变更或 silence 超时——基于变更流进行实时评估 |
+| 失效传播 | 溯源拓扑 + `LIST DEPENDENTS` + `DerivationState`，溯源根节点修订后可精准触达其下游派生物，避免残留失效的游离状态 |
+| 克制 | 行动门控记录 act / ask / defer / silence 决策，使主动静默同样具备清晰的可解释性与审计线索 |
+
+编译后的状态始终具备可检视性与可迁移性（Capsule、Governance）：记忆的核心价值在于提炼与编译过程，而非对原始数据的死板囤积。在认知消化完成后对底层载荷进行激进的字节最小化，是本设计的核心特性而非功能损失——持久的事实结构是资产，未经提炼压缩的原始过程数据残余则是系统负债。
+
 ---
 
 # 1. 目标 (Goals)
@@ -885,6 +901,8 @@ memory_strength = 0.20
 
 重复的失败可以增加一项经验 (Experience) 的*学习价值*，同时降低一项技能 (Skill) 的实用度。
 
+在 Skill 之外，认知记忆 Profile 还将 `utility` 作为通用的记忆代谢信号：它代表记忆准入时的预期效用（即对未来决策价值的预先评估），在存入时记录，并在事后根据实际调用产出进行校准。若缺少该信号，记忆系统便无法度量哪些准入内容真正具备持久价值，准入策略也无从持续优化与自适应学习。
+
 ## 9.7 遗忘的多重含义 (Forgetting Has Multiple Meanings)
 
 KIP 2.0 应当 (SHOULD) 停止使用单一的“遗忘 (forgetting)”词汇来指代几种互不相关的操作。
@@ -904,6 +922,9 @@ KIP 2.0 应当 (SHOULD) 停止使用单一的“遗忘 (forgetting)”词汇来�
 
 治理性遗忘 (Governance forgetting)
     访问权限被撤销
+
+载荷性遗忘 (Payload forgetting)
+    原始载荷字节被销毁，而证据事件记录、内容摘要与引用拓扑依然完整保留
 
 物理性遗忘 (Physical forgetting)
     字节被物理擦除 / 销毁
@@ -1675,11 +1696,14 @@ ExperienceStep (经验步骤)
 Preference (偏好)
 Insight (洞察)
 Commitment (承诺)
+Watch (守望)
 Skill (技能)
 SleepTask (休眠任务)
+WorkingState (工作状态)
 memory_strength (记忆强度)
 salience (显著性)
 utility (实用度)
+DerivationState (派生状态)
 profile-specific lifecycle (Profile 特定的生命周期)
 ```
 
@@ -1689,6 +1713,7 @@ Anda 记忆大脑应当拥有认知算法与策略，例如：
 
 ```text
 formation thresholds (形成阈值)
+admission utility estimation (准入效用估计)
 experience boundary detection (经验边界检测)
 salience scoring (显著性评分)
 prediction-error estimation (预测误差估计)
@@ -1696,7 +1721,11 @@ semantic consolidation (语义巩固)
 contrastive procedural consolidation (对比程序性巩固)
 Skill validation (技能验证)
 self-model synthesis (自我模型综合)
+working-state synthesis (工作状态综合)
 memory-strength metabolism (记忆强度新陈代谢)
+utility calibration (效用校准)
+watch evaluation / delta detection (Watch 状态评估 / 增量检测)
+interruption gating (act / ask / defer / silence) (行动门控)
 retrieval reranking (检索重排)
 Action Briefing synthesis (行动简报综合)
 maintenance scheduling (维护调度)

@@ -58,6 +58,8 @@ DESCRIBE PRIMER MODE "compact"
 
 在生成任何写入之前，先把具体的类型、Predicate、Facet、结构化字段与元素 id 接地。严禁凭空杜撰 Schema 符号；`SchemaSymbolNotFound` 的含义是「先去 DESCRIBE」，而不是「换个近义词再试」。持久化时固定确切的包版本，绝不使用 `@latest`。
 
+若记忆空间维护了 `WorkingState`，随后应优先读取它：该摘要汇集了当前核心工作上下文与未决事项，并标注其构建基准 `basis_seq`。智能体应基于该摘要及 `CHANGES AFTER SEQ` 增量变更恢复上下文，避免从头扫描与重放全量原始历史。WorkingState 属于纯派生视图：依循其声明的基准版本，且严禁将其作为 Evidence 引用。
+
 任何陌生引用的黄金路径：
 
 ```text
@@ -252,6 +254,30 @@ CREATE CONCEPT ?commitment {
 
 `Commitment.due_at` 不是 `retention.expires_at`，二者也都不是 `Assertion.valid_time.until`。
 
+承诺中依赖外部反馈的等待条件（如「若周四前未获回复则升级」），应显式建模为 Watch，而非悬空的被动等待：
+
+```prolog
+CREATE CONCEPT ?watch {
+  TYPE "Watch"
+  CLIENT KEY :watch_key
+  NAME "迁移方案无回音"
+  SET ATTRIBUTES {
+    watch_class: "silence",
+    summary: "Alice 尚未回复迁移方案",
+    condition: :condition,
+    due_at: :thursday,
+    status: "armed"
+  }
+  SET STRUCTURAL {
+    ("watches", :alice)
+    ("derived_from", :commitment_id)
+    ("assigned_to", :system)
+  }
+}
+```
+
+`$system` 运行增量差分循环：将已提交的变更与 `armed` 状态的 Watch 集合比对，`silence` 类 Watch 在到达 `due_at` 且无匹配变更时触发。Watch 触发仅唤起系统注意力，绝不直接触发对外行动。智能体后续的决策须经过行动门控（分为 `act`、`ask`、`defer`、`silence` 四种判定），并以 `action_gate` Activity 完整记录，使主动克制与静默同样具备清晰的审计追溯凭据。
+
 # 10. 概念的身份标识
 
 ```text
@@ -280,7 +306,8 @@ UPSERT CONCEPT ?project {
 ```text
 快速去重      创建可能已存在的概念前先 SEARCH 并核验
 显然的固化    用户直白陈述的稳定偏好
-强化          对刚刚证明有用的内容提升 memory_strength / salience
+强化          对刚刚证明有用的内容提升 memory_strength / utility
+布防守望      凡涉及等待外部反馈的承诺，及时将其触发条件声明为 Watch
 其余挂起      创建 SleepTask，而不是把深度工作做一半
 ```
 
@@ -366,6 +393,7 @@ tx_id             已提交的事实
 15. 导入的认知不等于本地背书。
 16. SleepTask 的指派不等于权限。
 17. 通过认知写入的任何内容都不会扩张权限、信任或 Schema。
+18. 触发的 Watch 仅产生注意力，不授予执行权限——门控中主动选择的静默亦须记录，确保克制行为始终可追溯。
 
 # 16. 终极原则
 

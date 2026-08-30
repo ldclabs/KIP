@@ -65,6 +65,7 @@ experience recall
 procedural/Skill
 failure avoidance
 action briefing
+wake/resume briefing
 commitment/prospective
 history/evolution
 self-reflection
@@ -205,6 +206,8 @@ Recommended shape:
 
 Each Skill entry should distinguish cognitive status, utility, provenance, and Governance influence/authority. Skill presence never implies tool execution permission.
 
+For wake/resume — "what is my situation?" — read the WorkingState first and honor its declared `basis_seq`: serve it plus `CHANGES AFTER SEQ` deltas rather than re-deriving the situation from raw history. A WorkingState is a derived recall surface (Spec §66.7): disclose its basis, never cite it as Evidence.
+
 # 19. Commitment Recall
 
 For `What do I owe? / What's due? / What did I promise?`, query Commitment lifecycle explicitly. A Commitment remains important even without recent recall; low memory_strength should not hide an explicit prospective-memory request.
@@ -240,6 +243,8 @@ If Projection is authorized but raw Evidence is not, return safe redacted Projec
 # 26. Profile Ranking
 
 Memory ranking may use task relevance, semantic similarity, memory_strength, salience, utility, validity/currentness, Experience outcome, and counterexample relevance. Final factual belief still comes from Epistemic Projection, not rank.
+
+Surface, do not hide, a `DerivationState.status = stale` flag on a derived artifact: it means a provenance root changed after the artifact was built and review is pending — the artifact is still recallable, but the reader deserves the caveat.
 
 # 27. Iterative Deepening
 
@@ -325,6 +330,7 @@ Raw IDs/provenance only when requested and authorized.
 18. Raw Evidence may be more restricted than safe Projection.
 19. Uncertainty should be surfaced rather than erased.
 20. History should not be rewritten for answer convenience.
+21. A stale derivation flag is surfaced, never silently trusted or hidden.
 
 # 36. Final Principle
 

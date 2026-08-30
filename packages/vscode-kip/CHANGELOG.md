@@ -2,6 +2,17 @@
 
 All notable changes to the **KIP Language** extension are documented here.
 
+## 2.1.0
+
+Bundles `@ldclabs/kip-lang` 2.1.0, which adds the two new statements from the
+current 2.0-draft revision — `PURGE PAYLOAD` (Spec §60.6) and
+`LIST DEPENDENTS` (Spec §63.5) — so they parse, format, and diagnose instead
+of erroring in the editor.
+
+### Added
+
+- Highlighting for the new keywords `PAYLOAD`, `DEPENDENTS`, and `DEPTH`.
+
 ## 2.0.1
 
 Bundles `@ldclabs/kip-lang` 2.0.2, whose formatter no longer rewrites what a

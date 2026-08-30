@@ -375,6 +375,7 @@ SET RETENTION
 ARCHIVE
 TOMBSTONE
 PURGE
+PURGE PAYLOAD
 
 MERGE CONCEPT
 ```
@@ -6086,6 +6087,7 @@ kml_statement :=
     | archive_statement
     | tombstone_statement
     | purge_statement
+    | purge_payload_statement
     | merge_concept
 
 mutate_statement :=
@@ -6110,6 +6112,7 @@ mutation_clause :=
     | archive_statement
     | tombstone_statement
     | purge_statement
+    | purge_payload_statement
     | merge_concept
     (* 除 MUTATE 自身之外的所有语句；MUTATE 不可嵌套 *)
 
@@ -6250,6 +6253,13 @@ purge_statement :=
     limit_clause?
     ("REFERENCE POLICY" value)?
     "CONFIRM" "\"PURGE\""
+
+purge_payload_statement :=
+    "PURGE PAYLOAD" target
+    ("WHERE" "{" kql_clause* "}")?
+    limit_clause?
+    "CONFIRM" "\"PURGE\""
+        (* 仅限证据字节；元素本身存活，因此没有 REFERENCE POLICY 子句 *)
 
 merge_concept :=
     "MERGE CONCEPT" target

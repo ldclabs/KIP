@@ -396,6 +396,30 @@ describe('KML', () => {
     assert.ok(parseErrors('PURGE :t').length > 0)
   })
 
+  test('PURGE PAYLOAD keeps the element and drops the reference policy (Spec §60.6)', () => {
+    const stmt = parseOne('PURGE PAYLOAD :evidence CONFIRM "PURGE"')
+    assert.equal(stmt.kind, 'PurgePayloadStatement')
+    assert.equal(stmt.target.name, ':evidence')
+
+    const swept = parseOne(
+      'PURGE PAYLOAD ?e WHERE { ?e EVIDENCE {evidence_class: "message"} } LIMIT 100 CONFIRM "PURGE"'
+    )
+    assert.equal(swept.kind, 'PurgePayloadStatement')
+    assert.ok(swept.limit)
+
+    // Same confirmation discipline as element purge; no REFERENCE POLICY slot.
+    assert.match(
+      parseErrors('PURGE PAYLOAD :e CONFIRM "purge"')[0].message,
+      /exact literal/
+    )
+    assert.ok(parseErrors('PURGE PAYLOAD :e').length > 0)
+    assert.ok(
+      parseErrors(
+        'PURGE PAYLOAD :e REFERENCE POLICY "deny_if_referenced" CONFIRM "PURGE"'
+      ).length > 0
+    )
+  })
+
   test('UPDATE takes several actions before WHERE', () => {
     const stmt = parseOne(`
       UPDATE ?m
@@ -527,11 +551,24 @@ describe('META', () => {
       ['LIST PREDICATES', 'PREDICATES'],
       ['LIST FACETS', 'FACETS'],
       ['LIST STRUCTURAL FIELDS', 'STRUCTURAL_FIELDS'],
-      ['LIST EPISTEMIC POLICIES', 'EPISTEMIC_POLICIES']
+      ['LIST EPISTEMIC POLICIES', 'EPISTEMIC_POLICIES'],
+      ['LIST DEPENDENTS :id', 'DEPENDENTS']
     ]
     for (const [source, target] of sources) {
       assert.equal(parseOne(source).target, target, source)
     }
+  })
+
+  test('LIST DEPENDENTS takes an operand, a DEPTH bound, and paging (Spec §63.5)', () => {
+    const stmt = parseOne('LIST DEPENDENTS :id DEPTH 2 LIMIT 100 CURSOR :c')
+    assert.equal(stmt.target, 'DEPENDENTS')
+    assert.equal(stmt.element.name, ':id')
+    assert.equal(stmt.depth.value, 2)
+    assert.equal(stmt.limit.value.value, 100)
+
+    // The operand is required: dependents of nothing is not a listing.
+    assert.ok(parseErrors('LIST DEPENDENTS').length > 0)
+    assert.ok(parseErrors('LIST DEPENDENTS DEPTH 2').length > 0)
   })
 
   test('SEARCH covers all six kinds and every modifier', () => {

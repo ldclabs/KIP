@@ -106,6 +106,7 @@ Formation 可以产生以下产物：
 生成 Preference 制品
 生成 Insight 候选
 创建 Commitment
+创建 Watch
 生成 SelfModel 候选
 记录 Activity 溯源
 初始化/更新 MnemonicState
@@ -134,6 +135,8 @@ Formation 可以产生以下产物：
 ```
 
 通常应忽略：日常客套应答、低价值闲聊、临时的格式调整要求、重试产生的重复信息、过程噪声、低价值的臆测性推论以及内部私有思维链。
+
+记忆存储代表对未来决策价值的预期投入。在形成阶段设置 `MnemonicState` 时应同步赋予 `utility` 初始值，以便 Maintenance 维护流程在后续根据实际使用成效进行显式校准，避免盲目保留低效记忆。
 
 # 5. 标准执行工作流
 
@@ -391,6 +394,8 @@ formation 类型的 Activity
 # 22. 承诺构建规范
 
 对承诺事项、截止日期、跟进任务、提醒及未来义务创建 Commitment。尽可能解析发起人、受益人、到期时间、状态与主题。Commitment 不会自动触发外部物理执行。
+
+对于等待外部反馈的承诺事项，应将其触发条件建模为 Watch——分为 delta（如「收到回复时」）或 silence（如「周四前未收到回复」）——并通过 `derived_from` 关联该 Commitment。触发条件由 Watch 管理；Watch 激活仅产生注意力，不授予任何操作权限。
 
 # 23. 偏好构建规范
 

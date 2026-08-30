@@ -79,17 +79,20 @@ A deployment may retain `daydream`, `quick`, and `full` as implementation metaph
 5  Mnemonic metabolism
 6  Identity review / merge
 7  Contradiction review
-8  Commitment review
-9  SelfModel refresh
-10 Imported/quarantined cognition review
-11 Retention/archive review
-12 Tombstone/purge candidates
-13 Final health report
+8  Derivation review
+9  Commitment review
+10 Watch evaluation
+11 SelfModel refresh
+12 WorkingState refresh
+13 Imported/quarantined cognition review
+14 Retention/archive review
+15 Tombstone/purge candidates
+16 Final health report
 ```
 
 # 6. Assessment
 
-Read-only probes identify pending tasks, unconsolidated Events/Experiences, Skills needing review, conflict sets, identity merge candidates, due Commitments, low-strength archive candidates, retention expiry candidates, quarantined imports, and SelfModel refresh candidates.
+Read-only probes identify pending tasks, unconsolidated Events/Experiences, Skills needing review, conflict sets, identity merge candidates, due Commitments, armed Watches at or past `due_at`, `stale`-flagged derived artifacts, low-strength archive candidates, retention expiry candidates, quarantined imports, and SelfModel refresh candidates.
 
 Assessment reads do not update recall/access counters.
 
@@ -150,6 +153,8 @@ Example policy formula:
 new_strength = clamp(old_strength × decay + salience protection + explicit reinforcement)
 ```
 
+`MnemonicState.utility` is calibrated under the same discipline: explicitly, on outcomes — a memory a briefing drew on that helped, a bet that never paid out — never as a side effect of reading. It is the mnemonic twin of outcome-driven trust calibration (Spec §22.6).
+
 Apply it with `UPDATE ... SET FACET "MnemonicState" { ... }` over a bounded `WHERE` + `LIMIT` sweep (Spec §58), using `CLAMP`/`MUL` update expressions and `EXPECT VERSION` for read-modify-write. Stamp `MnemonicState.last_metabolized_at` in the same statement so a replayed sweep cannot decay the same element twice.
 
 The formula is implementation-specific. Read frequency is not a required protocol signal.
@@ -181,13 +186,17 @@ stale imported cognition
 
 Different actors normally remain coexisting Assertions. Same-actor explicit revision may supersede. Different valid times coexist. Evidence correction creates correction lineage. Moderation/quarantine must not forge source retraction.
 
-# 17. Commitment Review
+# 17. Commitment and Watch Review
 
 Review pending, due-soon, overdue, blocked, fulfilled, and cancelled Commitments. Due time passing does not automatically delete/archive. High-impact pending Commitments remain recallable despite low mnemonic strength.
 
-# 18. SelfModel Refresh
+Evaluate armed Watches against committed changes (`CHANGES AFTER SEQ`): a delta Watch fires on a matching change, a silence Watch fires when its `due_at` passes without one. Fire atomically — `watch_fire` Activity plus the Watch's `fired` transition plus the SleepTask or wake signal it produces. The outward decision then goes through the action gate and is recorded as an `action_gate` Activity with outcome `act`, `ask`, `defer`, or `silence`. A fired Watch authorizes nothing.
+
+# 18. SelfModel and WorkingState Refresh
 
 Use high-salience Experiences, Insights, repeated behavior, explicit corrections, and validated capability changes. Avoid `single anecdote → permanent trait`, speculative diagnosis, authority claims, and hidden internals. Preserve historical self evolution.
+
+Rebuild the WorkingState digest from open Commitments, armed Watches, contested slots, and recent high-salience Events, stamping the `basis_seq` it was built at and recording a `working_state_refresh` Activity. It is a derived view: served with its basis, never cited as Evidence.
 
 # 19. Imported / Quarantined Cognition
 
@@ -219,6 +228,8 @@ Purge is exceptional and requires explicit authority, legal-hold check, referenc
 
 Evidence purge is especially sensitive: removing counter-Evidence may silently strengthen future belief. Routine Maintenance should not purge referenced Evidence.
 
+Payload purge (`PURGE PAYLOAD`, Spec §60.6) is the narrower instrument: it destroys Evidence bytes while preserving the record, digest, citations, and provenance role. Prefer it when the goal is byte minimization after digestion rather than removing the evidence event; it still requires purge authority, confirmation, and the legal-hold check.
+
 # 24. Cleanup Candidates
 
 Maintenance may identify purge candidates without permission to purge. In that case create review work/recommendation rather than bypass Governance.
@@ -243,7 +254,11 @@ recall accessibility change → memory_strength
 
 # 28. Derived Cognition
 
-Consolidation/reflection uses Activity provenance: semantic_consolidation, procedural_consolidation, skill_compilation, self_model_refresh, mnemonic_metabolism, entity_merge, human_review. Derived origin does not become independent Evidence by itself.
+Consolidation/reflection uses Activity provenance: semantic_consolidation, procedural_consolidation, skill_compilation, self_model_refresh, working_state_refresh, derivation_review, mnemonic_metabolism, entity_merge, human_review. Derived origin does not become independent Evidence by itself.
+
+Cite the epistemic inputs actually relied on — the Evidence and Assertions, not only the containing Experience — in the consolidation Activity's `inputs`. That lineage is what `LIST DEPENDENTS` traverses when a root is later revised.
+
+After a supersession, retraction, or Evidence correction, walk `LIST DEPENDENTS` on the revised root and flag derived artifacts with `DerivationState {status: "stale"}`, queuing `review_derived` SleepTasks for the non-trivial ones. `stale` is a review flag: it never retracts, hides, or archives the artifact by itself, and a runtime never auto-retracts derived cognition because a root moved (Spec §57.5).
 
 # 29. Transaction Discipline
 
@@ -314,6 +329,10 @@ Useful internal metrics include unconsolidated Experience count, pending Commitm
 18. current Governance applies throughout.
 19. Schema/trust control requires explicit permission.
 20. Maintenance should improve future cognition without falsifying the past.
+21. a fired Watch is attention, not authority.
+22. silence chosen at the action gate is recorded, not invisible.
+23. stale is a review flag, never an auto-retraction.
+24. payload purge preserves the evidence event; element purge destroys it.
 
 # 38. Final Principle
 

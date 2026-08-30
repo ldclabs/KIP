@@ -5508,6 +5508,9 @@ list_target :=
     | "FACETS"
     | "STRUCTURAL FIELDS"
     | "EPISTEMIC POLICIES"
+    | "DEPENDENTS"
+        (* LIST DEPENDENTS :id [DEPTH :n] [LIMIT :n] [CURSOR :c]，
+           见规范 §63.5：沿 Activity inputs → outputs 的有界反向溯源闭包 *)
 
 search_statement :=
     "SEARCH" search_kind value

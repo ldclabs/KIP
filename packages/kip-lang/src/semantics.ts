@@ -158,11 +158,12 @@ function analyzeMutationClause(stmt: Statement, diags: Diagnostic[]): void {
       ), diags)
       break
 
-    // Spec §52.7 names six statements whose WHERE can select an unbounded set
-    // and which SHOULD therefore carry a LIMIT. Warning on the read and on
+    // Spec §52.7 names seven statements whose WHERE can select an unbounded
+    // set and which SHOULD therefore carry a LIMIT. Warning on the read and on
     // UPDATE while staying silent on the removal ladder had it backwards: an
     // over-broad PURGE is the one that cannot be undone.
     case 'PurgeStatement':
+    case 'PurgePayloadStatement':
     case 'SetRetentionStatement':
       if (stmt.where) checkWhere(stmt.where, !!stmt.limit, diags)
       break

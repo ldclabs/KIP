@@ -43,11 +43,14 @@ ExperienceStep（经验步骤）
 Preference（偏好）
 Insight（洞见）
 Commitment（承诺）
+Watch（守望）
 Skill（技能）
 SleepTask（睡眠任务）
 SelfModel（自我模型）
+WorkingState（工作状态）
 MnemonicState（记忆状态）
 SkillUtility（技能效用）
+DerivationState（派生状态）
 ```
 
 > **Core 负责定义认知真值、溯源、执行权限与持久化语义；Profile 负责定义可跨系统移植的记忆组织形式。**
@@ -56,7 +59,7 @@ SkillUtility（技能效用）
 
 # 1. 设计目标
 
-Profile 应支持可移植的情景记忆、目标导向经验、程序性记忆、前瞻记忆、偏好模式、自省教训、自我模型制品、记忆可提取性、程序实用性以及系统维护任务。
+Profile 应支持可移植的情景记忆、目标导向经验、程序性记忆、前瞻记忆、注意力状态、偏好模式、自省教训、自我模型制品、工作状态、记忆可提取性、程序实用性以及系统维护任务。
 
 Profile 应能够清晰回答以下核心问题：
 
@@ -67,6 +70,8 @@ Profile 应能够清晰回答以下核心问题：
 哪些做法通常有效？（What tends to work?）
 哪些尝试失败了？（What failed?）
 还有哪些事项处于待办状态？（What is still pending?）
+哪些状态变更（或预期的静默超时）值得引起关注？（What change — or what silence — deserves attention?）
+当前的工作全景与上下文是什么？（What is the current working picture?）
 哪些记忆应该更容易被召回？（What should be easier to recall?）
 自我模型发生了哪些变化？（What changed in the self-model?）
 ```
@@ -87,7 +92,10 @@ Skill 概念节点         ≠ 工具执行权限 (tool permission)
 Person 概念节点        ≠ 经鉴权的调用主体 (authenticated Principal)
 SelfModel 概念节点     ≠ 治理策略 (Governance policy)
 SleepTask 概念节点     ≠ 维护执行权限 (maintenance authority)
+Watch 概念节点         ≠ 调度器或权限 (scheduler or permission)
+WorkingState 概念节点  ≠ 证据 (Evidence)
 MnemonicState 记忆状态 ≠ 断言置信度 (Assertion confidence)
+DerivationState 派生状态 ≠ 断言生命周期 (Assertion lifecycle)
 ```
 
 Profile 中定义的 Facet 与结构引用（Structural Field）绝不能绕过 Core 的不可变性、来源溯源、治理权限或认识论约束。
@@ -291,7 +299,7 @@ candidate → validated → needs_review → deprecated/archived
 
 ## 5.9 SleepTask（睡眠任务）
 
-持久化的系统维护工单。推荐类别包括：consolidate（知识巩固）、review_conflict（冲突审查）、review_skill（技能审查）、resolve_identity（实体对齐审查）、review_retention（留存策略审查）、refresh_self_model（自我模型刷新）以及 inspect_quarantine（隔离区检查）。
+持久化的系统维护工单。推荐类别包括：consolidate（知识巩固）、review_conflict（冲突审查）、review_skill（技能审查）、resolve_identity（实体对齐审查）、review_retention（留存策略审查）、review_derived（派生认知复审）、refresh_self_model（自我模型刷新）以及 inspect_quarantine（隔离区检查）。
 
 在语义上将其指派给 `$system` 并不直接赋予系统操作权限。
 
@@ -301,6 +309,77 @@ candidate → validated → needs_review → deprecated/archived
 
 SelfModel 的内容**严禁**直接篡改调用主体身份（Principal identity）、行动者绑定（ActorBinding）、治理策略（Governance Policy）、工具调用权限或 Schema 管理权限。
 
+## 5.11 Watch（守望/监听）
+
+**Watch 是持久化的注意力状态：通过预先声明的条件，在大脑关注的特定状态变更发生、或预期变更超时未发生（静默超时）时激活。**
+
+推荐字段：
+
+```text
+watch_class
+summary
+condition
+due_at
+status
+priority
+created_at
+fired_at
+```
+
+推荐类别（`watch_class`）：
+
+```text
+delta      当匹配的变更提交时触发
+silence    当到达 due_at 且期间无匹配变更时触发（静默/超时触发）
+```
+
+推荐生命周期：
+
+```text
+armed → fired | expired | disarmed
+```
+
+`condition` 声明什么样的变更算作匹配：被观察的元素或槽位、状态跃迁的种类或阈值。Profile 不强制限定条件表达式语法；部署方可采用基于变更外壳（Change Envelope）的结构化过滤器，亦可使用由维护流程解释的声明式文本。
+
+求值过程遵循差分循环：运行时或 Brain 将已提交的变更外壳（规范 §36）与处于 `armed` 状态的 Watch 集合进行比对；`silence` 类 Watch 在到达 `due_at` 且无匹配变更时触发。触发操作将记录为一条 `watch_fire` Activity——其 `inputs` 为该 Watch 及（在可表示时）触发它的变更元素或观测 Evidence，`outputs` 为由此生成的 SleepTask 或唤醒信号——Watch 本身通过标准 UPDATE 完成状态流转。
+
+**Watch 触发不授予任何执行权限。** 它产生的是系统的注意力分配——通常表现为生成 SleepTask 或唤醒信号——绝不直接触发对外物理行动。智能体后续采取的任何动作，均须经过独立的行动门控（§9）与治理策略核验。
+
+对于承诺中等待外部响应的条件分支（如「若周四前未获回复则升级告警」），应创建相应的 Watch 并通过 `derived_from` 关联该 Commitment。履约义务由 Commitment 承载，触发条件则交由 Watch 管理。
+
+## 5.12 WorkingState（工作状态）
+
+**WorkingState 是对「当前核心工作上下文与未决事项」的派生及带版本摘要：Agent 在唤醒恢复时可直接基于该汇总状态恢复上下文，无需重新扫描与重放全量历史。**
+
+推荐字段：
+
+```text
+summary
+horizon
+basis_seq
+refreshed_at
+```
+
+`basis_seq` 为构建该摘要时的 `space_seq`。会话恢复时依次读取：
+
+```text
+DESCRIBE PRIMER               系统身份设定与核心词汇表
+WorkingState                  当前工作上下文与核心未决事项
+CHANGES AFTER SEQ basis_seq   自构建基准以来的增量变更
+```
+
+典型输入通过 `derived_from` 建立关联：包括未决 Commitment、处于 armed 状态的 Watch、存在争议的信念槽位、近期高显著性 Event 以及进行中的核心任务。刷新过程记录为 `working_state_refresh` Activity，通常由周期性维护流程执行。
+
+WorkingState 属于派生召回视图（规范 §66.7）：对外呈现时必须披露其构建基准版本，严禁伪装为强事务快照。它是认知的视图，而非证据源头：
+
+```text
+WorkingState 绝不能作为 Evidence 引用
+WorkingState 绝不为自己的输入提供独立佐证
+WorkingState 回答"当前处于什么工作上下文"；SelfModel 回答"我是谁"
+```
+
+在每个行动者作用域内，记忆空间**应当**在稳定 `key` 之下至多维护一份活跃的 WorkingState。
+
 # 6. 标准 Facet
 
 ## 6.1 MnemonicState（记忆状态）
@@ -309,18 +388,22 @@ SelfModel 的内容**严禁**直接篡改调用主体身份（Principal identity
 {
   "memory_strength": 0.8,
   "salience": 0.9,
+  "utility": 0.6,
   "last_metabolized_at": "2026-08-14T00:00:00Z"
 }
 ```
 
-`memory_strength`（记忆强度）衡量该记忆在未来的认知使用中应具备多高的可提取性。`salience`（显著性）衡量该记忆本身的重要性与受关注度。
+`memory_strength`（记忆强度）衡量该记忆在未来的认知使用中应具备多高的可提取性。`salience`（显著性）衡量该记忆本身的重要性与受关注度。`utility`（效用度）衡量该记忆预期能为未来决策带来多少价值——它是存储时下的准入赌注，并随后续实际结果修订。
 
 ```text
 记忆强度 (memory_strength) ≠ 置信度 (confidence)
 显著性 (salience)         ≠ 信任度 (trust)
+效用度 (utility)          ≠ 真值、显著性或权限
 ```
 
 记忆代谢过程**严禁**改写 Assertion 的认识置信度、信息源信任度、生效时间或治理权限。
+
+效用校准与其他强化操作一样，必须是显式变更：某次召回实际用到了该记忆，或某个结果证实/证伪了当初的赌注，可以经由 Formation/Maintenance 写入调整 `utility`——单纯的读取永远不会（规范 §2.13）。
 
 ## 6.2 SkillUtility（技能效用）
 
@@ -334,6 +417,33 @@ SelfModel 的内容**严禁**直接篡改调用主体身份（Principal identity
 ```
 
 Utility 代表程序在 `[0,1]` 区间内的实用价值，既非客观真理概率，亦非执行权限。
+
+## 6.3 DerivationState（派生状态）
+
+```json
+{
+  "basis_seq": 1500,
+  "status": "current",
+  "reviewed_at": "2026-08-14T00:00:00Z"
+}
+```
+
+DerivationState 标记一个派生制品——Insight、Preference、Skill、SelfModel、WorkingState——相对于其溯源根的状态。`basis_seq` 是该派生完成或最近一次复核确认时的 `space_seq`。
+
+推荐的 `status` 取值：
+
+```text
+current | stale | under_review
+```
+
+`stale` 表示某个溯源根在 `basis_seq` 之后被修订，而该派生尚未被重新审视。它是制品上的复审标记，不是认识论裁决：
+
+```text
+DerivationState ≠ Assertion 生命周期
+stale ≠ 已撤回、已证伪或排除出召回
+```
+
+维护流程通过对被修订之根执行 `LIST DEPENDENTS`（规范 §57.5、§63.5）找到制品并标记 `stale`，随后复审并将其解决为 `current`（复核通过）、一份修订后的制品，或一次普通的生命周期操作。
 
 # 7. 标准结构字段与谓词
 
@@ -350,7 +460,8 @@ compiled_by     Skill → Activity（编译活动）
 consolidated_to Event/Experience → 派生记忆制品（巩固至）
 committed_to    Commitment → Person（承诺对象）
 owed_to         Commitment → Person（受益/被承诺人）
-assigned_to     SleepTask → 语义行动者（指派给）
+assigned_to     SleepTask/Watch → 语义行动者（指派给）
+watches         Watch → 被观察的认知对象（守望）
 about           Profile 制品 → 主题 Concept（关于）
 ```
 
@@ -398,9 +509,24 @@ skill_validation         （技能检验）
 self_model_refresh       （自我模型刷新）
 mnemonic_metabolism      （记忆代谢）
 commitment_review        （承诺审查）
+watch_fire               （守望触发）
+action_gate              （行动门）
+derivation_review        （派生复审）
+working_state_refresh    （工作状态刷新）
 ```
 
 Activity 记录的是溯源历史；Activity 不是底层数据库事务（Transaction）。
+
+`action_gate` Activity 记录的是：在执行任何对外物理动作之前，系统针对特定状态变更所作出的显式决策。其结果取值包括：
+
+```text
+act       具备明确授权、可逆且收益明确，无需额外确认直接执行
+ask       升级上报，交由人工或上级主体裁决
+defer     延迟处理，安排在后续维护流程或特定时机跟进
+silence   经评估后主动保持静默、暂不采取行动
+```
+
+记录 `defer` 与 `silence` 确保了系统的克制与不作为同样具备可审计性与可解释性：无论是「为何采取行动」还是「为何未行通知」，均能从同一条溯源链中追溯。至于触发评估的阈值（哪些变更值得进入门控流程），则由 Brain 策略自主决定；低价值的过程噪音无需生成门控记录。
 
 # 10. 事件形成 (Event Formation)
 
@@ -482,6 +608,8 @@ SelfModel 的演进应保持审慎。优先基于多次观测、主体的明确�
 
 承诺的到期时间（due time）已过，并不代表其状态会自动变更，直到新的策略或 Evidence 触发流转。即使长期未被召回，Commitment 依然可能具有极高的显著性。仅凭未被频繁调用，绝不能作为降低其重要性的理由。
 
+承诺中包含的等待条件（如超时未响应即升级告警）应建模为 Watch（§5.11），并通过 `derived_from` 关联该 Commitment。履约到期日由 Commitment 维护，触发条件则由 Watch 承载。
+
 # 18. 记忆代谢 (Mnemonic Metabolism)
 
 标准合法的代谢操作：
@@ -489,6 +617,7 @@ SelfModel 的演进应保持审慎。优先基于多次观测、主体的明确�
 ```text
 记忆强度（memory_strength）衰减或强化
 显著性（salience）微调
+效用度（utility）校准
 进入归档候选
 安排审查调度
 更新 SkillUtility 效用统计
@@ -500,6 +629,7 @@ SelfModel 的演进应保持审慎。优先基于多次观测、主体的明确�
 新认知证据到达   → 新建/修订 Assertion
 时效性衰退       → 认识投影的有效性与新鲜度判定
 记忆淡忘         → 衰减 memory_strength
+准入预期价值校准 → 校准 utility
 存储生命周期流转 → retention / archive / tombstone / purge
 ```
 
@@ -512,24 +642,28 @@ Person / 稳定身份标识   持久保存
 Commitment              在生命周期内持久保存
 Skill                   在具备实用/审计价值期间持久保存
 SelfModel               持久保存且支持多版本追溯
+WorkingState            持久保存且带版本；被替代的旧摘要可归档
 Experience              根据学习价值标准保存或持久保存
 Event                   标准保存；可定期归档
 ExperienceStep          生命周期跟随其所属的 Experience
 SleepTask               标准保存；终态任务可归档
+Watch                   标准保存；终态可归档
 Evidence                依具体策略而定；溯源价值通常倾向持久保存
+                        （载荷字节可单独清除，见规范 §60.6）
 ```
 
 留存策略**严禁**为了刻意迎合未来的认识投影而故意剔除反面证据（counter-Evidence）。
 
 # 20. 召回视图 (Recall Views)
 
-Profile 支持以下四种典型召回模式：
+Profile 支持以下典型召回模式：
 
 ```text
 情景召回 (Episodic Recall)   = Event + 关联的精选 Evidence
 经验召回 (Experience Recall) = Experience + 有序 Steps + Outcome 结果
 程序召回 (Procedural Recall) = Skill + 适用条件 + 效用统计 + 正反向 Experience 案例
 行动简报 (Action Briefing)   = 已采信知识 + 具争议假设 + 适用 Skills + 成功/失败案例 + 待办 Commitments + 约束条件 + 风险预警
+唤醒简报 (Wake Briefing)     = WorkingState + 其 basis_seq 之后的 CHANGES
 ```
 
 除非获得独立的 Governance 明确授权，发起调用的 Agent 始终保留最终行动裁决权。
@@ -540,9 +674,11 @@ Profile 支持以下四种典型召回模式：
 
 目标系统导入胶囊时，**严禁**自动转移源系统的自我身份认定、源系统信任等级、Skill 执行授权、工具权限或治理策略。在常规合并导入下，远程导入的亲历记忆始终保持为远程自传体历史。
 
+源系统的 Watch 与 WorkingState 反映的是源认知系统自身的注意力焦点与局部工作上下文：在常规合并导入下，它们将以解除激活（disarmed）且非当前（non-current）的状态引入。目标系统需基于自身上下文重新配置注意力并重建工作状态。
+
 # 22. 一致性测试要求 (Conformance Expectations)
 
-Profile 一致性测试应涵盖：Experience/Step 结构合法性、失败 Experience 的保留能力、MnemonicState 可变性、置信度与记忆强度的解耦、SkillUtility 可变性、Skill 权限非越权放大、Capsule 可移植性、SelfModel 非特权性、Commitment 生命周期流转、经验形成的原子性以及程序性溯源链完整性。
+Profile 一致性测试应涵盖：Experience/Step 结构合法性、失败 Experience 的保留能力、MnemonicState 可变性、置信度与记忆强度的解耦、SkillUtility 可变性、Skill 权限非越权放大、Capsule 可移植性、SelfModel 非特权性、Commitment 生命周期流转、Watch 非特权性、DerivationState 与认识状态的解耦、WorkingState 非证据性、经验形成的原子性以及程序性溯源链完整性。
 
 # 23. Profile 核心不变式
 
@@ -566,6 +702,11 @@ Profile 一致性测试应涵盖：Experience/Step 结构合法性、失败 Expe
 18. 读取频率并非强制要求的记忆代谢信号。
 19. Profile 的 Facet 绝不能覆盖 Core 核心系统字段。
 20. 大脑内部的具体算法实现不属于 Profile 一致性测试范围。
+21. 触发的 Watch 不授予任何权限；它产生注意力，而非直接行动。
+22. 行动门控中主动选择的静默（silence）属于可追溯的显式决策结果。
+23. DerivationState 是复审状态标记；stale 绝不等于已撤回。
+24. WorkingState 是派生视图；它绝不是 Evidence，也绝不为自己的输入提供独立佐证。
+25. utility 代表记忆准入时的预期效用，随后续实际产出动态校准；它不代表真值、显著性或执行权限。
 
 # 24. 极简 Profile 摘要
 
@@ -579,9 +720,12 @@ caused_by: 步骤间明确声明的“结果→起因”因果主张；边顺序
 Insight: 从记忆中提炼出的陈述性教训
 Skill: 可复用的操作程序；其内容不直接赋予执行权限
 Commitment: 前瞻性记忆与承诺事项
+Watch: 布防的注意力——值得关注的状态变更或超时静默；触发不授予权限
 SelfModel: 关于自身的派生认知；非治理策略
-MnemonicState: memory_strength + salience；非置信度
+WorkingState: 当前核心工作上下文，带构建基准 basis_seq；绝非 Evidence
+MnemonicState: memory_strength + salience + utility；非置信度
 SkillUtility: 程序实用性效用；非系统权限
+DerivationState: basis_seq + current|stale|under_review；复审状态，非信念
 
 涉真主张必须使用 Proposition + Assertion + Evidence。
 所有提炼转换过程均通过 Activity 保留溯源链。

@@ -99,6 +99,7 @@ export type {
   ArchiveStatement,
   TombstoneStatement,
   PurgeStatement,
+  PurgePayloadStatement,
   MergeConceptStatement,
   // META
   DescribeStatement,
@@ -206,6 +207,7 @@ export type {
   SetRetention,
   RemovalStatement,
   PurgeStatement as ExecPurgeStatement,
+  PurgePayloadStatement as ExecPurgePayloadStatement,
   MergeConcept,
   // META
   MetaCommand,

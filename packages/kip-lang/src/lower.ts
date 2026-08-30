@@ -40,6 +40,7 @@ import type {
   ArchiveStatement,
   TombstoneStatement,
   PurgeStatement,
+  PurgePayloadStatement,
   MergeConceptStatement,
   DescribeStatement,
   ListStatement,
@@ -253,6 +254,7 @@ export function lowerStatement(stmt: Statement): Command {
     case 'ArchiveStatement':
     case 'TombstoneStatement':
     case 'PurgeStatement':
+    case 'PurgePayloadStatement':
     case 'MergeConceptStatement':
       const clauses = lowerMutationClause(stmt, 0)
       assertUniqueHandles(clauses, stmt.range)
@@ -921,6 +923,8 @@ function lowerMutationClause(
       return [{ Tombstone: lowerRemoval(stmt) }]
     case 'PurgeStatement':
       return [{ Purge: lowerPurge(stmt) }]
+    case 'PurgePayloadStatement':
+      return [{ PurgePayload: lowerPurgePayload(stmt) }]
     case 'MergeConceptStatement':
       return [
         {
@@ -1248,6 +1252,21 @@ function lowerPurge(stmt: PurgeStatement) {
     reference_policy: stmt.referencePolicy
       ? lowerScalar(stmt.referencePolicy)
       : null,
+    confirm: 'PURGE'
+  }
+}
+
+function lowerPurgePayload(stmt: PurgePayloadStatement) {
+  if (stmt.confirm.parsed !== 'PURGE') {
+    throw invalidSyntax(
+      'PURGE PAYLOAD must be confirmed with the exact literal "PURGE"',
+      stmt.confirm.range
+    )
+  }
+  return {
+    target: lowerElementRef(stmt.target),
+    where_clauses: stmt.where ? lowerWhere(stmt.where) : null,
+    limit: stmt.limit ? lowerScalar(stmt.limit.value) : null,
     confirm: 'PURGE'
   }
 }
@@ -1769,7 +1788,8 @@ const LIST_TARGETS: Record<ListStatement['target'], ListTarget> = {
   PREDICATES: 'Predicates',
   FACETS: 'Facets',
   STRUCTURAL_FIELDS: 'StructuralFields',
-  EPISTEMIC_POLICIES: 'EpistemicPolicies'
+  EPISTEMIC_POLICIES: 'EpistemicPolicies',
+  DEPENDENTS: 'Dependents'
 }
 
 const SEARCH_TARGETS: Record<SearchStatement['searchKind'], SearchTarget> = {
@@ -1853,9 +1873,14 @@ function lowerDescribe(stmt: DescribeStatement): DescribeTarget {
 }
 
 function lowerList(stmt: ListStatement) {
+  if (stmt.target === 'DEPENDENTS' && !stmt.element) {
+    throw invalidSyntax('LIST DEPENDENTS requires an element operand', stmt.range)
+  }
   return {
     target: LIST_TARGETS[stmt.target],
     status: stmt.status ? lowerScalar(stmt.status) : null,
+    element: stmt.element ? lowerScalar(stmt.element) : null,
+    depth: stmt.depth ? lowerScalar(stmt.depth) : null,
     limit: stmt.limit ? lowerScalar(stmt.limit.value) : null,
     cursor: stmt.cursor ? lowerScalar(stmt.cursor.value) : null
   }

@@ -1200,6 +1200,18 @@ Primary profile: `KIP-Epistemic`
 
 ---
 
+## KIP2-EPI-028 — Revising a root does not retract derived cognition
+
+**Level:** MUST
+
+**Expected semantic behavior:** Given an Insight, a Preference summary, a compiled Skill and a SelfModel each derived through recorded Activity lineage from one root Assertion and its Evidence, `SUPERSEDE ASSERTION`, `RETRACT ASSERTION` and `CORRECT EVIDENCE` on that root each change what Projection reports and change nothing else: every derived element stays `active`, recallable, and identical in content and lifecycle (§57.5). Marking a derivation for review — for example `DerivationState.status = "stale"` in the Cognitive Memory Profile — is an explicit write by the reviewing actor, never a runtime side effect of the revision. Where `LIST DEPENDENTS` is supported, the derived elements remain discoverable from the revised root (META-025), so review is possible without being automatic.
+
+**Postconditions:** the lifecycle status, version and content of each derived element are unchanged across the revision transaction; the revision's Change Envelope touches only the revised root and what the caller explicitly wrote; a recall of each derived element after the revision still returns it.
+
+**Forbidden outcome:** cascading retraction, archival or tombstoning of derived artifacts; silent rewrite of a derived summary to match the new belief; hiding a derived element from recall because one of its roots moved; a runtime-set review flag presented as the reviewing actor's own judgment.
+
+---
+
 
 # 16. Governance Suite
 
@@ -2536,6 +2548,20 @@ Primary profile: `KIP-KML`
 
 ---
 
+## KIP2-KML-034 — Payload purge preserves the Evidence record
+
+**Level:** MUST
+
+**Profiles:** KIP-KML (full)
+
+**Expected semantic behavior:** `PURGE PAYLOAD :msg CONFIRM "PURGE"` destroys the payload bytes of an Evidence element — inline content, or the runtime-held content addressed by `content_ref` — and marks the payload purged, while the element itself survives (§60.6). Afterwards the Evidence is still addressable by its id, and `evidence_class`, `content_digest`, `media_type`, `observed_at`, `source` and `generated_by` are unchanged; every Assertion that cited it still resolves the citation with the same role; corroboration grouping and independence counting (§23) return what they returned before the purge. Repeating the same purge reports `no_effect` (§37). `legal_hold` blocks payload purge exactly as it blocks element purge (`LegalHoldConflict`/`PurgeDenied`), and the statement takes no `REFERENCE POLICY` clause — the element survives, so no reference can dangle — so writing one is `InvalidSyntax`.
+
+**Postconditions:** the Evidence id resolves and its lifecycle status is unchanged; the six preserved fields compare equal to their pre-purge values; citation count and independent-root count for the affected conflict set are unchanged; the repeat purge produces no new cognitive `space_seq` and no Change Envelope; the `REFERENCE POLICY` variant is rejected before commit.
+
+**Forbidden outcome:** the Evidence element removed, tombstoned, or made undiscoverable; `content_digest` or citations dropped along with the bytes; corroboration or independence weakened by the purge; `REFERENCE POLICY` accepted on payload purge; legal-hold bypass.
+
+---
+
 
 # 21. META Suite
 
@@ -2766,6 +2792,20 @@ Primary profile: `KIP-META`
 **Expected semantic behavior:** PREVIEW succeeds/returns validation; direct KML write on readonly gives ReadonlyViolation.
 
 **Forbidden outcome:** readonly bypass.
+
+---
+
+## KIP2-META-025 — LIST DEPENDENTS is a bounded, governed reverse closure
+
+**Level:** MUST
+
+**Profiles:** KIP-META (advanced)
+
+**Expected semantic behavior:** `LIST DEPENDENTS :root` enumerates the cognition derived from one element by traversing provenance in the derived direction — `:root ∈ Activity.inputs → that Activity → each element in Activity.outputs` — returning each output as a dependent at distance 1 (§63.5). `DEPTH 2` extends the traversal one hop further from each distance-1 dependent; the default is 1. Every row carries the dependent's exact id, kind, distance, and the Activity (or Structural Field) through which it was reached, and `LIMIT` / `CURSOR` page the result like any other `LIST`. Governance applies per row: a dependent the caller may not discover is omitted, and the omission is indistinguishable from absence (§30.4). The command is a read — it changes no element and reinforces no memory (§38). A listed dependent is not thereby stale, wrong, or in need of change (§57.5), and a transformation that recorded no Activity provenance is simply not discoverable here.
+
+**Postconditions:** `space_seq`, element versions and `memory_strength` are unchanged across the call; the distance-1 set equals the outputs of the Activities citing `:root` as an input, minus Governance-filtered rows; a runtime that caps `DEPTH` reports the cap rather than silently truncating; an unauthorized caller's result is indistinguishable from the same call against a root that has no dependents.
+
+**Forbidden outcome:** unbounded traversal of the whole provenance graph; a listed dependent treated as a staleness or correctness verdict; leaking an element the caller may not discover, or letting "hidden" be told apart from "absent"; read-side mutation or recall reinforcement.
 
 ---
 
@@ -3668,7 +3708,7 @@ no representation authority inferred
 
 # 27. Required Invariant Coverage Matrix
 
-The Specification defines 33 cross-cutting Required Conformance Invariants.
+The Specification defines 35 cross-cutting Required Conformance Invariants.
 
 | Invariant | Required vectors |
 |---|---|
@@ -3705,6 +3745,8 @@ The Specification defines 33 cross-cutting Required Conformance Invariants.
 | 31. ASSERT commits exactly its desugaring | KML-031 |
 | 32. Materialized projection discloses policy + snapshot basis | EPI-027 |
 | 33. Ingested Evidence preserves transport payload | RT-031 |
+| 34. Payload purge preserves the Evidence record | KML-034 |
+| 35. Revising a root does not auto-retract derived cognition | EPI-028, META-025 |
 
 ---
 

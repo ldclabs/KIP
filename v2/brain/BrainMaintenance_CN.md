@@ -81,17 +81,20 @@ Skill 频繁成功 → 自动赋予物理可执行权限
 5  记忆状态代谢 (Mnemonic metabolism)
 6  实体对齐审查与合并 (Identity review / merge)
 7  认知冲突审查 (Contradiction review)
-8  承诺事项审查 (Commitment review)
-9  自我模型刷新 (SelfModel refresh)
-10 外部导入与隔离区认知审查 (Imported / quarantined review)
-11 留存与归档审查 (Retention / archive review)
-12 墓碑标记与物理清除候选甄别 (Tombstone / purge candidates)
-13 输出最终健康巡检报告 (Final health report)
+8  派生认知复审 (Derivation review)
+9  承诺事项审查 (Commitment review)
+10 守望求值 (Watch evaluation)
+11 自我模型刷新 (SelfModel refresh)
+12 工作状态刷新 (WorkingState refresh)
+13 外部导入与隔离区认知审查 (Imported / quarantined review)
+14 留存与归档审查 (Retention / archive review)
+15 墓碑标记与物理清除候选甄别 (Tombstone / purge candidates)
+16 输出最终健康巡检报告 (Final health report)
 ```
 
 # 6. 状态评估 (Assessment)
 
-利用只读探针全面扫描：待处理任务、未巩固的 Events/Experiences、待复审 Skills、冲突集、实体合并候选、到期 Commitments、低记忆强度的归档候选、留存过期候选、隔离区导入项以及自我模型刷新候选。
+利用只读探针全面扫描：待处理任务、未巩固的 Events/Experiences、待复审 Skills、冲突集、实体合并候选、到期 Commitments、`due_at` 已到或已过的 armed Watch、标记为 `stale` 的派生制品、低记忆强度的归档候选、留存过期候选、隔离区导入项以及自我模型刷新候选。
 
 评估阶段的只读扫描严禁触发任何召回计数器或访问时间更新。
 
@@ -152,6 +155,8 @@ SleepTask 属于认知层面的工作说明清单。在执行具体操作前必�
 new_strength = clamp(old_strength × decay + salience protection + explicit reinforcement)
 ```
 
+`MnemonicState.utility` 遵循同样的严谨原则进行校准：显式、基于实际产出结果（如行动简报中采纳且确有助益的记忆，或长期未体现预期价值的条目），且绝不因单次读取而触发变更。这是结果驱动的信任校准（规范 §22.6）在记忆维度的对应机制。
+
 衰减通过 `UPDATE ... SET FACET "MnemonicState" { ... }` 执行，配合受约束的 `WHERE` + `LIMIT` 扫描（规范 §58）、`CLAMP`/`MUL` 更新表达式，以及用于读-改-写的 `EXPECT VERSION`。同一语句中应一并写入 `MnemonicState.last_metabolized_at`，使得重放的扫描不会对同一元素重复衰减。
 
 公式具体实现由业务策略决定。读取频次并非协议层强制要求的信号。
@@ -183,13 +188,17 @@ new_strength = clamp(old_strength × decay + salience protection + explicit rein
 
 不同主体的分歧应保持断言并存。同一主体发起的显式修订可执行废弃替代。不同时间生效的陈述各自并存。证据纠错需建立更正血统链。内容审查/隔离绝不能伪造信息源自身的撤回操作。
 
-# 17. 承诺事项审查 (Commitment Review)
+# 17. 承诺与守望审查 (Commitment and Watch Review)
 
 审查待处理、即将到期、已逾期、受阻、已履约及已取消的 Commitments。到期时间已过并不代表数据会自动删除或归档。高影响的未决承诺即使记忆强度较低，也必须保持可召回状态。
 
-# 18. 自我模型刷新 (SelfModel Refresh)
+基于已提交的变更（`CHANGES AFTER SEQ`）对处于 `armed` 状态的 Watch 集合进行求值：delta 类在匹配变更出现时触发，silence 类在到达 `due_at` 且无匹配变更时触发。触发操作须原子完成——记录 `watch_fire` Activity、完成 Watch 向 `fired` 的状态跃迁，并生成相应的 SleepTask 或唤醒信号。随后的对外决策须经过行动门控，并以 `action_gate` Activity 记录决策结果（`act`、`ask`、`defer` 或 `silence`）。Watch 触发不授予任何执行权限。
+
+# 18. 自我模型与工作状态刷新 (SelfModel and WorkingState Refresh)
 
 基于高显著性 Experiences、Insights、重复出现的行为模式、显式纠错及已验证的能力变化。避免因“单次偶发案例”直接断定为“永久特征”，避免臆测性人格诊断、直接写入系统权限主张或暴露隐藏内部机制。完整保留历史自我模型的演化轨迹。
+
+随后从未决 Commitment、处于 armed 状态的 Watch、存在争议的槽位及近期高显著性 Event 重建 WorkingState 摘要，明确标注其构建基准 `basis_seq` 并记录 `working_state_refresh` Activity。WorkingState 属于纯派生视图：对外提供时必须披露其基准版本，严禁作为 Evidence 引用。
 
 # 19. 外部导入与隔离区认知审查
 
@@ -221,6 +230,8 @@ active（活跃） → archive（归档） → optional tombstone（可选墓碑
 
 清除 Evidence 尤为敏感：剔除反面证据可能会在客观上静默强化未来的涉真信念。常规维护任务绝不应主动清除仍被引用的 Evidence。
 
+载荷清除（`PURGE PAYLOAD`，规范 §60.6）是更为精细的数据最小化工具：在销毁原始证据载荷字节的同时，完整保留证据记录、内容摘要、引用拓扑与溯源角色。当目标是在认知消化完成后缩减存储字节而非移除证据事件本身时，应优先采用该操作；该操作同样需要 purge 权限、二次确认并受法律保全（legal hold）约束。
+
 # 24. 清理候选处理
 
 Maintenance 可以识别物理清除候选对象，但在未获得清除授权时，只能生成审核工单或建议报告，严禁绕过 Governance 擅自执行清除。
@@ -245,7 +256,11 @@ Maintenance 可以识别物理清除候选对象，但在未获得清除授权�
 
 # 28. 派生认知溯源规范
 
-知识巩固与反思必须记录 Activity 溯源：包括 semantic_consolidation、procedural_consolidation、skill_compilation、self_model_refresh、mnemonic_metabolism、entity_merge 及 human_review。派生得出的结论本身不能直接作为独立的初始 Evidence 证据。
+知识巩固与反思必须记录 Activity 溯源：包括 semantic_consolidation、procedural_consolidation、skill_compilation、self_model_refresh、working_state_refresh、derivation_review、mnemonic_metabolism、entity_merge 及 human_review。派生得出的结论本身不能直接作为独立的初始 Evidence 证据。
+
+在巩固 Activity 的 `inputs` 里引用实际依赖的认知输入——Evidence 与 Assertion，而不只是承载它们的 Experience。这条谱系正是根被日后修订时 `LIST DEPENDENTS` 所遍历的对象。
+
+在取代、撤回或证据纠错生效后，对被修订的溯源根节点执行 `LIST DEPENDENTS`，为下游派生制品设置 `DerivationState {status: "stale"}`；对于涉及复杂逻辑的项，排入 `review_derived` 类型的 SleepTask 进行复审。`stale` 属于待审标记：其本身绝不导致制品被撤回、隐藏或归档；运行时也严禁仅因根节点变动而自动撤回派生认知（规范 §57.5）。
 
 # 29. 事务规范与前置断言
 
@@ -316,6 +331,10 @@ Maintenance 可以刷新派生出的 Primer 概览，但 Primer 属于经 Govern
 18. 当前 Governance 策略在全流程中保持绝对约束力。
 19. Schema 与信任策略的修改必须具备显式特权。
 20. 维护的核心使命在于持续优化未来认知，同时绝不篡改过往历史。
+21. 触发的 Watch 仅产生注意力，不授予执行权限。
+22. 行动门控中主动选择的静默亦须记录，确保克制行为始终可追溯。
+23. `stale` 是复审标记，永远不是自动撤回。
+24. 载荷清除仅销毁证据载荷字节；证据记录本身与溯源拓扑依然完整保留。
 
 # 38. 终极准则
 

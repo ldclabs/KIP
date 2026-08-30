@@ -2,6 +2,23 @@
 
 All notable changes to `@ldclabs/kip-lang` are documented here.
 
+## 2.1.0
+
+### Added
+
+- **`PURGE PAYLOAD` (Spec §60.6).** Erases Evidence payload bytes while the
+  element survives, so the statement takes no `REFERENCE POLICY` clause and
+  demands the same exact `CONFIRM "PURGE"` literal as element purge. Parsed,
+  formatted, lowered (`PurgePayload` exec command), and covered by the same
+  unbounded-`WHERE` LIMIT warning as the rest of the removal ladder.
+- **`LIST DEPENDENTS :id [DEPTH :n] [LIMIT :n] [CURSOR :c]` (Spec §63.5).**
+  Bounded reverse provenance closure: the cognition derived from one element,
+  reached through Activity `inputs → outputs`. The operand is required; the
+  parser rejects a bare `LIST DEPENDENTS`.
+- Exec AST: `ListCommand` gains `element` / `depth` (null for every other
+  target) and `ListTarget` gains `Dependents`; wire consumers deserializing
+  `ListCommand` must accept the two new fields.
+
 ## 2.0.2
 
 ### Fixed

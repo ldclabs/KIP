@@ -56,6 +56,8 @@ At session start, and again after any `requires_refresh` error:
 DESCRIBE PRIMER MODE "compact"
 ```
 
+Where the Space maintains a `WorkingState`, read it next: it is the digest of what matters now, stamped with the `basis_seq` it was built at. Resume from it plus `CHANGES AFTER SEQ` that basis, rather than re-deriving your situation from raw history. It is a view — trust its declared basis, and never cite it as Evidence.
+
 Ground concrete types, Predicates, Facets, Structural Fields and element ids **before** generating a write. Never invent a schema symbol; `SchemaSymbolNotFound` means "DESCRIBE first", not "try a synonym". Persist exact package versions, never `@latest`.
 
 Golden path for any unfamiliar reference:
@@ -252,6 +254,30 @@ CREATE CONCEPT ?commitment {
 
 `Commitment.due_at` is not `retention.expires_at`, and neither is `Assertion.valid_time.until`.
 
+The waiting half of a promise — "if no reply by Thursday, escalate" — is a Watch, not a hope:
+
+```prolog
+CREATE CONCEPT ?watch {
+  TYPE "Watch"
+  CLIENT KEY :watch_key
+  NAME "Silence on the migration plan"
+  SET ATTRIBUTES {
+    watch_class: "silence",
+    summary: "No reply from Alice about the migration plan",
+    condition: :condition,
+    due_at: :thursday,
+    status: "armed"
+  }
+  SET STRUCTURAL {
+    ("watches", :alice)
+    ("derived_from", :commitment_id)
+    ("assigned_to", :system)
+  }
+}
+```
+
+`$system` runs the differential loop: committed changes are compared against armed Watches, and a silence Watch fires when `due_at` passes with no match. A fired Watch wakes attention — never an action. When you then decide what to do, the gate has four outcomes — act, ask, defer, silence — and the decision is recorded as an `action_gate` Activity, so "why didn't you tell me" has an answer with receipts.
+
 # 10. Identity of Concepts
 
 ```text
@@ -280,7 +306,8 @@ Do only cheap, obviously-correct maintenance while awake:
 ```text
 quick dedup            SEARCH + verify before creating a likely-existing Concept
 obvious consolidation  a clear stable preference stated outright
-reinforcement          raise memory_strength / salience on what just proved useful
+reinforcement          raise memory_strength / utility on what just proved useful
+arm a watch            a promise that waits on the world gets its trigger stated now
 flag the rest          create a SleepTask instead of half-doing deep work
 ```
 
@@ -366,6 +393,7 @@ Parser-valid ≠ Schema-valid ≠ authorized ≠ committed. For high-impact or d
 15. Imported cognition is not local endorsement.
 16. SleepTask assignment is not permission.
 17. Nothing written through cognition expands authority, trust, or Schema.
+18. A fired Watch is attention, not permission — and silence chosen at the gate is recorded, not invisible.
 
 # 16. Final Principle
 

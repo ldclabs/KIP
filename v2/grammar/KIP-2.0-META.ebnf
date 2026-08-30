@@ -238,7 +238,8 @@ list_statement   = list_spaces
                  | list_predicates
                  | list_facets
                  | list_structural_fields
-                 | list_epistemic_policies ;
+                 | list_epistemic_policies
+                 | list_dependents ;
 
 list_spaces      = "LIST", "SPACES", [ paging_clauses ] ;
 
@@ -254,6 +255,13 @@ list_structural_fields
                  = "LIST", "STRUCTURAL", "FIELDS", [ paging_clauses ] ;
 list_epistemic_policies
                  = "LIST", "EPISTEMIC", "POLICIES",
+                   [ paging_clauses ] ;
+
+(* Bounded reverse provenance closure (Spec §63.5): dependents of one element
+   through Activity inputs → outputs, plus schema-documented derivation
+   Structural Fields. *)
+list_dependents  = "LIST", "DEPENDENTS", meta_value,
+                   [ "DEPTH", meta_value ],
                    [ paging_clauses ] ;
 
 paging_clauses   = "LIMIT", meta_value, [ "CURSOR", meta_value ]

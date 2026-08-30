@@ -70,6 +70,7 @@ const grammarCoverage = [
       archive_statement: 'ARCHIVE ',
       tombstone_statement: 'TOMBSTONE ',
       purge_statement: 'PURGE ',
+      purge_payload_statement: 'PURGE PAYLOAD ',
       merge_concept: 'MERGE CONCEPT'
     }
   },

@@ -5577,6 +5577,10 @@ list_target :=
     | "FACETS"
     | "STRUCTURAL FIELDS"
     | "EPISTEMIC POLICIES"
+    | "DEPENDENTS"
+        (* LIST DEPENDENTS :id [DEPTH :n] [LIMIT :n] [CURSOR :c],
+           Spec §63.5: bounded reverse provenance closure through
+           Activity inputs → outputs *)
 
 search_statement :=
     "SEARCH" search_kind value

@@ -310,7 +310,7 @@ Update expressions: `ADD` `MUL` `CLAMP` `COALESCE` (deterministic, per-target; o
 
 **UPDATE can never touch**: Proposition tuples, Assertion epistemic payload or initial citations, Evidence payload/topology, Activity topology, `_system`, Governance, Schema. A pending Activity uses `TRANSITION ACTIVITY` to finalize fields/topology; a terminal Activity is immutable. Attempting an illegal rewrite → `EpistemicRevisionRequired` / `EvidenceCorrectionRequired` / `ImmutableField`. **Never decay Assertion confidence over time** — disuse decays `memory_strength`; staleness is Projection's job; new knowledge is a new Assertion.
 
-#### 3.6. Lifecycle & removal (four different things)
+#### 3.6. Lifecycle & removal (each one a different thing)
 
 ```text
 RETRACT ASSERTION :a [WHERE {...}] [LIMIT :n] [EXPECT STATE "active"]   // the assertor withdraws their own claim
@@ -321,11 +321,12 @@ ARCHIVE :target [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]     // out of ordi
 TOMBSTONE :target [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]   // logical deletion; identity/audit preserved
 PURGE :target [WHERE {...}] [LIMIT :n]                             // physical erasure; exceptional
   [REFERENCE POLICY "deny_if_referenced"] CONFIRM "PURGE"          // policies: deny_if_referenced | tombstone_reference | authorized_cascade
+PURGE PAYLOAD :evidence [WHERE {...}] [LIMIT :n] CONFIRM "PURGE"   // erase Evidence bytes only; record, digest, citations, provenance survive
 SET RETENTION :target { retention_class: "standard", expires_at: :t } [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]
 MERGE CONCEPT ?src INTO ?tgt [WHERE {...}] [EXPECT VERSION :v]
 ```
 
-Every mutation whose `WHERE` can select an unbounded set takes an optional `LIMIT` right after it (`UPDATE`, `RETRACT ASSERTION`, `SET RETENTION`, `ARCHIVE`, `TOMBSTONE`, `PURGE`) — bound your sweeps. `LIMIT` caps how many are affected, not which: don't assume an order. `MERGE CONCEPT` takes none.
+Every mutation whose `WHERE` can select an unbounded set takes an optional `LIMIT` right after it (`UPDATE`, `RETRACT ASSERTION`, `SET RETENTION`, `ARCHIVE`, `TOMBSTONE`, `PURGE`, `PURGE PAYLOAD`) — bound your sweeps. `LIMIT` caps how many are affected, not which: don't assume an order. `MERGE CONCEPT` takes none.
 
 `MERGE CONCEPT` is non-destructive: source stays addressable as merged history; future writes canonicalize to target. Cycle-creating merges (target already resolves back to source) are rejected.
 
@@ -346,6 +347,7 @@ DESCRIBE ERROR :code | CAPSULE :artifact | EPISTEMIC POLICY [:id] | TRUST [:scop
 DESCRIBE TRANSACTION :tx_id | DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :key
 LIST SPACES | TYPES | PREDICATES | FACETS | STRUCTURAL FIELDS | EPISTEMIC POLICIES [LIMIT :n] [CURSOR :c]
 LIST SCHEMA PACKAGES [STATUS "active" | :status] [LIMIT :n] [CURSOR :c]
+LIST DEPENDENTS :id [DEPTH :n] [LIMIT :n] [CURSOR :c]   // cognition derived from an element, via Activity inputs→outputs (+ derivation fields)
 HISTORY ELEMENT :id [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]   // transition chronology
 HISTORY SPACE [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]
 CHANGES SINCE :cursor [LIMIT :n] | CHANGES AFTER SEQ :seq [LIMIT :n]   // transaction-grained stream
@@ -445,15 +447,15 @@ At startup or after `requires_refresh`, call `DESCRIBE PRIMER`; ground concrete 
 
 ### 6. Cognitive Memory Profile (quick reference)
 
-Types: `Person` `Event` (what happened) `Experience` (goal-directed trajectory; required `goal`, `outcome_status`) `ExperienceStep` (`step_kind`: context|observation|decision|action|feedback|belief_update; `summary`; order = has_step edge index) `Preference` (summary artifact — the claim itself stays Proposition+Assertion) `Insight` `Commitment` (`status`: pending|fulfilled|cancelled|expired|blocked; `due_at` ≠ retention expiry) `Skill` (`skill_class`, `summary`, `procedure`, `status`: candidate|validated|needs_review|deprecated|archived) `SleepTask` (`task_class`: consolidate|review_conflict|review_skill|resolve_identity|review_retention|refresh_self_model|inspect_quarantine; `summary`; `status`: pending|running|completed|cancelled|blocked|failed) `SelfModel`
+Types: `Person` `Event` (what happened) `Experience` (goal-directed trajectory; required `goal`, `outcome_status`) `ExperienceStep` (`step_kind`: context|observation|decision|action|feedback|belief_update; `summary`; order = has_step edge index) `Preference` (summary artifact — the claim itself stays Proposition+Assertion) `Insight` `Commitment` (`status`: pending|fulfilled|cancelled|expired|blocked; `due_at` ≠ retention expiry) `Watch` (armed attention; `watch_class`: delta|silence; `condition`; `status`: armed|fired|expired|disarmed; firing grants nothing) `Skill` (`skill_class`, `summary`, `procedure`, `status`: candidate|validated|needs_review|deprecated|archived) `SleepTask` (`task_class`: consolidate|review_conflict|review_skill|resolve_identity|review_retention|review_derived|refresh_self_model|inspect_quarantine; `summary`; `status`: pending|running|completed|cancelled|blocked|failed) `SelfModel` `WorkingState` (what matters now; required `basis_seq`; derived view, never Evidence)
 
 Predicates: `prefers` (Person→Concept) `caused_by` (Step→Step, effect→cause, evidence-backed) `same_as` (identity claim → review)
 
-Facets: `MnemonicState {memory_strength, salience, last_metabolized_at}` `SkillUtility {utility, success_count, failure_count, last_validated_at}` — the ratios are `[0,1]`, the counts are non-negative integers, the timestamps are nullable; none of them is truth.
+Facets: `MnemonicState {memory_strength, salience, utility, last_metabolized_at}` `SkillUtility {utility, success_count, failure_count, last_validated_at}` `DerivationState {basis_seq, status: current|stale|under_review, reviewed_at}` — the ratios are `[0,1]`, the counts are non-negative integers, the timestamps are nullable; none of them is truth, and `stale` is a review flag, not retraction.
 
-Structural fields: `has_step` (ordered) `experienced_by` `involves` `mentions` `about` `derived_from` `consolidated_to` `compiled_from` `compiled_by` `committed_to` `owed_to` `assigned_to`; Core built-ins on records: `evidence` `source` `generated_by` `inputs` `outputs` `associated_actors`.
+Structural fields: `has_step` (ordered) `experienced_by` `involves` `mentions` `about` `derived_from` `consolidated_to` `compiled_from` `compiled_by` `committed_to` `owed_to` `assigned_to` `watches`; Core built-ins on records: `evidence` `source` `generated_by` `inputs` `outputs` `associated_actors`.
 
-Invariants: failed Experience is first-class memory; one success ≠ validated Skill; validated Skill ≠ execution authority; SelfModel ≠ Governance; imported memory keeps `mode: "imported"` and never becomes local autobiography.
+Invariants: failed Experience is first-class memory; one success ≠ validated Skill; validated Skill ≠ execution authority; SelfModel ≠ Governance; a fired Watch is attention, not permission — record the gate outcome (`action_gate` Activity: act|ask|defer|silence), silence included; WorkingState is served with its `basis_seq` and never cited as Evidence; imported memory keeps `mode: "imported"` and never becomes local autobiography.
 
 ---
 

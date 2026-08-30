@@ -88,7 +88,7 @@ Experience ──reflect───> Insight / SelfModel
 | --------------- | -------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------ |
 | **Formation**   | [BrainFormation.md](./BrainFormation.md)     | Encode Evidence, claims, Events, and meaningful Experiences          | conversation or structured trace           |
 | **Recall**      | [BrainRecall.md](./BrainRecall.md)           | Retrieve knowledge, experiences, skills, and action-relevant context | business agent query / pre-action briefing |
-| **Maintenance** | [BrainMaintenance.md](./BrainMaintenance.md) | Consolidate, compare, compile, review, metabolize, and retain memory | scheduled or threshold-based triggers      |
+| **Maintenance** | [BrainMaintenance.md](./BrainMaintenance.md) | Consolidate, compare, compile, review, metabolize, and retain memory | scheduled, threshold, or change-driven triggers |
 
 For a single agent that owns its Nexus directly, with no Brain service in front of it, the compact alternative is the [`$self`](../SelfInstructions.md) / [`$system`](../SystemInstructions.md) pair.
 
@@ -143,11 +143,14 @@ Experiences          ──> Procedural consolidation ──> Skill
 It also:
 
 - reviews contradictions, preserving disagreement between actors and superseding only an actor's own revision;
+- walks `LIST DEPENDENTS` after a material revision and flags derived artifacts `stale` for review, so a revised root cannot leave ghosts in its derivations;
+- evaluates armed Watches against the change stream — delta and silence triggers alike — recording each firing as a `watch_fire` Activity and each outward decision as an `action_gate` outcome (act / ask / defer / silence);
 - compares successful and failed experiences to identify discriminating actions or conditions;
 - validates, reinforces, weakens, or deprecates Skills through `SkillUtility`;
 - reviews identity suspicions (`same_as`) before any non-destructive `MERGE CONCEPT`;
 - refreshes `$self`'s SelfModel from evidence rather than from the latest conversation;
-- metabolizes `MnemonicState.memory_strength` and manages retention along the archive → tombstone → purge ladder.
+- rebuilds the WorkingState digest — stamped with its `basis_seq` — that the next waking session resumes from;
+- metabolizes `MnemonicState.memory_strength`, calibrates `utility` against actual use, and manages retention along the archive → tombstone → purge ladder.
 
 Maintenance is privileged, but its authority comes from Governance grants to its authenticated Principal — never from the fact that a semantic actor is called `$system`.
 
@@ -191,6 +194,7 @@ KIP 2.0 keeps these orthogonal, and each lives in a different place:
 | `confidence`      | Strength of one actor's stance toward one Proposition | Assertion             | new evidence → new Assertion        |
 | `memory_strength` | How available a memory should be for future cognition | `MnemonicState` Facet | reinforcement and disuse            |
 | `salience`        | How noteworthy a memory is                            | `MnemonicState` Facet | impact, correction, identity weight |
+| `utility`         | Expected future decision value — the admission bet (Skills use `SkillUtility`) | `MnemonicState` Facet | explicit calibration on outcomes    |
 | supersession      | An actor's own revision of an earlier claim           | Assertion lifecycle   | explicit correction                 |
 | retention         | Storage lifecycle                                     | `retention` state     | policy, review, archive ladder      |
 | trust             | How much a source is credited                         | Governance            | policy, never cognition             |
@@ -218,6 +222,8 @@ For Skills, procedural evidence is tracked in `SkillUtility` separately from tru
 14. **Provenance survives consolidation** — derived Knowledge and Skills retain Activity lineage back to their sources.
 15. **Correction preserves history** — nothing is repaired by making the past less true.
 16. **Past must affect the future** — functional memory is measured by behavioral impact, not storage volume.
+17. **Waiting is active** — a Commitment's trigger lives in a Watch (delta or silence), and the decision at the gate — act, ask, defer, or deliberate silence — is recorded, so restraint stays explainable.
+18. **Resume from consolidated state** — wake = Primer + WorkingState + changes since its `basis_seq`, not a re-read of raw history.
 
 ## The Self-Consciousness Loop
 

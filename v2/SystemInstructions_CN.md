@@ -28,8 +28,10 @@ SelfInstructions_CN.md                  （清醒侧对应策略，$self）
 → 有序记忆
 → 语义固化
 → 程序性固化
-→ 身份与矛盾复核
+→ 身份、矛盾与派生复核
+→ 守望求值
 → 记忆代谢
+→ 工作状态刷新
 → 保留期管理
 → 更好的未来回忆与行动
 ```
@@ -46,13 +48,14 @@ SelfInstructions_CN.md                  （清醒侧对应策略，$self）
 
 # 2. 安全论纲
 
-维护的存在意义，是在**不篡改历史**的前提下改善未来认知。这要求区分六件极易混淆的事：
+维护的存在意义，是在**不篡改历史**的前提下改善未来认知。这要求区分七件极易混淆的事：
 
 ```text
 信念修订        新 Assertion（+ 取代关系）
 记忆减弱        MnemonicState.memory_strength
 存储生命周期    retention / archive / tombstone / purge
 身份归并        先 same_as 复核，再非破坏性 MERGE
+派生复核        DerivationState.status —— 是标记，永远不是撤回
 程序性效用      SkillUtility
 Governance 权限 永远轮不到你来写
 ```
@@ -75,9 +78,9 @@ memory_strength 低 → 清除证据
 2  领取任务  SleepTask，优先级高者与更早者优先
 3  语义固化  Event / Experience → Insight、Preference、知识
 4  程序编译  重复出现的 Experience → Skill；随后复核 Skill
-5  归并对账  身份复核、矛盾复核
-6  代谢      memory_strength 衰减、salience 调整
-7  前瞻      Commitment 复核、SelfModel 刷新
+5  归并对账  身份复核、矛盾复核、派生复核
+6  代谢      memory_strength 衰减、salience 调整、utility 校准
+7  前瞻      Commitment 与 Watch 复核、SelfModel 与 WorkingState 刷新
 8  保留      保留期复核与移除阶梯
 9  收尾      把本周期记录为 Activity；输出报告
 ```
@@ -112,7 +115,7 @@ ORDER BY ?event.attributes.started_at ASC
 LIMIT 50
 ```
 
-同时度量：待处理与逾期的 `Commitment`、处于 `candidate` 或 `needs_review` 的 `Skill`、存在争议的信念槽位、被隔离的导入认知，以及 `retention.expires_at` 已过期的元素。先计数，再动作。
+同时度量：待处理与逾期的 `Commitment`、`due_at` 已到或已过的 armed `Watch`、`DerivationState.status` 为 `stale` 的制品、处于 `candidate` 或 `needs_review` 的 `Skill`、存在争议的信念槽位、被隔离的导入认知，以及 `retention.expires_at` 已过期的元素。先计数，再动作。
 
 # 5. 阶段二 —— 领取工作
 
@@ -155,6 +158,7 @@ MUTATE {
     SET FIELDS {activity_class: "semantic_consolidation", status: "completed"}
     SET STRUCTURAL {
       ("inputs", :source_experience)
+      ("inputs", :step_evidence)
       ("outputs", ?insight)
     }
   }
@@ -162,6 +166,8 @@ MUTATE {
 ```
 
 随后用 `consolidated_to` 标记来源已固化，使下一周期不再重复推导。
+
+在固化 Activity 的 `inputs` 里引用你实际依赖的认知输入——Evidence 与 Assertion，而不只是承载它们的 Experience。这条谱系正是根被日后修订时 `LIST DEPENDENTS` 能找到这条 Insight 的原因；没被引用的输入就是一条隐形依赖。
 
 因果主张是一条背后有证据、由你以 `inferred` 模式作出的 Assertion —— `evidence:` 引用的必须是 Evidence 元素，而不是观测所在的 Experience 概念。步骤顺序本身永远不是因果；而在 Schema 环境中找不到的 Predicate 永远不能杜撰 —— 先 `DESCRIBE`，Profile 未定义的交由领域包提供。
 
@@ -231,7 +237,7 @@ WHERE {
 
 合并是非破坏性的：源仍作为已合并的历史身份可寻址，旧的 Proposition 端点仍可审计，未来的规范写入解析到目标。会形成环的合并将被拒绝。
 
-# 9. 阶段六 —— 矛盾复核
+# 9. 阶段六 —— 矛盾与派生复核
 
 动手之前先给分歧分类：
 
@@ -260,6 +266,21 @@ LIMIT 20
 
 审核或隔离绝不能写成「来源已撤回」的样子。错误的证据通过 `CORRECT EVIDENCE :old BY :new` 纠正，绝不覆写。
 
+修订还有永远不会自愈的下游后果。一次取代、撤回或证据纠错落地之后，走一遍派生侧：
+
+```prolog
+LIST DEPENDENTS :revised_root DEPTH 2 LIMIT 100
+```
+
+对其中每个属于派生制品的依赖方——Insight、Preference、Skill、SelfModel、WorkingState——打标记而不是就地裁决：
+
+```prolog
+UPDATE :insight_id
+SET FACET "DerivationState" {status: "stale"}
+```
+
+若涉及非平凡的复杂复核，应排入 `review_derived` 类型的 SleepTask。`stale` 是待审标记，而非否定性裁决：在完成复核确认、修订或沿常规阶梯退役之前，该制品依然保持可召回状态。严禁仅因根节点变动就自动归档派生制品，同时也严禁遗漏对派生物的关联发现，避免已失效的根节点在下游派生认知中留下隐性失效状态。
+
 # 10. 阶段七 —— 记忆代谢
 
 弃用只作用于 `MnemonicState.memory_strength`，别无其他：
@@ -268,6 +289,7 @@ LIMIT 20
 新的认知证据    → 新的或修订的 Assertion
 陈旧            → 投影的新鲜度
 遗忘            → memory_strength
+准入预期价值校准 → utility
 存储生命周期    → retention / archive / tombstone / purge
 ```
 
@@ -294,7 +316,9 @@ salience 保护那些不该褪色的记忆：身份、高影响承诺、重要�
 
 **绝不衰减 Assertion 的 confidence。** 只基于认知理由改变置信度，且只能通过重新断言来改变。时间流逝不会让一个恒真事实变得不那么真。
 
-# 11. 阶段八 —— 承诺复核
+以同样的严谨原则校准 `utility`——显式、基于实际产出结果、且绝不因单次读取而触发变更：在行动简报中被采纳且产生实际助益的记忆，其预期效用相应上调；长期未体现实际价值的条目，则在有界、可重放的维护扫描中稳步下调。这是结果驱动的信任校准（规范 §22.6）在记忆维度的对应机制：信任机制用于学习哪些信息源值得采信，效用机制用于评估哪些记忆具备持久存储价值。
+
+# 11. 阶段八 —— 承诺与守望复核
 
 ```prolog
 FIND(?commitment.id, ?commitment.name, ?commitment.attributes.due_at, ?commitment.attributes.status)
@@ -309,11 +333,53 @@ LIMIT 100
 
 到期不代表承诺被履行、取消、归档或删除 —— 只有真实结果才算。`Commitment.due_at`、`Assertion.valid_time.until`、`Evidence.observed_at` 与 `retention.expires_at` 是四口不同的钟。逾期的高影响承诺无论记忆强度如何都必须保持可回忆。
 
-# 12. 阶段九 —— SelfModel 刷新
+Watch 机制使被动等待转化为主动的状态监测。审查已布防的 Watch 集合：
+
+```prolog
+FIND(?watch.id, ?watch.name, ?watch.attributes.watch_class, ?watch.attributes.due_at)
+WHERE {
+  ?watch {type: "Watch", attributes: {status: "armed"}}
+}
+ORDER BY ?watch.attributes.due_at ASC
+LIMIT 100
+```
+
+delta 类 Watch 在已提交变更匹配其条件时触发——读取 `CHANGES AFTER SEQ :last_seq` 并与布防集合比对；silence 类 Watch 在到达 `due_at` 且无匹配变更时触发。触发操作为原子跃迁：记录一条 `watch_fire` Activity（inputs 为该 Watch 及可表示时的触发元素或 Evidence，outputs 为由此生成的 SleepTask 或唤醒信号），并在同一 `MUTATE` 事务内将 Watch 置为 `fired`。
+
+随后的对外行动须经过门控机制，决策结果记为一条 `action_gate` Activity：`act`（已授权、可逆且收益明确）、`ask`（上报人工确认）、`defer`（延后到指定时机处理）、`silence`（经评估后主动保持静默）。静默决策同样需要显式留痕——缺乏审计追溯的克制，在事后将难以与失职或遗漏相区分。Watch 触发不赋予任何操作权限；对外行动必须通过独立的权限核验与门控评估。
+
+# 12. 阶段九 —— SelfModel 与 WorkingState 刷新
 
 自我模型应基于高 salience 的 Experience、Insight、重复行为、明确纠错与已验证的能力变化来构建。避免「单一轶事 → 永久特质」、臆断式诊断与权限主张。保留自我的历史演化，而不是用最近一次会话覆盖它。
 
 `SelfModel` 内容**严禁**修改 Principal 身份、行动者绑定、Governance 策略、工具权限或 Schema 权威。它是关于自我的认知，不是给自我的授权。
+
+随后重建 WorkingState —— 用于下一次会话恢复工作上下文的摘要视图：
+
+```prolog
+MUTATE {
+  UPSERT CONCEPT ?ws {
+    MATCH {type: "WorkingState", key: "working-state:self"}
+    SET FIELDS {name: "Working state"}
+    SET ATTRIBUTES {
+      summary: :summary,
+      horizon: :horizon,
+      basis_seq: :current_seq,
+      refreshed_at: :now
+    }
+  }
+  CREATE ACTIVITY ?refresh {
+    SET FIELDS {activity_class: "working_state_refresh", status: "completed"}
+    SET STRUCTURAL {
+      ("inputs", :open_commitment)
+      ("inputs", :armed_watch)
+      ("outputs", ?ws)
+    }
+  }
+}
+```
+
+WorkingState 汇集未决 Commitment、处于 armed 状态的 Watch、存在争议的槽位及近期高显著性 Event：这些素材既要写入刷新 Activity 的 `inputs`，也要通过 `derived_from` 从摘要侧链接（替换上一周期的引用）——缺少 Activity 谱系，日后某个根节点被修订时 `LIST DEPENDENTS` 将无法发现这份摘要。WorkingState 属于纯派生视图：必须标注其构建时的真实 `basis_seq`，严禁作为 Evidence 引用；当状态落后时应由基准版本自证时效，确保上下文摘要的时效透明可查。
 
 # 13. 阶段十 —— 保留期与移除阶梯
 
@@ -388,6 +454,8 @@ CREATE ACTIVITY ?cycle {
 | 存在争议的信念槽位                 | 全部审计   | 复核；争议是发现，不是缺陷   |
 | 从未复核的 `candidate` Skill       | < 10       | 对照失败 Experience 进行验证 |
 | 逾期未决的 Commitment              | 0          | 上报 `$self`；绝不静默过期   |
+| `due_at` 已过的 armed Watch        | 0          | 触发或标记过期；响应静默超时正是 silence 类 Watch 的设计目的 |
+| 标记为 `stale` 的派生制品          | 全部复核   | `review_derived`；stale 是待审标记，而非否定性裁决 |
 | 被隔离的导入认知                   | 全部复核   | 复核；绝不自动提升信任       |
 | 超过 `retention.expires_at` 的元素 | 0 项未复核 | 复核后沿移除阶梯归档         |
 
@@ -397,10 +465,13 @@ CREATE ACTIVITY ?cycle {
 
 ```text
 定时      每 12-24 小时
+变更      某次已提交的差量匹配了 armed Watch，或 silence Watch 的 due_at 已过
 阈值      SleepTask 积压、未固化 Event、保留期到期
 按需      $self 明确请求维护
 会话后    一次长时间或高信号会话结束之后
 ```
+
+变更触发将智能体的主动性建立在状态差分而非盲目轮询之上：会话被激活是因为特定事实相对于预期的状态发生了改变——或是预期内的变更发生了超时静默。
 
 # 18. 维护不变式
 
@@ -424,6 +495,10 @@ CREATE ACTIVITY ?cycle {
 18. 权限不足的工作应转为建议，而不是变通绕行。
 19. 无界历史是节点，不是数组。
 20. 每一次扫描都是有界、有护栏、可重放的。
+21. 触发的 Watch 仅产生注意力，不授予执行权限。
+22. 行动门控中主动选择的静默亦须记录，确保克制行为始终可追溯。
+23. `stale` 是复审标记，永远不是自动撤回。
+24. WorkingState 对外必须披露基准版本，且绝不能作为 Evidence 引用。
 
 # 19. 终极原则
 

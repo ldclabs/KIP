@@ -478,6 +478,8 @@ Preference (偏好)
 Commitment (承诺)
 Insight (洞察)
 SelfModel (自我模型)
+Watch (守望)
+WorkingState (工作状态)
 ```
 
 **应当**表示为带类型的概念加上经过校验的切面 (Facet) 或结构引用 (Structural Reference)，除非未来的核心规范版本显式将其提升为核心元素。
@@ -1209,6 +1211,8 @@ derived_result (衍生计算结果)
 
 若证据构件有误，**应当**通过创建新证据并建立修正血统来进行纠错。
 
+不可变性禁止的是把载荷改写成另一个值，而非授权范围内的销毁：载荷清除（§60.6）抹除的是字节本身，证据记录、`content_digest`、引用关系与溯源角色均完整保留。
+
 ---
 
 ## 15.6 证据角色具有上下文相关性 (Evidence role is contextual)
@@ -1444,11 +1448,14 @@ ExperienceStep (经验步骤)
 Preference (偏好)
 Insight (洞察)
 Commitment (承诺)
+Watch (守望)
 Skill (技能)
 SleepTask (睡眠/固化任务)
 SelfModel (自我模型)
+WorkingState (工作状态)
 MnemonicState (记忆状态)
 SkillUtility (技能效用)
+DerivationState (派生状态)
 ```
 
 具体的 Profile 模式包版本与核心层相互独立。
@@ -1479,6 +1486,7 @@ KIP 严格区分多种不同形式的遗忘与移除机制：
 归档 (archive)
 墓碑标记 (tombstone)
 治理层面的排除隔离 (Governance exclusion)
+载荷清除 (payload purge)
 物理清除 (physical purge)
 ```
 
@@ -1519,6 +1527,8 @@ Assertion.valid_time.until
 对证据/反驳证据的物理清除**应当**格外审慎并接受全面审计。
 
 在策略允许的情况下，物理清除**应当**保留一个摘要存根 (§60.3)，以确保在原始字节被销毁后，审计链条与溯源根标识仍能持久存在。
+
+仅针对证据载荷字节的销毁使用载荷清除 (§60.6)，它保留证据记录本身。
 
 ---
 
@@ -2829,6 +2839,8 @@ schema_environment_version
 space_id + space_seq + tx_id
 ```
 
+运行时**可以**提供过滤后的变更投递（例如只投递触及声明元素、类型或种类的外壳），作为一项协商能力 (§67)。过滤只是传输层的便利：它**严禁**改变外壳内容、原子性，或所投递子集内部的 `space_seq` 顺序。
+
 ---
 
 ## 36.4 重放机制 (Replay)
@@ -3730,6 +3742,7 @@ SET RETENTION (设置留存规则)
 ARCHIVE (归档)
 TOMBSTONE (墓碑标记)
 PURGE (物理清除)
+PURGE PAYLOAD (载荷清除)
 
 MERGE CONCEPT (合并概念)
 ```
@@ -3789,6 +3802,7 @@ SET RETENTION
 ARCHIVE
 TOMBSTONE
 PURGE
+PURGE PAYLOAD
 ```
 
 一次匹配范围超出作者预期的维护性扫描，就是一次认知状态变更；在 `PURGE` 之下更是不可逆的变更。此类扫描因此**应当**设界。
@@ -4132,6 +4146,16 @@ SUPERSEDE ASSERTION :old BY ?new
 
 ---
 
+## 57.5 修订与派生认知 (Revision and derived cognition)
+
+废弃替代或撤回断言、纠错证据，改变的是认识投影的计算输出。这一操作不会自动修改或撤销由此溯源根节点所派生出的认知：在原主张有效期间构建的洞察、偏好摘要、编译后技能或自我模型，依然保持活跃状态。
+
+运行时**严禁**仅因某个溯源根节点被修订，就自动撤回、自动归档或自动改写下游派生认知。派生元素是否随根节点变动而失效，属于认知层面的复审决策，而非协议层的硬性规则。
+
+运行时**应当**为这类复审提供完备的机制支持。在支持 `LIST DEPENDENTS`（§63.5）的环境中，被修订根节点的下游派生认知可通过单次操作完整发现；在发生实质性修订后，Brain **应当**对这些依赖项发起复审。认知记忆 Profile 提供了 `DerivationState` Facet 与 `review_derived` 维护任务类别，用于跟踪并记录复审结果。
+
+---
+
 # 58. 通用 UPDATE (Generic UPDATE)
 
 推荐形式：
@@ -4230,6 +4254,7 @@ ARCHIVE       <target> [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]
 TOMBSTONE     <target> [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]
 PURGE         <target> [WHERE {...}] [LIMIT :n]
                        [REFERENCE POLICY "..."] CONFIRM "PURGE"
+PURGE PAYLOAD <target> [WHERE {...}] [LIMIT :n] CONFIRM "PURGE"
 ```
 
 `<target>` 遵循与通用 UPDATE (§58) 相同的规则：`?variable` 目标由 `WHERE` 块绑定，而 `:parameter` / `"id"` 已经直接指明元素，因而**可以**省略 `WHERE`。
@@ -4274,7 +4299,40 @@ authorized_cascade      在显式授权下级联清除引用方元素
 
 ## 60.5 有界移除 (Bounded removal)
 
-三个移除族均接受紧随 `WHERE` 之后的可选 `LIMIT`（§52.7）。移除性扫描**应当**设界；`PURGE` 扫描除必须书写的 `CONFIRM "PURGE"` 之外，**应当**同时设界。
+各移除族均接受紧随 `WHERE` 之后的可选 `LIMIT`（§52.7）。移除性扫描**应当**设界；`PURGE` 与 `PURGE PAYLOAD` 扫描除必须书写的 `CONFIRM "PURGE"` 之外，**应当**同时设界。
+
+---
+
+## 60.6 载荷清除 (Payload purge)
+
+`PURGE PAYLOAD` 抹除一个证据元素的原始载荷字节，同时完整保留元素本身。
+
+载荷清除之后，证据记录仍保有：
+
+```text
+元素身份与生命周期
+evidence_class
+content_digest
+media_type
+observed_at
+source / generated_by 引用
+来自断言的引用关系 (citations)
+```
+
+其载荷被标记为已清除；字节本身——无论是内联内容，还是由 `content_ref` 指向且由运行时持有的内容——均被彻底销毁且不可恢复。
+
+规则：
+
+- 目标**必须**是证据 (Evidence)；其他元素类型没有可清除的载荷。
+- `CONFIRM "PURGE"` 为**必需**：字节销毁不可逆。
+- 载荷清除需要 `purge` 权限；治理策略**可以**将载荷清除与元素清除分别授权。
+- `legal_hold` 阻止载荷清除，与阻止元素清除的方式完全一致。
+- 不存在 `REFERENCE POLICY` 子句：元素本身仍然存活，不会产生悬空引用。
+- 就事务而言，载荷清除是一次普通的状态变更；对已清除载荷再次清除产生 `no_effect`。
+- 佐证分组与独立性计数 (§23) 继续基于存留的摘要与溯源拓扑运作；载荷清除**严禁**改变它们。
+- 投影策略**可以**权衡内容不再可检视这一事实（例如在 §22.4 的可验证性维度下），但证据事件本身依然真实存在。
+
+载荷清除是实现数据最小化（Data Minimization）的关键机制：记忆空间在完成信息消化与认知提炼后，可安全丢弃观测到的原始字节，而无需破坏证据事件本身、其引用关联或其在溯源拓扑中的角色。若需彻底销毁证据记录本身，则应使用元素物理清除（§60.3）。
 
 ---
 
@@ -4370,7 +4428,7 @@ CAPSULE | EPISTEMIC POLICY | PROJECTION CAPABILITY | TRUST | ACCESS
 
 ```text
 SPACES | SCHEMA PACKAGES | TYPES | PREDICATES | FACETS
-STRUCTURAL FIELDS | EPISTEMIC POLICIES
+STRUCTURAL FIELDS | EPISTEMIC POLICIES | DEPENDENTS
 ```
 
 `LIST` 支持 `LIMIT` / `CURSOR` 分页。
@@ -4401,6 +4459,40 @@ WHERE {
 `WHERE` 是**必需**的，且**必须**至少包含一条选定模式：无边界的导出不构成胶囊。`closure` 使用 §40.3 定义的取值。
 
 生成的胶囊包含根集合加上 `WITH` 中声明的闭包，受治理策略及 §41.1 的快照一致性规则约束。结果是一个胶囊构件 (§85)；不修改任何认知状态。
+
+---
+
+## 63.5 LIST DEPENDENTS (列举依赖方)
+
+推荐语法：
+
+```text
+LIST DEPENDENTS :id
+  [DEPTH :n]
+  [LIMIT :limit]
+  [CURSOR :cursor]
+```
+
+`LIST DEPENDENTS` 枚举从某一元素派生出的认知，方式是沿派生方向对溯源拓扑做有界遍历：
+
+```text
+X ∈ Activity.inputs
+    → 该 Activity
+    → 其 outputs 中的每个元素
+```
+
+每个输出都是 `X` 在距离 1 上的依赖方；遍历从每个依赖方继续，直到 `DEPTH`（默认为 1）。运行时**可以**额外遍历当前模式环境中被记载为派生谱系的结构字段。每个此类字段都须按「由根节点指向派生制品」的方向遍历，而各字段的声明方向并不一致：声明为「派生制品 → 根节点」的字段（认知记忆 Profile 中的 `derived_from`、`compiled_from`）须反向遍历——`X` 的依赖方是那些字段引用了 `X` 的元素；声明为「根节点 → 派生制品」的字段（`consolidated_to`）则须正向遍历。方向取反将得到该元素的来源，而非它的依赖方。
+
+结果行**应当**携带依赖方的精确 id、类型 (kind)、距离，以及抵达它所经过的 Activity（或结构字段）。
+
+规则：
+
+- `LIST DEPENDENTS` 是读取操作；**严禁**改变任何元素。
+- 治理逐行生效：调用方无权发现的元素被省略，且省略与不存在不可区分 (§30.4)。
+- 遍历有界：运行时**可以**限定 `DEPTH` 上限，并像其他 `LIST` 目标一样通过 `LIMIT` / `CURSOR` 分页。
+- 可达性只是溯源拓扑，不是判断：被列出的依赖方并不因此就是过期的、错误的或需要修改的 (§57.5)。
+
+若历史转换过程中未显式记录 Activity 溯源，则相关派生关系在此处将无法被发现。这是该次写入操作未遵循溯源规范所致，而非本命令的缺陷；系统规范与固化指引始终要求完整保留 Activity 谱系。
 
 ---
 
@@ -5781,6 +5873,7 @@ forward local refs (本地前向引用)
 Facets (切面变更)
 Structural mutation (结构引用变更)
 archive/tombstone/purge (归档/墓碑/物理清除)
+payload purge (载荷清除)
 non-destructive merge (非破坏性合并)
 ```
 
@@ -5807,6 +5900,7 @@ structured error hints (结构化错误提示)
 semantic/hybrid SEARCH (语义与混合检索)
 transaction history (事务历史)
 CHANGES (变更追踪)
+LIST DEPENDENTS (列举依赖方)
 VERIFY (验证)
 VALIDATE (校验)
 PREVIEW (预览)
@@ -5880,7 +5974,7 @@ auditable Projection policy versions (可审计的投影策略版本)
 
 # 102. 核心合规不变式列表 (Required Conformance Invariants)
 
-合规的原生 KIP 2.0 系统实现**必须**严格遵守以下 33 条跨领域不变式：
+合规的原生 KIP 2.0 系统实现**必须**严格遵守以下 35 条跨领域不变式：
 
 1. **命题存在具有真值中立性** (Proposition existence is truth-neutral)。
 2. **断言置信度不等于大脑信念** (Assertion confidence is not Brain belief)。
@@ -5915,6 +6009,8 @@ auditable Projection policy versions (可审计的投影策略版本)
 31. **`ASSERT` 严格提交与其规范脱糖定义完全相同的语义** (`ASSERT` commits exactly the semantics of its normative desugaring)。
 32. **对外提供服务的物化投影必须披露其策略标识与快照依据** (A served materialized projection discloses its policy identity and snapshot basis)。
 33. **运行时摄入的证据必须如实保留传输层提供的载荷而不得经过模型重写** (Runtime-ingested Evidence preserves the transport-supplied payload without model re-typing)。
+34. **载荷清除销毁的是证据字节，绝不销毁证据记录的身份、引用关系或溯源拓扑** (Payload purge destroys Evidence bytes, never the Evidence record's identity, citations, or provenance topology)。
+35. **修订一个溯源根不会静默撤回或改写从它派生出的认知** (Revising a provenance root does not silently retract or rewrite cognition derived from it)。
 
 ---
 
@@ -6222,6 +6318,7 @@ kml_statement :=
     | archive_statement
     | tombstone_statement
     | purge_statement
+    | purge_payload_statement
     | merge_concept
 
 mutate_statement :=
@@ -6287,6 +6384,13 @@ purge_statement :=
     ("REFERENCE POLICY" value)?
     "CONFIRM" "\"PURGE\""
 
+purge_payload_statement :=
+    "PURGE PAYLOAD" target
+    ("WHERE" "{" where_clause* "}")?
+    limit_clause?
+    "CONFIRM" "\"PURGE\""
+        (* 仅限证据字节；元素本身存活，因此没有 REFERENCE POLICY 子句 *)
+
 merge_concept :=
     "MERGE CONCEPT" target
     "INTO" target
@@ -6337,6 +6441,17 @@ describe_target :=
     | TRUST
     | ACCESS
     | CAPSULE
+
+list_target :=
+      SPACES
+    | SCHEMA_PACKAGES
+    | TYPES
+    | PREDICATES
+    | FACETS
+    | STRUCTURAL_FIELDS
+    | EPISTEMIC_POLICIES
+    | DEPENDENTS
+        (* LIST DEPENDENTS :id [DEPTH :n] [LIMIT :n] [CURSOR :c]，见 §63.5 *)
 ```
 
 ---

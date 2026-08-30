@@ -1193,6 +1193,18 @@ untrusted imported (未受信任的导入数据)
 **违规禁则 (Forbidden outcome):** 在当前快照下静默返回过期的信念结果；将缓存数据回写为认知图谱实体；缓存数据产生自我印证效应。
 
 ---
+
+## KIP2-EPI-028 — 修订溯源根不会撤回派生认知 (Revising a root does not retract derived cognition)
+
+**要求级别 (Level):** MUST
+
+**预期语义行为 (Expected semantic behavior):** 设有一个 Insight、一个 Preference 摘要、一个编译得到的 Skill 与一个 SelfModel，它们均通过已记录的 Activity 谱系派生自同一个根断言及其证据。对该根节点执行 `SUPERSEDE ASSERTION`、`RETRACT ASSERTION` 与 `CORRECT EVIDENCE`，改变的只是认识投影的计算输出，除此之外不改变任何东西：每个派生元素都必须保持 `active`、可召回，且内容与生命周期完全不变 (§57.5)。为派生关系打上待审标记——例如认知记忆 Profile 中的 `DerivationState.status = "stale"`——必须是复审主体的显式写入，绝不能是修订操作的运行时副作用。在支持 `LIST DEPENDENTS` 的环境中，派生元素在修订之后依然可从被修订的根节点发现（META-025），从而使复审成为可能，而非自动发生。
+
+**后置条件 (Postconditions):** 各派生元素的生命周期状态、版本与内容在修订事务前后均未改变；该次修订的变更包只触及被修订的根节点以及调用方显式写入的内容；修订之后对每个派生元素发起召回仍能返回该元素。
+
+**违规禁则 (Forbidden outcome):** 对派生制品发生级联撤回、级联归档或级联墓碑标记；为迎合新信念而静默改写派生摘要；仅因某个根节点变动就将派生元素从召回结果中隐藏；把运行时自动设置的待审标记呈现为复审主体自身的判断。
+
+---
 # 16. 治理套件 (Governance Suite)
 
 主 Profile 归属：`KIP-Governance`
@@ -2514,6 +2526,20 @@ untrusted imported (未受信任的导入数据)
 **违规禁则 (Forbidden outcome):** 将共用同一个键的两个类型化身份合并；通过从中挑选一个来解析有歧义的键。
 
 ---
+
+## KIP2-KML-034 — 载荷清除完整保留证据记录本身 (Payload purge preserves the Evidence record)
+
+**要求级别 (Level):** MUST
+
+**声明 Profile (Profiles):** KIP-KML (完整版)
+
+**预期语义行为 (Expected semantic behavior):** `PURGE PAYLOAD :msg CONFIRM "PURGE"` 销毁证据元素的载荷字节——无论是内联内容，还是由 `content_ref` 指向、由运行时持有的内容——并将其载荷标记为已清除，而元素本身依然存活 (§60.6)。清除之后，该证据仍可按其 id 寻址，且 `evidence_class`、`content_digest`、`media_type`、`observed_at`、`source` 与 `generated_by` 均保持不变；所有曾引用它的断言仍以相同角色解析该引用；佐证分组与独立性计数 (§23) 的结果与清除前完全一致。对同一元素重复执行该清除必须返回 `no_effect` (§37)。`legal_hold` 阻止载荷清除的方式与阻止元素清除完全一致（`LegalHoldConflict`/`PurgeDenied`）；该语句不接受 `REFERENCE POLICY` 子句——元素本身存活，不会产生悬空引用——书写该子句必须报告 `InvalidSyntax`。
+
+**后置条件 (Postconditions):** 证据 id 可解析且其生命周期状态未变；上述六个保留字段与清除前的取值逐一相等；受影响冲突集合的引用计数与独立溯源根计数均未改变；重复清除不产生新的认知 `space_seq`，也不产生变更包；带 `REFERENCE POLICY` 的变体在提交前即被拒绝。
+
+**违规禁则 (Forbidden outcome):** 证据元素被移除、被墓碑标记或变得不可发现；`content_digest` 或引用关系随字节一并丢失；佐证强度或独立性因清除而被削弱；载荷清除接受 `REFERENCE POLICY`；绕过法律保全约束。
+
+---
 # 21. 元操作套件 (META Suite)
 
 主 Profile 归属：`KIP-META`
@@ -2725,6 +2751,20 @@ untrusted imported (未受信任的导入数据)
 **预期语义行为 (Expected semantic behavior):** 触发操作：在只读端点（readonly endpoint）上分别执行 PREVIEW 与实际 COMMIT KML。预期结果：PREVIEW 成功返回预览信息，而 COMMIT 操作被严格拒绝并返回 `ReadonlyViolation`。
 
 **违规禁则 (Forbidden outcome):** 绕过只读端点的写入限制。
+
+---
+
+## KIP2-META-025 — LIST DEPENDENTS 是有界且受治理的反向闭包 (LIST DEPENDENTS is a bounded, governed reverse closure)
+
+**要求级别 (Level):** MUST
+
+**声明 Profile (Profiles):** KIP-META (高级版)
+
+**预期语义行为 (Expected semantic behavior):** `LIST DEPENDENTS :root` 沿派生方向遍历溯源拓扑，枚举由某一元素派生出的认知——`:root ∈ Activity.inputs → 该 Activity → 其 outputs 中的每个元素`——并将每个输出作为距离 1 的依赖方返回 (§63.5)。`DEPTH 2` 从每个距离 1 的依赖方再向外延伸一跳；缺省深度为 1。每个结果行都必须携带依赖方的精确 id、类型 (kind)、距离，以及抵达它所经过的 Activity（或结构字段），并像其他 `LIST` 目标一样通过 `LIMIT` / `CURSOR` 分页。治理逐行生效：调用方无权发现的依赖方被省略，且省略与不存在不可区分 (§30.4)。该命令是读取操作——严禁改变任何元素，也严禁触发记忆强化 (§38)。被列出的依赖方并不因此就是过期的、错误的或需要修改的 (§57.5)；而未记录 Activity 溯源的历史转换在此处根本无法被发现。
+
+**后置条件 (Postconditions):** 调用前后 `space_seq`、元素版本与 `memory_strength` 均未改变；距离 1 的结果集合等于以 `:root` 为输入的各 Activity 的 outputs，再减去被治理过滤掉的行；对 `DEPTH` 设有上限的运行时必须显式报告该上限，而非静默截断；无权调用方所得到的结果，与对一个没有任何依赖方的根节点发起同一调用不可区分。
+
+**违规禁则 (Forbidden outcome):** 无界遍历整个溯源图；把被列出的依赖方当作过期或错误的判定结论；泄露调用方无权发现的元素，或使“被隐藏”与“不存在”可被区分；读取路径产生副作用变更或触发记忆强化。
 
 ---
 # 22. 运行时套件 (Runtime Suite)
@@ -3603,7 +3643,7 @@ no representation authority inferred
 ---
 # 27. 必需不变式覆盖矩阵 (Required Invariant Coverage Matrix)
 
-规范主文档定义了 33 条跨模块的核心必需一致性不变式（Required Conformance Invariants）。
+规范主文档定义了 35 条跨模块的核心必需一致性不变式（Required Conformance Invariants）。
 
 | 不变式 (Invariant) | 必需测试向量 (Required vectors) |
 |---|---|
@@ -3640,6 +3680,8 @@ no representation authority inferred
 | 31. ASSERT 语法糖精确提交脱糖后的实体 (ASSERT commits exactly its desugaring) | KML-031 |
 | 32. 物化投影必须显式披露策略与快照基准 (Materialized projection discloses policy + snapshot basis) | EPI-027 |
 | 33. 摄取的证据必须在字节级别如实保真传输载荷 (Ingested Evidence preserves transport payload) | RT-031 |
+| 34. 载荷清除保留证据记录本身 (Payload purge preserves the Evidence record) | KML-034 |
+| 35. 修订溯源根不会自动撤回派生认知 (Revising a root does not auto-retract derived cognition) | EPI-028, META-025 |
 
 ---
 

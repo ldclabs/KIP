@@ -28,8 +28,10 @@ raw fragments
 → organized memory
 → semantic consolidation
 → procedural consolidation
-→ identity and contradiction review
+→ identity, contradiction, and derivation review
+→ watch evaluation
 → mnemonic metabolism
+→ working state refresh
 → retention management
 → better future recall and action
 ```
@@ -46,13 +48,14 @@ Resolve `$self` and `$system` from `DESCRIBE PRIMER` into exact ids (`:self`, `:
 
 # 2. The Safety Thesis
 
-Maintenance exists to improve future cognition **without falsifying history**. That requires keeping six things apart that are easy to confuse:
+Maintenance exists to improve future cognition **without falsifying history**. That requires keeping seven things apart that are easy to confuse:
 
 ```text
 belief revision        new Assertion (+ supersession)
 mnemonic weakening     MnemonicState.memory_strength
 storage lifecycle      retention / archive / tombstone / purge
 identity consolidation same_as review, then non-destructive MERGE
+derivation review      DerivationState.status — a flag, never a retraction
 procedural utility     SkillUtility
 Governance authority   not yours to write, ever
 ```
@@ -75,9 +78,9 @@ semantic $system        → administrative permission
 2  claim work      SleepTasks, oldest and highest priority first
 3  consolidate     Events / Experiences → Insight, Preference, knowledge
 4  compile         repeated Experience → Skill; then review Skills
-5  reconcile       identity review, contradiction review
-6  metabolize      memory_strength decay, salience adjustment
-7  look forward    Commitment review, SelfModel refresh
+5  reconcile       identity review, contradiction review, derivation review
+6  metabolize      memory_strength decay, salience adjustment, utility calibration
+7  look forward    Commitment and Watch review, SelfModel and WorkingState refresh
 8  retain          retention review and the removal ladder
 9  close           record the cycle as an Activity; report
 ```
@@ -112,7 +115,7 @@ ORDER BY ?event.attributes.started_at ASC
 LIMIT 50
 ```
 
-Also measure: pending and overdue `Commitment`s, `Skill`s in `candidate` or `needs_review`, contested belief slots, quarantined imported cognition, and elements whose `retention.expires_at` has passed. Count first, act second.
+Also measure: pending and overdue `Commitment`s, armed `Watch`es at or past `due_at`, artifacts whose `DerivationState.status` is `stale`, `Skill`s in `candidate` or `needs_review`, contested belief slots, quarantined imported cognition, and elements whose `retention.expires_at` has passed. Count first, act second.
 
 # 5. Phase 2 — Claim Work
 
@@ -155,6 +158,7 @@ MUTATE {
     SET FIELDS {activity_class: "semantic_consolidation", status: "completed"}
     SET STRUCTURAL {
       ("inputs", :source_experience)
+      ("inputs", :step_evidence)
       ("outputs", ?insight)
     }
   }
@@ -162,6 +166,8 @@ MUTATE {
 ```
 
 Then mark the source consolidated with `consolidated_to` so the next cycle does not re-derive it.
+
+Cite the epistemic inputs you actually relied on — the Evidence and Assertions, not just the Experience that contained them — in the consolidation Activity's `inputs`. That lineage is what makes the Insight discoverable through `LIST DEPENDENTS` when a root is later revised; an uncited input is an invisible dependency.
 
 The causal claim is an Assertion with Evidence behind it, asserted by you in `inferred` mode — `evidence:` cites Evidence elements, never the Experience Concept they were observed in. Step order alone is never causality, and a Predicate you cannot find in the Schema Environment is never to be invented — `DESCRIBE` first, and let a domain package supply what the Profile does not.
 
@@ -231,7 +237,7 @@ WHERE {
 
 The merge is non-destructive: the source remains addressable as merged historical identity, old Proposition endpoints stay auditable, and future canonical writes resolve to the target. A merge that would create a cycle is rejected.
 
-# 9. Phase 6 — Contradiction Review
+# 9. Phase 6 — Contradiction and Derivation Review
 
 Classify the disagreement before touching anything:
 
@@ -260,6 +266,21 @@ LIMIT 20
 
 Moderation or quarantine must never be written as if the source had retracted. Wrong Evidence is corrected through `CORRECT EVIDENCE :old BY :new`, never overwritten.
 
+A revision also has downstream consequences that never fix themselves. After a supersession, retraction, or Evidence correction lands, walk the derived side:
+
+```prolog
+LIST DEPENDENTS :revised_root DEPTH 2 LIMIT 100
+```
+
+For each dependent that is a derived artifact — Insight, Preference, Skill, SelfModel, WorkingState — flag it instead of judging it inline:
+
+```prolog
+UPDATE :insight_id
+SET FACET "DerivationState" {status: "stale"}
+```
+
+and queue a `review_derived` SleepTask when the review is not trivial. `stale` is a flag, not a verdict: the artifact stays recallable until review revalidates it, revises it, or retires it along the ordinary ladder. Never auto-archive a derived artifact just because a root moved — and never leave a revised root's derivations undiscovered, because a ghost that outlives its source is how memory lies.
+
 # 10. Phase 7 — Mnemonic Metabolism
 
 Disuse acts on `MnemonicState.memory_strength` and nothing else:
@@ -268,6 +289,7 @@ Disuse acts on `MnemonicState.memory_strength` and nothing else:
 new epistemic evidence  → new or revised Assertion
 staleness               → Projection freshness
 forgetting              → memory_strength
+wasted or vindicated admission bet → utility
 storage lifecycle       → retention / archive / tombstone / purge
 ```
 
@@ -294,7 +316,9 @@ Salience protects what must not fade: identity, high-impact Commitments, importa
 
 **Never decay Assertion confidence.** Change confidence only on epistemic grounds, and only by asserting anew. The passage of time does not make a timeless fact less true.
 
-# 11. Phase 8 — Commitment Review
+Calibrate `utility` with the same discipline — explicitly, on outcomes, never on reads. A memory an Action Briefing drew on that helped gets its bet raised; a bet that never pays out drifts down under the same bounded, replay-safe sweep rules as decay. This is the mnemonic twin of outcome-driven trust calibration (Spec §22.6): trust learns which sources earn credence, utility learns which memories earn their keep.
+
+# 11. Phase 8 — Commitment and Watch Review
 
 ```prolog
 FIND(?commitment.id, ?commitment.name, ?commitment.attributes.due_at, ?commitment.attributes.status)
@@ -309,11 +333,53 @@ LIMIT 100
 
 A due date passing does not fulfil, cancel, archive, or delete a Commitment — only an actual outcome does. `Commitment.due_at`, `Assertion.valid_time.until`, `Evidence.observed_at` and `retention.expires_at` are four different clocks. Overdue high-impact Commitments stay recallable regardless of mnemonic strength.
 
-# 12. Phase 9 — SelfModel Refresh
+Watches make the waiting active. Review the armed set:
+
+```prolog
+FIND(?watch.id, ?watch.name, ?watch.attributes.watch_class, ?watch.attributes.due_at)
+WHERE {
+  ?watch {type: "Watch", attributes: {status: "armed"}}
+}
+ORDER BY ?watch.attributes.due_at ASC
+LIMIT 100
+```
+
+A delta Watch fires when a committed change matches its condition — read `CHANGES AFTER SEQ :last_seq` and compare against the armed set; a silence Watch fires when `due_at` passes with no match. Fire in one atomic transition: record a `watch_fire` Activity (inputs: the Watch and, where representable, the triggering element or Evidence; outputs: the SleepTask or wake signal it produced) and set the Watch `fired` in the same `MUTATE`.
+
+What happens next goes through the action gate, and the gate's outcome is recorded as an `action_gate` Activity: `act` (authorized, reversible, worth it), `ask` (a person decides), `defer` (a note for the morning), or `silence` (deliberately nothing). Record the silence too — restraint you cannot explain later is indistinguishable from a miss. A fired Watch authorizes nothing; an outward action still needs its own authority and its own gate.
+
+# 12. Phase 9 — SelfModel and WorkingState Refresh
 
 Build the self-model from high-salience Experiences, Insights, repeated behavior, explicit corrections, and validated capability changes. Avoid `single anecdote → permanent trait`, speculative diagnosis, and authority claims. Preserve the historical evolution of the self rather than overwriting it with the latest session.
 
 `SelfModel` content MUST NOT modify Principal identity, actor binding, Governance policy, tool permission, or Schema authority. It is cognition about the self, not a grant to the self.
+
+Then rebuild the WorkingState — the digest the next waking session resumes from:
+
+```prolog
+MUTATE {
+  UPSERT CONCEPT ?ws {
+    MATCH {type: "WorkingState", key: "working-state:self"}
+    SET FIELDS {name: "Working state"}
+    SET ATTRIBUTES {
+      summary: :summary,
+      horizon: :horizon,
+      basis_seq: :current_seq,
+      refreshed_at: :now
+    }
+  }
+  CREATE ACTIVITY ?refresh {
+    SET FIELDS {activity_class: "working_state_refresh", status: "completed"}
+    SET STRUCTURAL {
+      ("inputs", :open_commitment)
+      ("inputs", :armed_watch)
+      ("outputs", ?ws)
+    }
+  }
+}
+```
+
+Draw on open Commitments, armed Watches, contested slots, and recent high-salience Events; cite them in the refresh Activity's `inputs` and link them from the digest through `derived_from` (replacing last cycle's links) — without the Activity lineage the digest is invisible to `LIST DEPENDENTS` when one of those roots is later revised. The WorkingState is a view: stamp the `basis_seq` it was actually built at, never cite it as Evidence, and let it say so when it is behind — a digest that admits its age is honest; one that looks current and isn't is a lie.
 
 # 13. Phase 10 — Retention and the Removal Ladder
 
@@ -388,6 +454,8 @@ Link what the cycle consumed and produced through the same Activity. `activity_c
 | Contested belief slots               | audit all    | review; contested is a finding, not a defect |
 | `candidate` Skills never reviewed    | < 10         | validate against failed Experiences          |
 | Overdue pending Commitments          | 0            | surface to `$self`; never silently expire    |
+| Armed Watches past `due_at`          | 0            | fire or expire them; silence firing is the point |
+| Artifacts flagged `stale`            | review all   | `review_derived`; stale is a flag, not a verdict |
 | Quarantined imported cognition       | review all   | review; never auto-elevate trust             |
 | Elements past `retention.expires_at` | 0 unreviewed | review, then archive along the ladder        |
 
@@ -397,10 +465,13 @@ Average memory strength is worth observing and never worth optimizing: strength 
 
 ```text
 scheduled     every 12-24h
+change        a committed delta matches an armed Watch, or a silence Watch's due_at passes
 threshold     SleepTask backlog, unconsolidated Events, expired retention
 on-demand     $self asks for maintenance
 post-session  after a long or high-signal conversation
 ```
+
+The change trigger is what makes proactivity a state differential instead of a timer: the wake happens because something specific moved — or specifically did not — against a declared expectation.
 
 # 18. Maintenance Invariants
 
@@ -424,6 +495,10 @@ post-session  after a long or high-signal conversation
 18. Work you lack authority for becomes a recommendation, not a workaround.
 19. Unbounded histories are nodes, not arrays.
 20. Every sweep is bounded, guarded, and replay-safe.
+21. A fired Watch is attention, not authority.
+22. Silence chosen at the gate is recorded, not invisible.
+23. `stale` is a review flag, never an auto-retraction.
+24. WorkingState is served with its basis and never cited as Evidence.
 
 # 19. Final Principle
 

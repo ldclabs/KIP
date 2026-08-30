@@ -314,6 +314,7 @@ export type MutationClause =
   | { Archive: RemovalStatement }
   | { Tombstone: RemovalStatement }
   | { Purge: PurgeStatement }
+  | { PurgePayload: PurgePayloadStatement }
   | { MergeConcept: MergeConcept }
 
 export interface ConceptCreate {
@@ -475,6 +476,18 @@ export interface PurgeStatement {
   confirm: string
 }
 
+/**
+ * Payload-only purge (Spec §60.6): Evidence bytes are destroyed, the element
+ * survives, so no reference policy exists.
+ */
+export interface PurgePayloadStatement {
+  target: ElementRef
+  where_clauses: WhereClause[] | null
+  limit: Scalar | null
+  /** Always the literal `PURGE`; the grammar freezes the spelling. */
+  confirm: string
+}
+
 export interface MergeConcept {
   source: ElementRef
   into: ElementRef
@@ -525,6 +538,10 @@ export interface ListCommand {
   target: ListTarget
   /** `LIST SCHEMA PACKAGES STATUS ...` only. */
   status: Scalar | null
+  /** `LIST DEPENDENTS :id` only — the traversal root. */
+  element: Scalar | null
+  /** `LIST DEPENDENTS ... DEPTH :n` only. */
+  depth: Scalar | null
   limit: Scalar | null
   cursor: Scalar | null
 }
@@ -537,6 +554,7 @@ export type ListTarget =
   | 'Facets'
   | 'StructuralFields'
   | 'EpistemicPolicies'
+  | 'Dependents'
 
 export interface SearchCommand {
   target: SearchTarget

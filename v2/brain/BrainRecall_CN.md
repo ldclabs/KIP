@@ -67,6 +67,7 @@ Recall **严禁**执行以下操作：写入 Assertion、提高置信度、修�
 程序性技能召回 (procedural/Skill)
 故障规避召回 (failure avoidance)
 行动简报生成 (action briefing)
+唤醒/恢复简报 (wake/resume briefing)
 前瞻承诺召回 (commitment/prospective)
 历史演变追溯 (history/evolution)
 自我模型自省 (self-reflection)
@@ -207,6 +208,8 @@ BELIEF 属于虚拟计算视图，完全只读。
 
 每个 Skill 条目必须明确区分认知状态、效用分、历史溯源与 Governance 授权状态。存在匹配的 Skill 绝不代表自动拥有该工具的物理执行权限。
 
+面向会话唤醒与上下文恢复（如「当前处于什么工作上下文？」），优先读取 WorkingState 并依循其声明的 `basis_seq`：返回该汇总摘要及 `CHANGES AFTER SEQ` 对应的增量变更，而非从头重放全量原始历史。WorkingState 属于派生召回视图（规范 §66.7）：对外呈现时必须披露其基准版本，且严禁作为 Evidence 引用。
+
 # 19. 承诺召回 (Commitment Recall)
 
 针对“我欠缺什么待办事项 / 何时到期 / 我承诺过什么”等提问，显式查询 Commitment 的生命周期。承诺事项即使长期未被召回也依然重要，较低的 `memory_strength` 不能作为在前瞻记忆查询中忽略承诺的理由。
@@ -242,6 +245,8 @@ SEARCH 索引可能存在一定落后。若已知精确实体标识且对准确�
 # 26. Profile 排序机制
 
 记忆排序可综合利用：任务相关性、语义相似度、记忆强度、显著性、程序效用分、现实时效性、Experience 结果极性及反例相关性。最终的涉真信念判定仍必须来自认识投影，而非排序得分。
+
+派生制品上的 `DerivationState.status = stale` 标记必须如实呈现，严禁隐匿：该标记表明其某个溯源根节点在制品构建后发生了修订、且复审尚未完成——制品本身依然可被召回，但应附带该待审状态提示。
 
 # 27. 渐进深化查询流程 (Iterative Deepening)
 
@@ -324,6 +329,7 @@ SEARCH 索引可能存在一定落后。若已知精确实体标识且对准确�
 18. 原始 Evidence 的访问权限可能严于安全的 Projection。
 19. 认识上的不确定性必须如实呈现，严禁抹杀。
 20. 严禁为了答题便利而篡改历史事实。
+21. `stale` 派生状态必须如实呈现，严禁隐匿或未经提示直接采信。
 
 # 36. 终极准则
 
