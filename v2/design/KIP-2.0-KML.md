@@ -4057,7 +4057,7 @@ Skill formation is a derived cognitive process:
 Experiences
 success/failure contrast
 → procedural consolidation Activity
-→ candidate Skill
+→ proposed Skill
 ```
 
 ---
@@ -4074,13 +4074,14 @@ MUTATE {
 
     SET ATTRIBUTES {
       skill_class: :skill_class,
+      task_family: :task_family,
       summary: :summary,
       applicability: :applicability,
       procedure: :procedure,
       success_criteria: :success_criteria,
       failure_modes: :failure_modes,
       recovery: :recovery,
-      status: "candidate"
+      status: "proposed"
     }
 
     SET FACET "SkillUtility" {
@@ -4160,7 +4161,7 @@ Outcome learning may legitimately update:
 success_count
 failure_count
 utility
-last_validated_at
+last_verdict_at
 ```
 
 if Profile defines them as mutable.
@@ -4183,7 +4184,7 @@ SET FACET "SkillUtility" {
     1
   ),
 
-  last_validated_at: :time
+  last_verdict_at: :time
 }
 
 WHERE {
@@ -6096,7 +6097,7 @@ canonical future resolution → canonical target
 
 ---
 
-# 327. Common Pattern — Create Skill Candidate
+# 327. Common Pattern — Create Proposed Skill
 
 ```prolog
 MUTATE {
@@ -6106,10 +6107,11 @@ MUTATE {
 
     SET ATTRIBUTES {
       skill_class: :skill_class,
+      task_family: :task_family,
       summary: :summary,
       applicability: :applicability,
       procedure: :procedure,
-      status: "candidate"
+      status: "proposed"
     }
 
     SET STRUCTURAL {

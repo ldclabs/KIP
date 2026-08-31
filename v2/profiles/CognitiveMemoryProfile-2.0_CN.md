@@ -51,6 +51,7 @@ WorkingState（工作状态）
 MnemonicState（记忆状态）
 SkillUtility（技能效用）
 DerivationState（派生状态）
+OutcomeRecord（结果记录）
 ```
 
 > **Core 负责定义认知真值、溯源、执行权限与持久化语义；Profile 负责定义可跨系统移植的记忆组织形式。**
@@ -59,7 +60,7 @@ DerivationState（派生状态）
 
 # 1. 设计目标
 
-Profile 应支持可移植的情景记忆、目标导向经验、程序性记忆、前瞻记忆、注意力状态、偏好模式、自省教训、自我模型制品、工作状态、记忆可提取性、程序实用性以及系统维护任务。
+Profile 应支持可移植的情景记忆、目标导向经验、程序性记忆、前瞻记忆、注意力状态、偏好模式、自省教训、自我模型制品、工作状态、记忆可提取性、程序实用性、已评定后果 (graded consequences) 以及系统维护任务。
 
 Profile 应能够清晰回答以下核心问题：
 
@@ -69,6 +70,8 @@ Profile 应能够清晰回答以下核心问题：
 主体从中学习到了什么？（What did the actor learn?）
 哪些做法通常有效？（What tends to work?）
 哪些尝试失败了？（What failed?）
+我们行动之后，世界实际做了什么？（What did the world do after we acted?）
+哪些技能挣得了采纳——哪些又失去了？（What has earned adoption — and what lost it?）
 还有哪些事项处于待办状态？（What is still pending?）
 哪些状态变更（或预期的静默超时）值得引起关注？（What change — or what silence — deserves attention?）
 当前的工作全景与上下文是什么？（What is the current working picture?）
@@ -78,7 +81,7 @@ Profile 应能够清晰回答以下核心问题：
 
 # 2. 非设计目标
 
-Profile 不试图定义一套普适的人类记忆心理学理论、不包含隐藏的思维链（hidden chain-of-thought）、不构建大一统的世界本体论，也不限定特定的向量嵌入/重排模型、固定的睡眠调度算法、显著性计算公式、Skill 编译器实现、工具调用权限分配、治理权限策略或信息源信任评估策略。
+Profile 不试图定义一套普适的人类记忆心理学理论、不包含隐藏的思维链（hidden chain-of-thought）、不构建大一统的世界本体论，也不限定特定的向量嵌入/重排模型、固定的睡眠调度算法、显著性计算公式、Skill 编译器实现、采纳阈值或对比基准的构造方法、工具调用权限分配、治理权限策略或信息源信任评估策略。
 
 Profile 中的元素可以详细描述某项操作流程，但这绝不代表其自身具备执行该流程的系统权限。
 
@@ -96,6 +99,8 @@ Watch 概念节点         ≠ 调度器或权限 (scheduler or permission)
 WorkingState 概念节点  ≠ 证据 (Evidence)
 MnemonicState 记忆状态 ≠ 断言置信度 (Assertion confidence)
 DerivationState 派生状态 ≠ 断言生命周期 (Assertion lifecycle)
+结果证据 (Outcome Evidence) ≠ 行动模型的自我报告
+已采纳技能 (adopted Skill) ≠ 可执行权限 (executable authority)
 ```
 
 Profile 中定义的 Facet 与结构引用（Structural Field）绝不能绕过 Core 的不可变性、来源溯源、治理权限或认识论约束。
@@ -261,6 +266,7 @@ Commitment 属于认知层面的记忆记录，不代表系统会自动触发外
 
 ```text
 skill_class
+task_family
 summary
 applicability
 preconditions
@@ -271,7 +277,6 @@ counterexamples
 recovery
 status
 created_at
-last_validated_at
 ```
 
 推荐分类（`skill_class`）：
@@ -289,13 +294,17 @@ code_pattern
 subagent_pattern
 ```
 
-推荐认知生命周期：
+`task_family` 是 Skill 的**打分句柄 (scoring handle)**：能够证明它错了的那条结果证据流（规范 §15.7）。该字段为必填——一个说不出由哪条流来评定自己的模式，不是程序性记忆；请将其存为 Insight。修改 `task_family` 是一次普通的、留有审计痕迹的变更，且裁决只绑定它实际评定的那个任务族，因此改标签永远无法继承既往成绩。
+
+认知生命周期：
 
 ```text
-candidate → validated → needs_review → deprecated/archived
+proposed → trialed → adopted → revoked
 ```
 
-**已验证的 Skill ≠ 系统执行权限。** 权限依然受 Governance 状态管控。从外部导入的 Skill 在通过本地审核并获得策略提升前，必须保持为 candidate 或 inactive 状态。
+每一次晋升或降级都是对已评定结果证据的确定性裁决（§14）——绝不是作者断言，绝不是时间衰减，也绝不是行动模型自己的判断。
+
+**已采纳的 Skill ≠ 系统执行权限。** 权限依然受 Governance 状态管控。从外部导入的 Skill 以 `proposed`/inactive 进入，不携带任何生命周期地位（规范 §31.4），直至本地试用与审核完成。
 
 ## 5.9 SleepTask（睡眠任务）
 
@@ -412,11 +421,14 @@ WorkingState 回答"当前处于什么工作上下文"；SelfModel 回答"我是
   "utility": 0.72,
   "success_count": 8,
   "failure_count": 2,
-  "last_validated_at": "2026-08-10T00:00:00Z"
+  "graded_count": 11,
+  "last_verdict_at": "2026-08-10T00:00:00Z"
 }
 ```
 
 Utility 代表程序在 `[0,1]` 区间内的实用价值，既非客观真理概率，亦非执行权限。
+
+各计数是该 Skill 的 `task_family` 之下已评定结果证据的计票，由裁决与评定活动维护——绝不由行动模型的自我报告维护。`graded_count` 统计包括 `partial`、`aborted`、`unknown` 在内的全部已评定结果，因此两个具名计数永远不必伪装成穷尽。
 
 ## 6.3 DerivationState（派生状态）
 
@@ -445,7 +457,22 @@ stale ≠ 已撤回、已证伪或排除出召回
 
 维护流程通过对被修订之根执行 `LIST DEPENDENTS`（规范 §57.5、§63.5）找到制品并标记 `stale`，随后复审并将其解决为 `current`（复核通过）、一份修订后的制品，或一次普通的生命周期操作。
 
-# 7. 标准结构字段与谓词
+## 6.4 OutcomeRecord（结果记录）
+
+```json
+{
+  "task_family": "deploy/rollback",
+  "outcome_status": "failure",
+  "magnitude": 0.3
+}
+```
+
+OutcomeRecord 附着在结果证据（规范 §15.7）上，使后果可查询：`task_family` 命名它所属的可比后果流，`outcome_status` 复用 Experience 的词汇表（`success | partial | failure | aborted | unknown`），可选的 `magnitude` 承载部署自定义的量级（`[0,1]`）。仪器的原始输出原封不动地留在证据载荷里；这个 Facet 是其上的评定索引。
+
+```text
+OutcomeRecord ≠ 行动者对结果的主观陈述
+task_family   = 联结键；评定按任务族订阅，而非按元素引用
+```
 
 结构引用字段（Structural Fields）用于记录数据拓扑，而非语义命题。
 
@@ -495,6 +522,26 @@ SelfModel   ← 观测数据/Insights/Activities
 
 多次摘要转换并不会产生独立的佐证源。消息 → Event 摘要 → Experience 摘要 → Insight 这一链条在认识论上可能仍然只源于单一证据根。
 
+## 8.1 后果通道 (The consequence channel)
+
+以上的一切让系统更好地观察世界；后果通道则让世界得以反向监督：结果证据（规范 §15.7）携带 `OutcomeRecord` Facet，由仪器化组件写入——遥测、验证器、测试装置、工具、人工审查——并通过 `task_family` 与被评定的认知联结。
+
+该通道供养四类消费者，全部遵循同一纪律：
+
+```text
+Skill 生命周期裁决          §14
+SkillUtility 计票           §6.2
+MnemonicState.utility       §6.1 （准入下注的兑现或落空）
+信任校准                    规范 §22.6
+```
+
+纪律：
+
+- 行动模型**严禁**写入评定其自身行动的结果；它的陈述是 `agent_statement`，仅可作为上下文引用。
+- 一条结果**应当**通过溯源引用它所观察的那次决策（`action_gate` 或执行 Activity），但评定按 `task_family` 联结，因此仪器无需知道哪些 Skill 订阅了它。
+- 任务族词汇表由部署策略决定；族名**应当**稳定、带命名空间、且数量克制到足以积累评定历史。
+- 消费者核验其所评定结果的起源链，并拒绝起源不符合策略者——通道是可审计的，不是不可伪造的。
+
 # 9. 活动 (Activities)
 
 推荐的 Activity 分类：
@@ -513,9 +560,15 @@ watch_fire               （守望触发）
 action_gate              （行动门）
 derivation_review        （派生复审）
 working_state_refresh    （工作状态刷新）
+outcome_observation      （结果观测）
+lifecycle_verdict        （生命周期裁决）
 ```
 
 Activity 记录的是溯源历史；Activity 不是底层数据库事务（Transaction）。
+
+`outcome_observation` Activity 是摄取仪器写入结果证据时的记录——inputs：可表示时为被观察的行动或门控 Activity；outputs：结果证据。其关联行动者是仪器化主体，绝不是行动正被评定的那个行动者。
+
+`lifecycle_verdict` Activity 记录一次对后果流的确定性评估——inputs：被评定的结果证据；outputs：被其移动生命周期的 Skill；`parameters_digest` 锚定规则身份与对比基准，使裁决可被审计者重算。裁决是读取已记录结果的被执行代码。它不是模型判断；一次没有裁决 Activity 的状态迁移不是生命周期迁移——只是一次无法解释的改动。
 
 `action_gate` Activity 记录的是：在执行任何对外物理动作之前，系统针对特定状态变更所作出的显式决策。其结果取值包括：
 
@@ -572,27 +625,45 @@ Experience/Evidence
 + 失败经验 (failed Experiences)
 + 典型反例 (counterexamples)
 → 对比分析 (contrast)
-→ 候选技能 (candidate Skill)
-→ 验证检验 (validation)
-→ 更新 SkillUtility
+→ 提议技能 (proposed Skill)，携带 task_family
+→ 试用 (trial, §14)
 ```
 
 单次成功的 Experience 通常不足以证明该流程具备通用的程序可靠性。
 
-# 14. 技能检验 (Skill Validation)
+巩固流程**必须**在提议时就附上 `task_family`，并**必须**拒绝产出没有任务族的 Skill：一个说不出由哪条流来评定自己的模式没有出错的途径，它属于 Insight，而非程序性记忆。
 
-需明确区分四种检验情境：
+# 14. 技能生命周期 (Skill Lifecycle)
 
 ```text
-符合适用条件下的成功 (success under matching conditions)
-符合适用条件下的失败 (failure under matching conditions)
-不符合适用条件下的失败 (failure under non-matching conditions)
-结果未知 (unknown outcome)
+proposed   已编译，携带其 task_family；尚未被评定
+trialed    后果流正在对照被记录的基准评定它
+adopted    经裁决晋升；暂定的——后果流继续评定
+revoked    经裁决、反例或策略降级；记录本身存续
 ```
 
-在符合适用条件下的执行失败可能导致效用分降低、补充故障模式与反例、收窄适用范围，或将 Skill 标记为 `needs_review`。
+允许的状态迁移，每一次都以一条 `lifecycle_verdict` Activity 加一条受保护的 UPDATE 执行（规范 F.6）：
 
-任何验证状态的跃迁都不会自动授予外部系统的实际执行权限。
+```text
+proposed → trialed    开启试用；要求 task_family 与被记录的对比基准
+trialed  → adopted    对已评定结果的对比性裁决；单次成功绝不足够
+trialed  → revoked    裁决、反例或策略
+proposed → revoked    试用前撤回
+adopted  → trialed    退化裁决；重新试用，而非赦免
+adopted  → revoked    裁决；一次高严重度的符合条件失败即可能足够
+revoked  → trialed    重新进入即开启新试用；没有什么会悄悄复活
+```
+
+规则：
+
+1. **确定性迁移。** 晋升与降级**必须**由读取已评定结果证据的确定性代码执行——不是作者断言，不是时间衰减，不是行动模型的判断。Brain 提议、编译、叙述；它从不晋升。
+2. **对比性、可重算的采纳。** 试用裁决回答的是*事情是否比原本进行得更好*，而非*事情是否顺利*。对比如何构造是 Brain 策略；对比基准被记录在案则是 Profile 纪律：裁决 Activity **必须**使规则身份、对比基准与被评定结果集可恢复，并且**应当**可表达为一条关于该 Skill 的 Proposition + Assertion，使裁决本身进入可审计的主张图谱。
+3. **撤销永远不比采纳更难。** 降级门槛**严禁**高于晋升门槛。只会习得的生命周期分不清习惯与迷信。
+4. **采纳是暂定的。** 已采纳的 Skill 持续订阅其后果流。部署**应当**定义重新裁决的触发器——结果计数、时间窗口、或对该任务族的 Watch——让采纳随世界一起变老，而不是比世界活得更久。
+5. **评定词汇表。** 区分符合适用条件下的成功、符合适用条件下的失败、不符合适用条件下的失败与结果未知。符合条件的失败降低效用、补充故障模式与反例、收窄适用范围或触发降级；不符合条件的失败只收窄适用范围，不惩罚程序本身。
+6. **正交的复审状态。** DerivationState（§6.3）依然适用：溯源根被修订的 Skill 无论生命周期地位如何都会进入 `stale`/`under_review`，该复审可能开启一次重新试用。
+
+任何生命周期状态都不授予执行权限。采纳是地位，不是许可。
 
 # 15. 偏好巩固 (Preference Consolidation)
 
@@ -676,9 +747,11 @@ Profile 支持以下典型召回模式：
 
 源系统的 Watch 与 WorkingState 反映的是源认知系统自身的注意力焦点与局部工作上下文：在常规合并导入下，它们将以解除激活（disarmed）且非当前（non-current）的状态引入。目标系统需基于自身上下文重新配置注意力并重建工作状态。
 
+生命周期地位同样不迁移：导入的 Skill 以 `proposed` 进入，本地评定状态为空，无论其源状态如何。胶囊可以携带源系统的结果历史作为值得阅读的证据——但那不是本地评定，永远不计入本地裁决。
+
 # 22. 一致性测试要求 (Conformance Expectations)
 
-Profile 一致性测试应涵盖：Experience/Step 结构合法性、失败 Experience 的保留能力、MnemonicState 可变性、置信度与记忆强度的解耦、SkillUtility 可变性、Skill 权限非越权放大、Capsule 可移植性、SelfModel 非特权性、Commitment 生命周期流转、Watch 非特权性、DerivationState 与认识状态的解耦、WorkingState 非证据性、经验形成的原子性以及程序性溯源链完整性。
+Profile 一致性测试应涵盖：Experience/Step 结构合法性、失败 Experience 的保留能力、MnemonicState 可变性、置信度与记忆强度的解耦、SkillUtility 可变性、Skill 权限非越权放大、Capsule 可移植性、SelfModel 非特权性、Commitment 生命周期流转、Watch 非特权性、DerivationState 与认识状态的解耦、WorkingState 非证据性、经验形成的原子性、程序性溯源链完整性、结果起源分离（自我报告永不参与评定）、试用准入的 task_family 必填、裁决的确定性与可重算性，以及导入时生命周期地位不迁移。
 
 # 23. Profile 核心不变式
 
@@ -707,6 +780,12 @@ Profile 一致性测试应涵盖：Experience/Step 结构合法性、失败 Expe
 23. DerivationState 是复审状态标记；stale 绝不等于已撤回。
 24. WorkingState 是派生视图；它绝不是 Evidence，也绝不为自己的输入提供独立佐证。
 25. utility 代表记忆准入时的预期效用，随后续实际产出动态校准；它不代表真值、显著性或执行权限。
+26. 行动模型永远不写入评定其自身行动的结果证据。
+27. Skill 只有携带 task_family 才能进入试用；无法被评定的模式不是程序性记忆。
+28. 生命周期迁移是对已评定结果的确定性裁决，被记录且可重算。
+29. 撤销永远不比采纳更难。
+30. 采纳是暂定的；已采纳的 Skill 持续处于其后果流之下。
+31. 生命周期地位不随导入迁移；导入的 Skill 以 proposed 进入。
 
 # 24. 极简 Profile 摘要
 
@@ -718,14 +797,16 @@ Experience: 包含状态/行动/观测的目标导向轨迹
 ExperienceStep: 可观测的有序步骤；不记录隐藏思维链
 caused_by: 步骤间明确声明的“结果→起因”因果主张；边顺序本身不构成因果
 Insight: 从记忆中提炼出的陈述性教训
-Skill: 可复用的操作程序；其内容不直接赋予执行权限
+Skill: 可复用的操作程序，携带 task_family；proposed|trialed|adopted|revoked；永远不是执行权限
 Commitment: 前瞻性记忆与承诺事项
 Watch: 布防的注意力——值得关注的状态变更或超时静默；触发不授予权限
 SelfModel: 关于自身的派生认知；非治理策略
 WorkingState: 当前核心工作上下文，带构建基准 basis_seq；绝非 Evidence
 MnemonicState: memory_strength + salience + utility；非置信度
-SkillUtility: 程序实用性效用；非系统权限
+SkillUtility: 已评定结果计票 + utility；非系统权限
 DerivationState: basis_seq + current|stale|under_review；复审状态，非信念
+OutcomeRecord: 结果证据上的 task_family + outcome_status；由仪器写入，绝非被评定的行动者
+lifecycle_verdict: 确定性、被记录、可重算；Skill 生命周期状态之间的唯一通路
 
 涉真主张必须使用 Proposition + Assertion + Evidence。
 所有提炼转换过程均通过 Activity 保留溯源链。

@@ -48,6 +48,20 @@
 
 配套状态定义在[认知记忆 Profile](./profiles/CognitiveMemoryProfile-2.0_CN.md) 中：[`WorkingState`](./profiles/CognitiveMemoryProfile-2.0_CN.md#512-workingstate工作状态) 是标注构建基准 `basis_seq` 的聚合状态摘要，支持 Brain 基于「已编译工作状态 + 增量变更」快速恢复上下文，无需重新扫描全量历史；[`DerivationState`](./profiles/CognitiveMemoryProfile-2.0_CN.md#6-标准-facet) 承载 `current | stale | under_review` 待审状态标记，用于记录派生认知复审结果；`MnemonicState.utility` 则记录记忆准入时的预期效用评估，与 `salience`（显著性）、`memory_strength`（记忆强度）以及认知断言层的 `confidence`（置信度）保持严格正交。
 
+## 后果通道
+
+以上的一切让系统更好地观察世界；后果通道则让世界得以反向监督。
+
+[结果证据 (Outcome Evidence)](./KIP-2.0-SPECIFICATION_CN.md#157-结果证据-outcome-evidence) 记录一次决策、行动或试用中的程序之后实际发生了什么——由仪器化组件写入（遥测、验证器、测试装置、人工审查），**绝不由行动正被评定的那个行动者写入**。行动者自己的陈述是 `agent_statement`，仅可作为上下文引用；这一分离是一致性不变式，以可审计的方式落实——引擎起源始终记录谁写了什么，治理可以限定谁有权写入结果——因为开放协议能让自我评分**无处遁形**，即便无法让它**绝无可能**。
+
+每条结果携带**任务族 (task family)**：它所属的可比后果流。[Skill](./profiles/CognitiveMemoryProfile-2.0_CN.md#58-skill技能) 必须先说出能评定自己的任务族——它的打分句柄——才可进入试用；一个没有任何流能证明其错误的模式，不是程序性记忆。通道之上是 [Skill 生命周期](./profiles/CognitiveMemoryProfile-2.0_CN.md#14-技能生命周期-skill-lifecycle)：
+
+```text
+proposed → trialed → adopted → revoked
+```
+
+状态迁移只以对已评定结果的确定性裁决执行——记录为 [`lifecycle_verdict`](./profiles/CognitiveMemoryProfile-2.0_CN.md#9-活动-activities) 活动加[一条受保护的 UPDATE](./KIP-2.0-SPECIFICATION_CN.md#f6-结果评定与生命周期裁决-outcome-grading-and-a-lifecycle-verdict)，可被审计者重算——绝不是作者断言、时间衰减或行动模型的判断。采纳是对比性的（*比原本进行得更好*，对照被记录的基准；对比如何构造仍是 Brain 策略）且暂定的（后果流继续评定，退化即降级）。撤销永远不比采纳更难；生命周期地位也不随导入迁移：导入的 Skill 以 `proposed` 重新进入——因为采纳与信任、权限一样，必须在花用它的地方挣得。
+
 ## 协议定义信号，Brain 掌控策略
 
 KIP 不限定具体的准入阈值、打扰拦截策略、显著性算法、巩固调度周期或技能编译器实现，而是专注于定义：各项决策的输入数据如何规范组织、决策产出的凭据如何标准化留痕。若协议硬编码了特定的效用函数或算法逻辑，将丧失通用性，并导致部署生态的分裂。

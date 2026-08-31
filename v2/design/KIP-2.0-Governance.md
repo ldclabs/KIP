@@ -3885,17 +3885,17 @@ Successful local validation may justify elevation.
 
 ---
 
-# 205. Candidate Skill Default
+# 205. Proposed Skill Default
 
 Recommended:
 
 ```text
 new Skill:
-    status = candidate
+    status = proposed
     authority ceiling = advisory or below
 ```
 
-until validation policy is satisfied.
+until adoption is earned through the lifecycle and elevation policy is satisfied.
 
 Exact default belongs to the Cognitive Memory Profile + Space policy.
 

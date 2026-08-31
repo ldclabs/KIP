@@ -362,6 +362,8 @@ KIP Core 不要求存储私有的思维链 (chain-of-thought)。
 
 技能的描述性效用与治理权限**必须**保持分离。
 
+技能的生命周期地位由已评定的结果证据（§15.7）挣得，绝不由其作者断言；生命周期本身属于 Profile 机制。
+
 ---
 
 ## 4.7 学习 (Learning)
@@ -1162,6 +1164,7 @@ web_resource (网络资源)
 external_assertion (外部系统断言)
 human_feedback (人工反馈)
 derived_result (衍生计算结果)
+outcome (结果证据)
 ```
 
 模式/Profile 扩展**可以**添加带命名空间的类别。
@@ -1226,6 +1229,21 @@ context (背景上下文)
 ```
 
 ---
+
+## 15.7 结果证据 (Outcome Evidence)
+
+**结果证据 (Outcome Evidence)**（`evidence_class: "outcome"`）记录一次决策、行动或试用中的程序发生之后，世界实际做了什么。它是**后果通道 (consequence channel)**：让后续裁决能够对照被记录的现实——而非行动者对自己的陈述——来评定认知。
+
+结果证据**应当**由仪器化组件写入——遥测、验证器、测试装置、工具，或人工审查者——经由运行时摄取路径（§71.1），使载荷以传输原样进入并保持原样（不变式 33）。
+
+行动者对其**自身行动结果**的陈述**严禁**被记录为 `outcome` 证据。它是 `agent_statement`（或 `user_statement`）：可作为上下文引用，但永远不是被评定的后果本身。对仪器输出进行摘要或重新转述得到的是 `derived_result` 而非 `outcome`，且衍生转换永远不会增加认知独立性（§23.1）。
+
+在开放协议中，这一分离是**可审计的**而非密码学上绝对的。引擎起源（§2.5）始终记录写入元素的已认证主体 (Principal)；治理**应当**支持将 `outcome` 类证据的创建限定于指定的仪器化主体；通道的任何消费者——生命周期裁决、信任校准（§22.6）、效用校准——**必须**能够追溯其所评定的每条结果的起源链，并且**应当**拒绝起源不符合其策略的结果。
+
+每条结果证据**应当**携带**任务族 (task family)**：它所属的可比后果流的命名空间名称（例如 `"deploy/rollback"`、`"outreach/reply"`）。被评定的认知通过携带相同的任务族值来订阅后果流——联结键是任务族，而非元素引用，因此一条结果永远不需要知道自己最终会评定哪些模式。认知记忆 Profile 定义了标准的 `OutcomeRecord` Facet（任务族、结果状态、量级）以及消费该通道的技能生命周期机制。
+
+---
+
 # 16. 活动 (Activity)
 
 ## 16.1 定义 (Definition)
@@ -1456,6 +1474,7 @@ WorkingState (工作状态)
 MnemonicState (记忆状态)
 SkillUtility (技能效用)
 DerivationState (派生状态)
+OutcomeRecord (结果记录)
 ```
 
 具体的 Profile 模式包版本与核心层相互独立。
@@ -2514,11 +2533,14 @@ executable (可执行性)
 导入的技能**应当**默认为：
 
 ```text
-候选 / 未激活状态 (candidate/inactive)
+提议 / 未激活状态 (proposed/inactive)
 无直接可执行权限 (no executable authority)
+不迁移任何生命周期地位 (no transferred lifecycle standing)
 ```
 
 直至经过显式审查与权限提升。
+
+采纳 (adoption) 由本地评定的结果证据（§15.7）挣得——正如来源信任（§39.5）与来源权限（§41.4）从不随导入而迁移。
 
 ---
 
@@ -4380,6 +4402,8 @@ KML **严禁**暗示对现实世界外部行动具备原子级回滚能力。
     结果证据 + 活动 + 经验 (Outcome Evidence + Activity + Experience)
 ```
 
+该模式的回程一半即后果通道：外部结果以结果证据（§15.7）的形式返回，由仪器化组件写入，而非由其行动正在被评定的那个行动者写入。
+
 ---
 
 # 63. META — 自省与接地 (Introspection and Grounding)
@@ -6011,6 +6035,7 @@ auditable Projection policy versions (可审计的投影策略版本)
 33. **运行时摄入的证据必须如实保留传输层提供的载荷而不得经过模型重写** (Runtime-ingested Evidence preserves the transport-supplied payload without model re-typing)。
 34. **载荷清除销毁的是证据字节，绝不销毁证据记录的身份、引用关系或溯源拓扑** (Payload purge destroys Evidence bytes, never the Evidence record's identity, citations, or provenance topology)。
 35. **修订一个溯源根不会静默撤回或改写从它派生出的认知** (Revising a provenance root does not silently retract or rewrite cognition derived from it)。
+36. **行动者对其自身行动结果的自我报告永远不是结果证据** (An actor's self-report about its own action's result is never Outcome Evidence)。
 
 ---
 
@@ -6769,10 +6794,56 @@ source Evidence (源证据)
     ↓
 程序巩固活动 (procedural_consolidation Activity)
     ↓
-候选技能 (candidate Skill)
+提议技能 (proposed Skill)，携带其任务族 (task family)
 ```
 
-编译生成的技能不会自动获得可执行权限。
+编译生成的技能不会自动获得可执行权限，也不会获得生命周期地位：晋升是对已评定结果的裁决（F.6），绝不是编译的一部分。
+
+---
+
+## F.6 结果评定与生命周期裁决 (Outcome grading and a lifecycle verdict)
+
+```text
+外部行动 / 试用运行 (external action / trial run)
+    ↓
+仪器化组件（绝不是行动模型自身）
+    ↓
+结果证据 Outcome Evidence {task_family, outcome_status}
+    ↓
+确定性裁决代码读取已评定的后果流
+    ↓
+lifecycle_verdict 活动 + 一条受保护的 UPDATE
+```
+
+```prolog
+MUTATE {
+  CREATE ACTIVITY ?verdict {
+    SET FIELDS {
+      activity_class: "lifecycle_verdict",
+      status: "completed",
+      parameters_digest: :rule_digest
+    }
+    SET STRUCTURAL {
+      ("inputs", :outcome_a)
+      ("inputs", :outcome_b)
+      ("outputs", :skill)
+    }
+  }
+
+  UPDATE :skill
+  EXPECT VERSION :version
+  SET ATTRIBUTES {status: "adopted"}
+  SET FACET "SkillUtility" {
+    utility: 0.78,
+    success_count: 9,
+    failure_count: 2,
+    graded_count: 12,
+    last_verdict_at: :now
+  }
+}
+```
+
+晋升在一条受保护的语句中执行：`EXPECT VERSION` 保证并发安全，裁决活动通过 `parameters_digest` 锚定规则、通过 `inputs` 锚定被评定的结果，使这次状态迁移可被审计者重算。
 
 ---
 

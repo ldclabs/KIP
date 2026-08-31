@@ -236,6 +236,8 @@ KIP 提供底层基座与机制。认知 Profile 和智能体定义高阶策略�
 
 它同样属于认知记忆 Profile。
 
+编译提议，世界晋升。技能的生命周期地位——`proposed → trialed → adopted → revoked`——由其声明的任务族之下已评定的结果证据、经由确定性且被记录的裁决挣得，绝不由编译它的那个过程自我断言。
+
 ## 3.8 记忆 (Memory)
 
 **记忆 (Memory) 是过去的认知状态得以约束或调节未来计算与行为的机制。**
@@ -903,6 +905,8 @@ memory_strength = 0.20
 
 在 Skill 之外，认知记忆 Profile 还将 `utility` 作为通用的记忆代谢信号：它代表记忆准入时的预期效用（即对未来决策价值的预先评估），在存入时记录，并在事后根据实际调用产出进行校准。若缺少该信号，记忆系统便无法度量哪些准入内容真正具备持久价值，准入策略也无从持续优化与自适应学习。
 
+这种校准有类型化的来源。系统中的信号可以有三种持有方式：由断言者设定（Assertion 上的置信度）、随使用与闲置而代谢（memory_strength）、或者被挣得——因一条被记录的后果评定了它而改变。后果通道（规范 §15.7）把第三种方式落为实体：由仪器化组件写入、绝不由被评定的行动者写入的结果证据，通过任务族与被评定的认知联结。观察世界从来不是难点；这条通道让世界得以反向投票。
+
 ## 9.7 遗忘的多重含义 (Forgetting Has Multiple Meanings)
 
 KIP 2.0 应当 (SHOULD) 停止使用单一的“遗忘 (forgetting)”词汇来指代几种互不相关的操作。
@@ -1068,11 +1072,12 @@ executable (可执行)
 外部导入的技能默认应当 (SHOULD) 为：
 
 ```text
-status = candidate (候选)
+status = proposed (提议)
 execution authority = none (无执行权限)
+lifecycle standing = none transferred (不迁移生命周期地位)
 ```
 
-直到通过本地策略或经验验证。
+直到完成本地试用并经本地策略提升。
 
 技能被签名仅证明了其源头/完整性；它不能证明其安全性、适用性或正确性。
 
@@ -1621,7 +1626,7 @@ selective deletion of counter-evidence (选择性删除反面证据)
 ```text
 外部可执行记忆
     → 存储但处于未激活状态
-    → 经过审查 / 验证
+    → 经过审查 / 本地试用
     → 显式激活
 ```
 
@@ -1830,7 +1835,7 @@ replication (数据复制)
 本地信任度 + 权威评估 (Local trust + authority evaluation)
      │
      ├ 已接受的语义断言 (accepted semantic assertions)
-     └ 候选技能 (未激活，直至验证) (candidate Skills)
+     └ 提议技能 (未激活，直至本地采纳) (proposed Skills)
 ```
 
 ## 19.5 休眠 / 维护 (Sleep / Maintenance)
@@ -2494,17 +2499,18 @@ External Skill Sx
 
 Local Skill S1
   compiled_from: E1, E2
-  status: candidate
+  task_family: deploy/service
+  status: proposed
   authority: advisory
 ```
 
-在本地验证后：
+经 `deploy/service` 结果流评定的试用、并以一条 `lifecycle_verdict` Activity 记录确定性裁决之后：
 
 ```text
 S1
-  status: validated
+  status: adopted        （暂定——后果流继续评定）
   utility: 0.87
-  authority: behavioral
+  authority: behavioral  （独立的 Governance 决定，并非裁决的效力）
 ```
 
 导入技能的有效签名绝不会自动授予其行为或执行权威。

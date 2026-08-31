@@ -3456,7 +3456,7 @@ A Brain can use KQL to assemble:
 
 ```text
 relevant accepted beliefs
-applicable candidate Skills
+applicable Skills with lifecycle standing
 success Experiences
 failure Experiences
 Commitments

@@ -108,9 +108,12 @@ Watch
 SelfModel candidate
 Activity provenance
 MnemonicState
+Outcome Evidence + OutcomeRecord (instrumentation input only)
 ```
 
 The empty write is valid.
+
+When instrumentation reports a consequence — telemetry, a verifier, a test harness, a human reviewer — form Outcome Evidence with its `OutcomeRecord` (`task_family`, `outcome_status`) and keep the payload transport-typed (Spec Invariant 33). Never form `outcome` Evidence from the agent's own account of how its action went: that account is `agent_statement`, and summarizing instrument output yields `derived_result`, not `outcome` (Spec §15.7).
 
 # 4. Store Bar
 

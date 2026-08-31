@@ -177,7 +177,9 @@ Step order is not proof of causality: a causal link exists only where an explici
 
 # 16. Procedural Recall
 
-Rank candidate Skills by goal/task relevance, applicability, preconditions, current environment, utility, validation recency, and authority/status. Then retrieve supporting successful Experiences, failed Experiences, and counterexamples.
+Rank Skills by goal/task relevance, applicability, preconditions, current environment, lifecycle standing, graded utility, verdict recency, and authority/status. Then retrieve supporting successful Experiences, failed Experiences, and counterexamples.
+
+Lifecycle standing orders the shortlist: `adopted` leads, `trialed` and `proposed` surface flagged as unproven, and `revoked` appears only as a warning or counterexample — never as a recommendation. Graded standing outranks self-reported success stories at every tier.
 
 Semantic similarity alone is insufficient.
 
@@ -204,7 +206,7 @@ Recommended shape:
 }
 ```
 
-Each Skill entry should distinguish cognitive status, utility, provenance, and Governance influence/authority. Skill presence never implies tool execution permission.
+Each Skill entry should distinguish lifecycle standing (`proposed | trialed | adopted | revoked`), graded utility, provenance, and Governance influence/authority. Skill presence never implies tool execution permission.
 
 For wake/resume — "what is my situation?" — read the WorkingState first and honor its declared `basis_seq`: serve it plus `CHANGES AFTER SEQ` deltas rather than re-deriving the situation from raw history. A WorkingState is a derived recall surface (Spec §66.7): disclose its basis, never cite it as Evidence.
 
@@ -242,7 +244,7 @@ If Projection is authorized but raw Evidence is not, return safe redacted Projec
 
 # 26. Profile Ranking
 
-Memory ranking may use task relevance, semantic similarity, memory_strength, salience, utility, validity/currentness, Experience outcome, and counterexample relevance. Final factual belief still comes from Epistemic Projection, not rank.
+Memory ranking may use task relevance, semantic similarity, memory_strength, salience, utility, validity/currentness, Experience outcome, graded outcome standing, and counterexample relevance. Where the context budget forces a cut, graded standing is the tiebreaker: what the world has actually vindicated serializes before what merely resembles the task. Final factual belief still comes from Epistemic Projection, not rank.
 
 Surface, do not hide, a `DerivationState.status = stale` flag on a derived artifact: it means a provenance root changed after the artifact was built and review is pending — the artifact is still recallable, but the reader deserves the caveat.
 

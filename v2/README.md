@@ -48,6 +48,20 @@ A memory that only answers when asked is half a memory. The other half is what t
 
 Supporting state lives in the [Cognitive Memory Profile](./profiles/CognitiveMemoryProfile-2.0.md): [`WorkingState`](./profiles/CognitiveMemoryProfile-2.0.md#512-workingstate) is the consolidated resume digest stamped with its `basis_seq`, so a Brain wakes from compiled state plus a delta rather than re-reading scrollback; [`DerivationState`](./profiles/CognitiveMemoryProfile-2.0.md#6-standard-facets) carries the `current | stale | under_review` flag that a dependent review writes back; and `MnemonicState.utility` holds the admission bet — how useful this memory is expected to be — kept deliberately separate from `salience`, from `memory_strength`, and from epistemic `confidence`.
 
+## The consequence channel
+
+Everything above makes the system watch the world better. The consequence channel is how the world watches back.
+
+[Outcome Evidence](./KIP-2.0-SPECIFICATION.md#157-outcome-evidence) records what actually happened after a decision, action, or trialed procedure — written by instrumentation (telemetry, verifiers, test harnesses, human review), **never by the actor whose action it grades**. An actor's own account is `agent_statement`, citable as context only; the separation is a conformance invariant, enforced as auditability — engine origin always records who wrote what, and Governance can restrict who may write outcomes — because an open protocol can make self-grading visible even where it cannot make it impossible.
+
+Each outcome carries a **task family**: the stream of comparable consequences it belongs to. A [Skill](./profiles/CognitiveMemoryProfile-2.0.md#58-skill) must name the family that can grade it — its scoring handle — before it may enter trial; a pattern that nothing could prove wrong is not procedural memory. On the channel sits the [Skill lifecycle](./profiles/CognitiveMemoryProfile-2.0.md#14-skill-lifecycle):
+
+```text
+proposed → trialed → adopted → revoked
+```
+
+Transitions execute only as deterministic verdicts over graded outcomes — recorded as [`lifecycle_verdict`](./profiles/CognitiveMemoryProfile-2.0.md#9-activities) activities and [one guarded UPDATE](./KIP-2.0-SPECIFICATION.md#f6-outcome-grading-and-a-lifecycle-verdict), recomputable by an auditor — never author assertion, never decay, never the acting model's judgment. Adoption is comparative (*better than it was going*, against a recorded basis; how the comparison is constructed stays Brain policy) and provisional (the stream keeps grading, and degradation demotes). Revocation is never harder than adoption, and lifecycle standing does not survive import: an imported Skill re-enters at `proposed`, because adoption — like trust and authority — has to be earned where it is spent.
+
 ## Protocol provides signals; the Brain owns policy
 
 KIP does not define an admission threshold, an interruption policy, a salience algorithm, a consolidation schedule, or a skill compiler. It defines where those decisions put their inputs and their receipts. A protocol that hardcoded one utility function would stop being a protocol — and every deployment would fork it.

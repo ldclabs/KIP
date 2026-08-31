@@ -5198,7 +5198,7 @@ Skill (技能):
 
 ```text
 Experience remains experienced_by Agent A (经验依然标记为由智能体 A 经历)
-Skill source authority becomes descriptive/advisory candidate (技能源权限变为描述性/建议性候选)
+Skill source authority becomes descriptive/advisory; lifecycle re-enters proposed (技能源权限变为描述性/建议性；生命周期以 proposed 重新进入)
 provenance points to Agent A's Experience (溯源关系指向智能体 A 的经验)
 ```
 

@@ -92,7 +92,7 @@ A deployment may retain `daydream`, `quick`, and `full` as implementation metaph
 
 # 6. Assessment
 
-Read-only probes identify pending tasks, unconsolidated Events/Experiences, Skills needing review, conflict sets, identity merge candidates, due Commitments, armed Watches at or past `due_at`, `stale`-flagged derived artifacts, low-strength archive candidates, retention expiry candidates, quarantined imports, and SelfModel refresh candidates.
+Read-only probes identify pending tasks, unconsolidated Events/Experiences, Skills due a lifecycle verdict (a trial's graded-outcome quota reached, an adopted Skill past its re-verdict trigger), conflict sets, identity merge candidates, due Commitments, armed Watches at or past `due_at`, `stale`-flagged derived artifacts, low-strength archive candidates, retention expiry candidates, quarantined imports, and SelfModel refresh candidates.
 
 Assessment reads do not update recall/access counters.
 
@@ -135,13 +135,15 @@ success + counterexample
 same procedure across different contexts
 ```
 
-Compile applicability, preconditions, procedure, success criteria, failure modes, and counterexamples into candidate Skill + SkillUtility + procedural Activity. Do not grant executable authority.
+Compile applicability, preconditions, procedure, success criteria, failure modes, and counterexamples into a `proposed` Skill + SkillUtility + procedural Activity. Attach the required `task_family` — the Outcome Evidence stream that can grade the Skill — and refuse to compile a pattern no stream could prove wrong (store it as an Insight instead). Do not grant executable authority.
 
-# 12. Skill Review
+# 12. Skill Lifecycle Verdicts
 
-Review recent matching successes/failures, non-matching failures, environment change, counterexamples, and validation age.
+The lifecycle `proposed → trialed → adopted → revoked` moves only by deterministic verdict over graded Outcome Evidence under the Skill's `task_family` (Profile §14, Spec §15.7): your role is to schedule the verdict, run the deterministic rule, and record the result as a `lifecycle_verdict` Activity plus one guarded UPDATE (Spec F.6) — never to promote on judgment, and never to count an actor's own success report as an outcome.
 
-Legal cognitive actions include utility updates, `needs_review`, revised Skill artifact, deprecation, failure-mode addition, and narrowed applicability. Authority changes require Governance.
+Verdict discipline: adoption is comparative (better than it was going, against the recorded basis) and provisional (the stream keeps grading; demote to re-trial on degradation); revocation is never harder than adoption, and one high-severity matching-condition failure may suffice; re-entry after revocation starts a new trial.
+
+Legal cognitive actions besides the verdict itself include utility/tally updates, revised Skill artifact, failure-mode addition, counterexample linkage, and narrowed applicability. Authority changes require Governance.
 
 # 13. Mnemonic Metabolism
 
@@ -161,7 +163,7 @@ The formula is implementation-specific. Read frequency is not a required protoco
 
 # 14. Salience Protection
 
-Identity, high-impact Commitments, important relationships, major failures, validated Skills, autobiographical landmarks, legal-hold cognition, and Governance-protected memory may resist forgetting. Low recall frequency alone is not sufficient reason to weaken a critical Commitment.
+Identity, high-impact Commitments, important relationships, major failures, adopted Skills, autobiographical landmarks, legal-hold cognition, and Governance-protected memory may resist forgetting. Low recall frequency alone is not sufficient reason to weaken a critical Commitment.
 
 # 15. Identity Review
 
@@ -262,7 +264,7 @@ After a supersession, retraction, or Evidence correction, walk `LIST DEPENDENTS`
 
 # 29. Transaction Discipline
 
-Use atomic Transactions for new Assertion + supersession + Activity, Skill + compiled_from + Activity, Evidence correction + revised Assertion, and identity merge transition. Use preconditions for read-modify-write.
+Use atomic Transactions for new Assertion + supersession + Activity, Skill + compiled_from + Activity, lifecycle_verdict Activity + guarded Skill UPDATE, Evidence correction + revised Assertion, and identity merge transition. Use preconditions for read-modify-write.
 
 # 30. Concurrency
 
@@ -286,7 +288,7 @@ Maintenance may refresh derived Primer summaries, but Primer is a Governance-fil
 
 # 35. Health Metrics
 
-Useful internal metrics include unconsolidated Experience count, pending Commitments, conflict sets, quarantine backlog, identity candidates, Skills needing review, archived/active ratio, retention backlog, and failed maintenance operations. Never expose hidden counts to unauthorized Principals.
+Useful internal metrics include unconsolidated Experience count, pending Commitments, conflict sets, quarantine backlog, identity candidates, Skills due a verdict, trials starved of graded outcomes, archived/active ratio, retention backlog, and failed maintenance operations. Never expose hidden counts to unauthorized Principals.
 
 # 36. Final Report
 
@@ -333,6 +335,9 @@ Useful internal metrics include unconsolidated Experience count, pending Commitm
 22. silence chosen at the action gate is recorded, not invisible.
 23. stale is a review flag, never an auto-retraction.
 24. payload purge preserves the evidence event; element purge destroys it.
+25. Skill lifecycle moves only by recorded deterministic verdict over graded outcomes.
+26. an actor's own success report is never Outcome Evidence.
+27. revocation is never harder than adoption, and adoption never ends the grading.
 
 # 38. Final Principle
 

@@ -51,6 +51,7 @@ WorkingState
 MnemonicState
 SkillUtility
 DerivationState
+OutcomeRecord
 ```
 
 > **Core defines cognitive truth, provenance, authority, and durability semantics; the Profile defines portable memory forms.**
@@ -59,7 +60,7 @@ The Profile does not mandate one formation, ranking, consolidation, or forgettin
 
 # 1. Goals
 
-The Profile SHOULD support portable episodic memory, goal-directed experience, procedural memory, prospective memory, attention state, preference patterns, self-reflective lessons, self-model artifacts, working state, mnemonic accessibility, procedural utility, and maintenance tasks.
+The Profile SHOULD support portable episodic memory, goal-directed experience, procedural memory, prospective memory, attention state, preference patterns, self-reflective lessons, self-model artifacts, working state, mnemonic accessibility, procedural utility, graded consequences, and maintenance tasks.
 
 It SHOULD make the following questions answerable:
 
@@ -69,6 +70,8 @@ What did the actor go through?
 What did the actor learn?
 What tends to work?
 What failed?
+What did the world do after we acted?
+What has earned adoption — and what lost it?
 What is still pending?
 What change — or what silence — deserves attention?
 What is the current working picture?
@@ -78,7 +81,7 @@ What changed in the self-model?
 
 # 2. Non-Goals
 
-The Profile does not define a theory of human memory, hidden chain-of-thought, a universal ontology, one embedding/ranking model, one sleep schedule, one salience algorithm, one Skill compiler, tool permission, Governance authority, or source trust policy.
+The Profile does not define a theory of human memory, hidden chain-of-thought, a universal ontology, one embedding/ranking model, one sleep schedule, one salience algorithm, one Skill compiler, one adoption threshold or comparison construction, tool permission, Governance authority, or source trust policy.
 
 A Profile element may describe a procedure without being authorized to execute it.
 
@@ -96,6 +99,8 @@ Watch Concept ≠ scheduler or permission
 WorkingState Concept ≠ Evidence
 MnemonicState ≠ Assertion confidence
 DerivationState ≠ Assertion lifecycle
+Outcome Evidence ≠ the acting model's self-report
+adopted Skill ≠ executable authority
 ```
 
 Profile Facets and Structural Fields MUST NOT bypass Core immutability, origin, Governance, or Epistemic semantics.
@@ -261,6 +266,7 @@ Recommended fields:
 
 ```text
 skill_class
+task_family
 summary
 applicability
 preconditions
@@ -271,7 +277,6 @@ counterexamples
 recovery
 status
 created_at
-last_validated_at
 ```
 
 Suggested classes:
@@ -289,13 +294,17 @@ code_pattern
 subagent_pattern
 ```
 
-Suggested cognitive lifecycle:
+`task_family` is the Skill's **scoring handle**: the Outcome Evidence stream (Specification §15.7) that can prove it wrong. It is required — a pattern that names no stream that could grade it is not procedural memory; store it as an Insight instead. Changing `task_family` is an ordinary audited mutation, and a verdict binds to the family it actually graded, so re-labeling never inherits grades.
+
+Cognitive lifecycle:
 
 ```text
-candidate → validated → needs_review → deprecated/archived
+proposed → trialed → adopted → revoked
 ```
 
-**Validated Skill ≠ executable authority.** Authority remains Governance state. Imported Skills remain candidate/inactive until local review and policy elevation.
+Every promotion or demotion is a deterministic verdict over graded Outcome Evidence (§14) — never author assertion, never decay, never the acting model's judgment.
+
+**An adopted Skill ≠ executable authority.** Authority remains Governance state. Imported Skills enter `proposed`/inactive with no transferred lifecycle standing (Specification §31.4) until locally trialed and reviewed.
 
 ## 5.9 SleepTask
 
@@ -412,11 +421,14 @@ Utility calibration is explicit mutation like any other reinforcement: a recall 
   "utility": 0.72,
   "success_count": 8,
   "failure_count": 2,
-  "last_validated_at": "2026-08-10T00:00:00Z"
+  "graded_count": 11,
+  "last_verdict_at": "2026-08-10T00:00:00Z"
 }
 ```
 
 Utility is procedural usefulness on a `[0,1]` scale, not probability and not authority.
+
+The counts are tallies of graded Outcome Evidence under the Skill's `task_family`, maintained by verdict and grading Activities — never by the acting model's own report. `graded_count` counts every graded outcome including `partial`, `aborted`, and `unknown`, so the two named tallies never have to pretend to be exhaustive.
 
 ## 6.3 DerivationState
 
@@ -445,7 +457,22 @@ stale ≠ retracted, wrong, or excluded from recall
 
 Maintenance sets `stale` after finding the artifact through `LIST DEPENDENTS` on a revised root (Specification §57.5, §63.5), reviews it, and resolves it to `current` (revalidated), a revised artifact, or an ordinary lifecycle action.
 
-# 7. Standard Structural Fields and Predicates
+## 6.4 OutcomeRecord
+
+```json
+{
+  "task_family": "deploy/rollback",
+  "outcome_status": "failure",
+  "magnitude": 0.3
+}
+```
+
+OutcomeRecord attaches to Outcome Evidence (Specification §15.7) and makes the consequence queryable: `task_family` names the stream of comparable consequences, `outcome_status` uses the Experience vocabulary (`success | partial | failure | aborted | unknown`), and optional `magnitude` carries a deployment-defined size on `[0,1]`. The raw instrument output stays untouched in the Evidence payload; the Facet is the graded index over it.
+
+```text
+OutcomeRecord ≠ the actor's opinion of how it went
+task_family   = the join key; grading subscribes by family, not by element reference
+```
 
 Structural Fields are record topology, not semantic Propositions.
 
@@ -495,6 +522,26 @@ SelfModel   ← observations/Insights/Activities
 
 Repeated transformation does not create independent corroboration. Message → Event summary → Experience summary → Insight may still have one epistemic root.
 
+## 8.1 The consequence channel
+
+Everything above lets the system watch the world. The consequence channel is how the world watches back: Outcome Evidence (Specification §15.7) carrying an `OutcomeRecord` Facet, written by instrumentation — telemetry, verifiers, test harnesses, tooling, human review — and joined to graded cognition by `task_family`.
+
+The channel feeds four consumers, all under the same discipline:
+
+```text
+Skill lifecycle verdicts        §14
+SkillUtility tallies            §6.2
+MnemonicState.utility           §6.1  (the admission bet, vindicated or wasted)
+trust calibration               Specification §22.6
+```
+
+Discipline:
+
+- The acting model MUST NOT write the outcomes that grade its own action; its account is `agent_statement`, citable as context only.
+- An outcome SHOULD reference the acted decision it observed (the `action_gate` or execution Activity) through provenance, but grading joins on `task_family`, so an instrument needs no knowledge of which Skills subscribe.
+- Task family vocabulary is deployment policy; family names SHOULD be stable, namespaced, and few enough to accumulate graded history.
+- A consumer verifies the origin chain of the outcomes it grades and refuses those whose origin fails its policy — the channel is auditable, not unforgeable.
+
 # 9. Activities
 
 Recommended Activity classes:
@@ -513,9 +560,15 @@ watch_fire
 action_gate
 derivation_review
 working_state_refresh
+outcome_observation
+lifecycle_verdict
 ```
 
 Activity records provenance; Activity is not Transaction.
+
+An `outcome_observation` Activity is the ingesting instrument's record of writing Outcome Evidence — inputs: the observed action or gate Activity where representable; outputs: the Outcome Evidence. Its associated actor is the instrumentation Principal, never the actor whose action is being graded.
+
+A `lifecycle_verdict` Activity records one deterministic evaluation of the consequence stream — inputs: the graded Outcome Evidence; outputs: the Skill whose lifecycle it moved; `parameters_digest` pins the rule identity and comparison basis so the verdict is recomputable by an auditor. A verdict is executed code reading recorded outcomes. It is not model judgment, and a transition without a verdict Activity is not a lifecycle transition — it is an unexplained edit.
 
 An `action_gate` Activity records the decision a state change was put through before anything outward happened. Its outcomes:
 
@@ -572,27 +625,45 @@ successful Experiences
 + failed Experiences
 + counterexamples
 → contrast
-→ candidate Skill
-→ validation
-→ SkillUtility
+→ proposed Skill (with task_family)
+→ trial (§14)
 ```
 
 One successful Experience normally does not establish general procedural reliability.
 
-# 14. Skill Validation
+Consolidation MUST attach the `task_family` at proposal time and MUST refuse to emit a Skill without one: a pattern that names no stream that could grade it has no way to be wrong, and belongs in an Insight, not in procedural memory.
 
-Distinguish:
+# 14. Skill Lifecycle
 
 ```text
-success under matching conditions
-failure under matching conditions
-failure under non-matching conditions
-unknown outcome
+proposed   compiled, carries its task_family; ungraded
+trialed    the outcome stream is grading it against a recorded baseline
+adopted    promoted by verdict; provisional — the stream keeps grading
+revoked    demoted by verdict, counterexample, or policy; the record survives
 ```
 
-Matching-condition failure may reduce utility, add failure modes/counterexamples, narrow applicability, or mark the Skill `needs_review`.
+Allowed transitions, every one executed as a `lifecycle_verdict` Activity plus one guarded UPDATE (Specification F.6):
 
-No validation state transition grants execution authority automatically.
+```text
+proposed → trialed    trial opens; requires task_family and a recorded comparison basis
+trialed  → adopted    comparative verdict over graded outcomes; no single success suffices
+trialed  → revoked    verdict, counterexample, or policy
+proposed → revoked    withdrawn before trial
+adopted  → trialed    degradation verdict; re-trial, not amnesty
+adopted  → revoked    verdict; one high-severity matching-condition failure MAY suffice
+revoked  → trialed    re-entry starts a new trial; nothing resurrects silently
+```
+
+Rules:
+
+1. **Deterministic transitions.** Promotion and demotion MUST be executed by deterministic code reading graded Outcome Evidence — not author assertion, not decay, not the acting model's judgment. The Brain proposes, compiles, and narrates; it never promotes.
+2. **Comparative, recomputable adoption.** A trial verdict answers *did things go better than they were going*, not *did things go well*. How the comparison is constructed is Brain policy; that its basis is recorded is Profile discipline: the verdict Activity MUST make rule identity, comparison basis, and the graded outcome set recoverable, and SHOULD also be expressible as a Proposition + Assertion about the Skill so the verdict itself enters the auditable claim graph.
+3. **Revocation is never harder than adoption.** The demotion bar MUST NOT exceed the promotion bar. A lifecycle that can only acquire cannot tell a habit from a superstition.
+4. **Adoption is provisional.** An adopted Skill stays subscribed to its stream. A deployment SHOULD define a re-verdict trigger — an outcome count, a time window, or a Watch on the family — so adoption ages with the world instead of outliving it.
+5. **Grading vocabulary.** Distinguish success under matching conditions, failure under matching conditions, failure under non-matching conditions, and unknown outcome. Matching-condition failure lowers utility, adds failure modes and counterexamples, narrows applicability, or demotes; non-matching failure narrows applicability without penalizing the procedure.
+6. **Orthogonal review states.** DerivationState (§6.3) still applies: a Skill whose provenance root was revised goes `stale`/`under_review` regardless of lifecycle standing, and that review may open a re-trial.
+
+No lifecycle state grants execution authority. Adoption is standing, not permission.
 
 # 15. Preference Consolidation
 
@@ -676,9 +747,11 @@ Destination import MUST NOT automatically transfer source self identity, source 
 
 A source's Watches and WorkingState are that Brain's attention and situation: under ordinary merge import they arrive disarmed and non-current. A destination re-arms its own attention and rebuilds its own working picture.
 
+Lifecycle standing does not transfer either: an imported Skill enters `proposed` with empty local grading state, whatever its source status said. Its capsule may carry the source's outcome history as evidence worth reading — it is not local grading, and it never counts toward a local verdict.
+
 # 22. Conformance Expectations
 
-Profile conformance SHOULD test Experience/Step structural validity, failed Experience preservation, MnemonicState mutability, confidence/memory-strength separation, SkillUtility mutability, Skill authority non-amplification, Capsule portability, SelfModel non-authority, Commitment lifecycle, Watch non-authority, DerivationState/epistemic separation, WorkingState non-evidence, formation atomicity, and procedural provenance.
+Profile conformance SHOULD test Experience/Step structural validity, failed Experience preservation, MnemonicState mutability, confidence/memory-strength separation, SkillUtility mutability, Skill authority non-amplification, Capsule portability, SelfModel non-authority, Commitment lifecycle, Watch non-authority, DerivationState/epistemic separation, WorkingState non-evidence, formation atomicity, procedural provenance, outcome origin separation (self-report never grades), task-family required for trial entry, verdict determinism and recomputability, and lifecycle non-transfer on import.
 
 # 23. Profile Invariants
 
@@ -707,6 +780,12 @@ Profile conformance SHOULD test Experience/Step structural validity, failed Expe
 23. DerivationState is review state; stale is not retracted.
 24. WorkingState is a derived view; it is never Evidence and never corroborates its inputs.
 25. utility is the admission bet, revised by outcomes; it is not truth, salience, or permission.
+26. The acting model never writes the Outcome Evidence that grades its own action.
+27. A Skill enters trial only with a task_family; an ungradable pattern is not procedural memory.
+28. Lifecycle transitions are deterministic verdicts over graded outcomes, recorded and recomputable.
+29. Revocation is never harder than adoption.
+30. Adoption is provisional; an adopted Skill remains under its outcome stream.
+31. Lifecycle standing does not survive import; an imported Skill enters proposed.
 
 # 24. Minimal Profile Primer
 
@@ -718,14 +797,16 @@ Experience: goal-directed state/action/observation trajectory
 ExperienceStep: ordered observable step; no hidden chain-of-thought
 caused_by: explicit effect→cause claim between steps; edge order alone is not causality
 Insight: declarative lesson derived from memory
-Skill: reusable procedure; content does not grant execution authority
+Skill: reusable procedure with a task_family; proposed|trialed|adopted|revoked; never execution authority
 Commitment: prospective memory
 Watch: armed attention — a delta or a silence worth waking for; firing grants nothing
 SelfModel: derived cognition about self; not Governance
 WorkingState: what matters now, stamped with its basis_seq; never Evidence
 MnemonicState: memory_strength + salience + utility; not confidence
-SkillUtility: procedural usefulness; not authority
+SkillUtility: graded tallies + utility; not authority
 DerivationState: basis_seq + current|stale|under_review; review state, not belief
+OutcomeRecord: task_family + outcome_status on Outcome Evidence; written by instruments, never the actor it grades
+lifecycle_verdict: deterministic, recorded, recomputable; the only path between Skill lifecycle states
 
 Truth-sensitive claims use Proposition + Assertion + Evidence.
 Transformations preserve Activity provenance.

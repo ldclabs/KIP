@@ -3793,7 +3793,7 @@ prediction error (预测误差)
 多个 Experiences (经验)
 成功 / 失败对比
 → 过程式巩固 Activity
-→ 候选 Skill (candidate Skill)
+→ 提议 Skill (proposed Skill)
 ```
 
 ---
@@ -3809,13 +3809,14 @@ MUTATE {
 
     SET ATTRIBUTES {
       skill_class: :skill_class,
+      task_family: :task_family,
       summary: :summary,
       applicability: :applicability,
       procedure: :procedure,
       success_criteria: :success_criteria,
       failure_modes: :failure_modes,
       recovery: :recovery,
-      status: "candidate"
+      status: "proposed"
     }
 
     SET FACET "SkillUtility" {
@@ -3892,7 +3893,7 @@ KML 严格遵循配置文件的可变性契约。
 success_count (成功计数)
 failure_count (失败计数)
 utility (效用值)
-last_validated_at (最后验证时间)
+last_verdict_at (最近裁决时间)
 ```
 
 如果配置文件将其定义为可变字段。
@@ -3914,7 +3915,7 @@ SET FACET "SkillUtility" {
     1
   ),
 
-  last_validated_at: :time
+  last_verdict_at: :time
 }
 
 WHERE {
@@ -5684,7 +5685,7 @@ duplicate 依然作为历史保留
 ```
 
 ---
-# 327. 常用模式 — 创建候选技能 (Common Pattern — Create Skill Candidate)
+# 327. 常用模式 — 创建提议技能 (Common Pattern — Create Proposed Skill)
 
 ```prolog
 MUTATE {
@@ -5694,10 +5695,11 @@ MUTATE {
 
     SET ATTRIBUTES {
       skill_class: :skill_class,
+      task_family: :task_family,
       summary: :summary,
       applicability: :applicability,
       procedure: :procedure,
-      status: "candidate"
+      status: "proposed"
     }
 
     SET STRUCTURAL {

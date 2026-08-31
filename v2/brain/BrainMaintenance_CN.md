@@ -94,7 +94,7 @@ Skill 频繁成功 → 自动赋予物理可执行权限
 
 # 6. 状态评估 (Assessment)
 
-利用只读探针全面扫描：待处理任务、未巩固的 Events/Experiences、待复审 Skills、冲突集、实体合并候选、到期 Commitments、`due_at` 已到或已过的 armed Watch、标记为 `stale` 的派生制品、低记忆强度的归档候选、留存过期候选、隔离区导入项以及自我模型刷新候选。
+利用只读探针全面扫描：待处理任务、未巩固的 Events/Experiences、该做生命周期裁决的 Skills（试用期的评定结果配额已满、已采纳者过了重新裁决触发点）、冲突集、实体合并候选、到期 Commitments、`due_at` 已到或已过的 armed Watch、标记为 `stale` 的派生制品、低记忆强度的归档候选、留存过期候选、隔离区导入项以及自我模型刷新候选。
 
 评估阶段的只读扫描严禁触发任何召回计数器或访问时间更新。
 
@@ -137,13 +137,15 @@ SleepTask 属于认知层面的工作说明清单。在执行具体操作前必�
 同一流程在不同上下文中的执行表现
 ```
 
-将适用范围、先决条件、执行流程、成功判据、故障模式与反例编译为候选 Skill + SkillUtility + procedural Activity。巩固流程绝不能自行授予系统物理执行权限。
+将适用范围、先决条件、执行流程、成功判据、故障模式与反例编译为 `proposed` Skill + SkillUtility + procedural Activity。附上必填的 `task_family`——能够评定该 Skill 的结果证据流——并拒绝编译任何没有流能证明它错了的模式（改存为 Insight）。巩固流程绝不能自行授予系统物理执行权限。
 
-# 12. 技能审查 (Skill Review)
+# 12. 技能生命周期裁决 (Skill Lifecycle Verdicts)
 
-全面复审：近期符合条件下的成功/失败记录、不符合条件下的失败、环境变化、新捕获的反例以及验证时间跨度。
+生命周期 `proposed → trialed → adopted → revoked` 只由确定性裁决移动：读取该 Skill `task_family` 之下已评定的结果证据（Profile §14、规范 §15.7），你的职责是调度裁决、运行确定性规则、并将结果记录为一条 `lifecycle_verdict` Activity 加一条受保护的 UPDATE（规范 F.6）——绝不凭判断晋升，也绝不把行动者的自我成功报告算作结果。
 
-合法的认知层操作包括：更新效用分、标记 `needs_review`、修订 Skill 制品、弃用、补充故障模式及收窄适用范围。权限层面的变更必须走 Governance 治理流程。
+裁决纪律：采纳是对比性的（对照被记录的基准，「比原本进行得更好」）且暂定的（后果流继续评定；退化即降级重试）；撤销永远不比采纳更难，一次高严重度的符合条件失败即可能足够；撤销后重新进入即开启新试用。
+
+裁决之外的合法认知层操作包括：更新效用分与计票、修订 Skill 制品、补充故障模式、关联反例及收窄适用范围。权限层面的变更必须走 Governance 治理流程。
 
 # 13. 记忆状态代谢 (Mnemonic Metabolism)
 
@@ -163,7 +165,7 @@ new_strength = clamp(old_strength × decay + salience protection + explicit rein
 
 # 14. 显著性保护机制 (Salience Protection)
 
-核心身份标识、高影响 Commitment 承诺、重要人际/业务关系、重大故障教训、已验证 Skill、自传体里程碑、受法律封存保护（legal hold）的认知以及受 Governance 保护的记忆具备抗遗忘能力。单纯的召回频次低，绝不能作为弱化重大 Commitment 的正当理由。
+核心身份标识、高影响 Commitment 承诺、重要人际/业务关系、重大故障教训、已采纳 Skill、自传体里程碑、受法律封存保护（legal hold）的认知以及受 Governance 保护的记忆具备抗遗忘能力。单纯的召回频次低，绝不能作为弱化重大 Commitment 的正当理由。
 
 # 15. 实体对齐与合并审查 (Identity Review)
 
@@ -264,7 +266,7 @@ Maintenance 可以识别物理清除候选对象，但在未获得清除授权�
 
 # 29. 事务规范与前置断言
 
-涉及新断言+废弃替代+Activity、Skill+编译来源+Activity、证据更正+修订断言以及实体合并流转的操作，必须使用原子事务提交。对于“读-改-写”操作，必须使用前置条件（Preconditions）防范并发冲突。
+涉及新断言+废弃替代+Activity、Skill+编译来源+Activity、lifecycle_verdict Activity+受保护的 Skill UPDATE、证据更正+修订断言以及实体合并流转的操作，必须使用原子事务提交。对于“读-改-写”操作，必须使用前置条件（Preconditions）防范并发冲突。
 
 # 30. 并发冲突与重试
 
@@ -288,7 +290,7 @@ Maintenance 可以刷新派生出的 Primer 概览，但 Primer 属于经 Govern
 
 # 35. 系统健康指标
 
-推荐的内部监控指标：未巩固 Experience 数量、待办 Commitments 存量、冲突集规模、隔离区积压量、实体合并候选数、待复审 Skills 数量、归档/活跃比例、留存到期积压量以及失败维护操作数。严禁向未授权的 Principal 暴露内部统计数据。
+推荐的内部监控指标：未巩固 Experience 数量、待办 Commitments 存量、冲突集规模、隔离区积压量、实体合并候选数、该做裁决的 Skills 数量、缺乏评定结果的试用数、归档/活跃比例、留存到期积压量以及失败维护操作数。严禁向未授权的 Principal 暴露内部统计数据。
 
 # 36. 最终巡检报告
 
@@ -335,6 +337,9 @@ Maintenance 可以刷新派生出的 Primer 概览，但 Primer 属于经 Govern
 22. 行动门控中主动选择的静默亦须记录，确保克制行为始终可追溯。
 23. `stale` 是复审标记，永远不是自动撤回。
 24. 载荷清除仅销毁证据载荷字节；证据记录本身与溯源拓扑依然完整保留。
+25. Skill 生命周期只经由对已评定结果的确定性裁决移动，且裁决被完整记录。
+26. 行动者的自我成功报告永远不是结果证据。
+27. 撤销永远不比采纳更难，采纳也永远不终止评定。
 
 # 38. 终极准则
 

@@ -115,7 +115,7 @@ ORDER BY ?event.attributes.started_at ASC
 LIMIT 50
 ```
 
-Also measure: pending and overdue `Commitment`s, armed `Watch`es at or past `due_at`, artifacts whose `DerivationState.status` is `stale`, `Skill`s in `candidate` or `needs_review`, contested belief slots, quarantined imported cognition, and elements whose `retention.expires_at` has passed. Count first, act second.
+Also measure: pending and overdue `Commitment`s, armed `Watch`es at or past `due_at`, artifacts whose `DerivationState.status` is `stale`, `Skill`s due a lifecycle verdict, contested belief slots, quarantined imported cognition, and elements whose `retention.expires_at` has passed. Count first, act second.
 
 # 5. Phase 2 — Claim Work
 
@@ -185,11 +185,12 @@ MUTATE {
     NAME "Deploy with pre-flight migration check"
     SET ATTRIBUTES {
       skill_class: "workflow",
+      task_family: "deploy/pre-flight",
       summary: :summary,
       procedure: :procedure,
-      status: "candidate"
+      status: "proposed"
     }
-    SET FACET "SkillUtility" {utility: 0.6, success_count: 3, failure_count: 1}
+    SET FACET "SkillUtility" {utility: 0.5}
     SET STRUCTURAL {
       ("compiled_from", :experience_a)
       ("compiled_from", :experience_b)
@@ -208,7 +209,11 @@ MUTATE {
 
 Contrast before compiling: compare successful against failed Experiences to find the discriminating precondition. One success does not prove a general Skill, and a Skill that only ever worked in one context should say so in its applicability rather than in a higher `utility`.
 
-**A validated Skill is not execution authority.** `utility` is procedural usefulness on `[0,1]`; permission stays in Governance. Imported Skills stay `candidate` until locally reviewed.
+`task_family` is required — it names the Outcome Evidence stream (Spec §15.7) that can grade this Skill. Refuse to compile a Skill you cannot name a stream for; that pattern is an Insight, not procedural memory. The initial `utility` is the admission bet; the graded tallies stay empty until real outcomes arrive.
+
+**Lifecycle moves are verdicts, not opinions.** `proposed → trialed → adopted → revoked` transitions execute only as deterministic code reading graded Outcome Evidence under the Skill's `task_family`, recorded as a `lifecycle_verdict` Activity plus one guarded UPDATE (Spec F.6). You schedule verdicts and record them; you never promote a Skill because it feels ready, and no actor's own success report counts as an outcome. Adoption is provisional — the stream keeps grading, and degradation demotes to re-trial — and revocation is never harder than adoption.
+
+**An adopted Skill is not execution authority.** `utility` is procedural usefulness on `[0,1]`; permission stays in Governance. Imported Skills enter `proposed` with empty local grading until locally trialed.
 
 # 8. Phase 5 — Identity Review
 
@@ -312,7 +317,7 @@ LIMIT 500
 
 Bind `:cycle_start` **once** per cycle and reuse it across re-runs and crash retries; re-run a shard until fewer than `LIMIT` elements are affected. The floor keeps the sweep converging.
 
-Salience protects what must not fade: identity, high-impact Commitments, important relationships, major failures, validated Skills, autobiographical landmarks, legal-hold and Governance-protected cognition. Low recall frequency alone is never sufficient reason to weaken a critical Commitment — and read frequency is not a required protocol signal at all.
+Salience protects what must not fade: identity, high-impact Commitments, important relationships, major failures, adopted Skills, autobiographical landmarks, legal-hold and Governance-protected cognition. Low recall frequency alone is never sufficient reason to weaken a critical Commitment — and read frequency is not a required protocol signal at all.
 
 **Never decay Assertion confidence.** Change confidence only on epistemic grounds, and only by asserting anew. The passage of time does not make a timeless fact less true.
 
@@ -452,7 +457,7 @@ Link what the cycle consumed and produced through the same Activity. `activity_c
 | Pending SleepTasks                   | < 10         | process, or re-prioritize and report backlog |
 | Unconsolidated Events older than 7d  | < 30         | consolidate or set retention                 |
 | Contested belief slots               | audit all    | review; contested is a finding, not a defect |
-| `candidate` Skills never reviewed    | < 10         | validate against failed Experiences          |
+| Skills awaiting a lifecycle verdict  | < 10         | run the deterministic verdict over graded outcomes |
 | Overdue pending Commitments          | 0            | surface to `$self`; never silently expire    |
 | Armed Watches past `due_at`          | 0            | fire or expire them; silence firing is the point |
 | Artifacts flagged `stale`            | review all   | `review_derived`; stale is a flag, not a verdict |
@@ -466,7 +471,8 @@ Average memory strength is worth observing and never worth optimizing: strength 
 ```text
 scheduled     every 12-24h
 change        a committed delta matches an armed Watch, or a silence Watch's due_at passes
-threshold     SleepTask backlog, unconsolidated Events, expired retention
+threshold     SleepTask backlog, unconsolidated Events, expired retention,
+              a trial's graded-outcome quota reached, an adopted Skill due a re-verdict
 on-demand     $self asks for maintenance
 post-session  after a long or high-signal conversation
 ```
@@ -499,6 +505,8 @@ The change trigger is what makes proactivity a state differential instead of a t
 22. Silence chosen at the gate is recorded, not invisible.
 23. `stale` is a review flag, never an auto-retraction.
 24. WorkingState is served with its basis and never cited as Evidence.
+25. Skill lifecycle moves only by recorded deterministic verdict over graded outcomes — never by judgment, and never on an actor's own success report.
+26. Revocation is never harder than adoption, and adoption never ends the grading.
 
 # 19. Final Principle
 

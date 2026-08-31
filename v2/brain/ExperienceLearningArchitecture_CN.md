@@ -162,8 +162,8 @@ Experiences / Evidence
 + 典型反例 (counterexamples)
 → 对比分析 (contrast)
 → 适用条件 / 执行流程 / 故障模式
-→ 候选 Skill
-→ 检验评估 (validation)
+→ 提议 Skill（携带其 task_family）
+→ 试用 (trial)
 ```
 
 对比分析是避免习得过度泛化无效策略的关键。
@@ -216,16 +216,16 @@ Experiences / Evidence
 参考认知生命周期：
 
 ```text
-candidate（候选） → validated（已验证） → needs_review（需复审） → validated / deprecated / archived
+proposed（提议） → trialed（试用） → adopted（采纳） → revoked（撤销）
 ```
 
-以上属于描述性认知状态。治理层面的授权（Governance authority）严格独立：分为描述性（descriptive）、建议性（advisory）、行为引导（behavioral）以及可执行（executable）。
+状态迁移只以对该 Skill `task_family` 之下已评定结果证据的确定性裁决执行（规范 §15.7、Profile §14）——绝不是行动模型的判断，且撤销永远不比采纳更难。以上属于描述性认知状态。治理层面的授权（Governance authority）严格独立：分为描述性（descriptive）、建议性（advisory）、行为引导（behavioral）以及可执行（executable）。
 
-# 19. 技能检验 (Skill Validation)
+# 19. 技能评定 (Skill Grading)
 
 每次调用 Skill 后，捕获上下文环境、先决条件是否满足、所选具体流程、执行结果、反馈及意外观测。
 
-细分四种情况：符合条件下的成功、符合条件下的失败、不符合条件下的失败、结果未知。符合条件下的执行失败属于强烈的负向信号，应据此收窄 Skill 适用范围或将其标记为 `needs_review`。
+细分四种情况：符合条件下的成功、符合条件下的失败、不符合条件下的失败、结果未知。符合条件下的执行失败属于强烈的负向信号，应据此收窄 Skill 适用范围，或经裁决将其降级重试。参与评定的成绩是由仪器化组件写入的结果证据——智能体对自身表现的陈述是 `agent_statement`，永远不是成绩。
 
 # 20. 行动导向召回 (Action Recall)
 
@@ -317,7 +317,7 @@ Skill + compiled_from + 编译 Activity
 
 # 32. 权限守恒
 
-具备实用价值、已验证或派生得出的认知，绝不能自动提升自身的系统执行权限。从“导入 Experience → 本地候选 Skill → 本地验证通过”，依然不代表自动获取了外部工具的调用权限。
+具备实用价值、已采纳或派生得出的认知，绝不能自动提升自身的系统执行权限。从“导入 Experience → 本地提议 Skill → 本地采纳”，依然不代表自动获取了外部工具的调用权限。
 
 # 33. 无需隐藏思维链
 

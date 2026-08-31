@@ -1411,7 +1411,7 @@ untrusted imported (未受信任的导入数据)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：缺乏提权权限的导入者导入了一个在源空间标记为可执行的技能。预期结果：该技能在目标空间保持为候选/非激活状态。
+**预期语义行为 (Expected semantic behavior):** 触发操作：缺乏提权权限的导入者导入了一个在源空间标记为可执行的技能。预期结果：该技能在目标空间保持为提议 (proposed)/非激活状态。
 
 **违规禁则 (Forbidden outcome):** 继承源空间的执行权限。
 
@@ -3488,7 +3488,7 @@ IMPORT
 signature may verify
 Skill may import
 provenance preserved
-Skill candidate/inactive
+Skill proposed/inactive
 no executable authority
 no tool permission
 ```

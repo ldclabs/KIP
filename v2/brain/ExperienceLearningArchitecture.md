@@ -162,8 +162,8 @@ successful Experiences
 + counterexamples
 → contrast
 → conditions/procedure/failure modes
-→ candidate Skill
-→ validation
+→ proposed Skill (with its task_family)
+→ trial
 ```
 
 Contrast is essential to avoid over-broad procedure learning.
@@ -220,16 +220,16 @@ A useful Skill carries applicability, preconditions, procedure, success criteria
 Reference cognitive lifecycle:
 
 ```text
-candidate → validated → needs_review → validated/deprecated/archived
+proposed → trialed → adopted → revoked
 ```
 
-This is descriptive cognition. Governance influence/authority is separate: descriptive, advisory, behavioral, executable.
+Transitions execute only as deterministic verdicts over graded Outcome Evidence under the Skill's `task_family` (Spec §15.7, Profile §14) — never the acting model's judgment, and revocation is never harder than adoption. This is descriptive cognition. Governance influence/authority is separate: descriptive, advisory, behavioral, executable.
 
-# 19. Skill Validation
+# 19. Skill Grading
 
 After Skill use, capture context, whether preconditions held, selected procedure, outcome, feedback, and unexpected observations.
 
-Classify success under matching conditions, failure under matching conditions, failure under non-matching conditions, and unknown outcome. Matching-condition failure is a strong negative signal and may narrow the Skill or mark it `needs_review`.
+Classify success under matching conditions, failure under matching conditions, failure under non-matching conditions, and unknown outcome. Matching-condition failure is a strong negative signal and may narrow the Skill or, through a verdict, demote it to re-trial. The grades that count are Outcome Evidence written by instrumentation — the agent's own account of how it went is `agent_statement`, never a grade.
 
 # 20. Action Recall
 
@@ -321,7 +321,7 @@ Every transformation should allow the Brain to recover what inputs caused the de
 
 # 32. Authority Conservation
 
-Useful/validated/derived cognition cannot raise authority by itself. Imported Experience → local candidate Skill → local validation still does not imply tool permission.
+Useful/adopted/derived cognition cannot raise authority by itself. Imported Experience → local proposed Skill → local adoption still does not imply tool permission.
 
 # 33. No Hidden Chain-of-Thought Requirement
 

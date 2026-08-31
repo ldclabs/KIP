@@ -362,6 +362,8 @@ A **Skill** is reusable procedural cognition, often formed by compiling Experien
 
 A Skill's descriptive usefulness and Governance authority MUST remain separate.
 
+A Skill's lifecycle standing is earned from graded Outcome Evidence (§15.7), never asserted by its author; the lifecycle itself is Profile machinery.
+
 ---
 
 ## 4.7 Learning
@@ -1166,6 +1168,7 @@ web_resource
 external_assertion
 human_feedback
 derived_result
+outcome
 ```
 
 Schema/Profile extensions MAY add namespaced classes.
@@ -1230,6 +1233,20 @@ context
 ```
 
 relative to an Assertion.
+
+---
+
+## 15.7 Outcome Evidence
+
+**Outcome Evidence** (`evidence_class: "outcome"`) records what the world did after a decision, action, or trialed procedure. It is the consequence channel: the stream that lets later verdicts grade cognition against recorded reality instead of against the actor's own account of it.
+
+Outcome Evidence SHOULD be written by instrumentation — telemetry, a verifier, a test harness, tooling, or a human reviewer — through the runtime ingestion path (§71.1), so the payload arrives transport-typed and stays that way (Invariant 33).
+
+An actor's report about the result of its own action MUST NOT be recorded as `outcome` Evidence. It is `agent_statement` (or `user_statement`): citable as context, never as the graded consequence. Summarizing or re-typing instrumentation output yields `derived_result`, not `outcome`, and derived transformation never adds epistemic independence (§23.1).
+
+In an open protocol this separation is auditable rather than cryptographically absolute. Engine origin (§2.5) always records which authenticated Principal wrote the element; Governance SHOULD restrict `outcome`-class Evidence creation to designated instrumentation Principals; and a consumer of the channel — a lifecycle verdict, trust calibration (§22.6), utility calibration — MUST be able to trace the origin chain of every outcome it graded, and SHOULD refuse outcomes whose origin fails its policy.
+
+Each Outcome Evidence SHOULD carry a **task family**: the namespaced stream of comparable consequences it belongs to (for example `"deploy/rollback"`, `"outreach/reply"`). Graded cognition subscribes to a stream by carrying the same task family value — the join is the family, not an element reference, so an outcome never needs to know which patterns it will end up grading. The Cognitive Memory Profile defines the standard `OutcomeRecord` Facet (task family, outcome status, magnitude) and the Skill lifecycle machinery that consumes the channel.
 
 ---
 
@@ -1463,6 +1480,7 @@ WorkingState
 MnemonicState
 SkillUtility
 DerivationState
+OutcomeRecord
 ```
 
 The exact Profile Package version is separate from Core.
@@ -2525,11 +2543,14 @@ executable
 Imported Skills SHOULD default to:
 
 ```text
-candidate/inactive
+proposed/inactive
 no executable authority
+no transferred lifecycle standing
 ```
 
 until explicitly reviewed/elevated.
+
+Adoption is earned from locally graded Outcome Evidence (§15.7), exactly as source trust (§39.5) and source authority (§41.4) never transfer by import.
 
 ---
 
@@ -4426,6 +4447,8 @@ Transaction 2
     Outcome Evidence + Activity + Experience
 ```
 
+The returning half of this pattern is the consequence channel: the external result comes back as Outcome Evidence (§15.7), written by instrumentation rather than by the actor whose action it grades.
+
 ---
 
 # 63. META — Introspection and Grounding
@@ -6073,6 +6096,7 @@ A conforming native KIP 2.0 implementation MUST preserve these cross-cutting inv
 33. Runtime-ingested Evidence preserves the transport-supplied payload without model re-typing.
 34. Payload purge destroys Evidence bytes, never the Evidence record's identity, citations, or provenance topology.
 35. Revising a provenance root does not silently retract or rewrite cognition derived from it.
+36. An actor's self-report about its own action's result is never Outcome Evidence.
 
 ---
 
@@ -6835,10 +6859,56 @@ failed Experience
     ↓
 procedural_consolidation Activity
     ↓
-candidate Skill
+proposed Skill (with its task family)
 ```
 
-The resulting Skill does not receive executable authority automatically.
+The resulting Skill does not receive executable authority automatically, and it does not receive lifecycle standing: promotion is a verdict over graded outcomes (F.6), never part of compilation.
+
+---
+
+## F.6 Outcome grading and a lifecycle verdict
+
+```text
+external action / trial run
+    ↓
+instrumentation (never the acting model)
+    ↓
+Outcome Evidence {task_family, outcome_status}
+    ↓
+deterministic verdict code reads the graded stream
+    ↓
+lifecycle_verdict Activity + one guarded UPDATE
+```
+
+```prolog
+MUTATE {
+  CREATE ACTIVITY ?verdict {
+    SET FIELDS {
+      activity_class: "lifecycle_verdict",
+      status: "completed",
+      parameters_digest: :rule_digest
+    }
+    SET STRUCTURAL {
+      ("inputs", :outcome_a)
+      ("inputs", :outcome_b)
+      ("outputs", :skill)
+    }
+  }
+
+  UPDATE :skill
+  EXPECT VERSION :version
+  SET ATTRIBUTES {status: "adopted"}
+  SET FACET "SkillUtility" {
+    utility: 0.78,
+    success_count: 9,
+    failure_count: 2,
+    graded_count: 12,
+    last_verdict_at: :now
+  }
+}
+```
+
+The promotion executes in one guarded statement: `EXPECT VERSION` makes it safe under concurrency, and the verdict Activity pins the rule (`parameters_digest`) and the graded outcomes (`inputs`) so the transition is recomputable by an auditor.
 
 ---
 

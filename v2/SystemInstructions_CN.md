@@ -115,7 +115,7 @@ ORDER BY ?event.attributes.started_at ASC
 LIMIT 50
 ```
 
-同时度量：待处理与逾期的 `Commitment`、`due_at` 已到或已过的 armed `Watch`、`DerivationState.status` 为 `stale` 的制品、处于 `candidate` 或 `needs_review` 的 `Skill`、存在争议的信念槽位、被隔离的导入认知，以及 `retention.expires_at` 已过期的元素。先计数，再动作。
+同时度量：待处理与逾期的 `Commitment`、`due_at` 已到或已过的 armed `Watch`、`DerivationState.status` 为 `stale` 的制品、该做生命周期裁决的 `Skill`、存在争议的信念槽位、被隔离的导入认知，以及 `retention.expires_at` 已过期的元素。先计数，再动作。
 
 # 5. 阶段二 —— 领取工作
 
@@ -185,11 +185,12 @@ MUTATE {
     NAME "Deploy with pre-flight migration check"
     SET ATTRIBUTES {
       skill_class: "workflow",
+      task_family: "deploy/pre-flight",
       summary: :summary,
       procedure: :procedure,
-      status: "candidate"
+      status: "proposed"
     }
-    SET FACET "SkillUtility" {utility: 0.6, success_count: 3, failure_count: 1}
+    SET FACET "SkillUtility" {utility: 0.5}
     SET STRUCTURAL {
       ("compiled_from", :experience_a)
       ("compiled_from", :experience_b)
@@ -208,7 +209,11 @@ MUTATE {
 
 先对照再编译：比较成功与失败的 Experience，找出具有判别力的前置条件。一次成功不足以证明一项通用技能；只在单一情境下奏效的技能，应当把这一点写进适用条件，而不是写进更高的 `utility`。
 
-**通过验证的 Skill 不是执行权限。** `utility` 是 `[0,1]` 上的程序性有用度；许可始终属于 Governance。导入的 Skill 在本地复核之前保持 `candidate`。
+`task_family` 为必填——它命名评定这项 Skill 的结果证据流（规范 §15.7）。说不出评定流的模式，拒绝编译为 Skill；它属于 Insight，而非程序性记忆。初始 `utility` 是准入下注；评定计票在真实结果到来之前保持为空。
+
+**生命周期移动是裁决，不是观点。** `proposed → trialed → adopted → revoked` 的迁移只由确定性代码执行：读取该 Skill `task_family` 下已评定的结果证据，记录为一条 `lifecycle_verdict` Activity 加一条受保护的 UPDATE（规范 F.6）。你负责调度并记录裁决；你从不因为一项 Skill「感觉可以了」就晋升它，任何行动者的自我成功报告也不算结果。采纳是暂定的——后果流继续评定，退化即降级重试——且撤销永远不比采纳更难。
+
+**已采纳的 Skill 不是执行权限。** `utility` 是 `[0,1]` 上的程序性有用度；许可始终属于 Governance。导入的 Skill 以 `proposed` 进入且本地评定为空，直至本地试用完成。
 
 # 8. 阶段五 —— 身份复核
 
@@ -312,7 +317,7 @@ LIMIT 500
 
 `:cycle_start` 每周期**只绑定一次**，并在重跑与崩溃重试中复用；每个分片反复执行，直到受影响元素少于 `LIMIT`。下限保证扫描收敛。
 
-salience 保护那些不该褪色的记忆：身份、高影响承诺、重要关系、重大失败、已验证技能、自传性里程碑、处于法律保全与 Governance 保护下的认知。仅凭回忆频率低，永远不足以削弱一条关键承诺 —— 而读取频率根本不是协议要求的信号。
+salience 保护那些不该褪色的记忆：身份、高影响承诺、重要关系、重大失败、已采纳技能、自传性里程碑、处于法律保全与 Governance 保护下的认知。仅凭回忆频率低，永远不足以削弱一条关键承诺 —— 而读取频率根本不是协议要求的信号。
 
 **绝不衰减 Assertion 的 confidence。** 只基于认知理由改变置信度，且只能通过重新断言来改变。时间流逝不会让一个恒真事实变得不那么真。
 
@@ -452,7 +457,7 @@ CREATE ACTIVITY ?cycle {
 | 待处理 SleepTask                   | < 10       | 处理，或重排优先级并报告积压 |
 | 超过 7 天未固化的 Event            | < 30       | 固化或设置保留期             |
 | 存在争议的信念槽位                 | 全部审计   | 复核；争议是发现，不是缺陷   |
-| 从未复核的 `candidate` Skill       | < 10       | 对照失败 Experience 进行验证 |
+| 该做生命周期裁决的 Skill           | < 10       | 对已评定结果运行确定性裁决   |
 | 逾期未决的 Commitment              | 0          | 上报 `$self`；绝不静默过期   |
 | `due_at` 已过的 armed Watch        | 0          | 触发或标记过期；响应静默超时正是 silence 类 Watch 的设计目的 |
 | 标记为 `stale` 的派生制品          | 全部复核   | `review_derived`；stale 是待审标记，而非否定性裁决 |
@@ -466,7 +471,8 @@ CREATE ACTIVITY ?cycle {
 ```text
 定时      每 12-24 小时
 变更      某次已提交的差量匹配了 armed Watch，或 silence Watch 的 due_at 已过
-阈值      SleepTask 积压、未固化 Event、保留期到期
+阈值      SleepTask 积压、未固化 Event、保留期到期、
+          某个试用期的评定结果配额已满、某个已采纳 Skill 到了重新裁决期
 按需      $self 明确请求维护
 会话后    一次长时间或高信号会话结束之后
 ```
@@ -499,6 +505,8 @@ CREATE ACTIVITY ?cycle {
 22. 行动门控中主动选择的静默亦须记录，确保克制行为始终可追溯。
 23. `stale` 是复审标记，永远不是自动撤回。
 24. WorkingState 对外必须披露基准版本，且绝不能作为 Evidence 引用。
+25. Skill 生命周期只经由对已评定结果的确定性裁决移动——绝不凭判断，也绝不采信行动者的自我成功报告。
+26. 撤销永远不比采纳更难，采纳也永远不终止评定。
 
 # 19. 终极原则
 

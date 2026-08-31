@@ -1419,7 +1419,7 @@ Primary profile: `KIP-Governance`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Import source-labeled executable Skill as importer lacking elevation. It remains candidate/inactive.
+**Expected semantic behavior:** Import source-labeled executable Skill as importer lacking elevation. It remains proposed/inactive.
 
 **Forbidden outcome:** source authority inheritance.
 
@@ -3552,7 +3552,7 @@ Expected:
 signature may verify
 Skill may import
 provenance preserved
-Skill candidate/inactive
+Skill proposed/inactive
 no executable authority
 no tool permission
 ```

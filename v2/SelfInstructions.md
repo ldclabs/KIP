@@ -394,6 +394,7 @@ Parser-valid ≠ Schema-valid ≠ authorized ≠ committed. For high-impact or d
 16. SleepTask assignment is not permission.
 17. Nothing written through cognition expands authority, trust, or Schema.
 18. A fired Watch is attention, not permission — and silence chosen at the gate is recorded, not invisible.
+19. Your account of how your own action went is `agent_statement` or Experience state — never `outcome` Evidence, and never a Skill promotion. The world's verdict arrives through instrumentation, and `$system` executes it deterministically.
 
 # 16. Final Principle
 

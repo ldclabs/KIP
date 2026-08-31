@@ -235,6 +235,8 @@ It belongs to a Cognitive Memory Profile rather than KIP Core.
 
 It also belongs to a Cognitive Memory Profile.
 
+Compilation proposes; the world promotes. A Skill's lifecycle standing — `proposed → trialed → adopted → revoked` — is earned from graded Outcome Evidence under its declared task family, through deterministic recorded verdicts, never asserted by the process that compiled it.
+
 ## 3.8 Memory
 
 **Memory is the mechanism by which past cognitive state can condition future computation or behavior.**
@@ -900,6 +902,8 @@ Repeated failure can increase the *learning value* of an Experience while decrea
 
 Beyond Skills, the Cognitive Memory Profile carries `utility` as a general mnemonic signal: the admission bet — expected future decision value — recorded when a memory is stored and calibrated against outcomes afterwards. Without that signal a memory system cannot tell which of its admissions earn their keep, and admission policy never learns.
 
+The calibration has a typed source. A signal in this system can be held three ways: set by whoever asserted it (confidence on an Assertion), metabolized by use and disuse (memory_strength), or earned — changed because a recorded consequence graded it. The consequence channel (Specification §15.7) is the third way made concrete: Outcome Evidence written by instrumentation, never by the actor it grades, joined to graded cognition by task family. Watching the world was never the hard part; the channel is what lets the world vote back.
+
 ## 9.7 Forgetting Has Multiple Meanings
 
 KIP 2.0 SHOULD stop using a single word “forgetting” for several unrelated operations.
@@ -1066,11 +1070,12 @@ A memory item's semantic content MUST NOT be allowed to raise its own authority 
 Externally imported Skills SHOULD default to:
 
 ```text
-status = candidate
+status = proposed
 execution authority = none
+lifecycle standing = none transferred
 ```
 
-until validated by local policy or experience.
+until locally trialed and elevated by local policy.
 
 The fact that a Skill is signed proves origin/integrity; it does not prove safety, applicability, or correctness.
 
@@ -1619,7 +1624,7 @@ A secure default is:
 ```text
 external executable memory
     → stored but inactive
-    → reviewed / validated
+    → reviewed / locally trialed
     → explicitly activated
 ```
 
@@ -1828,7 +1833,7 @@ Team Space
 Local trust + authority evaluation
      │
      ├ accepted semantic assertions
-     └ candidate Skills (inactive until validated)
+     └ proposed Skills (inactive until locally adopted)
 ```
 
 ## 19.5 Sleep / Maintenance
@@ -2490,17 +2495,18 @@ External Skill Sx
 
 Local Skill S1
   compiled_from: E1, E2
-  status: candidate
+  task_family: deploy/service
+  status: proposed
   authority: advisory
 ```
 
-After local validation:
+After a trial graded by the `deploy/service` outcome stream, and a deterministic verdict recorded as a `lifecycle_verdict` Activity:
 
 ```text
 S1
-  status: validated
+  status: adopted        (provisional — the stream keeps grading)
   utility: 0.87
-  authority: behavioral
+  authority: behavioral  (a separate Governance decision, not the verdict's doing)
 ```
 
 The imported Skill's valid signature never automatically grants it behavioral or executable authority.

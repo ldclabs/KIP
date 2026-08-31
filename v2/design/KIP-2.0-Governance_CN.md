@@ -3858,17 +3858,17 @@ Experience 编译为 → Skill
 
 ---
 
-# 205. 候选技能默认权限 (Candidate Skill Default)
+# 205. 提议技能默认权限 (Proposed Skill Default)
 
 推荐规则：
 
 ```text
 新 Skill：
-    status = candidate (候选)
+    status = proposed (提议)
     authority ceiling = advisory 或更低
 ```
 
-直到满足验证策略。
+直到经生命周期挣得采纳、且满足提权策略。
 
 确切的默认值由 Cognitive Memory Profile + Space 策略共同决定。
 

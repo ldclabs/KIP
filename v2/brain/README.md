@@ -146,7 +146,7 @@ It also:
 - walks `LIST DEPENDENTS` after a material revision and flags derived artifacts `stale` for review, so a revised root cannot leave ghosts in its derivations;
 - evaluates armed Watches against the change stream — delta and silence triggers alike — recording each firing as a `watch_fire` Activity and each outward decision as an `action_gate` outcome (act / ask / defer / silence);
 - compares successful and failed experiences to identify discriminating actions or conditions;
-- validates, reinforces, weakens, or deprecates Skills through `SkillUtility`;
+- runs the Skill lifecycle (`proposed → trialed → adopted → revoked`) as deterministic verdicts over graded Outcome Evidence under each Skill's `task_family` — recorded as `lifecycle_verdict` Activities, with tallies in `SkillUtility`, never promoted on the acting model's own report;
 - reviews identity suspicions (`same_as`) before any non-destructive `MERGE CONCEPT`;
 - refreshes `$self`'s SelfModel from evidence rather than from the latest conversation;
 - rebuilds the WorkingState digest — stamped with its `basis_seq` — that the next waking session resumes from;

@@ -5386,7 +5386,7 @@ Agent B imports:
 
 ```text
 Experience remains experienced_by Agent A
-Skill source authority becomes descriptive/advisory candidate
+Skill source authority becomes descriptive/advisory; lifecycle re-enters proposed
 provenance points to Agent A's Experience
 ```
 
