@@ -146,7 +146,7 @@ Experience         ──> 程序性固化 ──> Skill
 - 在实质性修订之后执行 `LIST DEPENDENTS`，将相关派生制品标记为 `stale` 待审，防止被修订的根节点在下游派生认知中遗留隐性失效状态；
 - 基于变更流对已布防的 Watch 进行求值（对 delta 变更与 silence 静默超时均规范处理）：将每次触发记录为 `watch_fire` Activity，对外决策记录为 `action_gate` 结果（act / ask / defer / silence），确保主动克制同样具备完整解释性；
 - 对照成功与失败的经验，识别具有判别力的动作或条件；
-- 运行技能生命周期（`proposed → trialed → adopted → revoked`）：对每项 Skill 的 `task_family` 之下已评定的结果证据执行确定性裁决——记录为 `lifecycle_verdict` Activity，计票落在 `SkillUtility`，绝不凭行动模型的自我报告晋升；
+- 推进技能生命周期流转（`proposed → trialed → adopted → revoked`）：针对各项 Skill 所属 `task_family` 之下已评定的结果证据执行确定性裁决——记录为 `lifecycle_verdict` Activity，计票沉淀于 `SkillUtility`，绝不凭行动模型的主观自我陈述进行晋升；
 - 在任何非破坏性 `MERGE CONCEPT` 之前复核身份怀疑（`same_as`）；
 - 基于证据刷新 `$self` 的 SelfModel，而不是照抄最近一次会话；
 - 维护下一次会话恢复上下文所需的 WorkingState 摘要，并明确标注其构建基准 `basis_seq`；

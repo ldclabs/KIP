@@ -115,7 +115,7 @@ Formation 可以产生以下产物：
 
 不产生任何写入（空写入）也是完全合法的处理结果。
 
-当仪器化组件报告一次后果——遥测、验证器、测试装置、人工审查者——时，形成结果证据及其 `OutcomeRecord`（`task_family`、`outcome_status`），并保持载荷为传输原样（规范不变式 33）。绝不从智能体对自身行动的陈述中形成 `outcome` 证据：那是 `agent_statement`；而对仪器输出做摘要得到的是 `derived_result`，不是 `outcome`（规范 §15.7）。
+当仪器化组件（遥测、验证器、测试装置、人工审查者）报告一次客观后果时，形成结果证据及其 `OutcomeRecord`（`task_family`、`outcome_status`），并严格保留载荷的传输原样（规范不变式 33）。绝不从智能体对其自身行动的主观陈述中提取 `outcome` 证据（该类陈述属于 `agent_statement`）；对仪器输出进行摘要转换得到的是 `derived_result`，而非 `outcome`（规范 §15.7）。
 
 # 4. 存储准入门槛
 

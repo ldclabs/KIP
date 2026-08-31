@@ -1526,11 +1526,10 @@ ordered = true
   "kind": "EnumDefinition",
   "name": "SkillStatus",
   "values": [
-    "candidate",
-    "validated",
-    "needs_review",
-    "deprecated",
-    "archived"
+    "proposed",
+    "trialed",
+    "adopted",
+    "revoked"
   ]
 }
 ```

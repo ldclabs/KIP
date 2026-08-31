@@ -447,7 +447,7 @@ SEARCH 仅用于检索接地：检索得分 ≠ 置信度 ≠ 确信事实；未
 
 ### 6. 认知记忆 Profile（速查）
 
-核心类型：`Person`、`Event`（发生了什么）、`Experience`（目标导向轨迹；必须包含 `goal`、`outcome_status`）、`ExperienceStep`（`step_kind`: context|observation|decision|action|feedback|belief_update；`summary`；顺序由 has_step 边索引决定）、`Preference`（总结性产物——主张本身仍为 Proposition+Assertion）、`Insight`、`Commitment`（`status`: pending|fulfilled|cancelled|expired|blocked；`due_at` 与 retention 过期时间不同）、`Watch`（布防的注意力；`watch_class`: delta|silence；`condition`；`status`: armed|fired|expired|disarmed；触发不授予权限）、`Skill`（`skill_class`、必填 `task_family`——评定它的那条结果流、`summary`、`procedure`、`status`: proposed|trialed|adopted|revoked；状态迁移只经由对已评定结果的确定性 `lifecycle_verdict`）、`SleepTask`（`task_class`: consolidate|review_conflict|review_skill|resolve_identity|review_retention|review_derived|refresh_self_model|inspect_quarantine；`summary`；`status`: pending|running|completed|cancelled|blocked|failed）、`SelfModel`、`WorkingState`（当前工作上下文与未决事项；必须包含 `basis_seq`；派生视图，绝非 Evidence）。
+核心类型：`Person`、`Event`（发生了什么）、`Experience`（目标导向轨迹；必须包含 `goal`、`outcome_status`）、`ExperienceStep`（`step_kind`: context|observation|decision|action|feedback|belief_update；`summary`；顺序由 has_step 边索引决定）、`Preference`（总结性产物——主张本身仍为 Proposition+Assertion）、`Insight`、`Commitment`（`status`: pending|fulfilled|cancelled|expired|blocked；`due_at` 与 retention 过期时间不同）、`Watch`（布防的注意力；`watch_class`: delta|silence；`condition`；`status`: armed|fired|expired|disarmed；触发不授予权限）、`Skill`（`skill_class`、必填 `task_family`——评定其效果的结果流、`summary`、`procedure`、`status`: proposed|trialed|adopted|revoked；状态迁移仅能通过针对已评定结果的确定性 `lifecycle_verdict`）、`SleepTask`（`task_class`: consolidate|review_conflict|review_skill|resolve_identity|review_retention|review_derived|refresh_self_model|inspect_quarantine；`summary`；`status`: pending|running|completed|cancelled|blocked|failed）、`SelfModel`、`WorkingState`（当前工作上下文与未决事项；必须包含 `basis_seq`；派生视图，绝非 Evidence）。
 
 核心谓词：`prefers`（Person→Concept）、`caused_by`（Step→Step，结果→起因，基于证据）、`same_as`（同一性主张 → 触发审核）。
 
@@ -455,7 +455,7 @@ SEARCH 仅用于检索接地：检索得分 ≠ 置信度 ≠ 确信事实；未
 
 结构引用字段：`has_step`（有序）、`experienced_by`、`involves`、`mentions`、`about`、`derived_from`、`consolidated_to`、`compiled_from`、`compiled_by`、`committed_to`、`owed_to`、`assigned_to`、`watches`；内置底层记录字段：`evidence`、`source`、`generated_by`、`inputs`、`outputs`、`associated_actors`。
 
-核心不变式：失败的 Experience 是头等记忆；单次成功 ≠ 已采纳的 Skill；已采纳的 Skill ≠ 执行权限；你对自身行动结果的陈述是 `agent_statement`，永远不是 `outcome` 证据；SelfModel ≠ Governance 权限策略；触发的 Watch 是注意力而非执行权限——门控决策须以 `action_gate` Activity 记录（act|ask|defer|silence），主动静默亦同；WorkingState 对外必须披露其 `basis_seq` 且绝不被引用为 Evidence；导入的记忆保持 `mode: "imported"`，绝不会伪造成本地亲历传记（导入的 Skill 以 `proposed` 重新进入）。
+核心不变式：失败的 Experience 是头等记忆；单次成功 ≠ 已采纳的 Skill；已采纳的 Skill ≠ 执行权限；自身对行动结果的陈述是 `agent_statement`，永远不是 `outcome` 证据；SelfModel ≠ Governance 权限策略；触发的 Watch 是注意力而非执行权限——门控决策须以 `action_gate` Activity 记录（act|ask|defer|silence），主动静默亦同；WorkingState 对外必须披露其 `basis_seq` 且绝不能作为 Evidence 引用；导入的记忆保持 `mode: "imported"`，绝不会伪造成本地亲历传记（导入的 Skill 以 `proposed` 重新进入）。
 
 ---
 

@@ -3868,7 +3868,7 @@ Experience 编译为 → Skill
     authority ceiling = advisory 或更低
 ```
 
-直到经生命周期挣得采纳、且满足提权策略。
+直到经由生命周期机制挣得采纳、且满足提权策略要求。
 
 确切的默认值由 Cognitive Memory Profile + Space 策略共同决定。
 

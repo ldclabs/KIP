@@ -50,17 +50,17 @@
 
 ## 后果通道
 
-以上的一切让系统更好地观察世界；后果通道则让世界得以反向监督。
+上述机制让系统能够更好地观察世界；后果通道则让现实世界得以反向检验系统。
 
-[结果证据 (Outcome Evidence)](./KIP-2.0-SPECIFICATION_CN.md#157-结果证据-outcome-evidence) 记录一次决策、行动或试用中的程序之后实际发生了什么——由仪器化组件写入（遥测、验证器、测试装置、人工审查），**绝不由行动正被评定的那个行动者写入**。行动者自己的陈述是 `agent_statement`，仅可作为上下文引用；这一分离是一致性不变式，以可审计的方式落实——引擎起源始终记录谁写了什么，治理可以限定谁有权写入结果——因为开放协议能让自我评分**无处遁形**，即便无法让它**绝无可能**。
+[结果证据 (Outcome Evidence)](./KIP-2.0-SPECIFICATION_CN.md#157-结果证据-outcome-evidence) 记录一次决策、行动或程序试用之后现实世界实际发生的客观反馈——由仪器化组件写入（遥测、验证器、测试装置、人工审查），**绝不由其行动正被评定的当事主体写入**。行动者自身的陈述仅为 `agent_statement`，至多作为上下文引用；这一隔离是一致性不变式，并通过可审计机制严格落实——引擎起源始终如实记录写入主体，治理策略可严格限制结果证据的写入权限——因为开放协议能让自我评分**无处遁形**，即便在物理上无法让其**绝无可能**。
 
-每条结果携带**任务族 (task family)**：它所属的可比后果流。[Skill](./profiles/CognitiveMemoryProfile-2.0_CN.md#58-skill技能) 必须先说出能评定自己的任务族——它的打分句柄——才可进入试用；一个没有任何流能证明其错误的模式，不是程序性记忆。通道之上是 [Skill 生命周期](./profiles/CognitiveMemoryProfile-2.0_CN.md#14-技能生命周期-skill-lifecycle)：
+每条结果证据均携带**任务族 (task family)**：声明其所属的可比后果流。[Skill](./profiles/CognitiveMemoryProfile-2.0_CN.md#58-skill技能) 必须先声明能够评定自身的任务族——即其打分句柄 (scoring handle)——方可进入试用；一个无法被任何后果流证伪的模式，并不属于程序性记忆。在后果通道之上运转的是 [Skill 生命周期](./profiles/CognitiveMemoryProfile-2.0_CN.md#14-技能生命周期-skill-lifecycle)：
 
 ```text
 proposed → trialed → adopted → revoked
 ```
 
-状态迁移只以对已评定结果的确定性裁决执行——记录为 [`lifecycle_verdict`](./profiles/CognitiveMemoryProfile-2.0_CN.md#9-活动-activities) 活动加[一条受保护的 UPDATE](./KIP-2.0-SPECIFICATION_CN.md#f6-结果评定与生命周期裁决-outcome-grading-and-a-lifecycle-verdict)，可被审计者重算——绝不是作者断言、时间衰减或行动模型的判断。采纳是对比性的（*比原本进行得更好*，对照被记录的基准；对比如何构造仍是 Brain 策略）且暂定的（后果流继续评定，退化即降级）。撤销永远不比采纳更难；生命周期地位也不随导入迁移：导入的 Skill 以 `proposed` 重新进入——因为采纳与信任、权限一样，必须在花用它的地方挣得。
+状态迁移仅能通过针对已评定结果的确定性裁决来执行——记录为 [`lifecycle_verdict`](./profiles/CognitiveMemoryProfile-2.0_CN.md#9-活动-activities) 活动并附带[一条受保护的 UPDATE](./KIP-2.0-SPECIFICATION_CN.md#f6-结果评定与生命周期裁决-outcome-grading-and-a-lifecycle-verdict)，且审计者可完全复算重现——绝非依赖作者断言、时间衰减或行动模型的主观判断。采纳是对比性的（*比基准基线表现更优*，对照被记录的基准；对比基准如何构造仍属于 Brain 策略）且暂定的（后果流将持续评定，一旦退化即行降级）。撤销门槛绝不高于采纳门槛；生命周期地位亦不随导入自动迁移：导入的 Skill 一律以 `proposed` 状态重新进入——因为采纳地位与信任、权限一样，必须在实际行使它的本地环境中重新挣得。
 
 ## 协议定义信号，Brain 掌控策略
 
