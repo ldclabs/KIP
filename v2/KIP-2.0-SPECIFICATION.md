@@ -2432,6 +2432,20 @@ authority non-amplification
 Same-Space reference closure
 ```
 
+A write is a derivation when it establishes the provenance edge `LIST DEPENDENTS` traverses (§63.5) — an element recorded as an output of an Activity that has at least one input:
+
+```text
+X ∈ Activity.inputs
+    → that Activity
+    → each element in Activity.outputs
+```
+
+A runtime that implements `derive` MUST require it of the write that establishes such an edge, whether that write creates the output inside the Activity's own transaction or later adds an existing element to `Activity.outputs`. It is required **in addition to** the permission the creation itself needs and never instead of it: a Grant conferring only `derive` confers nothing.
+
+The trigger is that edge and not the presence of references, because the four constraints above are all about what an output inherits from its inputs. An element that merely cites what it records — an Assertion naming its Proposition, an Evidence record naming its source — inherits nothing and is not a derivation; requiring `derive` of it would leave `create` and `assert` unusable on their own. An Activity with no inputs records a process that observed the world rather than one that transformed what the Brain already held, and propagates nothing.
+
+A runtime that does not distinguish derived writes MUST reject `derive` where a Grant names it, rather than accepting a name no gate will ever ask for. A permission that is accepted and gates nothing is authority that looks conferred and is not, and its holder discovers that during an incident.
+
 Reference closure (§5.3) MUST be revalidated on derived and maintenance writes exactly as on primary writes; derivation is not an exempt write path.
 
 ---

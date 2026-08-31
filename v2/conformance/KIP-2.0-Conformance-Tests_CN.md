@@ -103,6 +103,7 @@ HARNESS_ERROR      测试框架执行异常
     "signed_receipts": false,
     "materialized_projection": false,
     "ingestion_context": true,
+    "derive_permission": false,
     "serializable_isolation": false
   }
 }
@@ -1444,6 +1445,18 @@ untrusted imported (未受信任的导入数据)
 **预期语义行为 (Expected semantic behavior):** 触发操作：客户端尝试写入 `_system.origin.principal_id=owner`。预期结果：操作失败并返回 `ProtectedSystemField` 或拒绝错误；实际来源严格记录为真实的调用主体。
 
 **违规禁则 (Forbidden outcome):** 伪造系统来源信息。
+
+---
+
+## KIP2-GOV-025 — `derive` 与 `create` 是不同的权限 (derive is distinct from create)
+
+**要求级别 (Level):** OPTIONAL
+
+**依赖能力 (Capabilities):** derive_permission
+
+**预期语义行为 (Expected semantic behavior):** 主体持有 `create` 与 `assert` 权限，但未被授予 `derive` 权限。当该主体记录一条引用了既有 Proposition 与既有 Evidence 的 Assertion 时，写入操作应当成功：仅引用自身所记录之物不构成衍生（§29.6）。同一主体随后尝试创建一个新元素并将其作为某个 inputs 列有既有元素的 Activity 的 output 时，该写入必须被拒绝；在 `create` 之外追加授予 `derive` 权限后，该衍生写入方可通过。将既有元素追加至此类 Activity 的 `outputs` 列表，同样按衍生写入规则被拒绝。不含 input 的 Activity 不传播任何派生约束，创建其 outputs 无需 `derive` 权限。单独的 `derive` 权限若缺少创建本身所需的权限，不赋予任何实际写入能力。
+
+**违规禁则 (Forbidden outcome):** 在已实现 `derive` 控制的运行时中仅凭 `create` 即可完成衍生写入；以 `derive` 替代 `create` 或 `assert` 基础权限；运行时在未实现衍生校验的情况下静默接受 Grant 中声明的 `derive` 权限。
 
 ---
 # 17. 事务套件 (Transaction Suite)
@@ -3730,7 +3743,7 @@ no representation authority inferred
 | ProjectionNotAuthorized | GOV-009 |
 | ProjectionPolicyUnavailable | 缺失投影策略测试向量 |
 | Unauthenticated | 未认证的受保护请求 |
-| NotAuthorized | GOV-001 |
+| NotAuthorized | GOV-001, GOV-025 |
 | RequiresApproval | 需审批门控的测试固件 |
 | RequiresStrongerAuthentication | 需二次强认证的测试固件 |
 | ActorBindingRequired | GOV-002 |

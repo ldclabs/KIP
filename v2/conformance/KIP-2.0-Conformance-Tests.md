@@ -103,6 +103,7 @@ Before execution, the implementation MUST declare its claimed profiles:
     "signed_receipts": false,
     "materialized_projection": false,
     "ingestion_context": true,
+    "derive_permission": false,
     "serializable_isolation": false
   }
 }
@@ -1452,6 +1453,18 @@ Primary profile: `KIP-Governance`
 **Expected semantic behavior:** Client tries `_system.origin.principal_id=owner`. ProtectedSystemField/denial; actual origin remains caller.
 
 **Forbidden outcome:** origin forgery.
+
+---
+
+## KIP2-GOV-025 — derive is distinct from create
+
+**Level:** OPTIONAL
+
+**Capabilities:** derive_permission
+
+**Expected semantic behavior:** A Principal holding `create` and `assert` but not `derive` records an Assertion citing an existing Proposition and an existing Evidence record, and the write succeeds: citing what one records is not derivation (§29.6). The same Principal then creates an element as an output of an Activity that lists an existing element among its inputs, and that write is denied; granting `derive` alongside `create` lets exactly that write through. Adding an existing element to the `outputs` of such an Activity is denied on the same terms. An Activity with no inputs propagates nothing and needs no `derive`. `derive` on its own, without the permission the creation itself needs, confers nothing.
+
+**Forbidden outcome:** derivation reachable with `create` alone where `derive` is implemented; `derive` standing in for `create` or `assert`; a runtime accepting `derive` in a Grant when no gate asks for it.
 
 ---
 
@@ -3795,7 +3808,7 @@ A full runner SHOULD exercise every reachable error in the claimed profiles.
 | ProjectionNotAuthorized | GOV-009 |
 | ProjectionPolicyUnavailable | missing-policy vector |
 | Unauthenticated | unauthenticated protected request |
-| NotAuthorized | GOV-001 |
+| NotAuthorized | GOV-001, GOV-025 |
 | RequiresApproval | approval-gated fixture |
 | RequiresStrongerAuthentication | step-up fixture |
 | ActorBindingRequired | GOV-002 |
