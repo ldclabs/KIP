@@ -2464,7 +2464,7 @@ untrusted imported (未受信任的导入数据)
 
 **要求级别 (Level):** MUST
 
-**预期语义行为 (Expected semantic behavior):** 触发操作：尝试对处于法定留存冻结（legal hold）保护下的证据执行物理清除。预期结果：操作被拒绝并返回 `LegalHoldConflict` 或 `PurgeDenied`。
+**预期语义行为 (Expected semantic behavior):** 对留存控制挂钩中设置了 `legal_hold` 的证据执行物理清除，操作被拒绝并返回 `LegalHoldConflict` 或 `PurgeDenied`，且不销毁任何东西（§60.3）。保全锁定的判定先于引用策略，因此拒绝的理由是锁定本身，而非该元素是否仍被引用；任何引用策略都不能凌驾于它之上：由别处发起的 `authorized_cascade` 遇到被锁定的依赖方时须停下而不得将其抹除，整个级联操作不予提交。`purge` 权限并不解除该锁定。
 
 ---
 

@@ -1529,6 +1529,8 @@ expires_at
 legal_hold
 ```
 
+`retention_class` and `expires_at` are storage lifecycle and never world validity (§19.2). `legal_hold` blocks erasure: see §60.3 for what it stops and §60.6 for how it applies to payload purge.
+
 ---
 
 ## 19.2 Retention expiry vs valid time
@@ -4365,6 +4367,10 @@ authorized_cascade      purge referencing elements too, under explicit authority
 ```
 
 The default is `deny_if_referenced`: purge SHOULD be denied when required references would be broken. `CONFIRM "PURGE"` is REQUIRED and is not a policy substitute.
+
+An element whose retention hook sets `legal_hold` (§19.1) MUST NOT be purged. The hold is evaluated before the reference policy and before any destruction is decided, and no reference policy overrides it: an `authorized_cascade` MUST stop at a held element rather than erasing it as another element's dependent. `purge` authority does not lift a hold — a hold blocks erasure for everyone, which is what makes it a hold rather than a preference.
+
+Because a hold blocks erasure for everyone, a runtime SHOULD scope the authority to set or lift one separately from ordinary retention management (§29.7 applies the same reasoning to purge itself). Content that could place its own hold could make itself permanently undeletable, and content that could lift one could unblock an erasure the hold was placed to stop.
 
 Purge MAY leave a minimal, non-recoverable **stub** — element kind, content digest, class, observation time, and the purging Activity reference — so that reference integrity, provenance-root identity (§23.3), and independence counting survive the destruction of the bytes. A stub is not the content and is not recoverable Evidence.
 

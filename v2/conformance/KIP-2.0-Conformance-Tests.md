@@ -2484,7 +2484,7 @@ Primary profile: `KIP-KML`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Purge held Evidence. LegalHoldConflict/PurgeDenied.
+**Expected semantic behavior:** Purging Evidence whose retention hook sets `legal_hold` fails with `LegalHoldConflict`/`PurgeDenied` and destroys nothing (§60.3). The hold is decided before the reference policy, so it refuses on the hold rather than on whether anything still references the element, and no reference policy overrides it: an `authorized_cascade` rooted elsewhere stops at a held dependent rather than erasing it, and leaves the whole cascade uncommitted. `purge` authority does not lift the hold.
 
 ---
 
