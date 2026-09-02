@@ -1,28 +1,18 @@
 name: publish-kip-lang
 
-# Publishes @ldclabs/kip-lang to npm via Trusted Publishing (OIDC) when a GitHub
-# Release whose tag starts with `kip-lang-v` is published (e.g. `kip-lang-v0.3.1`).
-# Unit tests run separately in ci.yml.
 on:
-  release:
-    types: [published]
-
-permissions:
-  contents: read
-
-concurrency:
-  group: publish-kip-lang-${{ github.ref }}
-  cancel-in-progress: false
+  push:
+    tags:
+      - "v*"
 
 jobs:
   publish:
-    if: startsWith(github.event.release.tag_name, 'kip-lang-v')
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write # required for npm Trusted Publishing (OIDC)
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
         with:

@@ -1,10 +1,10 @@
 # KIP 2.0 Governance
 
-**[English](./KIP-2.0-Governance.md) | [中文](./KIP-2.0-Governance_CN.md)**
-
 ## Status
 
 **Governance Model Proposal / Pre-Specification Draft**
+
+> **Frozen (2026-09-02).** Historical design rationale written before the normative consolidation. This document is no longer maintained and its Chinese twin is no longer synchronized; where it differs from [KIP-2.0-SPECIFICATION.md](../KIP-2.0-SPECIFICATION.md), the Specification is right and this document is out of date.
 
 This document defines the Governance Plane of KIP 2.0: the protected control model that determines **who may observe, mutate, attribute, derive, share, trust, retain, or operationally use cognitive state**.
 

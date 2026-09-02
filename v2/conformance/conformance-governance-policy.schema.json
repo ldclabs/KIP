@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kip.ldclabs.org/schemas/2.0/conformance-governance-policy.schema.json",
+  "title": "KIP 2.0 Conformance Governance Policy",
+  "description": "Harness-level description of the canonical test Principals (KIP-2.0-Conformance-Tests.md §10) as a Governance policy: default deny, an effective permission set per Principal, actor representation, classification ceilings, and who may elevate authority. Governance policy formats are implementation-defined (Spec §30); this file is the portable input the harness maps through set_governance_fixture (§5).",
+  "type": "object",
+  "required": [
+    "format",
+    "format_version",
+    "policy_id",
+    "version",
+    "default",
+    "classification_labels",
+    "principals"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "const": "KIP-Conformance-Governance-Policy"
+    },
+    "format_version": {
+      "const": "2.0-draft"
+    },
+    "policy_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "default": {
+      "const": "deny",
+      "description": "Spec §30.2: anything not granted is denied."
+    },
+    "classification_labels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Ordered from least to most restricted (Spec §31.1)."
+    },
+    "principals": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/Principal"
+      }
+    },
+    "reserved_actors": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "description": "Actor handle → Principals bound to it; claims by that actor require assert_as_actor and that binding (Spec §28.4)."
+    },
+    "authority": {
+      "type": "object",
+      "required": [
+        "default_class"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "default_class": {
+          "enum": [
+            "descriptive",
+            "advisory",
+            "behavioral",
+            "executable"
+          ]
+        },
+        "elevate_by": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "Permission": {
+      "enum": [
+        "discover",
+        "read",
+        "search",
+        "project",
+        "create",
+        "update",
+        "derive",
+        "assert",
+        "record_attributed_assertion",
+        "assert_as_actor",
+        "retract_own",
+        "supersede_own",
+        "record_outcome",
+        "merge_identity",
+        "maintain",
+        "manage_retention",
+        "manage_legal_hold",
+        "share",
+        "export",
+        "import",
+        "archive",
+        "tombstone",
+        "purge",
+        "manage_schema",
+        "manage_policy",
+        "manage_grants",
+        "manage_delegation",
+        "manage_trust",
+        "manage_actor_binding",
+        "quarantine",
+        "declassify",
+        "approve",
+        "elevate_authority",
+        "read_audit",
+        "read_history",
+        "read_raw_origin"
+      ]
+    },
+    "Principal": {
+      "type": "object",
+      "required": [
+        "permissions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Permission"
+          },
+          "uniqueItems": true
+        },
+        "assert_as_actor": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Actor handles this Principal is bound to represent (ActorBinding, Spec §28.3)."
+        },
+        "classification_ceiling": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Most restricted label this Principal may discover; null = no ceiling."
+        },
+        "facet_scope": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "For maintain: the mutable Facets the Principal may sweep."
+        }
+      }
+    }
+  }
+}

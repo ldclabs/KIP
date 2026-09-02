@@ -8,7 +8,7 @@
 
 本文档阐述如何将生产环境中的 KIP 1.x 部署安全平稳地迁移至 KIP 2.0。
 
-规范性迁移不变式定义在 [KIP-2.0-SPECIFICATION_CN.md](../KIP-2.0-SPECIFICATION_CN.md) 中。若本指南与 Specification 发生冲突，**以 Specification 为准**。
+规范性的迁移不变式属于 Specification §103 与附录 I，完整收录于 [`KIP-2.0-Optional-Profiles-and-Migration_CN.md`](../KIP-2.0-Optional-Profiles-and-Migration_CN.md)。若本指南与其发生冲突，以伴随规范为准。
 
 ---
 

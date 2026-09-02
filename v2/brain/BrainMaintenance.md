@@ -65,6 +65,19 @@ Maintenance may be granted read/search/project/maintain/archive/retention/merge 
 
 Thresholds are Brain policy, not KIP standards.
 
+## 3.1 Triggers
+
+```text
+scheduled     every 12-24h
+change        a committed delta matches an armed Watch, or a silence Watch's due_at passes
+threshold     SleepTask backlog, unconsolidated Events, expired retention,
+              a trial's graded-outcome quota reached, an adopted Skill due a re-verdict
+on-demand     Formation, or the agent, asks for maintenance
+post-session  after a long or high-signal conversation
+```
+
+The change trigger is what makes proactivity a state differential instead of a bare schedule: the wake happens because something specific moved — or specifically did not — against a declared expectation. The silence half still needs the due-time sweep the schedule provides.
+
 # 4. Modes
 
 A deployment may retain `daydream`, `quick`, and `full` as implementation metaphors. They are not protocol semantics.
@@ -96,6 +109,34 @@ Read-only probes identify pending tasks, unconsolidated Events/Experiences, Skil
 
 Assessment reads do not update recall/access counters.
 
+Two probes every cycle starts with — the pending work assigned to this actor, and the episodic material nobody has consolidated:
+
+```prolog
+FIND(?task.id, ?task.name, ?task.attributes.task_class, ?task.attributes.priority)
+WHERE {
+  ?task {type: "SleepTask", attributes: {status: "pending"}}
+  STRUCTURAL (?task, "assigned_to", ?actor)
+  FILTER(?actor.id == :system_id)
+}
+ORDER BY ?task.attributes.priority DESC, ?task._system.created_at ASC
+LIMIT 50
+```
+
+```prolog
+FIND(?event.id, ?event.attributes.summary, ?event.attributes.started_at)
+WHERE {
+  ?event {type: "Event"}
+  FILTER(?event.attributes.started_at < :cutoff)
+  NOT {
+    STRUCTURAL (?event, "consolidated_to", ?derived)
+  }
+}
+ORDER BY ?event.attributes.started_at ASC
+LIMIT 50
+```
+
+Count first, act second.
+
 # 7. Salience and Learning Value
 
 Event salience asks how important an episode is for future memory/self-continuity. Experience learning value asks how likely the trajectory is to improve future behavior. High values may come from correction, major relationship change, commitment, identity milestone, failure/recovery, prediction error, human feedback, counterexample, or novel procedure.
@@ -105,6 +146,17 @@ Neither equals confidence.
 # 8. SleepTasks
 
 SleepTask is cognitive work description. Verify current Principal authority before acting. `assigned_to = $system` is not authorization. Preserve Activity provenance when completing maintenance work.
+
+Claim a task before working it, so a concurrent cycle cannot double-process it:
+
+```prolog
+UPSERT CONCEPT ?task {
+  MATCH {type: "SleepTask", key: :task_key}
+  SET ATTRIBUTES {status: "running", started_at: :now}
+} EXPECT VERSION :version OF ATTRIBUTES
+```
+
+`VersionConflict` means another worker took it — re-read and move to the next task. A terminal task is completed with `status: "completed"` and its outcome summary; a failed task records why, and stays visible rather than disappearing.
 
 # 9. Semantic Consolidation
 
@@ -121,6 +173,40 @@ read sources
 
 Do not rewrite old confidence, delete opposition, or count summaries as independent roots.
 
+One atomic transition, with provenance:
+
+```prolog
+MUTATE {
+  CREATE CONCEPT ?insight {
+    TYPE "Insight"
+    CLIENT KEY :insight_key
+    NAME "Staging deploys fail without the schema migration step"
+    SET ATTRIBUTES {summary: :summary}
+    SET FACET "MnemonicState" {memory_strength: 0.7, salience: 0.8}
+    SET STRUCTURAL {
+      ("derived_from", :source_experience)
+      ("about", :deployment_topic)
+    }
+  }
+  ASSERT (:failure_step, "caused_by", :migration_step) {
+    by: :self,
+    mode: "inferred",
+    confidence: 0.7,
+    evidence: :step_evidence
+  }
+  CREATE ACTIVITY ?consolidation {
+    SET FIELDS {activity_class: "semantic_consolidation", status: "completed"}
+    SET STRUCTURAL {
+      ("inputs", :source_experience)
+      ("inputs", :step_evidence)
+      ("outputs", ?insight)
+    }
+  }
+}
+```
+
+Then mark the source consolidated with `consolidated_to` so the next cycle does not re-derive it. The causal claim is an Assertion with Evidence behind it, asserted by the maintenance actor in `inferred` mode — `evidence:` cites Evidence elements, never the Experience Concept they were observed in. Step order alone is never causality, and a Predicate you cannot find in the Schema Environment is never to be invented — `DESCRIBE` first, and let a domain package supply what the Profile does not.
+
 # 10. Repetition
 
 Independent repeated observation may increase support. Same event replay/duplicate import creates no new root. Later user reconfirmation is new Evidence/Assertion. Do not model all repetition as `confidence += x`.
@@ -135,15 +221,47 @@ success + counterexample
 same procedure across different contexts
 ```
 
-Compile applicability, preconditions, procedure, success criteria, failure modes, and counterexamples into a `proposed` Skill + SkillUtility + procedural Activity. Attach the required `task_family` — the Outcome Evidence stream that can grade the Skill — and refuse to compile a pattern no stream could prove wrong (store it as an Insight instead). Do not grant executable authority.
+Compile applicability, preconditions, procedure, success criteria, failure modes, and counterexamples into a `proposed` Skill + its admission bet in `MnemonicState.utility` + procedural Activity. Attach the required `task_family` — the Outcome Evidence stream the Skill's baseline comes from — and refuse to compile a pattern no stream could prove wrong (store it as an Insight instead). `GradingState` stays empty until outcomes linked to decisions that applied the Skill arrive. Do not grant executable authority.
+
+```prolog
+MUTATE {
+  CREATE CONCEPT ?skill {
+    TYPE "Skill"
+    CLIENT KEY :skill_key
+    NAME "Deploy with pre-flight migration check"
+    SET ATTRIBUTES {
+      skill_class: "workflow",
+      task_family: "deploy/pre-flight",
+      summary: :summary,
+      procedure: :procedure,
+      status: "proposed"
+    }
+    SET FACET "MnemonicState" {utility: 0.5}
+    SET STRUCTURAL {
+      ("compiled_from", :experience_a)
+      ("compiled_from", :experience_b)
+    }
+  }
+  CREATE ACTIVITY ?compilation {
+    SET FIELDS {activity_class: "skill_compilation", status: "completed"}
+    SET STRUCTURAL {
+      ("inputs", :experience_a)
+      ("inputs", :experience_b)
+      ("outputs", ?skill)
+    }
+  }
+}
+```
+
+Contrast before compiling: compare successful against failed Experiences to find the discriminating precondition. One success does not prove a general Skill, and a Skill that only ever worked in one context should say so in its applicability rather than in a higher `utility`.
 
 # 12. Skill Lifecycle Verdicts
 
 The lifecycle `proposed → trialed → adopted → revoked` moves only by deterministic verdict over graded Outcome Evidence under the Skill's `task_family` (Profile §14, Spec §15.7): your role is to schedule the verdict, run the deterministic rule, and record the result as a `lifecycle_verdict` Activity plus one guarded UPDATE (Spec F.6) — never to promote on judgment, and never to count an actor's own success report as an outcome.
 
-Verdict discipline: adoption is comparative (better than it was going, against the recorded basis) and provisional (the stream keeps grading; demote to re-trial on degradation); revocation is never harder than adoption, and one high-severity matching-condition failure may suffice; re-entry after revocation starts a new trial.
+Verdict discipline: the treatment set is the outcomes linked, through an `outcome_observation` Activity, to an `action_gate` decision that applied the Skill; the baseline is the rest of the family as recorded in `TrialState` when the trial opened — an outcome that merely shares the `task_family` never counts. Adoption is comparative (better than it was going, against that basis) and provisional (the stream keeps grading; demote to re-trial on degradation); revocation is never harder than adoption, and one high-severity matching-condition failure may suffice; re-entry after revocation starts a new trial and writes a fresh `TrialState`.
 
-Legal cognitive actions besides the verdict itself include utility/tally updates, revised Skill artifact, failure-mode addition, counterexample linkage, and narrowed applicability. Authority changes require Governance.
+Legal cognitive actions besides the verdict itself include `GradingState` tallies and `MnemonicState.utility` revisions, a revised Skill artifact, failure-mode addition, counterexample linkage, and narrowed applicability. Authority changes require Governance.
 
 # 13. Mnemonic Metabolism
 
@@ -155,11 +273,30 @@ Example policy formula:
 new_strength = clamp(old_strength × decay + salience protection + explicit reinforcement)
 ```
 
-`MnemonicState.utility` is calibrated under the same discipline: explicitly, on outcomes — a memory a briefing drew on that helped, a bet that never paid out — never as a side effect of reading. It is the mnemonic twin of outcome-driven trust calibration (Spec §22.6).
+`MnemonicState.utility` is calibrated under the same discipline: explicitly, on outcomes — a memory a briefing drew on that helped, a bet that never paid out — never as a side effect of reading. The data path is the decision record: follow an outcome's `outcome_observation` link back to the `action_gate` Activity, and the memories named in its `inputs` are the ones the outcome vindicates or wastes. It is the mnemonic twin of outcome-driven trust calibration (Spec §22.6).
 
 Apply it with `UPDATE ... SET FACET "MnemonicState" { ... }` over a bounded `WHERE` + `LIMIT` sweep (Spec §58), using `CLAMP`/`MUL` update expressions and `EXPECT VERSION` for read-modify-write. Stamp `MnemonicState.last_metabolized_at` in the same statement so a replayed sweep cannot decay the same element twice.
 
 The formula is implementation-specific. Read frequency is not a required protocol signal.
+
+Sweep in bounded batches, one type at a time, stamping `last_metabolized_at` in the same statement so a replay cannot decay the same element twice:
+
+```prolog
+UPDATE ?element
+SET FACET "MnemonicState" {
+  memory_strength: CLAMP(MUL(?element.facets["MnemonicState"].memory_strength, :decay_factor), 0, 1),
+  last_metabolized_at: :cycle_start
+}
+WHERE {
+  ?element {type: "Event"}
+  FILTER(?element.facets["MnemonicState"].memory_strength > 0.05)
+  FILTER(IS_NULL(?element.facets["MnemonicState"].last_metabolized_at) || ?element.facets["MnemonicState"].last_metabolized_at < :cycle_start)
+  FILTER(IS_NULL(?element.facets["MnemonicState"].salience) || ?element.facets["MnemonicState"].salience < :protection_threshold)
+}
+LIMIT 500
+```
+
+Bind `:cycle_start` **once** per cycle and reuse it across re-runs and crash retries; re-run a shard until fewer than `LIMIT` elements are affected. The floor keeps the sweep converging.
 
 # 14. Salience Protection
 
@@ -172,6 +309,29 @@ Candidate duplicates may use canonical identity, stable key, strong alias eviden
 An unverified "these denote the same entity" suspicion is recorded as a `same_as` Proposition + Assertion that feeds review. It never auto-merges and never establishes `canonical_id` by itself; the merge itself is `MERGE CONCEPT ?source INTO ?target`.
 
 Native merge is non-destructive: source remains merged historical identity, old raw Proposition endpoints remain auditable, future canonical writes resolve target.
+
+The suspicion goes through the epistemic path:
+
+```prolog
+ASSERT (:concept_a, "same_as", :concept_b) {
+  by: :system,
+  mode: "inferred",
+  confidence: 0.6,
+  evidence: :alias_evidence
+}
+```
+
+Only once identity is actually established:
+
+```prolog
+MERGE CONCEPT ?source INTO ?target
+WHERE {
+  ?source {id: :source_id}
+  ?target {id: :target_id}
+}
+```
+
+A merge that would create a cycle is rejected.
 
 # 16. Contradiction Review
 
@@ -186,19 +346,78 @@ source correction/error
 stale imported cognition
 ```
 
-Different actors normally remain coexisting Assertions. Same-actor explicit revision may supersede. Different valid times coexist. Evidence correction creates correction lineage. Moderation/quarantine must not forge source retraction.
+Different actors normally remain coexisting Assertions. Same-actor explicit revision — the earlier claim was wrong — may supersede. Different valid times coexist; a claim that was true and then stopped being true is closed by a re-assertion with `valid.until` plus a new Assertion from the change, never superseded for being wrong (Spec §14.2). Evidence correction creates correction lineage. Moderation uses Governance quarantine (Spec §31.6) and must not forge source retraction.
+
+Inspect the raw record, not the projection, when auditing:
+
+```prolog
+FIND(?assertion.id, ?assertion.asserted_by, ?assertion.confidence, ?assertion.asserted_at, ?value)
+WHERE {
+  ?person {id: :person_id}
+  ?proposition (?person, "timezone", ?value)
+  ?assertion ASSERTION {proposition: ?proposition}
+  FILTER(?assertion.lifecycle.status == "active")
+}
+ORDER BY ?assertion.asserted_at DESC
+LIMIT 20
+```
 
 # 17. Commitment and Watch Review
 
 Review pending, due-soon, overdue, blocked, fulfilled, and cancelled Commitments. Due time passing does not automatically delete/archive. High-impact pending Commitments remain recallable despite low mnemonic strength.
 
-Evaluate armed Watches against committed changes (`CHANGES AFTER SEQ`): a delta Watch fires on a matching change, a silence Watch fires when its `due_at` passes without one. Fire atomically — `watch_fire` Activity plus the Watch's `fired` transition plus the SleepTask or wake signal it produces. The outward decision then goes through the action gate and is recorded as an `action_gate` Activity with outcome `act`, `ask`, `defer`, or `silence`. A fired Watch authorizes nothing.
+```prolog
+FIND(?commitment.id, ?commitment.name, ?commitment.attributes.due_at, ?commitment.attributes.status)
+WHERE {
+  ?commitment {type: "Commitment"}
+  FILTER(IN(?commitment.attributes.status, ["pending", "blocked"]))
+  FILTER(?commitment.attributes.due_at < :horizon)
+}
+ORDER BY ?commitment.attributes.due_at ASC
+LIMIT 100
+```
+
+```prolog
+FIND(?watch.id, ?watch.name, ?watch.attributes.watch_class, ?watch.attributes.due_at)
+WHERE {
+  ?watch {type: "Watch", attributes: {status: "armed"}}
+}
+ORDER BY ?watch.attributes.due_at ASC
+LIMIT 100
+```
+
+Evaluate armed Watches against committed changes (`CHANGES AFTER SEQ`): a delta Watch fires on a matching change — match its structured `condition` (element, slot, type, ops, touched) against the envelope entries — and a silence Watch fires when its `due_at` passes without one — decided only after this cycle has consumed the stream through the `space_seq` current at `due_at`, never on the clock alone. Fire atomically — `watch_fire` Activity plus the Watch's `fired` transition through `UPDATE ... EXPECT VERSION` plus the SleepTask or wake signal it produces — and key the Activity `watch_fire:<watch id>:<envelope seq>` (silence: `watch_fire:<watch id>:silence:<due_at>`) so a concurrent cycle replays instead of firing twice. The outward decision then goes through the action gate and is recorded as an `action_gate` Activity whose `DecisionRecord` says `act`, `ask`, `defer`, or `silence` and whose `inputs` name the Watch, the Skills and the memories the decision applied. A fired Watch authorizes nothing.
 
 # 18. SelfModel and WorkingState Refresh
 
 Use high-salience Experiences, Insights, repeated behavior, explicit corrections, and validated capability changes. Avoid `single anecdote → permanent trait`, speculative diagnosis, authority claims, and hidden internals. Preserve historical self evolution.
 
 Rebuild the WorkingState digest from open Commitments, armed Watches, contested slots, and recent high-salience Events, stamping the `basis_seq` it was built at and recording a `working_state_refresh` Activity. It is a derived view: served with its basis, never cited as Evidence.
+
+```prolog
+MUTATE {
+  UPSERT CONCEPT ?ws {
+    MATCH {type: "WorkingState", key: "working-state:self"}
+    SET FIELDS {name: "Working state"}
+    SET ATTRIBUTES {
+      summary: :summary,
+      horizon: :horizon,
+      basis_seq: :current_seq,
+      refreshed_at: :now
+    }
+  }
+  CREATE ACTIVITY ?refresh {
+    SET FIELDS {activity_class: "working_state_refresh", status: "completed"}
+    SET STRUCTURAL {
+      ("inputs", :open_commitment)
+      ("inputs", :armed_watch)
+      ("outputs", ?ws)
+    }
+  }
+}
+```
+
+Cite what the digest drew on in the refresh Activity's `inputs` and link them from the digest through `derived_from` (replacing last cycle's links) — without the Activity lineage the digest is invisible to `LIST DEPENDENTS` when one of those roots is later revised. Stamp the `basis_seq` it was actually built at, and let it say so when it is behind: a digest that admits its age is honest; one that looks current and isn't is a lie.
 
 # 19. Imported / Quarantined Cognition
 
@@ -215,6 +434,29 @@ active → archive → optional tombstone → exceptional purge
 ```
 
 Archive before destructive removal when semantics permit.
+
+Retention is storage policy, expressed as state rather than inferred from age:
+
+```prolog
+SET RETENTION ?event {retention_class: "standard", expires_at: :expires_at}
+WHERE {
+  ?event {type: "Event"}
+  FILTER(?event.attributes.started_at < :old_cutoff)
+  STRUCTURAL (?event, "consolidated_to", ?derived)
+}
+LIMIT 200
+```
+
+```prolog
+TRANSITION ?task TO "archived"
+WHERE {
+  ?task {type: "SleepTask", attributes: {status: "completed"}}
+  FILTER(?task.attributes.completed_at < :archive_cutoff)
+}
+LIMIT 200
+```
+
+A `retention.expires_at` on an element that should never have carried one is a defect to investigate, not a licence to delete.
 
 # 21. Archive
 
@@ -242,7 +484,7 @@ Maintenance may identify purge candidates without permission to purge. In that c
 
 # 26. Evidence Correction
 
-Never overwrite Evidence payload. Use `CORRECT EVIDENCE :old BY :new` — new Evidence plus `corrects` / `corrected_by` lineage, an optional revised Assertion, and a correction Activity.
+Never overwrite Evidence payload. Use `TRANSITION :old TO "corrected" BY :new` — new Evidence plus `corrects` / `corrected_by` lineage, an optional revised Assertion, and a correction Activity.
 
 # 27. Confidence
 
@@ -261,6 +503,17 @@ Consolidation/reflection uses Activity provenance: semantic_consolidation, proce
 Cite the epistemic inputs actually relied on — the Evidence and Assertions, not only the containing Experience — in the consolidation Activity's `inputs`. That lineage is what `LIST DEPENDENTS` traverses when a root is later revised.
 
 After a supersession, retraction, or Evidence correction, walk `LIST DEPENDENTS` on the revised root and flag derived artifacts with `DerivationState {status: "stale"}`, queuing `review_derived` SleepTasks for the non-trivial ones. `stale` is a review flag: it never retracts, hides, or archives the artifact by itself, and a runtime never auto-retracts derived cognition because a root moved (Spec §57.5).
+
+```prolog
+LIST DEPENDENTS :revised_root DEPTH 2 LIMIT 100
+```
+
+```prolog
+UPDATE :insight_id
+SET FACET "DerivationState" {status: "stale"}
+```
+
+A ghost that outlives its source is how memory lies; a revised root's derivations are never left undiscovered.
 
 # 29. Transaction Discipline
 
@@ -290,7 +543,41 @@ Maintenance may refresh derived Primer summaries, but Primer is a Governance-fil
 
 Useful internal metrics include unconsolidated Experience count, pending Commitments, conflict sets, quarantine backlog, identity candidates, Skills due a verdict, trials starved of graded outcomes, archived/active ratio, retention backlog, and failed maintenance operations. Never expose hidden counts to unauthorized Principals.
 
+| Signal                               | Healthy      | If exceeded                                  |
+| ------------------------------------ | ------------ | -------------------------------------------- |
+| Pending SleepTasks                   | < 10         | process, or re-prioritize and report backlog |
+| Unconsolidated Events older than 7d  | < 30         | consolidate or set retention                 |
+| Contested belief slots               | audit all    | review; contested is a finding, not a defect |
+| Skills awaiting a lifecycle verdict  | < 10         | run the deterministic verdict over linked outcomes |
+| Trials starved of linked outcomes    | review all   | check that decisions are being recorded and observed |
+| Overdue pending Commitments          | 0            | surface to the agent; never silently expire  |
+| Armed Watches past `due_at`          | 0            | fire or expire them; silence firing is the point |
+| Artifacts flagged `stale`            | review all   | `review_derived`; stale is a flag, not a verdict |
+| Quarantined imported cognition       | review all   | review; never auto-elevate trust             |
+| Elements past `retention.expires_at` | 0 unreviewed | review, then archive along the ladder        |
+
+Average memory strength is worth observing and never worth optimizing: strength is accessibility, not truth.
+
 # 36. Final Report
+
+The cycle record is a first-class node, not an ever-growing array attribute on the maintenance actor:
+
+```prolog
+CREATE ACTIVITY ?cycle {
+  CLIENT KEY :cycle_key
+  SET FIELDS {
+    activity_class: "mnemonic_metabolism",
+    status: "completed",
+    started_at: :cycle_start,
+    ended_at: :now
+  }
+  SET STRUCTURAL {
+    ("associated_actors", :system)
+  }
+}
+```
+
+Link what the cycle consumed and produced through the same Activity. `activity_class` values come from the Core registry and its documented package extensions — a deployment that wants a more specific class registers one rather than inventing it inline. Report counts, what was deferred, what needed authority you do not have, and what looked wrong enough to need a human. An honest report of "nothing safe to do this cycle" is a valid outcome.
 
 ```json
 {

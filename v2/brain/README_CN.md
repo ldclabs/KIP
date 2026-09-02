@@ -70,7 +70,7 @@ https://github.com/ldclabs/anda-brain
 | **Event**      | 发生了什么？                               | 情节锚点 Concept + 证据引用                   |
 | **Experience** | 智能体在追求目标时尝试、观察并学到了什么？ | Experience + 有序 ExperienceStep              |
 | **Knowledge**  | 一般而言什么是真的？                       | Proposition + Assertion (+ Evidence)；Insight |
-| **Skill**      | 在什么条件下什么做法通常有效？             | Skill Concept + SkillUtility + 编译谱系       |
+| **Skill**      | 在什么条件下什么做法通常有效？             | Skill Concept + GradingState / TrialState + 编译谱系 |
 
 一个有用的心智模型是：
 
@@ -90,7 +90,7 @@ Experience ──reflect───> Insight / SelfModel
 | **Recall**      | [BrainRecall_CN.md](./BrainRecall_CN.md)           | 检索知识、经验、技能与行动相关上下文        | 业务智能体查询 / 行动前简报 |
 | **Maintenance** | [BrainMaintenance_CN.md](./BrainMaintenance_CN.md) | 固化、对照、编译、复核、代谢与保留记忆      | 定时、阈值或变更驱动触发    |
 
-若某个智能体直接持有自己的认知中枢、前端不挂载大脑服务，其精简替代方案是 [`$self`](../SelfInstructions_CN.md) / [`$system`](../SystemInstructions_CN.md) 这一对策略。
+若某个智能体直接持有自己的认知中枢、前端不挂载大脑服务，[`$self`](../SelfInstructions_CN.md) / [`$system`](../SystemInstructions_CN.md) 这一对策略是加载在这三份文档之上的轻量增量 Delta：这三份文档保持规范权威地位，该提示词对仅补充当单一心智承担全部三项职责时的特定变化。
 
 ## 交互流程
 
@@ -144,9 +144,9 @@ Experience         ──> 程序性固化 ──> Skill
 
 - 复核矛盾，保留行动者之间的分歧，且只对同一行动者的自我修订执行取代；
 - 在实质性修订之后执行 `LIST DEPENDENTS`，将相关派生制品标记为 `stale` 待审，防止被修订的根节点在下游派生认知中遗留隐性失效状态；
-- 基于变更流对已布防的 Watch 进行求值（对 delta 变更与 silence 静默超时均规范处理）：将每次触发记录为 `watch_fire` Activity，对外决策记录为 `action_gate` 结果（act / ask / defer / silence），确保主动克制同样具备完整解释性；
+- 基于变更流对已布防的 Watch 进行求值（对 delta 变更与 silence 静默超时均规范处理）：将每次触发记录为 `watch_fire` Activity，对外决策记录为 `action_gate` Activity（其 `DecisionRecord` 记录 act / ask / defer / silence，其 inputs 指明所应用的认知与技能），确保主动克制同样具备完整解释性；
 - 对照成功与失败的经验，识别具有判别力的动作或条件；
-- 推进技能生命周期流转（`proposed → trialed → adopted → revoked`）：针对各项 Skill 所属 `task_family` 之下已评定的结果证据执行确定性裁决——记录为 `lifecycle_verdict` Activity，计票沉淀于 `SkillUtility`，绝不凭行动模型的主观自我陈述进行晋升；
+- 推进技能生命周期流转（`proposed → trialed → adopted → revoked`）：针对各 Skill 依据关联至应用该技能之决策的结果证据，对照自 `task_family` 提取的 `TrialState` 基线执行确定性裁决 —— 记录为 `lifecycle_verdict` Activity，计票沉淀于 `GradingState`，绝不凭行动模型的主观自我陈述进行晋升，也绝不凭仅共享任务族的无关结果触发；
 - 在任何非破坏性 `MERGE CONCEPT` 之前复核身份怀疑（`same_as`）；
 - 基于证据刷新 `$self` 的 SelfModel，而不是照抄最近一次会话；
 - 维护下一次会话恢复上下文所需的 WorkingState 摘要，并明确标注其构建基准 `basis_seq`；
@@ -194,7 +194,7 @@ KIP 2.0 让这些维度保持正交，并且各自有不同的归属位置：
 | `confidence`      | 某行动者对某条 Proposition 的立场强度 | Assertion             | 新证据 → 新 Assertion |
 | `memory_strength` | 某段记忆对未来认知的可及程度          | `MnemonicState` Facet | 强化与弃用            |
 | `salience`        | 某段记忆的重要／显著程度              | `MnemonicState` Facet | 影响、纠错、身份权重  |
-| `utility`         | 预期的未来决策价值（准入效用评估；Skill 使用 `SkillUtility`） | `MnemonicState` Facet | 基于实际结果的显式校准 |
+| `utility`         | 预期的未来决策价值 —— 准入下注（Skill 同样具备；其评分记录为 `GradingState`） | `MnemonicState` Facet | 依据结果所关联的决策进行显式校准 |
 | 取代关系          | 某行动者对自己早先主张的修订          | Assertion 生命周期    | 明确纠错              |
 | 保留期            | 存储生命周期                          | `retention` 状态      | 策略、复核、归档阶梯  |
 | 信任度            | 对某个来源的采信程度                  | Governance            | 策略，绝非认知        |
@@ -202,7 +202,7 @@ KIP 2.0 让这些维度保持正交，并且各自有不同的归属位置：
 
 **绝不因为某个事实近期未被回忆就衰减其认知 `confidence`。** 弃用降低的是 `memory_strength`。一个稳定事实在长期未被检索之后依然可以高度可信，而一段鲜活的记忆也可能是错的。
 
-对技能而言，程序性证据记录在 `SkillUtility` 中，与真值置信度分开。把一个失败流程重复三次，不等于三票支持该流程是正确的。
+对技能而言，评分记录保存在 `GradingState` 中，与真值置信度彻底分离，且仅统计通过 `outcome_observation` 活动关联至应用该技能之 `action_gate` 决策的结果 —— `task_family` 仅提供对比基线，绝不直接归因。把一个失败流程重复三次，不等于三票支持该流程是正确的。
 
 ## 记忆质量原则
 

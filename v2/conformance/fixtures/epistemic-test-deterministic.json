@@ -170,11 +170,21 @@
       "absence_is_not_opposition": true,
       "boolean_reject_positive_equals_support_false": false,
       "closed_world_requires_explicit_schema_or_policy": true
+    },
+    "leading": {
+      "accepted": "support",
+      "rejected": "opposition",
+      "contested": "side_with_more_trusted_independent_roots",
+      "tie": "none",
+      "uncertain": "none",
+      "insufficient": "none",
+      "note": "Disclosure only: leading never changes status (Spec §21.6, §27.2)."
     }
   },
   "explanation": {
     "minimum_output": [
       "status",
+      "leading",
       "policy_id",
       "policy_version",
       "valid_at",
@@ -205,7 +215,7 @@
   },
   "integrity": {
     "digest_profile": "kip-draft-canonical-json-v1",
-    "content_digest": "sha256:59bdd05113a7c543d9e71f9b7795d94e8fe029a0538525aea047cd3df9488be4",
+    "content_digest": "sha256:22275fc912095a3256ba5f203ffde68c94286b5d0e1fc8394fd7db69fce3059d",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

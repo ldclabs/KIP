@@ -1,10 +1,10 @@
 # KIP 2.0 KQL — Cognitive Query Language
 
-**[English](./KIP-2.0-KQL.md) | [中文](./KIP-2.0-KQL_CN.md)**
-
 ## Status
 
 **Query Language Proposal / Pre-Specification Draft**
+
+> **Frozen (2026-09-02).** Historical design rationale written before the normative consolidation. This document is no longer maintained and its Chinese twin is no longer synchronized; where it differs from [KIP-2.0-SPECIFICATION.md](../KIP-2.0-SPECIFICATION.md), the Specification is right and this document is out of date.
 
 This document defines the read/query semantics of KIP 2.0: how an Agent retrieves raw cognitive state, traverses semantic and provenance structure, requests epistemic belief projections, queries historical cognitive snapshots, filters and aggregates visible state, and receives reproducible governed results.
 

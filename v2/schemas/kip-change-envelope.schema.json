@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kip.ldclabs.org/schemas/2.0/kip-change-envelope.schema.json",
+  "title": "KIP 2.0 Change Envelope",
+  "description": "One state-changing commit yields one Change Envelope (KIP-2.0-SPECIFICATION.md §36). Entries carry names and versions, never payload values; existence protection applies per entry.",
+  "type": "object",
+  "required": [
+    "space_id",
+    "space_seq",
+    "tx_id",
+    "committed_at",
+    "changes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "kip": {
+      "type": "string",
+      "const": "2.0"
+    },
+    "space_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "space_seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tx_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "committed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "transaction_class": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "schema_environment_version": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ChangeEntry"
+      }
+    },
+    "extensions": {
+      "$ref": "#/$defs/Extensions"
+    }
+  },
+  "$defs": {
+    "ChangeEntry": {
+      "type": "object",
+      "required": [
+        "op",
+        "kind",
+        "id",
+        "new_version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "op": {
+          "type": "string",
+          "enum": [
+            "create",
+            "update",
+            "lifecycle",
+            "retention",
+            "merge",
+            "purge",
+            "payload_purge"
+          ]
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "concept",
+            "proposition",
+            "assertion",
+            "evidence",
+            "activity"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "schema_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "Exact Concept Type reference; present for Concept entries."
+        },
+        "old_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Present when the element existed before this commit."
+        },
+        "new_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "state": {
+          "type": "object",
+          "required": [
+            "from",
+            "to"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "from": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "to": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          "description": "Present for lifecycle entries: the stored status before and after."
+        },
+        "refs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "proposition": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "description": "Assertion entries: the Proposition the Assertion is about."
+            },
+            "subject": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "description": "Proposition entries: the subject element id."
+            },
+            "predicate_ref": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024,
+              "description": "Proposition entries: the exact Predicate reference."
+            },
+            "merged_into": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "description": "Merge entries on the source Concept: the canonical target."
+            }
+          }
+        },
+        "touched": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "description": "Paths changed by this entry — attribute, Facet, Structural Field, or retention names — carrying names only, never values."
+        },
+        "extensions": {
+          "$ref": "#/$defs/Extensions"
+        },
+        "planes": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "attributes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "structural": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "retention": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "facets": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "description": "Plane counters (Spec §6.3) after this commit, for each version plane the entry touched."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "op": {
+                "const": "lifecycle"
+              }
+            },
+            "required": [
+              "op"
+            ]
+          },
+          "then": {
+            "required": [
+              "state"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "concept"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "schema_ref"
+            ]
+          }
+        }
+      ]
+    },
+    "Extensions": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._/-]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/ExtensionValue"
+      }
+    },
+    "ExtensionValue": {
+      "type": "object",
+      "properties": {
+        "critical": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true,
+      "description": "Namespaced extension payload. If critical=true and unsupported, the runtime must fail rather than silently ignore it."
+    }
+  }
+}

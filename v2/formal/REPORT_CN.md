@@ -2,9 +2,9 @@
 
 **[English](./REPORT.md) | [中文](./REPORT_CN.md)**
 
-**日期**：2026-08-15
-**目标**：`v2/KIP-2.0-SPECIFICATION.md` (2.0-draft) 及 `v2/grammar/*.ebnf`
-**工件**：[`alloy/kip-core.als`](./alloy/kip-core.als), [`tla/KipTransactions.tla`](./tla/KipTransactions.tla), [`governance/check_governance.py`](./governance/check_governance.py), [`grammar/check_ebnf.py`](./grammar/check_ebnf.py), [`run.sh`](./run.sh)
+**日期**：2026-08-15；增补 2026-09-02 (套件 5–7)；最后一次全量运行 2026-09-02 (§12)
+**目标**：`v2/KIP-2.0-SPECIFICATION.md` (2.0-draft)、`v2/profiles/CognitiveMemoryProfile-2.0.md` 及 `v2/grammar/*.ebnf`
+**工件**：[`alloy/kip-core.als`](./alloy/kip-core.als), [`tla/KipTransactions.tla`](./tla/KipTransactions.tla), [`governance/check_governance.py`](./governance/check_governance.py), [`grammar/check_ebnf.py`](./grammar/check_ebnf.py), [`lifecycle/check_lifecycle.py`](./lifecycle/check_lifecycle.py), [`watch/check_watch.py`](./watch/check_watch.py), [`purge/check_purge.py`](./purge/check_purge.py), [`run.sh`](./run.sh)
 
 ---
 
@@ -18,6 +18,9 @@ KIP 2.0 清晰地划分为具有截然不同可验证性的各层：
 | 核心数据模型不变式 (§5–§23) | 是，有界可验证 | Alloy 6 时序模型检测 |
 | 事务运行时 (§32–§36) | 是，有界可验证 | TLA+ / TLC 显式状态模型检测 |
 | 治理评估 (§29–§31) | 是，有界穷举可验证 | 穷举判定过程检测 |
+| 后果通道 / 技能生命周期 (§15.7, §29.8, §41.6; Profile §6, §14, §21) | 是，有界穷举可验证 | 显式状态 Python 模型检测 (套件 5) |
+| 并发下的 Watch 触发 (Profile §5.11) | 是，有界可验证 | 显式状态 Python 模型检测 (套件 6) |
+| 擦除：物理清除、法律保全、载荷清除 (§19.1, §60) | 是，有界穷举可验证 | 显式状态 Python 模型检测 (套件 7) |
 | 认识投影*策略* | 否——有意未作规定 | （仅限框架属性） |
 | 作为行为的记忆/学习 | 否——属于实证性、Brain 层面 | §21.3 风格的消融基准测试，而非证明 |
 
@@ -82,7 +85,7 @@ C6 值得特别强调：它是在创建/派生/导入/提权/合并/生命周期
 
 ### 错误注入模式 2：no_effect 未留存 (`_noretain.cfg`)
 
-仅在幂等键下留存*引发状态变更*结果的实现（对 §32.8 + §33.1 的可能误读）违反了 §34.3：submit(k) → `no_effect`；另一个事务改变了状态；使用相同字节重试 retry(k) 此时*成功提交*。同一个键产生了两个不同的成功结果。**这就是发现 F2**——见 §6。
+仅在幂等键下留存*引发状态变更*结果的实现（对 §32.8 + §33.1 的可能误读）违反了 §34.3：submit(k) → `no_effect`；另一个事务改变了状态；使用相同字节重试 retry(k) 此时*成功提交*。同一个键产生了两个不同的成功结果。**这就是发现 F2**——见 §9。
 
 ---
 
@@ -123,7 +126,59 @@ C6 值得特别强调：它是在创建/派生/导入/提权/合并/生命周期
 
 ---
 
-## 6. 发现项
+## 6. 套件 5 — 后果通道与技能生命周期 (新增于 2026-09-02)
+
+`lifecycle/check_lifecycle.py` 是一个类似于套件 3 的显式状态模型检测器：对记录决策（带有指明所应用 Skill 的 `action_gate`）、观测客观结果（仪器写入、行动主体写入或外部导入）、开启试用以及运行确定性裁决规则的所有可能交错执行进行广度优先搜索，覆盖共享同一个任务族的两个 Skill 以及通过外部导入且在源端已处于 `adopted` 状态的第三个 Skill。每个可达状态和迁移转换均被严格检查。
+
+| 性质 | 含义 | 规范 / Profile |
+| --- | --- | --- |
+| I1 仅限归因 (AttributionOnly) | 裁决的 inputs（因而 Skill 的 `GradingState`）仅包含经由决策链接至应用了该技能的、且具备仪器起源的结果；仅观测到结果本身绝不改变任何计票 | 规范 §15.7, 不变量 37; Profile §6.2, §14 规则 7 |
+| I2 计票前必有基线 (BasisBeforeCount) | 对处于试用/采纳状态 Skill 的裁决，其所依据的 `TrialState` 基线必须先于所有被计入的结果 | Profile §6.5, §14 规则 2 |
+| I3 仅限裁决流转 (VerdictOnly) | 生命周期状态仅在追加了 `lifecycle_verdict` 的步骤中发生改变 | Profile §9, §14 规则 1 |
+| I4 结果可复算 (Recomputable) | 基于记录的基线与 inputs 重新执行该规则，能完全重现每次记录的状态变迁 | Profile §14 规则 2 |
+| I5 撤销门槛不高于采纳 (RevocationNotHarder) | 降级门槛 ≤ 晋升门槛；`adopted → revoked` 所需的打分结果数可少于采纳所需数量 | Profile §14 规则 3 |
+| I6 导入重置 (ImportResets) | 导入的 Skill 初始处于 `proposed` 状态，无任何打分和试用记录；导入的结果不出现在任何本地裁决的 inputs 中 | Profile §21; 规范 §41.6 |
+| I7 自评自赞清晰可见 (SelfGradingVisible) | 在持有 `record_outcome` 门控下不存在行动主体自身写入的结果；未开启门控时，消费了自评结果的每个裁决均能仅从起源信息暴露 | 规范 §29.8, 不变量 36 |
+
+运行结果（`run.sh` 第 5 节）：规范模式下 **368,247 个状态，所有性质全部成立，所有三个见证轨迹均可达**（采纳；采纳后因单次关联失败被撤销；S1 被采纳而同族的 S2 保持未计分）。自评部署变体（`--self-graded`，210 万状态）同样成立。四个错误注入配置均产生其对应的反例：`--family-join`（2026-09-02 之前的旧设计：以任务族作为归因依据）因 S2 被 S1 的结果打分而违反 I1；`--skip-trialstate` 违反 I2；`--count-imported` 违反 I1 和 I6；`--no-gate`（接受行动主体自身的结果且不作标记）违反 I7。
+
+---
+
+## 7. 套件 6 — 并发下的 Watch 触发 (新增于 2026-09-02)
+
+`watch/check_watch.py` 建模了两个维护工作进程各自以不同节奏消费同一个 Change Stream 变更流，并在至少一次重新投递的情况下，均试图通过 Profile §5.11 所规定的迁移触发同一个 Watch：在同一个事务中包含一个键为 `watch_fire:<watch>:<seq>`（或 `…:silence:<due_at>`）的 `watch_fire` Activity，外加对状态受守卫的 `UPDATE … EXPECT VERSION`。对四种场景（带单次和两次匹配的 delta，以及在 `due_at` 之前有或无匹配的 silence）进行了穷举探索。
+
+| 性质 | 含义 |
+| --- | --- |
+| W1 每个键仅触发一次 (OncePerKey) | 每个触发键至多产生一个 `watch_fire` Activity 和一个 SleepTask |
+| W2 已触发状态仅对应一次执行 (FiredIsOnce) | 处于 `fired` 状态的 Watch 恰好对应一次触发 |
+| W3 仅匹配触发 (MatchOnly) | delta Watch 仅在其条件匹配的变更信封上触发 |
+| W4 版本恰好递增一次 (VersionOnce) | Watch 的版本号恰好递增一次 (§35.5) |
+| W5 静默健全性 (SilenceSound) | silence Watch 仅在求值者消费完到期点之前的变更流且确认无匹配后方可触发 |
+| W6 目标可达 (Reachable) | 在应当触发的场景下触发必定可达 |
+
+运行结果（`run.sh` 第 6 节）：规范模式全部成立。当触发为单一事务时，**任何单一守卫就足以保证安全** —— `--no-client-key`（仅 EXPECT VERSION）和 `--no-guard`（仅 client_key）均成立 —— 只有当两个守卫同时缺失时才会发生重复触发（`--no-guard --no-client-key`：为 `watch_fire:W:2` 生成了两个 Activity 和两个 SleepTask，违反 W1/W2）。`--premature-silence`（在本地挂钟到期但尚未消费完到期点变更流时抢跑触发）违反 W5：即使匹配的变更在 `due_at` 之前已提交，静默 Watch 仍被错误触发。**这是发现 F5。**
+
+---
+
+## 8. 套件 7 — 物理清除、法律保全与载荷清除 (新增于 2026-09-02)
+
+`purge/check_purge.py` 在包含 5 个元素的世界（两个 Evidence、一条引用其中之一的 Assertion、一个带有指向这三者溯源引用的 Activity、一个带有可选结构引用的 Concept）中，枚举了所有合法的法律保全赋值（32 种）以及长度 ≤ 3 的所有清除序列（在三种引用策略下的元素清除与载荷清除 —— 共 26,248 次操作），在每次操作后验证：
+
+| 性质 | 含义 | 规范 |
+| --- | --- | --- |
+| P1 保全元素永不擦除 (HeldNeverErased) | 处于保全状态的元素永不被存根化、擦除或载荷清除，包括作为级联依赖方时 | §19.1, §60.3 |
+| P2 拒绝策略尊重引用 (DenyRespectsRefs) | `deny_if_referenced` 绝不擦除仍被必需引用所指向的元素 | §60.3 |
+| P3 无悬空必需引用 (NoDanglingRequired) | 来自存活或墓碑元素的必需引用，必定解析为存活、墓碑或存根 —— 绝不能解析为空 | §60.3 存根 |
+| P4 级联受阻于保全 (CascadeStopsAtHold) | 经授权的级联擦除未受保全的依赖项，绝不擦除受保全的项 | §60.3 |
+| P5 载荷清除保留记录 (PayloadPurgeKeeps) | `PURGE PAYLOAD` 之后记录保持存活，引用和溯源依然存在，重复执行为 `no_effect` | §60.6, 不变量 34 |
+| P6 不可复活 (NoResurrection) | 存根永不变回复活；已清除的载荷永不返回 | §60.3, §60.6 |
+
+运行结果（`run.sh` 第 7 节）：规范模式在所有见证轨迹下全部成立（级联擦除未受保全的依赖项、保全阻止级联、载荷清除）。`--hold-after-policy` 违反 P1（受保全元素在 `authorized_cascade` 下被擦除），`--no-stub` 违反 P3（当 Evidence 在 `tombstone_reference` 下被清除时，Assertion 的引用悬空），`--payload-drops-citations` 违反 P5。
+
+---
+
+## 9. 发现项
 
 > **状态**：以下建议已于 2026-08-15 在添加本报告的同一变更集中应用——规范 §11.1 / §29.6 / §34.3 (中英文版)、三个文法头部、`KIPSyntax.md` (中英文版) 以及 `design/KIP-2.0-Transactions.md` §17 (中英文版)。
 
@@ -151,6 +206,18 @@ Alloy 模型的早期版本仅在主要创建路径上检查了 §5.3 闭包；�
 
 **建议**：要么重命名有差异的规则（例如 KQL 的 `raw_proposition_tuple`）并统一别名名称，要么在 CI 中保留 `grammar/check_ebnf.py`，使经过审查的白名单成为允许差异的唯一权威来源。
 
+### F5 — 静默 Watch 必须将变更流消费至到期点 (Profile 缺口，已于 2026-09-02 修复)
+
+Profile §5.11 原先表述为静默 Watch“在 `due_at` 到期且无匹配时触发”，这容易被求值者误读为单纯的挂钟时间检查。套件 6 展示了竞态条件：匹配的变更在 `due_at` 之前已提交，但求值者在尚未拉取该变更信封时就看到挂钟已过，因而在根本未曾发生的静默上错误触发了 Watch（`--premature-silence`，场景 `envelopes=(True, False), due=2`）。**已修复**：§5.11 现已明确要求求值者在判定静默前，必须先将 Change Stream 消费至 `due_at` 时当前生效的 `space_seq`；BrainMaintenance §17 亦作出相同规定。
+
+### F6 — 任务族层级的直接关联属于错误的归因机制 (设计缺陷，已于 2026-09-02 修复)
+
+套件 5 的 `--family-join` 模式复现了 2026-08-31 草案中的后果通道设计，当时直接使用 task family 作为结果与 Skill 之间的关联依据：在同一个任务族下包含两个 Skill 时，因应用 S1 的决策所产生的结果会同时给 S2 打分，且未链接至任何决策的结果也会同时给两者打分。重构后的新设计 —— 仅通过 `outcome_observation → action_gate` 链路进行精确归因，在试用开启时写入 `TrialState`，任务族仅作为对比基线数据流 —— 在模型的所有交错执行下全部验证通过（I1–I7）。该模型正是复审意见 P0-2 的机械化形式验证。
+
+### F7 — 保全先于策略求值，且存根具有承重意义 (确认)
+
+套件 7 证实了 §60.3 中看似撰写细节的两句话具有关键安全意义：在引用策略之后求值 `legal_hold` 会导致 `authorized_cascade` 误擦除受保全的元素（`--hold-after-policy`）；而在元素清除时不保留哈希摘要存根会导致指向它的每个必需引用悬空（`--no-stub`）—— 引用了已清除 Evidence 的 Assertion 将指向虚无。两者在规范中已具有规范性；验证套件确保其在实现中被严格维护。
+
 ### 值得陈述的积极保证
 
 - §23 认识独立性机制完全达到了 `post/Knowledge_Experience_Memory_Skill.md` 的要求：复制/摘要/派生链无法造出佐证 (C7 + R4)，且循环来源无法放大支持度，因为引擎验证的谱系在构建上是无环的，而导入的声称谱系会坍缩为单一胶囊根。
@@ -159,15 +226,17 @@ Alloy 模型的早期版本仅在主要创建路径上检查了 §5.3 闭包；�
 
 ---
 
-## 7. 有意未验证的内容
+## 10. 有意未验证的内容
 
-- **信念/投影策略、置信度公式、遗忘曲线、排序** — 规范有意未对它们做具体规定 (Architecture §2 非目标)；没有需要验证的规范性内容。仅对其框架属性（例如 §21.2 投影是只读的）进行了建模。
-- **作为行为的记忆 (§4.4) 与学习 (§4.7)** — 这些是 Brain + 模型系统的实证属性；规范自身指出正确的检验工具是消融基准测试（§21.3 相关，Architecture §21.3），而非形式化证明。
-- **物理清除 (§19.3, §29.7)** — 排除在 Alloy 范围之外（`Live` 是单调的）；将审计清除建模留作未来工作。
-- **胶囊规范化/摘要 (§37.7)** — 确定性序列化属于测试向量问题（一致性套件的工作），而非模型检测问题。
-- **密码学性质** — 假定签名是正确的；§37.8 中的“完整性 ≠ 真实性”分离在权限模型中通过结构化方式强制实施。
+- **版本平面 (§35.1, 2026-09-02)**：`KipTransactions.tla` 为每个元素维护一个单一版本计数器，即裸形式的 `EXPECT VERSION`。携带 `OF ATTRIBUTES` 的守卫不会被 Facet 衰减扫描所破坏，以及不同平面上的两条守卫可一同提交，由 TX-027 / TX-028 声明，目前尚未进行模型检测；扩展 TLA+ 模型只需为每个平面增加一个计数器并让守卫命名对应平面。
+- **信念/投影策略、置信度公式、遗忘曲线、排名算法**：规范有意不予规定（Architecture §21.1–§21.2）。
+- **长期记忆质量、学习收敛性、自我模型连贯性**：这些属于 Brain + 模型的实证性质；规范自身明确指出恰当的评测工具是消融基准测试（§21.3，Architecture §21.3），而非数学证明。
+- **Alloy 模型内部的物理清除 (§19.3, §29.7)**：Alloy 范围保持 `Live` 单调递增；擦除由套件 7 独立验证，套件 7 未建模 Alloy 性质与清除的交互（根据 §60.3，被清除的 Evidence 根节点仍通过其存根计入独立性；该交互被声明，未在 Alloy 中检测）。
+- **裁决规则本身**：套件 5 固定了一个确定性规则（`adopt-if-better-v1`）以供运行验证；Brain 选用何种具体规则属于策略范畴，检查的性质侧重于归因、基线和可复算性，而非该规则本身是否明智。
+- **胶囊规范化/哈希摘要 (§37.7)**：确定性序列化属于测试向量范畴（由一致性套件负责），非模型检测问题。
+- **密码学完整性（签名验证、哈希防碰撞）**：假设哈希无碰撞且签名不可伪造；§37.8 的“完整性 ≠ 真实性”在权限模型中通过结构化方式强制实施。
 
-## 8. 复现步骤
+## 11. 复现说明
 
 ```bash
 export ALLOY_JAR=/path/to/org.alloytools.alloy.dist.jar   # Alloy ≥ 6.2
@@ -175,4 +244,22 @@ export TLA_JAR=/path/to/tla2tools.jar
 v2/formal/run.sh
 ```
 
-需要 Java 17+ 和 Python 3.10+。该脚本对每个证明目标的*预期*结果进行了断言——包括注入错误配置确实会产生反例——因此只要运行结果全绿，就意味着上述所有结论依然成立。
+需要 Java 17+ 与 Python 3.10+。该脚本会对每个验证目标的*预期*结果进行断言 —— 包括注入错误的配置必定产生反例 —— 因此绿色的运行结果（退出码 0）意味着上述全部论据依然完全成立。若缺少 JAR 包，套件 1–2 会被跳过，并在套件 3–7 运行后以退出码 3 结束：Python 套件自身大约耗时 1 分钟，其中大部分时间用于套件 5 的自评变体。
+
+---
+
+## 12. 最后一次全量运行 —— 2026-09-02
+
+全部七个套件，由 `run.sh` 在同一台机器上运行（Java 17.0.20, Alloy 6.2.0, TLC 2.19, Python 3），物理耗时 4 分 33 秒，退出码 0：
+
+| 套件 | 运行结果 |
+|---|---|
+| 1 Alloy 核心数据模型 | C1–C7 UNSAT (在范围内无反例)；R1–R4 SAT (找到见证轨迹) |
+| 2 TLC 事务模型 | `_spec.cfg` 所有不变式均成立；`_toctou.cfg` 与 `_noretain.cfg` 产生预期的反例 |
+| 3 治理策略评估 | 10,939,388 次决策检查，P1–P6 全部成立 |
+| 4 EBNF 文法检查 | G1–G5 全部通过 (适配 `TRANSITION` 后的最新文法) |
+| 5 后果通道与技能生命周期 | 规范与自评变体均满足 I1–I7；四个错误注入均产生预期的反例 |
+| 6 Watch 触发机制 | 规范与单守卫变体均满足 W1–W6；`--no-guard --no-client-key` 重复触发，`--premature-silence` 无因抢跑触发 |
+| 7 物理清除 / 法律保全 / 载荷清除 | P1–P6 全部成立；三个错误注入均产生预期的反例 |
+
+该次运行晚于 2026-09-02 的草案修订（§14.2 废弃替代作为修订、§35.1 版本平面、§52.5 `TRANSITION`、§31.3 `governance.authority_class`）。这些修订均未改变模型所检查的本质内容：Alloy 的 `authority` 关系即为 §31.3 命名的字段，套件 1 和 5 中的生命周期迁移即为 `TRANSITION` 所表达的跃迁，TLA+ 模型中每个元素的单计数器即为裸形式的 `EXPECT VERSION`。模型**尚未**涵盖的内容已列于第 10 节：§35.1 的平面计数器是唯一尚未形式化建模的新机制。

@@ -62,13 +62,8 @@ const grammarCoverage = [
       create_assertion: 'CREATE ASSERTION',
       create_activity: 'CREATE ACTIVITY',
       update_statement: 'UPDATE ',
-      retract_assertion: 'RETRACT ASSERTION',
-      supersede_assertion: 'SUPERSEDE ASSERTION',
-      correct_evidence: 'CORRECT EVIDENCE',
-      transition_activity: 'TRANSITION ACTIVITY',
+      transition_statement: 'TRANSITION ',
       set_retention: 'SET RETENTION',
-      archive_statement: 'ARCHIVE ',
-      tombstone_statement: 'TOMBSTONE ',
       purge_statement: 'PURGE ',
       purge_payload_statement: 'PURGE PAYLOAD ',
       merge_concept: 'MERGE CONCEPT'
@@ -86,7 +81,6 @@ const grammarCoverage = [
       preview_statement: 'PREVIEW ',
       history_statement: 'HISTORY ',
       changes_statement: 'CHANGES ',
-      snapshot_statement: 'SNAPSHOT',
       export_capsule_statement: 'EXPORT CAPSULE'
     }
   }

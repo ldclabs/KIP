@@ -268,10 +268,9 @@ array_pattern    = "[",
 (* Temporal / epistemic / solution modifiers                                 *)
 (* ------------------------------------------------------------------------- *)
 
-as_of_clause     = "AS", "OF",
-                   ( "SEQ", scalar_value
-                   | "TX", scalar_value
-                   | "TIME", scalar_value ) ;
+(* Cognitive time is a sequence coordinate; a transaction id or an instant is
+   resolved to one first (DESCRIBE TRANSACTION, DESCRIBE SNAPSHOT AT TIME). *)
+as_of_clause     = "AS", "OF", "SEQ", scalar_value ;
 
 for_time_clause  = "FOR", "TIME", scalar_value ;
 

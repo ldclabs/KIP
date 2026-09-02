@@ -90,7 +90,6 @@ export class KipFoldingProvider implements vscode.FoldingRangeProvider {
       case 'PreviewStatement':
       case 'HistoryStatement':
       case 'ChangesStatement':
-      case 'SnapshotStatement':
         break
 
       default:
@@ -140,25 +139,24 @@ export class KipFoldingProvider implements vscode.FoldingRangeProvider {
       case 'UpdateStatement':
         this.collectFromUpdate(clause, ranges)
         break
-      case 'TransitionActivityStatement':
+      case 'TransitionStatement':
+        // One lifecycle statement (Spec §52.5): retraction, supersession,
+        // correction and Activity finalize all fold through here.
         for (const action of clause.finalize) {
           this.addRange(action.range, ranges)
         }
+        if (clause.where) this.collectFromWhere(clause.where, ranges)
         break
       case 'SetRetentionStatement':
         this.addRange(clause.assignments.range, ranges)
         if (clause.where) this.collectFromWhere(clause.where, ranges)
         break
-      case 'RetractAssertionStatement':
-      case 'ArchiveStatement':
-      case 'TombstoneStatement':
       case 'PurgeStatement':
+      case 'PurgePayloadStatement':
       case 'MergeConceptStatement':
         if (clause.where) this.collectFromWhere(clause.where, ranges)
         break
       case 'EnsurePropositionStatement':
-      case 'SupersedeAssertionStatement':
-      case 'CorrectEvidenceStatement':
         // Single-line by construction — nothing nested to fold
         break
     }

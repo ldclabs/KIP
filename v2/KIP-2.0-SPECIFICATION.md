@@ -10,7 +10,7 @@ Version: **2.0-draft**
 
 This document is the normative consolidation of the KIP 2.0 design.
 
-The following KIP 2.0 design documents are informative references and design rationale:
+The following KIP 2.0 design documents are informative references and design rationale. The ten `design/` notes are **frozen** as of 2026-09-02: they are the pre-consolidation drafts, are no longer maintained, and their Chinese twins are no longer synchronized; where they differ from this Specification they are out of date.
 
 - `KIP-2.0-Architecture.md`
 - `design/KIP-2.0-Core-Data-Model.md`
@@ -27,9 +27,12 @@ The following KIP 2.0 design documents are informative references and design rat
 The following artifacts are normative companions to this Specification:
 
 - `grammar/KIP-2.0-KQL.ebnf`, `grammar/KIP-2.0-KML.ebnf`, `grammar/KIP-2.0-META.ebnf` — normative syntax
-- `schemas/kip-request.schema.json`, `schemas/kip-response.schema.json` — normative wire shapes
+- `schemas/kip-request.schema.json`, `schemas/kip-response.schema.json`, `schemas/kip-change-envelope.schema.json` — normative wire shapes
 - `profiles/cognitive-memory-2.0.0.schema.json` and `profiles/CognitiveMemoryProfile-2.0.md` — the standard Profile package
-- `conformance/KIP-2.0-Conformance-Tests.md`, `conformance/conformance-test-vector.schema.json`, `conformance/conformance-report.schema.json` and `conformance/fixtures/` — the conformance suite
+- `conformance/KIP-2.0-Conformance-Tests.md`, `conformance/conformance-test-vector.schema.json`, `conformance/conformance-report.schema.json`, `conformance/conformance-state-fixture.schema.json`, `conformance/conformance-governance-policy.schema.json` and `conformance/fixtures/` — the conformance suite
+- `KIP-2.0-Capsule-Specification.md` — §37–§41 and §95 of this Specification, the Cognitive Capsule, carried in a companion under the same numbering
+- `KIP-2.0-Optional-Profiles-and-Migration.md` — §100, §101, §103 and Appendix I of this Specification: the optional Historical and High-Assurance profiles, and KIP 1.x migration
+- `KIP-2.0-Invariants.md` — the invariant registry: §102's 38 Core invariants (Part A) and the Cognitive Memory Profile's 35 (Part B), one list
 
 `KIPSyntax.md` is an informative LLM-facing syntax card, not a normative artifact.
 
@@ -500,6 +503,7 @@ A durable Cognitive Element has the conceptual shape:
 
   "governance": {
     "classification": "policy-defined",
+    "authority_class": "descriptive",
     "policy_ref": "optional"
   },
 
@@ -540,6 +544,7 @@ Ordinary KML MUST NOT directly write:
 
 ```text
 version
+plane_versions
 created_at
 updated_at
 created_tx
@@ -548,6 +553,8 @@ state
 origin
 space_seq
 ```
+
+`version` advances on every committed change to the element. `plane_versions` holds one counter per **version plane** — `attributes` (fields and attributes), `structural` (Structural References), `retention` (the retention record) and `facets` (one counter per Facet symbol) — and each counter advances only when its plane changes. `EXPECT VERSION ... OF <plane>` (§35.1) guards one plane, so a concurrent write to another plane of the same element does not conflict with it. Lifecycle moves and merges advance `version` and, when they touch a plane's content, that plane's counter; a `no_effect` replay advances nothing.
 
 ---
 
@@ -604,8 +611,13 @@ A Concept MAY have an immutable Space-local logical `key`.
 A `key` MUST be unique within:
 
 ```text
-(space_id, schema_ref, key)
+(space_id, lineage of schema_ref, key)
 ```
+
+The scope is the Concept Type's **lineage** (§20.14), not one exact package
+version: a Concept keyed `"alice"` under `Person@1.0.0` and an upsert of
+`Person` keyed `"alice"` after the package moved to `1.1.0` address the same
+identity, so a package upgrade never mints a second `"alice"`.
 
 A `key` is therefore identity within its Concept Type, not across types: a
 `Person` and a `Preference` may both be keyed `"alice"` and they are two
@@ -701,8 +713,7 @@ A canonical Literal may be represented conceptually as:
 ```json
 {
   "value": "...",
-  "datatype": "string",
-  "language": null
+  "datatype": "string"
 }
 ```
 
@@ -723,6 +734,8 @@ Arrays and arbitrary objects are not baseline Core Literals.
 
 Structured values SHOULD use Concepts or schema/profile-defined value objects.
 
+`datatype` is one of these four names, and a Predicate's `literal_types` (§20.15) draws from the same vocabulary; there is no other baseline datatype. A finer value shape — a timestamp, a URI, an identifier — is a `format` constraint declared by the Predicate (§20.15) or a schema-defined value object: validated on write, never part of Literal identity (§9.6).
+
 ---
 
 ## 9.3 Numeric rules
@@ -739,9 +752,9 @@ MUST be rejected.
 
 ---
 
-## 9.4 Language tag
+## 9.4 No language tag
 
-A language tag, when present, participates in Literal identity/equality.
+The baseline Literal carries no language tag; a `language` member on a Literal MUST be rejected (`TypeMismatch`). Multilingual text is modelled where its identity rules can be stated: a Concept with per-language attributes, or a schema-defined value object (§9.2) whose package declares how two tagged strings compare.
 
 ---
 
@@ -750,6 +763,22 @@ A language tag, when present, participates in Literal identity/equality.
 `null` is a semantic Literal only where the Predicate schema permits it.
 
 Unknown state SHOULD normally be represented by absence/uncertainty rather than an invented `null` fact.
+
+---
+
+## 9.6 Canonical form
+
+Literal identity (§12.3) compares canonical forms, and a runtime MUST canonicalize a Literal on write:
+
+```text
+string      Unicode scalar values after NFC normalization; no trimming, no case folding
+number      mathematical value: 1, 1.0 and 1e0 are one Literal; -0 is 0;
+            an integer and a float of equal value are equal
+boolean     by value
+null        by value, where the Predicate permits it (§9.5)
+```
+
+Two Literals with the same canonical `value` and `datatype` are the same Literal. Capsule serialization (§37.7) MUST emit the canonical form, so that a digest computed on one engine reproduces on another.
 
 ---
 
@@ -791,6 +820,12 @@ Type definition in the Space's Schema Environment.
 There is no untyped Concept. A `schema_ref` is fixed at creation, so a runtime
 that minted one without a type would have created an element no later write
 could repair and no `{type: …}` pattern could ever match.
+
+The exact version in `schema_ref` is what the element validates against.
+Matching and identity use the symbol's lineage (§20.14), so the element stays
+reachable by its local type name after its package is upgraded. Moving an
+element to another version of its lineage is a Schema migration under
+`manage_schema` (§20.10), never ordinary KML.
 
 ---
 
@@ -909,9 +944,11 @@ Within one MemorySpace, canonical Proposition identity is determined by the cano
 
 ```text
 canonical subject
-exact predicate_ref
+predicate lineage (§20.14)
 canonical object
 ```
+
+*Canonical* means merge-resolved: an endpoint whose `merged_into` chain (§11.4, §61) ends at B is canonically B. A tuple is stored as written and is never rewritten by a merge; canonicalization is applied when identities are compared and when a pattern is matched (§43.2). The stored `predicate_ref` is the exact reference resolved when the Proposition was created; identity compares its lineage. `ENSURE PROPOSITION` under a later version of the same package therefore resolves to the existing Proposition instead of minting a parallel one, and a `BELIEF SLOT` sees every Assertion in the slot whichever version its Proposition was created under.
 
 ---
 
@@ -1019,7 +1056,7 @@ plus common envelope.
 
 ## 13.3 `asserted_by`
 
-`asserted_by` is a semantic actor.
+`asserted_by` is a semantic actor, and it is REQUIRED: a claim whose actor cannot be resolved is recorded as Evidence, not asserted.
 
 It is different from:
 
@@ -1028,6 +1065,8 @@ _system.origin.principal_id
 ```
 
 which identifies the authenticated execution origin.
+
+`context_refs` is OPTIONAL: references to Concepts that scope the Assertion — the situation, purpose, or domain under which the stance holds (§25.3). It is set at creation through `SET FIELDS` and is part of the immutable payload (§13.7); a Projection Policy MAY exclude an Assertion whose context does not match the request's (`context_mismatch`).
 
 ---
 
@@ -1094,7 +1133,7 @@ mode
 confidence
 asserted_at
 valid_time
-initial Evidence citations
+Evidence citations (fixed at creation, §17.5)
 ```
 
 ---
@@ -1132,13 +1171,15 @@ Administrative moderation MUST NOT falsely mark an Assertion as retracted if no 
 
 Supersession means a newer Assertion replaces the older Assertion in a compatible actor/context/revision lineage.
 
-Supersession is not generic disagreement.
+Supersession is **revision**: the superseding Assertion says the superseded one was wrong — in its value, or in the interval it claimed — for the time it covered. Projection therefore drops a superseded Assertion for every `FOR TIME`, not only for the present.
+
+Supersession is not generic disagreement, and it is not how the world changing over time is recorded. A value that held and then stopped holding is two `active` Assertions with complementary `valid_time` intervals (§25.2), and the Brain keeps answering "what was true then" from the earlier one (§48.4, Appendix G.4). When the earlier Assertion was written open-ended, the change is recorded by a superseding re-assertion of the same value with its interval closed, plus a new Assertion for the new value from the change date (Appendix F.2). Superseding a claim that was true for its time erases history the protocol exists to keep.
 
 ---
 
 ## 14.3 Expired
 
-Expiry indicates the Assertion is no longer current/eligible according to its lifecycle model.
+`expired` is a **computed** status, never a stored one: an Assertion whose `valid_time.until` lies before a projection's `valid_at` (`FOR TIME`) is `expired` for that projection. No KML statement produces it, a Change Envelope never carries it, and the stored lifecycle status remains `active`, `retracted`, or `superseded`. `HISTORY` shows no transition to `expired`, because none is committed.
 
 It is distinct from storage retention and from world valid time.
 
@@ -1246,7 +1287,13 @@ An actor's report about the result of its own action MUST NOT be recorded as `ou
 
 In an open protocol this separation is auditable rather than cryptographically absolute. Engine origin (§2.5) always records which authenticated Principal wrote the element; Governance SHOULD restrict `outcome`-class Evidence creation to designated instrumentation Principals; and a consumer of the channel — a lifecycle verdict, trust calibration (§22.6), utility calibration — MUST be able to trace the origin chain of every outcome it graded, and SHOULD refuse outcomes whose origin fails its policy.
 
-Each Outcome Evidence SHOULD carry a **task family**: the namespaced stream of comparable consequences it belongs to (for example `"deploy/rollback"`, `"outreach/reply"`). Graded cognition subscribes to a stream by carrying the same task family value — the join is the family, not an element reference, so an outcome never needs to know which patterns it will end up grading. The Cognitive Memory Profile defines the standard `OutcomeRecord` Facet (task family, outcome status, magnitude) and the Skill lifecycle machinery that consumes the channel.
+Each Outcome Evidence SHOULD carry a **task family**: the namespaced stream of comparable consequences it belongs to (for example `"deploy/rollback"`, `"outreach/reply"`). Graded cognition subscribes to a stream by carrying the same task family value, so an instrument never needs to know which patterns will read what it writes. The Cognitive Memory Profile defines the standard `OutcomeRecord` Facet (task family, outcome status, magnitude) and the Skill lifecycle machinery that consumes the channel.
+
+A task family finds comparable consequences; it never attributes one. An outcome that is to grade a specific decision — a Skill applied, a gate decision taken — MUST be provenance-linked to that decision: the Activity that records the observation (the Profile's `outcome_observation`) names the decision Activity among its `inputs` and the Outcome Evidence among its `outputs`. A grading consumer counts an outcome toward a Skill only through that link. An outcome with no decision link belongs to the stream, and therefore to the stream's baseline, and to nothing else. This is what makes a comparative verdict recomputable: the treatment set is the linked outcomes, the baseline is the rest of the family.
+
+Writing `outcome`-class Evidence, and the observation Activity that links it, requires `record_outcome` (§29.8).
+
+An outcome that arrived by import carries `_system.origin.import_id` (§6.2). It was observed elsewhere, by an instrument the destination never authorized: it is readable evidence, never a local grade, and a grading consumer MUST exclude it (§41.6).
 
 ---
 
@@ -1423,7 +1470,7 @@ UNSET STRUCTURAL { (field, target) }              remove that reference
 
 Removal is per reference. Removing from an ordered field re-densifies the remaining order (§17.4). Cardinality is validated at commit: removing the last reference of a required field fails.
 
-Record kinds are not affected. Assertion, Evidence and terminal Activity topology stays immutable (§13.7, §15.5, §16.6); a pending Activity finalizes its references through `TRANSITION ACTIVITY` (§52.5). A wrong reference on a record is corrected by a new record, never by removal.
+Record kinds are not affected. Assertion, Evidence and terminal Activity topology stays immutable (§13.7, §15.5, §16.6); a pending Activity finalizes its references through `TRANSITION ... TO "completed" SET STRUCTURAL` (§52.5). A wrong reference on a record is corrected by a new record, never by removal.
 
 ---
 
@@ -1478,8 +1525,10 @@ SleepTask
 SelfModel
 WorkingState
 MnemonicState
-SkillUtility
+GradingState
+TrialState
 DerivationState
+DecisionRecord
 OutcomeRecord
 ```
 
@@ -1757,13 +1806,79 @@ associated_actors  Activity  → Concept         semantic actors involved in the
 ```text
 stance                support | reject | uncertain
 mode                  observed | stated | inferred | predicted | hypothetical | imported
-Assertion lifecycle   active | retracted | superseded | expired
+Assertion lifecycle   active | retracted | superseded | expired (computed, §14.3)
+Evidence lifecycle    active | corrected (§57.2)
 Evidence role         support | challenge | context
+Activity status       pending | running | completed | failed | cancelled
 Activity terminal     completed | failed | cancelled
 belief status         accepted | rejected | contested | uncertain | insufficient
 ```
 
 A Schema Package MUST NOT define or alias a symbol that shadows a reserved Core symbol name in its resolution scope. Registries documented as extensible (for example `activity_class` values) MAY be extended with additional values through package registry extensions.
+
+---
+
+## 20.14 Symbol Lineage
+
+A Schema symbol has two identities:
+
+```text
+exact identity      kip://<package-path>@<exact-version>/<symbol>
+lineage identity    kip://<package-path>/<symbol>
+```
+
+The exact identity is what durable state persists (§20.4) and what validation uses: an element is validated against the definition its `schema_ref` names, and a Proposition's object is validated against the Predicate definition its `predicate_ref` names.
+
+The lineage identity is what **identity and matching** use. Every rule that compares, matches, or deduplicates by symbol operates on the lineage, so that elements written under different versions of one package remain one population:
+
+```text
+key uniqueness                       §7.3
+Proposition tuple identity           §12.3
+type: / MATCH sugar                  §43.1, §54.4
+Predicate resolution in patterns     §43.2, §46, §47, §55
+Facet and Structural Field names     §44.1, §17
+Capsule identity mapping             §38.2
+```
+
+Rules:
+
+- A local name resolves to a lineage, not to one version. It is ambiguous (§20.7) only when two distinct package paths export it.
+- A read sees every readable version of a lineage. A write that creates an element binds it to the Schema Environment's current write version of that lineage.
+- Two versions of one package path that define the same symbol name define the same lineage. A package that intends a different meaning MUST use a different symbol name or a different package path; a fork is a distinct lineage even when its content is identical.
+- A later version MAY declare a symbol renamed, naming its successor, or retired. Resolution and identity follow a declared rename; a retired symbol ends its lineage at that version, and elements bound to earlier versions remain readable under it.
+- Changing an element's exact `schema_ref` to another version of its lineage is a Schema migration under `manage_schema` (§20.10), never ordinary KML.
+
+Without this rule a package upgrade would partition memory: pending Commitments written under the old version would stop matching `{type: "Commitment"}`, an upsert by `key` would mint a duplicate, and a `BELIEF SLOT` over the new Predicate version would report `insufficient` above a slot full of Assertions.
+
+---
+
+## 20.15 Predicate definition fields
+
+A Predicate definition carries the declarations that §12.7, §24, and §25 refer to. A Package MUST express them with these fields:
+
+```text
+subject               {concept_types: [...]} | {kinds: [...]}
+object                {concept_types: [...]} | {kinds: [...]} | {literal_types: [...]}
+                      plus nullable: true where null is a permitted object (§9.5),
+                      and format: "timestamp" | "uri" | <package-defined name> for a
+                      string Literal whose shape the Predicate constrains (§9.2);
+                      format is validated on write and never affects identity
+functional            true  → at most one accepted object per subject at one valid time;
+                              more form a conflict set (§25.1)
+open_world            true  → absence of a Proposition means insufficient (§24)
+                      false → the Space's snapshot is authoritative for this Predicate
+                              and absence may be read as closed-world (§24.2)
+complete              true  → the candidate objects of a functional slot are exclusive:
+                              accepting one rejects the others (§25, exclusive-value)
+boolean_completeness  true  → for a boolean-valued Predicate, object false is the
+                              negation of object true (§12.7); false keeps them
+                              structurally distinct claims
+temporal_conflict     "overlapping_valid_time" → two accepted values conflict only
+                              when their valid intervals overlap (§25.2)
+                      "none" → values never conflict on time
+```
+
+Defaults when a field is absent: `functional: false`, `open_world: true`, `complete: false`, `boolean_completeness: false`, `temporal_conflict: "overlapping_valid_time"`. A Projection Policy MAY be stricter than a declaration, never looser: it cannot treat an `open_world: true` Predicate as closed.
 
 ---
 
@@ -1849,6 +1964,8 @@ Meaning:
 
 > material support and material opposition coexist and remain unresolved.
 
+A contested projection MAY still have a leading side; the output's `leading` field (§27.2) discloses it. Disclosure is not resolution: `leading` never turns `contested` into `accepted` or `rejected`.
+
 ---
 
 ## 21.7 `uncertain`
@@ -1886,6 +2003,14 @@ Requirements:
 - Serving a materialized result MUST disclose its policy identity and snapshot basis through the result context (§50); presenting it as freshly computed at the current snapshot is non-conforming.
 - The materialization MUST be invalidated, or its basis revalidated against `space_seq` / Change Envelopes, before being served as current.
 - A materialized projection is still a view: it MUST NOT be written back as Evidence or Assertion, and MUST NOT corroborate its own inputs (§23.5, §26.6).
+
+---
+
+## 21.10 Structural projection baseline
+
+The minimal conforming Projection Policy uses only structural material: Assertion lifecycle, world-time validity, caller visibility, `mode`, `stance`, and provenance-root independence (§23). It weighs nothing — no trust scores, no confidence arithmetic, no numeric output (`score: null`) — and it is fully determined by the visible state, so two runtimes given the same state and policy produce the same status, `leading` and ledger. The conformance suite's `test-deterministic` policy is such a policy.
+
+Every KIP-Epistemic implementation MUST be able to run a structural policy (§92). Trust-weighted policies (§22, §27.3) build on it and are advertised through `weighted_projection` (§67.4); a runtime that offers only the structural baseline still conforms.
 
 ---
 
@@ -2180,6 +2305,7 @@ Conceptual output:
 ```json
 {
   "status": "accepted",
+  "leading": "support",
 
   "support": {
     "score": null,
@@ -2213,6 +2339,8 @@ Conceptual output:
   "explanation": {}
 }
 ```
+
+`leading` names the side the policy would favor if it were forced to choose: `support` under `accepted`, `opposition` under `rejected`, and under `contested` the side with more eligible independent trusted roots, using the tie-break the policy declares (§27.1); an exact tie, `uncertain` and `insufficient` report `none`. `leading` is disclosure for a consumer that must act anyway (Brain Recall surfaces both sides and names the heavier one); it never changes `status`.
 
 ---
 
@@ -2289,7 +2417,22 @@ assert_as_actor
     "I exercise authority as Alice to assert P."
 ```
 
-These are different permissions.
+These are different permissions, and the runtime decides which one a write needs from `asserted_by` and the caller's ActorBinding, never from the Assertion's text:
+
+```text
+asserted_by is an actor the Principal's ActorBinding covers
+    → assert (the Principal's own stance, or a bound representation)
+
+asserted_by is any other actor
+    → record_attributed_assertion ("Alice said P", recorded by this Principal);
+      engine origin shows the recorder, and the Assertion carries no representation
+
+policy requires representation for that actor (for example: claims by the
+Space's $self may be written only by Principals bound to it)
+    → assert_as_actor, and without the binding the write fails ActorBindingRequired
+```
+
+The `ASSERT` sugar (§55.1) is bound by the same rule through its `by` member.
 
 ---
 
@@ -2351,11 +2494,13 @@ record_attributed_assertion
 assert_as_actor
 retract_own
 supersede_own
+record_outcome
 
 merge_identity
 
 maintain
 manage_retention
+manage_legal_hold
 
 share
 export
@@ -2371,6 +2516,9 @@ manage_grants
 manage_delegation
 manage_trust
 manage_actor_binding
+quarantine
+declassify
+approve
 
 elevate_authority
 
@@ -2458,6 +2606,36 @@ Physical erasure is high-impact and SHOULD be separately scoped/audited.
 
 ---
 
+## 29.8 `record_outcome`
+
+Allows creation of `outcome`-class Evidence (§15.7) and of the observation Activity that links an outcome to the decision it grades.
+
+Governance SHOULD grant it to instrumentation Principals — telemetry, verifiers, test harnesses, human reviewers — and SHOULD NOT grant it to a Principal whose ActorBinding covers the actor whose actions those outcomes grade. A deployment in which one Principal both acts and observes cannot satisfy Invariant 36 by construction: it MAY still run the channel, but its verdicts are then self-graded, and a consumer's origin check (§15.7) MUST be able to see that from `_system.origin` alone.
+
+The observation edge — the decision Activity in `inputs`, the Outcome Evidence in `outputs` — records an observation of the world, not a transformation of held cognition. It does not additionally require `derive` (§29.6); the outcome's classification follows its own Governance hook and policy.
+
+A runtime that does not distinguish `record_outcome` MUST reject the name where a Grant names it, for the reason given in §29.6.
+
+---
+
+## 29.9 `manage_legal_hold`
+
+Allows setting and lifting `retention.legal_hold` (§19.1). It is distinct from `manage_retention`: a `SET RETENTION` that touches `legal_hold` without it fails `NotAuthorized`, however the rest of the retention hook is authorized. A hold blocks erasure for everyone (§60.3), so the authority to place or lift one MUST NOT be reachable through ordinary cognitive writes.
+
+---
+
+## 29.10 `quarantine`
+
+Allows placing an element in, or releasing it from, **quarantine**: a Governance exclusion state (§31.6) that removes the element from ordinary Recall and from Projection eligibility without marking it retracted, superseded, or archived. This is the instrument for moderation and for reviewing imported cognition; falsifying a retraction (§14.1) is never one.
+
+---
+
+## 29.11 `declassify` and `approve`
+
+`declassify` allows lowering an element's classification (§31.1, §31.2); derived content never declassifies its inputs by itself. `approve` allows recording the second decision that a policy requiring approval waits for: an operation that fails `RequiresApproval` (§87.5) completes only when a Principal holding `approve` records the approval as a Governance transition, and the approving Principal MUST differ from the requesting one.
+
+---
+
 # 30. Governance Policy Evaluation
 
 ## 30.1 Trusted inputs
@@ -2474,15 +2652,19 @@ MUST NOT become authority unless separately bound into trusted Governance state.
 
 ---
 
-## 30.2 Deny-overrides
+## 30.2 Deny-overrides and default deny
 
-A conservative baseline is:
+A conforming runtime MUST evaluate:
 
 ```text
 explicit deny / protocol invariant
     overrides
-allow.
+allow,
+
+and a request matching no allow is denied.
 ```
+
+Default deny is not a recommendation: without it every property the governance model relies on — order independence, deny monotonicity, invariant supremacy (`formal/governance`) — holds of a procedure a runtime was free not to implement.
 
 ---
 
@@ -2543,14 +2725,16 @@ Derived content SHOULD NOT automatically declassify restricted source content.
 
 ## 31.3 Memory authority classes
 
-A Governance profile MAY classify memory influence as:
+Governance records how far a memory element may influence behavior in `governance.authority_class`:
 
 ```text
-descriptive
-advisory
-behavioral
-executable
+descriptive     may be reported
+advisory        may inform a recommendation
+behavioral      may shape the Agent's own conduct
+executable      may drive an external action (§62)
 ```
+
+The field is Governance-protected: ordinary KML cannot write it; it is read in the element's `governance` view (`?x.governance.authority_class`, subject to the caller's visibility under §30) and `DESCRIBE ACCESS` reports which classes the caller may elevate to; it is never inferred from cognitive content (§28.1). An element without the field has `descriptive` authority. A Profile MAY tie lifecycle standing to a class — a `proposed` Skill is at most `advisory`, and adoption under the Cognitive Memory Profile's §14 is what a Governance policy may accept as grounds for `behavioral` — but the class is assigned and enforced by Governance, not by the Profile's own fields.
 
 ---
 
@@ -2559,7 +2743,7 @@ executable
 Imported Skills SHOULD default to:
 
 ```text
-proposed/inactive
+inactive, at the Profile's initial lifecycle state
 no executable authority
 no transferred lifecycle standing
 ```
@@ -2575,6 +2759,21 @@ Adoption is earned from locally graded Outcome Evidence (§15.7), exactly as sou
 Transformation, summarization, consolidation, import, or skill compilation MUST NOT erase authority-relevant origin lineage.
 
 Semantic content cannot self-raise its authority ceiling.
+
+---
+
+## 31.6 Quarantine
+
+Quarantine is protected Governance state on an element, not a lifecycle status. A quarantined element:
+
+```text
+is excluded from ordinary Recall and from Projection eligibility
+keeps its lifecycle status, payload, provenance, and history unchanged
+is visible to Principals with discover + read, marked quarantined (DESCRIBE ACCESS)
+is placed and released only under the quarantine permission (§29.10)
+```
+
+Capsule `isolate` import (§39.2) places imported elements in quarantine. Quarantine is how moderation and review are recorded without lying about what the source said.
 
 ---
 
@@ -2724,9 +2923,17 @@ Successful state-changing commit Receipt SHOULD include:
   "transaction_class": "cognitive",
   "request_digest": "sha256:...",
   "semantic_plan_digest": "sha256:...",
-  "schema_environment_version": 17
+  "schema_environment_version": 17,
+  "receipt_digest": "sha256:...",
+  "origin": {
+    "principal_id": "principal-...",
+    "actor_binding_id": null,
+    "delegation_digest": null
+  }
 }
 ```
+
+`receipt_digest` is the canonical digest (§37.7) of the Receipt without `receipt_digest` and `proofs`; a signed Receipt (§33.3) signs it. `origin` records the Principal the commit was attributed to, the ActorBinding it exercised (§28.3), and the digest of the delegation chain it acted under (§28.5), so an auditor can tie the Receipt to the Governance decision without reading the audit log.
 
 ---
 
@@ -2784,7 +2991,7 @@ IdempotencyConflict
 
 ## 34.5 Retention
 
-Runtime MUST expose/document idempotency retention if it is bounded.
+Runtime MUST expose/document idempotency retention if it is bounded: the window is reported as the `idempotency_retention` capability (§67.4) and SHOULD be at least 24 hours, long enough for a client that lost a response to recover through §80.4 after an ordinary outage. Once the window has elapsed, a lookup or replay reports `TransactionUnknown` with `details.expired = true`, so a client can tell a forgotten key from one it never sent.
 
 ---
 
@@ -2807,10 +3014,14 @@ The protocol MUST preserve genuine repeated observations/statements when they re
 A mutable existing element MAY be guarded by:
 
 ```text
-EXPECT VERSION n
+EXPECT VERSION n [OF ATTRIBUTES | STRUCTURAL | RETENTION | FACET "<symbol>"]
 ```
 
-The mutation succeeds only if current `_system.version == n`.
+Without `OF`, the mutation succeeds only if the current `_system.version == n`.
+
+With `OF`, the guard names a **version plane** and compares `n` against that plane's own counter in `_system.plane_versions` (§6.3): `attributes` (fields and attributes), `structural` (Structural References), `retention` (the retention record), or `facets["<symbol>"]` (one Facet). A plane counter advances only when that plane changes, while `_system.version` advances on every change. A guard on one plane is therefore not spoiled by a concurrent write to another: a `MnemonicState` decay sweep does not invalidate a status verdict guarded `OF ATTRIBUTES`, and the verdict does not invalidate the sweep.
+
+`EXPECT VERSION` is always the trailing clause of a mutation (§52.8) and MAY repeat, one guard per plane; naming the same plane twice is a syntax error. A mismatch on any guard fails the statement with `VersionConflict`, whose `details.plane` names the plane that mismatched, and nothing in the transaction commits (§33).
 
 ---
 
@@ -2822,13 +3033,13 @@ Where supported:
 EXPECT VERSION 0
 ```
 
-means the addressed logical identity must not already exist.
+means the addressed logical identity must not already exist. Only the bare form is create-only: `EXPECT VERSION 0 OF <plane>` is an ordinary plane guard (§35.1) stating that the plane has never been written.
 
 ---
 
-## 35.3 `EXPECT STATE`
+## 35.3 Lifecycle preconditions
 
-Lifecycle operations SHOULD support explicit expected lifecycle state.
+There is no `EXPECT STATE` guard. `TRANSITION` (§52.5) validates the target's current lifecycle state against the requested move itself and fails `InvalidLifecycleTransition` when the move is not legal from that state, so an expected-state clause could only restate what the engine already checks. A caller who must additionally know that nothing else changed guards the element's version.
 
 ---
 
@@ -2859,7 +3070,7 @@ A new element starts at version `1`.
 
 One state-changing commit yields one logical Change Envelope.
 
-Conceptual shape:
+Normative shape (`schemas/kip-change-envelope.schema.json`):
 
 ```json
 {
@@ -2868,9 +3079,40 @@ Conceptual shape:
   "tx_id": "tx-900",
   "committed_at": "...",
   "transaction_class": "cognitive",
-  "changes": []
+  "changes": [
+    {
+      "op": "create",
+      "kind": "assertion",
+      "id": "A-2",
+      "new_version": 1,
+      "refs": {"proposition": "P-1"}
+    },
+    {
+      "op": "lifecycle",
+      "kind": "assertion",
+      "id": "A-1",
+      "old_version": 2,
+      "new_version": 3,
+      "state": {"from": "active", "to": "superseded"},
+      "refs": {"proposition": "P-1"}
+    },
+    {
+      "op": "update",
+      "kind": "concept",
+      "id": "C-7",
+      "schema_ref": "kip://profiles/cognitive-memory@2.0.0/Commitment",
+      "old_version": 4,
+      "new_version": 5,
+      "touched": ["attributes.status", "facets.MnemonicState"],
+      "planes": {"attributes": 3, "facets": {"MnemonicState": 2}}
+    }
+  ]
 }
 ```
+
+Each entry MUST carry `op` (`create | update | lifecycle | retention | merge | purge | payload_purge`), `kind`, `id`, and `new_version`; `old_version` where the element existed; `state {from, to}` for `lifecycle`; `schema_ref` for Concepts; `refs.proposition` for Assertion entries and `refs.subject` + `refs.predicate_ref` for Proposition entries; `planes`, the plane counters (§6.3) after the commit for each plane the entry touched; and `touched`, the list of paths changed — attribute, Facet, Structural Field, or retention names — carrying names, never values. That is the minimum a Watch (Cognitive Memory Profile) needs to decide whether a slot, an element, or a type moved, without payload.
+
+Existence protection (§30.4) applies per entry: an element the consumer may not discover is omitted from the envelope it receives. Payload beyond the entry — old and new values — is not part of the envelope; a consumer reads it under its own authority.
 
 ---
 
@@ -2902,318 +3144,41 @@ Change replay MUST NOT become new Evidence, reinforcement, or duplicated Experie
 
 # 37. Cognitive Capsule
 
-## 37.1 Definition
-
-A **Cognitive Capsule** is a portable, immutable, inspectable artifact carrying cognitive state or state changes between systems/Spaces.
-
-A Capsule is not executable mutation authority.
-
----
-
-## 37.2 Core invariant
+Sections 37–41 are specified in the normative companion [KIP-2.0-Capsule-Specification.md](./KIP-2.0-Capsule-Specification.md), which keeps this numbering so that every reference to §37–§41 from the Core, the Profile and the conformance suite resolves there unchanged:
 
 ```text
-Capsule bytes
-    ≠
-destination mutation authority
+§37  Cognitive Capsule
+§38  Capsule Identity Model
+§39  Capsule Import Modes
+§40  Capsule Closure and External References
+§41  Capsule Export/Import Pipeline
 ```
 
----
-
-## 37.3 Capsule kinds
-
-Baseline kinds:
-
-```text
-snapshot
-delta
-```
-
----
-
-## 37.4 Snapshot Capsule
-
-Represents selected cognitive state at one source snapshot.
-
----
-
-## 37.5 Delta Capsule
-
-Represents ordered changes over one source lineage between:
-
-```text
-base_seq
-target_seq
-```
-
-Delta application requires base/checkpoint compatibility.
-
----
-
-## 37.6 Logical structure
-
-A Capsule SHOULD contain conceptually:
-
-```text
-payload
-  manifest
-  source
-  schema dependencies
-  records
-  external_refs
-  blobs
-  handling
-
-integrity
-  content_digest
-  proofs/signatures
-```
-
----
-
-## 37.7 Canonical representation
-
-Native Capsule format SHOULD have deterministic canonical serialization suitable for hashing/signing.
-
-Canonical JSON is the baseline design target.
-
----
-
-## 37.8 Signature semantics
-
-A Capsule signature proves that a signer attested to a content digest/scope.
-
-It does not prove:
-
-```text
-truth
-safety
-utility
-trust
-authority
-destination applicability
-```
+Two rules are restated here because the rest of the Core depends on them. A Capsule is a portable, immutable, inspectable artifact carrying cognitive state or state changes between systems or Spaces; it is never executable mutation authority. Everything a Capsule brings in is re-validated against the destination's Schema Environment and re-authorized under the destination's Governance: source trust, source authority and source lifecycle standing do not transfer (§31.4, §41.4).
 
 ---
 
 # 38. Capsule Identity Model
 
-## 38.1 Three identities
-
-Import must distinguish:
-
-```text
-capsule-local reference
-source element reference
-destination local element ID
-```
-
-A source element ID MUST NOT automatically become the destination local primary ID.
-
----
-
-## 38.2 Identity resolution
-
-Recommended conservative order:
-
-```text
-1. prior verified import mapping
-2. trusted canonical_id
-3. explicitly approved mapping
-4. schema-defined portable identity
-5. create new Concept
-```
-
----
-
-## 38.3 Name is not merge identity
-
-```text
-same name
-    ≠
-same identity
-```
-
----
-
-## 38.4 `$self`
-
-Source `$self` MUST NOT automatically become destination `$self`.
-
-Ordinary Agent-to-Agent sharing maps source self to the source Agent's semantic identity.
-
----
-
-## 38.5 Restore exception
-
-A verified restore mode MAY map source `$self` to destination `$self` only when Governance verifies:
-
-```text
-same owner
-same Brain/self identity
-backup lineage
-explicit restore authority
-```
+See the Capsule companion, §38.
 
 ---
 
 # 39. Capsule Import Modes
 
-Recommended:
-
-```text
-preview
-isolate
-merge
-restore
-```
-
----
-
-## 39.1 Preview
-
-Read-only simulation.
-
-No destination cognitive state is created.
-
----
-
-## 39.2 Isolate
-
-Imports into a quarantined/review state rather than ordinary Recall state.
-
----
-
-## 39.3 Merge
-
-Merges another source's cognition into the destination under destination identity/Governance policy.
-
----
-
-## 39.4 Restore
-
-Restores the same Brain/owner lineage under stronger identity checks.
-
----
-
-## 39.5 Source trust does not migrate automatically
-
-Destination MUST apply its own:
-
-```text
-trust
-classification
-authority
-Schema
-Governance
-```
-
-policy.
+See the Capsule companion, §39.
 
 ---
 
 # 40. Capsule Closure and External References
 
-## 40.1 ExternalRef
-
-An omitted dependency SHOULD be represented explicitly rather than as an opaque dangling ID.
-
-Recommended kinds:
-
-```text
-source_element
-canonical_identity
-semantic_locator
-external_artifact
-redacted
-unavailable
-```
-
----
-
-## 40.2 Redacted vs unavailable
-
-These MUST remain distinguishable where policy permits:
-
-```text
-redacted
-    source intentionally withheld
-
-unavailable
-    source does not possess/provide it
-```
-
----
-
-## 40.3 Closure
-
-A Capsule SHOULD declare closure such as:
-
-```text
-closed
-referential
-selective
-```
-
-and MAY separately describe:
-
-```text
-semantic closure
-Evidence closure
-provenance closure
-structural closure
-```
+See the Capsule companion, §40.
 
 ---
 
 # 41. Capsule Export/Import Pipeline
 
-## 41.1 Export
-
-Export MUST be snapshot-consistent.
-
-Large export SHOULD use a pinned source snapshot/export session.
-
-Transport chunking MUST NOT create multiple independent semantic Capsules unless explicitly represented as a Capsule Set.
-
----
-
-## 41.2 Import pipeline
-
-Native import conceptually follows:
-
-```text
-VERIFY
-→ VALIDATE
-→ PREVIEW / identity resolution
-→ Governance analysis
-→ Import Plan
-→ atomic Import Transaction
-```
-
----
-
-## 41.3 Embedded schema
-
-Embedded Schema Packages MAY be used validation-only.
-
-They MUST NOT auto-activate.
-
----
-
-## 41.4 Imported Skill authority
-
-Imported Skills default inactive/non-executable unless destination Governance explicitly elevates them.
-
----
-
-## 41.5 External blobs
-
-A Capsule MAY reference content-addressed external blobs.
-
-Import MUST NOT automatically fetch arbitrary URLs.
-
-Network fetch requires separate runtime/tool authority.
+See the Capsule companion, §41.
 
 ---
 
@@ -3292,7 +3257,7 @@ Explicit optional form:
 ?person CONCEPT {...}
 ```
 
-`type` is schema-resolution sugar for an exact `schema_ref`.
+`type` is schema-resolution sugar for a Concept Type lineage (§20.14): it matches every readable version of that type, and each matched element reports its own exact `schema_ref`.
 
 ---
 
@@ -3330,6 +3295,8 @@ therefore an alternative *reference*, not an object pattern.
 The id form is **match-only**. A statement whose job is to resolve-or-create by
 structure — `ENSURE PROPOSITION`, and the `ASSERT` sugar that desugars through
 it — MUST reject it, because no structure can be created from an id alone.
+
+Matching is **canonical** (§12.3): an endpoint term matches a stored endpoint whose `merged_into` chain resolves to the same element, so after `MERGE CONCEPT :alicia INTO :alice` both `(:alice, "knows", :bob)` and `(:alicia, "knows", :bob)` find the tuple stored on `alicia`. The binding keeps both views: `?p.subject` / `?p.object` are the stored endpoints (§12.2), `?p.canonical_subject` / `?p.canonical_object` the merge-resolved ones, so `FILTER(?p.subject == :alice)` narrows a canonical match to tuples actually recorded on `alice`. `AS OF SEQ` before the merge resolves nothing through it (§48.1), and `HISTORY` keeps the raw endpoint (§68).
 
 ---
 
@@ -3641,6 +3608,10 @@ Conceptual:
 
 ---
 
+A slot has no `rejected` status: a slot is not a claim, so it has nothing to reject. Rejection belongs to a candidate's own projection inside `candidate_projections`.
+
+---
+
 ## 47.4 Empty slot
 
 A grounded slot SHOULD return:
@@ -3658,13 +3629,13 @@ rather than force the Agent to infer unknown from zero raw rows.
 
 ## 48.1 `AS OF`
 
-Selects cognitive transaction state:
+Selects cognitive transaction state by Space sequence:
 
 ```prolog
 AS OF SEQ 1500
-AS OF TX "tx-..."
-AS OF TIME "..."
 ```
+
+`AS OF SEQ` is the only historical axis, in KQL, in META and in `EXPORT CAPSULE`. A transaction id resolves to its `space_seq` through `DESCRIBE TRANSACTION` (§68); a wall-clock instant resolves to the last sequence committed at or before it through `DESCRIBE SNAPSHOT AT TIME :t` (§68). The engine never guesses which of several sequences an instant means, and a historical read always names the exact coordinate it was served from.
 
 ---
 
@@ -3797,14 +3768,9 @@ ASSERT            (normative sugar: ensure + assert, §55.1)
 
 UPDATE
 
-RETRACT ASSERTION
-SUPERSEDE ASSERTION
-CORRECT EVIDENCE
-TRANSITION ACTIVITY
+TRANSITION        (one lifecycle statement, §52.5)
 
 SET RETENTION
-ARCHIVE
-TOMBSTONE
 PURGE
 PURGE PAYLOAD
 
@@ -3845,7 +3811,24 @@ UPDATE never creates.
 
 ## 52.5 TRANSITION
 
-Moves lifecycle state through a valid state transition.
+One statement moves lifecycle state; the quoted state names the move:
+
+```text
+TRANSITION <target> TO "<state>" [BY <ref>]
+           [SET FIELDS {...}] [SET STRUCTURAL {...}]
+           [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v ...]
+```
+
+| State | Target kind | `BY` | Meaning |
+|---|---|---|---|
+| `retracted` | Assertion | — | the assertor withdraws the claim (§57.3) |
+| `superseded` | Assertion | REQUIRED: the newer Assertion | the claim was wrong; revision lineage (§57.4) |
+| `corrected` | Evidence | REQUIRED: the new Evidence | wrong record; correction lineage (§57.2) |
+| `running`, `completed`, `failed`, `cancelled` | Activity | — | Activity status (§16); `SET FIELDS` / `SET STRUCTURAL` finalize terminal fields and topology in the same statement |
+| `archived` | any element | — | out of ordinary recall, history preserved (§60) |
+| `tombstoned` | any element | — | logical deletion, identity and audit preserved (§60) |
+
+The engine validates the move against the target's kind and its current lifecycle state and fails `InvalidLifecycleTransition` otherwise; a move to the state the target already holds is `no_effect` (§34.4); there is no `EXPECT STATE` guard (§35.3). `BY` on any state other than `superseded` / `corrected`, and `SET FIELDS` / `SET STRUCTURAL` on any state other than an Activity state, are syntax errors. The move is recorded in the element's `_system.state` and as a `lifecycle` entry in the Change Envelope (§36.1). `ASSERT ... SUPERSEDING` desugars to this statement (§55.1).
 
 ---
 
@@ -3862,10 +3845,8 @@ A mutation whose `WHERE` block can select an unbounded set accepts an optional
 
 ```text
 UPDATE
-RETRACT ASSERTION
+TRANSITION
 SET RETENTION
-ARCHIVE
-TOMBSTONE
 PURGE
 PURGE PAYLOAD
 ```
@@ -3880,6 +3861,12 @@ its `WHERE` only guards them.
 `LIMIT` bounds how many elements are affected. It is not a selection order, so
 a bounded sweep over a larger match set MUST NOT be assumed to be deterministic
 unless the runtime documents an order.
+
+---
+
+## 52.8 Clause order and guard position
+
+Every mutation ends the same way: `[WHERE {...}] [LIMIT :n] {EXPECT VERSION ...}`, in that order. `EXPECT VERSION` follows `UPSERT CONCEPT`'s closing brace and `ENSURE PROPOSITION`'s tuple; `PURGE` and `PURGE PAYLOAD` close with their `REFERENCE POLICY` / `CONFIRM "PURGE"` clauses after the guards. A guard never sits between the target and the actions. One statement therefore has one place for its preconditions, and a reader finds them where the statement ends.
 
 ---
 
@@ -3990,13 +3977,15 @@ Name-only universal upsert is forbidden.
 ## 54.4 The MATCH type
 
 `MATCH` is an object pattern, so a `type` member inside it is the same
-schema-resolution sugar for an exact `schema_ref` that it is in a Concept
+schema-resolution sugar for a Concept Type lineage that it is in a Concept
 Pattern (§43.1). It is not decoration, and a runtime MUST honor it in both
 halves of an upsert:
 
 ```text
-resolve   type participates in the identity address (§7.3)
-create    type is the only source of the new Concept's schema_ref
+resolve   type participates in the identity address (§7.3) as a lineage,
+          so a Concept written under an earlier package version is found
+create    type is the only source of the new Concept's schema_ref, bound to
+          the Schema Environment's write version of that lineage (§20.14)
 ```
 
 An upsert that would create a Concept and declares no type MUST fail rather
@@ -4072,24 +4061,26 @@ ASSERT ?a (...) {...} SUPERSEDING :old_assertion
 Desugaring is **normative and deterministic**:
 
 ```prolog
-ENSURE PROPOSITION ?p (:alice, "prefers", :dark_mode)
+MUTATE {
+  ENSURE PROPOSITION ?p (:alice, "prefers", :dark_mode)
 
-CREATE ASSERTION ?a {
-  CLIENT KEY :key
-  SET FIELDS {
-    proposition: ?p,
-    asserted_by: :alice,
-    stance: "support",
-    mode: "stated",
-    confidence: 0.95,
-    asserted_at: :engine_time_unless_at_given
+  CREATE ASSERTION ?a {
+    CLIENT KEY :key
+    SET FIELDS {
+      proposition: ?p,
+      asserted_by: :alice,
+      stance: "support",
+      mode: "stated",
+      confidence: 0.95,
+      asserted_at: :engine_time_unless_at_given
+    }
+    SET STRUCTURAL {
+      ("evidence", :msg) {role: "support"}
+    }
   }
-  SET STRUCTURAL {
-    ("evidence", :msg) {role: "support"}
-  }
+
+  TRANSITION :old_assertion TO "superseded" BY ?a
 }
-
-SUPERSEDE ASSERTION :old_assertion BY ?a
 ```
 
 Rules:
@@ -4098,6 +4089,9 @@ Rules:
 - The handle is optional; when present it binds the created Assertion.
 - `ASSERT` MAY appear standalone or inside `MUTATE`.
 - The desugared clauses are one mutation plan, not separate commands: a standalone `ASSERT` commits them exactly as if they appeared together in a single `MUTATE` block (§53.1); inside `MUTATE` they join the enclosing plan.
+- `by` decides the permission exactly as `asserted_by` does on `CREATE ASSERTION` (§28.4): an actor the caller is bound to needs `assert`; any other actor needs `record_attributed_assertion`; an actor the policy reserves for its bound Principals needs `assert_as_actor` and fails `ActorBindingRequired` without the binding.
+- `SUPERSEDING` is revision (§14.2): it says the old Assertion was wrong. A change in the world is not written with it; see Appendix F.2.
+- `ASSERT` without `key` has no retry safety of its own: a retried request is deduplicated only by the envelope's `idempotency_key` (§34). With `key`, the created Assertion carries that `client_key` and the creation itself is replay-safe.
 - Sugar support belongs to the full KIP-KML conformance profile (§97).
 
 ---
@@ -4192,7 +4186,7 @@ Correct pattern:
 ```text
 new Evidence
 +
-CORRECT EVIDENCE old BY new
+TRANSITION old TO "corrected" BY new
 ```
 
 Do not overwrite old Evidence payload.
@@ -4202,21 +4196,20 @@ Do not overwrite old Evidence payload.
 ## 57.3 Retraction
 
 ```prolog
-RETRACT ASSERTION :a
-EXPECT STATE "active"
+TRANSITION :a TO "retracted"
 ```
 
-Retraction preserves historical payload.
+Retraction preserves historical payload. The move is legal only from `active`; from any other state it fails `InvalidLifecycleTransition` (§35.3).
 
 ---
 
 ## 57.4 Supersession
 
 ```prolog
-SUPERSEDE ASSERTION :old BY ?new
+TRANSITION :old TO "superseded" BY ?new
 ```
 
-Supersession MUST NOT be used merely because another actor disagrees.
+Supersession MUST NOT be used merely because another actor disagrees, and it MUST NOT be used to record that the world changed: that is two `active` Assertions with complementary `valid_time` (§14.2, F.2).
 
 ---
 
@@ -4236,7 +4229,6 @@ Recommended:
 
 ```prolog
 UPDATE ?target
-EXPECT VERSION :version
 
 SET FIELDS {...}
 SET ATTRIBUTES {...}
@@ -4251,12 +4243,15 @@ WHERE {
 }
 
 LIMIT :limit
+EXPECT VERSION :version
 ```
+
+The guard closes the statement and MAY name a version plane (`EXPECT VERSION :v OF FACET "MnemonicState"`, §35.1), so a Facet sweep and an attribute write on the same element do not conflict with each other.
 
 The target is either a variable bound by the `WHERE` block or a direct
 reference. A direct reference (`:id` / `"id"`) already names the element, so
-`WHERE` MAY be omitted — as for `ARCHIVE`, `TOMBSTONE`, `PURGE`, `SET RETENTION`
-and `RETRACT ASSERTION`; a `WHERE` given anyway only guards:
+`WHERE` MAY be omitted — as for `TRANSITION`, `PURGE` and `SET RETENTION`; a
+`WHERE` given anyway only guards:
 
 ```prolog
 UPDATE :experience_id
@@ -4329,11 +4324,11 @@ Recommended syntax:
 ```text
 SET RETENTION <target> {retention_class: "...", expires_at: ...}
                        [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]
-ARCHIVE       <target> [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]
-TOMBSTONE     <target> [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]
-PURGE         <target> [WHERE {...}] [LIMIT :n]
+TRANSITION    <target> TO "archived"   [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]
+TRANSITION    <target> TO "tombstoned" [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]
+PURGE         <target> [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]
                        [REFERENCE POLICY "..."] CONFIRM "PURGE"
-PURGE PAYLOAD <target> [WHERE {...}] [LIMIT :n] CONFIRM "PURGE"
+PURGE PAYLOAD <target> [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v] CONFIRM "PURGE"
 ```
 
 `<target>` follows the same rule as generic UPDATE (§58): a `?variable` is bound
@@ -4368,9 +4363,9 @@ authorized_cascade      purge referencing elements too, under explicit authority
 
 The default is `deny_if_referenced`: purge SHOULD be denied when required references would be broken. `CONFIRM "PURGE"` is REQUIRED and is not a policy substitute.
 
-An element whose retention hook sets `legal_hold` (§19.1) MUST NOT be purged. The hold is evaluated before the reference policy and before any destruction is decided, and no reference policy overrides it: an `authorized_cascade` MUST stop at a held element rather than erasing it as another element's dependent. `purge` authority does not lift a hold — a hold blocks erasure for everyone, which is what makes it a hold rather than a preference.
+An element whose retention hook sets `legal_hold` (§19.1) MUST NOT be purged: the purge fails `LegalHoldConflict`. The hold is evaluated before the reference policy and before any destruction is decided, and no reference policy overrides it: an `authorized_cascade` MUST stop at a held element rather than erasing it as another element's dependent. `purge` authority does not lift a hold — a hold blocks erasure for everyone, which is what makes it a hold rather than a preference. A purge refused by the reference policy fails `PurgeDenied`.
 
-Because a hold blocks erasure for everyone, a runtime SHOULD scope the authority to set or lift one separately from ordinary retention management (§29.7 applies the same reasoning to purge itself). Content that could place its own hold could make itself permanently undeletable, and content that could lift one could unblock an erasure the hold was placed to stop.
+Because a hold blocks erasure for everyone, the authority to set or lift one is `manage_legal_hold` (§29.9), distinct from `manage_retention`: a `SET RETENTION` that touches `legal_hold` without it fails `NotAuthorized`. Content that could place its own hold could make itself permanently undeletable, and content that could lift one could unblock an erasure the hold was placed to stop.
 
 Purge MAY leave a minimal, non-recoverable **stub** — element kind, content digest, class, observation time, and the purging Activity reference — so that reference integrity, provenance-root identity (§23.3), and independence counting survive the destruction of the bytes. A stub is not the content and is not recoverable Evidence.
 
@@ -4418,6 +4413,7 @@ Rules:
 - Payload purge is an ordinary state-changing mutation for transaction purposes; purging an already-purged payload yields `no_effect`.
 - Corroboration grouping and independence counting (§23) continue to operate on the surviving digest and provenance; a payload purge MUST NOT alter them.
 - A Projection policy MAY weigh the loss of inspectable content (for example under §22.4 verifiability), but the Evidence event itself remains real.
+- Purge reaches only bytes the Space holds. A Capsule exported before the purge still carries the payload and still verifies; the Space cannot recall it. A Capsule exported after the purge carries the record with `payload: {status: "purged"}` and the `content_digest`, so its own digest and signature are computed over what the Space actually holds.
 
 Payload purge is the data-minimization instrument: a Space can discard observed raw bytes after digestion without destroying the evidence event, its citations, or its provenance role. Element purge (§60.3) remains the instrument for destroying the record itself.
 
@@ -4458,16 +4454,20 @@ Recommended pattern:
 
 ```text
 Transaction 1
-    Decision + ActionIntent
+    the decision record: an Activity (the Profile's action_gate) whose
+    inputs name the cognition applied — the Skills, the memories the
+    briefing drew on, the trigger — and whose Facet records the decision
 
 external runtime
     performs action
 
 Transaction 2
-    Outcome Evidence + Activity + Experience
+    Outcome Evidence
+    + the observation Activity linking it to the decision (§15.7)
+    + Experience
 ```
 
-The returning half of this pattern is the consequence channel: the external result comes back as Outcome Evidence (§15.7), written by instrumentation rather than by the actor whose action it grades.
+The returning half of this pattern is the consequence channel: the external result comes back as Outcome Evidence (§15.7), written by instrumentation rather than by the actor whose action it grades, and linked to the decision it observed so that the consequence can be attributed to the cognition that produced it. Without the first transaction there is nothing for the outcome to grade.
 
 ---
 
@@ -4500,18 +4500,19 @@ VALIDATE
 PREVIEW
 HISTORY
 CHANGES
-SNAPSHOT
 EXPORT CAPSULE
 ```
 
 `DESCRIBE` targets:
 
 ```text
-PRIMER | PROTOCOL | EXECUTION CONTEXT | CAPABILITIES
+PRIMER | PROTOCOL | CAPABILITIES
 SPACE | SCHEMA ENVIRONMENT | PACKAGE | TYPE | PREDICATE | FACET
 STRUCTURAL FIELD | COMPATIBILITY | ERROR | TRANSACTION | SNAPSHOT
-CAPSULE | EPISTEMIC POLICY | PROJECTION CAPABILITY | TRUST | ACCESS
+CAPSULE | EPISTEMIC POLICY | TRUST | ACCESS
 ```
+
+The resolved execution context (Principal, actor binding, Space, epistemic policy) is part of `DESCRIBE PRIMER` (§65) and, for the Space alone, `DESCRIBE SPACE`; Projection capability is part of `DESCRIBE CAPABILITIES` (§67). Neither has a statement of its own.
 
 `LIST` targets:
 
@@ -4540,7 +4541,7 @@ WHERE {
   include_blobs: false,
   proof_profile: "..."
 }]
-[AS OF SEQ :seq | AS OF TX :tx | AS OF TIME :time]
+[AS OF SEQ :seq]
 ```
 
 The operand names the **selection root binding**: every element bound to `?roots` by the `WHERE` block belongs to the export root set. The operand MAY instead be a parameter or string naming a single root element, in which case the `WHERE` block only constrains that root.
@@ -4577,7 +4578,7 @@ A result row SHOULD carry the dependent's exact id, kind, distance, and the Acti
 Rules:
 
 - `LIST DEPENDENTS` is a read; it MUST NOT change any element.
-- Governance applies per row: an element the caller may not discover is omitted, and omission is indistinguishable from absence (§30.4).
+- Governance applies per row: an element the caller may not discover is omitted, and omission is indistinguishable from absence (§30.4). Traversal does not pass through an element the caller may not discover; when that cuts a path short the result carries `truncated: true`, without identifying where. A Principal charged with derivation review (§57.5) SHOULD therefore hold `discover` over the Space's provenance topology.
 - The traversal is bounded: a runtime MAY cap `DEPTH` and pages results through `LIMIT` / `CURSOR` like other `LIST` targets.
 - Reachability is provenance topology, not judgment: a listed dependent is not thereby stale, wrong, or in need of change (§57.5).
 
@@ -4793,6 +4794,41 @@ Enumeration itself is governed.
 
 ---
 
+## 67.4 Capability registry
+
+`DESCRIBE CAPABILITIES` reports, and a request's `requires` (§71) names, entries of this registry. A runtime MAY add namespaced entries; it MUST NOT rename these:
+
+```text
+serializable_isolation      §32.2
+idempotency_retention       §34.5   value: the retention window, e.g. {"seconds": 86400}
+historical_reads            §48, §100
+historical_search           §66.1
+semantic_search             §66.3
+hybrid_search               §66.3
+search_index_freshness      §66.5
+belief_slot                 §47
+weighted_projection         §22, §27.3   trust-weighted policies beyond the structural baseline (§21.10)
+materialized_projection     §21.9
+signed_receipts             §33.3
+ingestion_context           §71.1
+streaming                   §84
+artifacts                   §85
+change_stream               §36, §68
+filtered_delivery           §36.3
+watch_evaluation            runtime-evaluated Watch conditions (Cognitive Memory Profile §5.11)
+list_dependents             §63.5
+payload_purge               §60.6
+capsule_export              §63.4
+capsule_import              §39
+capsule_signatures          §37.8
+derive_permission           §29.6
+record_outcome_permission   §29.8
+```
+
+A `requires` entry that names an unregistered capability fails `UnsupportedCapability`, exactly as one the runtime does not support.
+
+---
+
 # 68. META Transaction / History
 
 Recommended:
@@ -4800,13 +4836,14 @@ Recommended:
 ```text
 DESCRIBE TRANSACTION :tx_id
 DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :key
-DESCRIBE SNAPSHOT [AS OF ...]
+DESCRIBE SNAPSHOT [AS OF SEQ :seq | AT TIME :t]
 HISTORY ELEMENT :id [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]
 HISTORY SPACE [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]
 CHANGES SINCE :cursor [LIMIT :n]
 CHANGES AFTER SEQ :seq [LIMIT :n]
-SNAPSHOT [AS OF ...]
 ```
+
+`DESCRIBE SNAPSHOT` returns a snapshot coordinate: the `space_seq`, the transaction that committed it, its commit time and the schema environment version in force. Without an operand it describes the current head; `AS OF SEQ` describes a past coordinate; `AT TIME :t` resolves an instant to the last sequence committed at or before `t`, which is how wall-clock time enters `AS OF SEQ` (§48.1). The coordinate is a description, not a token: a historical read names its sequence directly.
 
 ---
 
@@ -4986,7 +5023,7 @@ A request MAY carry an ingestion context:
         "payload": "I prefer dark mode.",
         "media_type": "text/plain",
         "observed_at": "2026-08-14T01:00:00Z",
-        "source_actor": "alice",
+        "source_actor": {"id": "concept-alice"},
         "client_key": "message:msg-123"
       }
     ]
@@ -5003,8 +5040,10 @@ A request MAY carry an ingestion context:
 Semantics:
 
 - For each entry, the runtime mints one Evidence element inside the request's transaction scope, from the declared fields and the transport-supplied content (`payload` inline, or `payload_artifact` handle). An entry MUST declare exactly one of `payload` / `payload_artifact`.
+- `source_actor` is an element reference — `{"id": …}` or `{"type": …, "key": …}`, the same shapes a bound parameter takes — recorded as the Evidence's `source`. It is never a name (§7.2) and never a Principal.
 - Each `key` is bound as a request parameter whose value is the minted Evidence reference; commands cite it as `:key` (for example `evidence: :msg` in `ASSERT`).
 - The minted Evidence carries normal `_system.origin`; `client_key` provides retry-safe logical identity.
+- An entry MAY carry `facets`, a map from Facet name to value object, validated exactly as `SET FACET` on `CREATE EVIDENCE` would be. This is how instrumentation attaches `OutcomeRecord` to an ingested `outcome` without re-typing anything; an entry whose `evidence_class` is `outcome` requires `record_outcome` (§29.8).
 - Ingestion is transactional: if the transaction aborts, no Evidence is durably created.
 
 Evidence fidelity rule: a runtime SHOULD offer ingestion (or artifact handles) so observed payloads are captured from the transport envelope; an Agent SHOULD NOT re-type observed content inside KML text (§88.12).
@@ -5109,6 +5148,8 @@ separate write transactions
 failure isolated per operation
 ```
 
+Each operation's `results[].context.snapshot_seq` MUST state the snapshot it observed, and each state-changing operation returns its own Receipt in `results[].receipt`. Whether one operation's commit is visible to a sibling in the same request is not defined; a client that needs ordering uses `sequence`.
+
 ---
 
 ## 75.2 sequence
@@ -5123,9 +5164,11 @@ earlier commits are not rolled back
 `on_error` MAY be:
 
 ```text
-stop
+stop        (default)
 continue
 ```
+
+Each state-changing operation returns its own Receipt in `results[].receipt`; the top-level `receipt` is present only in `atomic` mode. `results[]` MUST list every operation with its status — `skipped` for those not started after a `stop` — so that a client recovering from `outcome_unknown` can tell which commits happened.
 
 ---
 
@@ -5172,7 +5215,6 @@ VALIDATE
 PREVIEW
 HISTORY
 CHANGES
-SNAPSHOT
 EXPORT CAPSULE
 ```
 
@@ -5302,6 +5344,8 @@ Recommended:
   "warnings": []
 }
 ```
+
+`execution` echoes the request's `idempotency_key` when one was given, so a client holding an `outcome_unknown` response can recover by key (§80.4) without re-deriving it. In `sequence` and `independent` modes the Receipts sit in `results[].receipt` (§75); the top-level `receipt` is the atomic transaction's.
 
 ---
 
@@ -5626,10 +5670,10 @@ HistoricalSnapshotUnavailable
 CursorMismatch
 CursorTypeMismatch
 CursorExpired
-CursorInvalidated
-ChangeCursorExpired
-ChangeCursorInvalid
+CursorInvalid
 ```
+
+`CursorExpired` and `CursorInvalid` cover every cursor family (KQL, SEARCH, HISTORY, LIST, CHANGES, EXPORT); `details.family` names the family and `details.reason` says why (`expired`, `access_revoked`, `schema_changed`, `malformed`). A Change cursor that expired is `CursorExpired` with `family: "changes"` — the consumer restarts from a sequence it has durably recorded, never from the current head (§69).
 
 ---
 
@@ -5840,7 +5884,8 @@ Requires at least:
 support/reject/uncertain stances
 Assertion lifecycle
 open-world insufficient
-accepted/rejected/contested/uncertain/insufficient
+accepted/rejected/contested/uncertain/insufficient (+ leading)
+structural projection baseline (§21.10)
 direct same-Proposition conflict
 functional/exclusive conflict support
 hypothetical/predicted/imported distinctions
@@ -5893,21 +5938,7 @@ Change Envelope
 
 # 95. KIP-Capsule Conformance
 
-Requires:
-
-```text
-canonical artifact
-snapshot Capsule
-digest
-Schema dependency identity
-source/destination identity separation
-ExternalRef
-closure declaration
-verify/validate/preview pipeline
-destination-local import authority
-```
-
-Delta/restore/signatures MAY be advanced subprofiles.
+See the Capsule companion, §95: the requirement list lives with the sections it tests. An implementation that does not support Capsules claims no KIP-Capsule conformance and advertises no export/import capability (§67).
 
 ---
 
@@ -5991,7 +6022,6 @@ Requires:
 ```text
 DESCRIBE PRIMER
 DESCRIBE PROTOCOL
-DESCRIBE EXECUTION CONTEXT
 DESCRIBE CAPABILITIES
 Schema introspection
 SEARCH keyword
@@ -6046,199 +6076,25 @@ transaction lookup
 
 # 100. Historical Conformance
 
-Requires, within advertised retention:
-
-```text
-AS OF SEQ
-lifecycle reconstruction
-historical Schema Environment
-historical cognitive read
-current authorization
-transaction chronology
-```
+See [KIP-2.0-Optional-Profiles-and-Migration.md](./KIP-2.0-Optional-Profiles-and-Migration.md), §100. Historical conformance is optional: an implementation that advertises retention beyond the current head (`DESCRIBE CAPABILITIES`, §67) is measured against it, and one that does not is not.
 
 ---
 
 # 101. High-Assurance Conformance
 
-May require:
-
-```text
-serializable transactions
-signed Receipts
-canonical request/plan digests
-strict duplicate-JSON-key rejection
-exact historical Schema
-tamper-evident checkpoints
-strict existence-neutral behavior
-strong proof registries
-auditable Projection policy versions
-```
+See the same companion, §101. Its requirements are additive hardening over a conforming implementation, never a relaxation of the Core.
 
 ---
 
 # 102. Required Conformance Invariants
 
-A conforming native KIP 2.0 implementation MUST preserve these cross-cutting invariants:
-
-1. Proposition existence is truth-neutral.
-2. Assertion confidence is not Brain belief.
-3. Search relevance is not confidence.
-4. Missing visible match is not falsehood.
-5. `insufficient` is distinct from `rejected`.
-6. Contradictory Assertions can coexist.
-7. Proposition tuple is immutable.
-8. Assertion historical epistemic payload is append-oriented.
-9. Evidence correction does not overwrite original Evidence.
-10. Derived cognition does not create independent corroboration.
-11. Provenance does not grant Governance authority.
-12. Principal and semantic actor are distinct.
-13. Cognitive content cannot self-grant authority.
-14. Current Governance controls historical visibility.
-15. Memory strength is distinct from epistemic confidence.
-16. Read does not automatically reinforce memory.
-17. Merge does not rewrite raw historical identity.
-18. Source `$self` does not automatically become destination `$self`.
-19. Capsule signature does not imply truth/trust.
-20. Capsule import does not inherit source authority automatically.
-21. Embedded Schema does not auto-activate.
-22. Batch is not transaction unless explicitly atomic.
-23. Request ID, idempotency key, and tx_id are distinct.
-24. Timeout does not prove abort.
-25. Progress does not prove commit.
-26. Preview does not reserve/commit state.
-27. Current revocation overrides stale cursor/snapshot/delegation assumptions.
-28. Cursors are opaque and non-interchangeable across operation families.
-29. External URLs are not auto-fetched as artifacts.
-30. External world actions are outside KIP rollback semantics.
-31. `ASSERT` commits exactly the semantics of its normative desugaring.
-32. A served materialized projection discloses its policy identity and snapshot basis.
-33. Runtime-ingested Evidence preserves the transport-supplied payload without model re-typing.
-34. Payload purge destroys Evidence bytes, never the Evidence record's identity, citations, or provenance topology.
-35. Revising a provenance root does not silently retract or rewrite cognition derived from it.
-36. An actor's self-report about its own action's result is never Outcome Evidence.
+A conforming native KIP 2.0 implementation MUST preserve the 38 cross-cutting invariants registered as Part A of [KIP-2.0-Invariants.md](./KIP-2.0-Invariants.md), the single registry this Specification and the Cognitive Memory Profile share. The registry keeps this section's numbering — `§102 invariant 17` is registry row 17 — and names, for each invariant, the section that establishes it and the conformance vectors that pin it (conformance §27). The Profile's own invariants are Part B of the same registry (Profile §23).
 
 ---
 
 # 103. KIP 1.x Migration
 
-## 103.1 Migration objective
-
-Migration SHOULD preserve legacy meaning/history without pretending KIP 1.x stored epistemic distinctions that did not exist.
-
----
-
-## 103.2 Legacy Concept
-
-A KIP 1 Concept SHOULD become a v2 Concept.
-
-Where v1 relied on `(type,name)` identity, migration MAY derive a stable v2 `key` from the legacy identity.
-
----
-
-## 103.3 Legacy Proposition
-
-A v1 factual Proposition SHOULD become:
-
-```text
-canonical v2 Proposition
-+
-migrated positive Assertion
-```
-
-to preserve its legacy fact-like semantics.
-
----
-
-## 103.4 Legacy metadata
-
-Legacy metadata MUST be classified.
-
-Examples:
-
-```text
-confidence
-    → Assertion confidence where semantically valid
-
-source / author
-    → Evidence / asserted_by / provenance
-
-observed_at
-    → Evidence observation time
-
-valid_from / valid_until
-    → Assertion valid_time
-
-expires_at
-    → retention
-
-access_level
-    → Governance mapping
-
-operational markers
-    → Profile Facet
-
-unknown legacy fields
-    → namespaced legacy Facet if safe
-```
-
----
-
-## 103.5 Legacy confidence decay
-
-v1 periodic confidence decay SHOULD NOT be migrated as native Assertion-confidence decay.
-
-Depending on intended meaning:
-
-```text
-forgetting
-    → memory_strength
-
-staleness
-    → Epistemic Projection freshness
-
-new evidence
-    → new Assertion revision
-```
-
----
-
-## 103.6 Legacy DELETE
-
-Native migration SHOULD prefer:
-
-```text
-archive
-tombstone
-explicit purge
-Assertion lifecycle
-```
-
-over recreating generic destructive DETACH semantics.
-
----
-
-## 103.7 Legacy MERGE
-
-Legacy destructive edge-repoint/delete SHOULD migrate to v2 non-destructive identity consolidation.
-
----
-
-## 103.8 Legacy EXPORT
-
-A KIP 1 UPSERT export script is a legacy artifact.
-
-Native v2 portability uses Cognitive Capsule.
-
-A v2 runtime MAY provide a compatibility importer/exporter.
-
----
-
-## 103.9 Legacy schema nodes
-
-KIP 1 self-described graph types SHOULD be migrated to authoritative Schema Packages or compatibility packages.
-
-Ordinary cognitive nodes MUST NOT become authoritative Schema state in native v2.
+See [KIP-2.0-Optional-Profiles-and-Migration.md](./KIP-2.0-Optional-Profiles-and-Migration.md), §103, together with the operational guide [migration/KIP-2.0-Migration-from-1.x.md](./migration/KIP-2.0-Migration-from-1.x.md). KIP 1.x is a compatibility and migration source, not a definition of KIP 2.0 semantics.
 
 ---
 
@@ -6286,7 +6142,7 @@ WRITE:
   CREATE ASSERTION
   CREATE ACTIVITY
   UPDATE mutable state
-  RETRACT / SUPERSEDE / CORRECT
+  TRANSITION (retract / supersede / correct / archive / tombstone)
   MERGE non-destructively
 
 GROUND:
@@ -6375,9 +6231,7 @@ belief_slot_pattern :=
     "(" term "," predicate_term ")"
 
 as_of_clause :=
-      "AS OF SEQ" value
-    | "AS OF TX" value
-    | "AS OF TIME" value
+    "AS OF SEQ" value
 
 for_time_clause :=
     "FOR TIME" value
@@ -6417,13 +6271,8 @@ kml_statement :=
     | create_assertion
     | create_activity
     | update_statement
-    | retract_assertion
-    | supersede_assertion
-    | correct_evidence
-    | transition_activity
+    | transition_statement
     | set_retention
-    | archive_statement
-    | tombstone_statement
     | purge_statement
     | purge_payload_statement
     | merge_concept
@@ -6437,7 +6286,7 @@ mutate_statement :=
 ensure_proposition :=
     "ENSURE PROPOSITION" handle?
     "(" term "," predicate_term "," term ")"
-    expect_version_clause?
+    expect_version_clause*
     (* EXPECT VERSION 0 is the create-only form, §35.2 *)
 
 assert_statement :=
@@ -6449,45 +6298,36 @@ assert_statement :=
 
 update_statement :=
     "UPDATE" target
-    expect_version_clause?
     update_action+
     ("WHERE" "{" where_clause* "}")?
     limit_clause?
+    expect_version_clause*
     (* a ?variable target is bound by WHERE; a direct target may omit it *)
 
-supersede_assertion :=
-    "SUPERSEDE ASSERTION" target
-    "BY" target
-    expect_state_clause?
-
-correct_evidence :=
-    "CORRECT EVIDENCE" target
-    "BY" target
-    expect_state_clause?
+transition_statement :=
+    "TRANSITION" target
+    "TO" value
+    ("BY" target)?
+    set_fields_clause?
+    set_structural_clause?
+    ("WHERE" "{" where_clause* "}")?
+    limit_clause?
+    expect_version_clause*
+    (* the quoted state names the move, §52.5; BY only for
+       superseded / corrected; SET clauses only for Activity states *)
 
 set_retention :=
     "SET RETENTION" target
     assignment_object
     ("WHERE" "{" where_clause* "}")?
     limit_clause?
-    expect_version_clause?
-
-archive_statement :=
-    "ARCHIVE" target
-    ("WHERE" "{" where_clause* "}")?
-    limit_clause?
-    expect_state_clause?
-
-tombstone_statement :=
-    "TOMBSTONE" target
-    ("WHERE" "{" where_clause* "}")?
-    limit_clause?
-    expect_state_clause?
+    expect_version_clause*
 
 purge_statement :=
     "PURGE" target
     ("WHERE" "{" where_clause* "}")?
     limit_clause?
+    expect_version_clause*
     ("REFERENCE POLICY" value)?
     "CONFIRM" "\"PURGE\""
 
@@ -6495,6 +6335,7 @@ purge_payload_statement :=
     "PURGE PAYLOAD" target
     ("WHERE" "{" where_clause* "}")?
     limit_clause?
+    expect_version_clause*
     "CONFIRM" "\"PURGE\""
         (* Evidence bytes only; the element survives, so there is
            no REFERENCE POLICY clause *)
@@ -6503,7 +6344,7 @@ merge_concept :=
     "MERGE CONCEPT" target
     "INTO" target
     ("WHERE" "{" where_clause* "}")?
-    expect_version_clause?
+    expect_version_clause*
         (* no limit_clause: source and target are already named *)
 ```
 
@@ -6525,13 +6366,11 @@ meta_statement :=
     | preview_statement
     | history_statement
     | changes_statement
-    | snapshot_statement
     | export_capsule_statement
 
 describe_target :=
       PRIMER
     | PROTOCOL
-    | EXECUTION_CONTEXT
     | CAPABILITIES
     | SPACE
     | SCHEMA_ENVIRONMENT
@@ -6544,8 +6383,8 @@ describe_target :=
     | ERROR
     | TRANSACTION
     | SNAPSHOT
+        (* DESCRIBE SNAPSHOT [AS OF SEQ :s | AT TIME :t], §68 *)
     | EPISTEMIC_POLICY
-    | PROJECTION_CAPABILITY
     | TRUST
     | ACCESS
     | CAPSULE
@@ -6582,7 +6421,6 @@ Illustrative full-surface JSON shape (validates against `kip-request.schema.json
 
   "execution": {
     "mode": "atomic",
-    "on_error": "stop",
     "isolation": "serializable",
     "idempotency_key": "formation:42"
   },
@@ -6599,7 +6437,7 @@ Illustrative full-surface JSON shape (validates against `kip-request.schema.json
         "payload": "I prefer dark mode.",
         "media_type": "text/plain",
         "observed_at": "2026-08-14T01:00:00Z",
-        "source_actor": "alice",
+        "source_actor": {"id": "concept-alice"},
         "client_key": "message:msg-123"
       }
     ]
@@ -6760,16 +6598,11 @@ ASSERT (:alice, "prefers", :dark_mode) {
 
 ---
 
-## F.2 User correction
+## F.2 Correction versus change
 
-Alice changes timezone:
+Two situations look alike and are written differently (§14.2).
 
-```text
-old: +08:00
-new: +01:00
-```
-
-Recommended:
+**Correction — the earlier claim was wrong.** Alice said `+08:00`; she meant `+07:00`. The new Assertion supersedes the old one, which is dropped from every projection because it was never true:
 
 ```prolog
 MUTATE {
@@ -6790,7 +6623,7 @@ MUTATE {
   ENSURE PROPOSITION ?p_new (
     :alice,
     "timezone",
-    "+01:00"
+    "+07:00"
   )
 
   CREATE ASSERTION ?a_new {
@@ -6810,7 +6643,7 @@ MUTATE {
     }
   }
 
-  SUPERSEDE ASSERTION :a_old BY ?a_new
+  TRANSITION :a_old TO "superseded" BY ?a_new
 
   CREATE ACTIVITY ?revision {
     SET FIELDS {
@@ -6826,6 +6659,42 @@ MUTATE {
   }
 }
 ```
+
+**Change — the world moved.** Alice lived in `+08:00` and moved to `+01:00` on `:moved_at`. Her earlier claim was true for its time, so nothing is superseded for being wrong; the open interval is closed by a re-assertion of the same value, and the new value starts where the old one ends. Both stay `active`, and `FOR TIME` before `:moved_at` still answers `+08:00` (Appendix G.4):
+
+```prolog
+MUTATE {
+  ASSERT ?closed (:alice, "timezone", "+08:00") {
+    by: :alice,
+    mode: "stated",
+    valid: {from: :since, until: :moved_at},
+    evidence: :msg
+  } SUPERSEDING :a_old
+
+  ASSERT ?new (:alice, "timezone", "+01:00") {
+    by: :alice,
+    mode: "stated",
+    valid: {from: :moved_at},
+    evidence: :msg
+  }
+
+  CREATE ACTIVITY ?revision {
+    SET FIELDS {
+      activity_class: "belief_revision",
+      status: "completed"
+    }
+
+    SET STRUCTURAL {
+      ("inputs", :a_old)
+      ("inputs", :msg)
+      ("outputs", ?closed)
+      ("outputs", ?new)
+    }
+  }
+}
+```
+
+Here `SUPERSEDING :a_old` revises only the interval: the open-ended claim was wrong about *until*, not about the value. Where both intervals are known when the claims are first written, no supersession is needed at all (Architecture Appendix B).
 
 ---
 
@@ -6889,16 +6758,37 @@ The resulting Skill does not receive executable authority automatically, and it 
 ## F.6 Outcome grading and a lifecycle verdict
 
 ```text
+decision (action_gate Activity: inputs name the Skill applied)
+    ↓
 external action / trial run
     ↓
 instrumentation (never the acting model)
     ↓
 Outcome Evidence {task_family, outcome_status}
+    + outcome_observation Activity {inputs: the decision, outputs: the outcome}
     ↓
-deterministic verdict code reads the graded stream
+deterministic verdict code reads the linked outcomes against the TrialState basis
     ↓
 lifecycle_verdict Activity + one guarded UPDATE
 ```
+
+The observation, written by the instrument through the ingestion context (§71.1) with the `OutcomeRecord` Facet in its `facets`, and the link that makes it gradable:
+
+```prolog
+CREATE ACTIVITY ?obs {
+  SET FIELDS {
+    activity_class: "outcome_observation",
+    status: "completed"
+  }
+  SET STRUCTURAL {
+    ("inputs", :decision)
+    ("outputs", :outcome)
+    ("associated_actors", :verifier)
+  }
+}
+```
+
+The verdict, once the trial's quota of linked outcomes is reached:
 
 ```prolog
 MUTATE {
@@ -6916,19 +6806,19 @@ MUTATE {
   }
 
   UPDATE :skill
-  EXPECT VERSION :version
   SET ATTRIBUTES {status: "adopted"}
-  SET FACET "SkillUtility" {
-    utility: 0.78,
+  SET FACET "GradingState" {
     success_count: 9,
     failure_count: 2,
     graded_count: 12,
     last_verdict_at: :now
   }
+  SET FACET "MnemonicState" {utility: 0.78}
+  EXPECT VERSION :version OF ATTRIBUTES
 }
 ```
 
-The promotion executes in one guarded statement: `EXPECT VERSION` makes it safe under concurrency, and the verdict Activity pins the rule (`parameters_digest`) and the graded outcomes (`inputs`) so the transition is recomputable by an auditor.
+The promotion executes in one guarded statement: `EXPECT VERSION ... OF ATTRIBUTES` makes it safe under concurrency without being spoiled by a concurrent `MnemonicState` sweep (§35.1), the verdict Activity pins the rule (`parameters_digest`) and the graded outcomes (`inputs`), and the Skill's `TrialState` carries the basis the comparison was made against, so the transition is recomputable by an auditor. Only outcomes linked to a decision that applied the Skill are in `inputs`; the rest of the family is the baseline the trial was opened against.
 
 ---
 
@@ -7064,54 +6954,7 @@ unknown?
 
 # Appendix I. Compatibility Summary
 
-The key KIP 1 → KIP 2 semantic shifts are:
-
-```text
-v1 Concept identity:
-    type + name often identity
-v2:
-    immutable id/key; name is grounding
-
-v1 Proposition:
-    relation/fact + metadata
-v2:
-    truth-neutral Proposition + Assertion + Evidence
-
-v1 metadata confidence:
-    stored on link
-v2:
-    Assertion confidence, Projection belief, memory_strength separated
-
-v1 generic metadata:
-    universal bag
-v2:
-    explicit semantic planes
-
-v1 merge:
-    repoint + delete source
-v2:
-    non-destructive identity consolidation
-
-v1 delete/detach:
-    routine graph operation
-v2:
-    archive / tombstone / purge distinction
-
-v1 export:
-    idempotent UPSERT script
-v2:
-    Cognitive Capsule artifact
-
-v1 query link:
-    fact-like interpretation
-v2:
-    raw Proposition unless BELIEF is explicit
-
-v1 command batch:
-    legacy execution behavior
-v2:
-    independent / sequence / atomic explicitly declared
-```
+Carried in [KIP-2.0-Optional-Profiles-and-Migration.md](./KIP-2.0-Optional-Profiles-and-Migration.md), Appendix I, next to §103.
 
 ---
 

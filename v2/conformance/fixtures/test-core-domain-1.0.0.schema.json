@@ -340,6 +340,13 @@
             "minimum": 0.0,
             "maximum": 1.0
           },
+          "utility": {
+            "type": "number",
+            "required": false,
+            "mutable": true,
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
           "last_metabolized_at": {
             "type": [
               "timestamp",
@@ -350,10 +357,10 @@
           }
         }
       },
-      "SkillUtility": {
-        "ref": "kip://test/core-domain@1.0.0/SkillUtility",
+      "GradingState": {
+        "ref": "kip://test/core-domain@1.0.0/GradingState",
         "kind": "FacetDefinition",
-        "description": "Mutable procedural utility counters; not action authority.",
+        "description": "Mutable graded-outcome tallies for a Skill, counted only from outcomes linked to a decision that applied it; not action authority.",
         "closed": true,
         "applicable_to": {
           "concept_types": [
@@ -361,11 +368,6 @@
           ]
         },
         "fields": {
-          "utility": {
-            "type": "number",
-            "required": false,
-            "mutable": true
-          },
           "success_count": {
             "type": "integer",
             "required": false,
@@ -373,6 +375,12 @@
             "minimum": 0
           },
           "failure_count": {
+            "type": "integer",
+            "required": false,
+            "mutable": true,
+            "minimum": 0
+          },
+          "graded_count": {
             "type": "integer",
             "required": false,
             "mutable": true,
@@ -514,7 +522,7 @@
   },
   "integrity": {
     "digest_profile": "kip-draft-canonical-json-v1",
-    "content_digest": "sha256:79a0c166847785cf3a0b56b0e33e625a9f3bb6e002232db86572f183fb250984",
+    "content_digest": "sha256:12db8974005fe70c2937c3a300c786de10474af089bdaebc5e9cd0576fb8d277",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

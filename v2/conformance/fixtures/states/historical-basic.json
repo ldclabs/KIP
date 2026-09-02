@@ -1,0 +1,189 @@
+{
+  "format": "KIP-Conformance-State-Fixture",
+  "format_version": "2.0-draft",
+  "fixture": "historical-basic",
+  "description": "Three commits with observable history: S1 creates Alpha, a public Document, an active Assertion on Evidence e1, and a Person alicia who knows bob; S2 renames Alpha to Beta, retracts the Assertion, corrects e1 by e2, activates the secondary package (Schema Environment 17 → 18) and classifies the Document secret; S3 merges alicia into alice. Standalone: it does not extend core-basic.",
+  "extends": null,
+  "schema_environment": {
+    "id": "schema_env:test-v1",
+    "packages": [
+      "kip://test/core-domain@1.0.0"
+    ],
+    "version": 17
+  },
+  "clock": "2026-01-01T00:00:00Z",
+  "epistemic_policy": "test-deterministic",
+  "governance_policy": "governance-test-policy",
+  "trust": {
+    "alice": "trusted",
+    "bob": "trusted",
+    "alicia": "trusted"
+  },
+  "bindings": {
+    ":alice": "alice",
+    ":bob": "bob",
+    ":alicia": "alicia",
+    ":project_alpha": "project_alpha",
+    ":doc_note": "doc_note",
+    ":e1": "e1",
+    ":e2": "e2",
+    ":a1": "a1",
+    ":p_alice_tz": "p_alice_tz",
+    ":p_alicia_knows_bob": "p_alicia_knows_bob"
+  },
+  "commits": [
+    {
+      "label": "S1",
+      "at": "2026-01-01T00:00:00Z",
+      "principal": "owner",
+      "creates": [
+        {
+          "handle": "alice",
+          "kind": "concept",
+          "type": "Person",
+          "key": "alice",
+          "name": "Alice"
+        },
+        {
+          "handle": "bob",
+          "kind": "concept",
+          "type": "Person",
+          "key": "bob",
+          "name": "Bob"
+        },
+        {
+          "handle": "alicia",
+          "kind": "concept",
+          "type": "Person",
+          "key": "alicia",
+          "name": "Alicia"
+        },
+        {
+          "handle": "project_alpha",
+          "kind": "concept",
+          "type": "Project",
+          "key": "project-alpha",
+          "name": "Alpha"
+        },
+        {
+          "handle": "doc_note",
+          "kind": "concept",
+          "type": "Document",
+          "key": "doc-note",
+          "name": "Team note",
+          "governance": {
+            "classification": "public"
+          }
+        },
+        {
+          "handle": "e1",
+          "kind": "evidence",
+          "evidence_class": "message",
+          "payload": {
+            "text": "timezone is +08:00"
+          },
+          "media_type": "application/json",
+          "observed_at": "2025-12-31T09:00:00Z",
+          "source": "alice"
+        },
+        {
+          "handle": "p_alice_tz",
+          "kind": "proposition",
+          "subject": "alice",
+          "predicate": "timezone",
+          "object": "+08:00"
+        },
+        {
+          "handle": "a1",
+          "kind": "assertion",
+          "proposition": "p_alice_tz",
+          "asserted_by": "alice",
+          "stance": "support",
+          "mode": "stated",
+          "confidence": 0.9,
+          "asserted_at": "2025-12-31T09:01:00Z",
+          "evidence": [
+            "e1"
+          ]
+        },
+        {
+          "handle": "p_alicia_knows_bob",
+          "kind": "proposition",
+          "subject": "alicia",
+          "predicate": "knows",
+          "object": {
+            "ref": "bob"
+          }
+        },
+        {
+          "handle": "a_ak",
+          "kind": "assertion",
+          "proposition": "p_alicia_knows_bob",
+          "asserted_by": "alicia",
+          "stance": "support",
+          "mode": "stated",
+          "confidence": 0.9,
+          "asserted_at": "2025-12-31T09:02:00Z"
+        }
+      ]
+    },
+    {
+      "label": "S2",
+      "at": "2026-01-02T00:00:00Z",
+      "principal": "owner",
+      "creates": [
+        {
+          "handle": "e2",
+          "kind": "evidence",
+          "evidence_class": "message",
+          "payload": {
+            "text": "timezone is +09:00"
+          },
+          "media_type": "application/json",
+          "observed_at": "2026-01-01T09:00:00Z",
+          "source": "alice"
+        }
+      ],
+      "changes": [
+        {
+          "op": "set_name",
+          "target": "project_alpha",
+          "name": "Beta"
+        },
+        {
+          "op": "transition",
+          "target": "a1",
+          "to": "retracted"
+        },
+        {
+          "op": "transition",
+          "target": "e1",
+          "to": "corrected",
+          "by": "e2"
+        },
+        {
+          "op": "activate_package",
+          "package": "kip://test/secondary@1.0.0",
+          "schema_environment_version": 18
+        },
+        {
+          "op": "set_classification",
+          "target": "doc_note",
+          "classification": "secret"
+        }
+      ]
+    },
+    {
+      "label": "S3",
+      "at": "2026-01-03T00:00:00Z",
+      "principal": "owner",
+      "changes": [
+        {
+          "op": "merge",
+          "source": "alicia",
+          "into": "alice"
+        }
+      ]
+    }
+  ]
+}

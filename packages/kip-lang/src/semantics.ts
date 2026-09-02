@@ -48,13 +48,27 @@ const MODES = new Set([
   'imported'
 ])
 const SEARCH_MODES = new Set(['keyword', 'semantic', 'hybrid'])
-const ASSERTION_STATES = new Set([
-  'active',
+/**
+ * Everything `TRANSITION ... TO` may name (Spec §52.5): Assertion revision,
+ * Evidence correction, Activity status, and the storage lifecycle any element
+ * has. The engine matches the state to the target's kind; the toolkit can only
+ * reject a word that belongs to none of them.
+ */
+const TRANSITION_STATES = new Set([
   'retracted',
   'superseded',
-  'expired'
+  'corrected',
+  'running',
+  'completed',
+  'failed',
+  'cancelled',
+  'archived',
+  'tombstoned'
 ])
-const ACTIVITY_TERMINAL = new Set(['completed', 'failed', 'cancelled'])
+/** Moves that name the replacing element with `BY`. */
+const TRANSITION_WITH_BY = new Set(['superseded', 'corrected'])
+/** Moves that may finalize an Activity's fields and topology. */
+const ACTIVITY_STATES = new Set(['running', 'completed', 'failed', 'cancelled'])
 const EVIDENCE_ROLES = new Set(['support', 'challenge', 'context'])
 
 /** Signals the Profile fixes to `[0,1]`; none of them is truth. */
@@ -127,36 +141,44 @@ function analyzeMutationClause(stmt: Statement, diags: Diagnostic[]): void {
       if (stmt.where) checkWhere(stmt.where, !!stmt.limit, diags)
       break
 
-    // `EXPECT STATE` is checkable only where the target's kind is fixed by the
-    // statement itself. RETRACT and SUPERSEDE always name an Assertion, so the
-    // Assertion lifecycle registry applies. ARCHIVE and TOMBSTONE take any
-    // element — a Concept is not `retracted` and may well be `archived` — and
-    // Core registers no element-lifecycle vocabulary, so checking them here
-    // rejected commands the Specification admits.
-    case 'RetractAssertionStatement':
-      if (stmt.expectState) {
-        checkEnum(stmt.expectState.value, ASSERTION_STATES, 'EXPECT STATE', diags)
+    // The target's kind is not known statically, so only the vocabulary is
+    // checkable: a state no kind has, a `BY` on a move that takes none, a
+    // finalize clause on a move that is not an Activity's.
+    case 'TransitionStatement': {
+      checkEnum(stmt.to, TRANSITION_STATES, 'TRANSITION TO', diags)
+      if (stmt.to.kind === 'StringLiteral') {
+        const to = stmt.to.parsed
+        if (TRANSITION_WITH_BY.has(to) && !stmt.by) {
+          diags.push({
+            range: stmt.to.range,
+            severity: 'error',
+            message: `TRANSITION TO "${to}" names the replacing element with BY`,
+            code: 'KIP_2001'
+          })
+        }
+        if (!TRANSITION_WITH_BY.has(to) && stmt.by && TRANSITION_STATES.has(to)) {
+          diags.push({
+            range: stmt.by.range,
+            severity: 'error',
+            message: `TRANSITION TO "${to}" takes no BY`,
+            code: 'KIP_2001'
+          })
+        }
+        if (stmt.finalize.length > 0 && !ACTIVITY_STATES.has(to) && TRANSITION_STATES.has(to)) {
+          diags.push({
+            range: stmt.finalize[0].range,
+            severity: 'error',
+            message: `TRANSITION TO "${to}" cannot finalize fields or topology; only a pending Activity does`,
+            code: 'KIP_2001'
+          })
+        }
       }
-      if (stmt.where) checkWhere(stmt.where, !!stmt.limit, diags)
-      break
-
-    case 'SupersedeAssertionStatement':
-      if (stmt.expectState) {
-        checkEnum(stmt.expectState.value, ASSERTION_STATES, 'EXPECT STATE', diags)
-      }
-      break
-
-    case 'ArchiveStatement':
-    case 'TombstoneStatement':
-      if (stmt.where) checkWhere(stmt.where, !!stmt.limit, diags)
-      break
-
-    case 'TransitionActivityStatement':
-      checkEnum(stmt.to, ACTIVITY_TERMINAL, 'TRANSITION ACTIVITY TO', diags)
       checkStructural(stmt.finalize.find(
         (c): c is SetStructuralClause => c.kind === 'SetStructuralClause'
       ), diags)
+      if (stmt.where) checkWhere(stmt.where, !!stmt.limit, diags)
       break
+    }
 
     // Spec §52.7 names seven statements whose WHERE can select an unbounded
     // set and which SHOULD therefore carry a LIMIT. Warning on the read and on
@@ -377,12 +399,15 @@ function collectHandleRefs(
       }
       break
 
-    case 'SupersedeAssertionStatement':
-    case 'CorrectEvidenceStatement':
-      for (const ref of [clause.target, clause.by]) {
-        if (ref.kind === 'VariableRef') {
-          out.push({ name: ref.name.slice(1), range: ref.range })
-        }
+    case 'TransitionStatement':
+      // `BY ?new` resolves inside the plan; a `?target` is bound by WHERE or
+      // by a handle, so only the replacing element is a plan reference.
+      if (clause.by && clause.by.kind === 'VariableRef') {
+        out.push({ name: clause.by.name.slice(1), range: clause.by.range })
+      }
+      for (const fin of clause.finalize) {
+        if (fin.kind === 'SetFieldsClause') fromObject(fin.assignments)
+        else for (const edge of fin.assignments) fromExpression(edge.value)
       }
       break
   }

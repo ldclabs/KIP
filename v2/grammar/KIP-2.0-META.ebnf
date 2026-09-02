@@ -144,7 +144,6 @@ meta_statement   = describe_statement
                  | preview_statement
                  | history_statement
                  | changes_statement
-                 | snapshot_statement
                  | export_capsule_statement ;
 
 (* ------------------------------------------------------------------------- *)
@@ -154,7 +153,6 @@ meta_statement   = describe_statement
 describe_statement
                  = describe_primer
                  | describe_protocol
-                 | describe_execution_context
                  | describe_capabilities
                  | describe_space
                  | describe_schema_environment
@@ -169,7 +167,6 @@ describe_statement
                  | describe_snapshot
                  | describe_capsule
                  | describe_epistemic_policy
-                 | describe_projection_capability
                  | describe_trust
                  | describe_access ;
 
@@ -178,9 +175,6 @@ describe_primer  = "DESCRIBE", "PRIMER",
 
 describe_protocol
                  = "DESCRIBE", "PROTOCOL" ;
-
-describe_execution_context
-                 = "DESCRIBE", "EXECUTION", "CONTEXT" ;
 
 describe_capabilities
                  = "DESCRIBE", "CAPABILITIES" ;
@@ -211,17 +205,17 @@ describe_transaction
                    ( meta_value
                    | "BY", "IDEMPOTENCY", "KEY", meta_value ) ;
 
+(* A snapshot is addressed by sequence, or resolved from an instant — the one
+   place wall-clock time enters cognitive-time addressing. *)
 describe_snapshot
-                 = "DESCRIBE", "SNAPSHOT", [ as_of_clause ] ;
+                 = "DESCRIBE", "SNAPSHOT",
+                   [ as_of_clause | "AT", "TIME", meta_value ] ;
 
 describe_capsule = "DESCRIBE", "CAPSULE", meta_value ;
 
 describe_epistemic_policy
                  = "DESCRIBE", "EPISTEMIC", "POLICY",
                    [ meta_value ] ;
-
-describe_projection_capability
-                 = "DESCRIBE", "PROJECTION", "CAPABILITY" ;
 
 describe_trust   = "DESCRIBE", "TRUST", [ meta_value ] ;
 
@@ -339,7 +333,7 @@ preview_import_capsule
                    "INTO", meta_value ;
 
 (* ------------------------------------------------------------------------- *)
-(* HISTORY / CHANGES / SNAPSHOT                                              *)
+(* HISTORY / CHANGES                                                         *)
 (* ------------------------------------------------------------------------- *)
 
 history_statement
@@ -363,9 +357,6 @@ changes_statement
                      [ "LIMIT", meta_value ]
                    | "AFTER", "SEQ", meta_value,
                      [ "LIMIT", meta_value ] ) ;
-
-snapshot_statement
-                 = "SNAPSHOT", [ as_of_clause ] ;
 
 (* ------------------------------------------------------------------------- *)
 (* EXPORT CAPSULE                                                            *)
@@ -426,10 +417,7 @@ union_export_clause
 meta_value       = parameter | literal ;
 target_ref       = variable | parameter | string_literal ;
 
-as_of_clause     = "AS", "OF",
-                   ( "SEQ", meta_value
-                   | "TX", meta_value
-                   | "TIME", meta_value ) ;
+as_of_clause     = "AS", "OF", "SEQ", meta_value ;
 
 proposition_tuple
                  = "(", term, ",", predicate_atom, ",", term, ")"

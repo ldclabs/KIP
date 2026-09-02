@@ -32,13 +32,9 @@ import type {
   SetStructuralClause,
   UnsetStructuralClause,
   UnsetField,
-  RetractAssertionStatement,
-  SupersedeAssertionStatement,
-  CorrectEvidenceStatement,
-  TransitionActivityStatement,
+  ExpectVersionClause,
+  TransitionStatement,
   SetRetentionStatement,
-  ArchiveStatement,
-  TombstoneStatement,
   PurgeStatement,
   PurgePayloadStatement,
   MergeConceptStatement,
@@ -50,7 +46,6 @@ import type {
   PreviewStatement,
   HistoryStatement,
   ChangesStatement,
-  SnapshotStatement,
   ExportCapsuleStatement,
   NumberLiteral
 } from './ast.js'
@@ -68,6 +63,9 @@ import type {
   DotPathVar,
   ElementRef,
   EnsureProposition,
+  ExpectVersion,
+  VersionPlane,
+  Transition,
   FacetAssignment,
   FacetUnset,
   FilterExpression,
@@ -246,13 +244,8 @@ export function lowerStatement(stmt: Statement): Command {
     case 'CreateAssertionStatement':
     case 'CreateActivityStatement':
     case 'UpdateStatement':
-    case 'RetractAssertionStatement':
-    case 'SupersedeAssertionStatement':
-    case 'CorrectEvidenceStatement':
-    case 'TransitionActivityStatement':
+    case 'TransitionStatement':
     case 'SetRetentionStatement':
-    case 'ArchiveStatement':
-    case 'TombstoneStatement':
     case 'PurgeStatement':
     case 'PurgePayloadStatement':
     case 'MergeConceptStatement':
@@ -294,15 +287,50 @@ function lowerFind(stmt: FindStatement): KqlQuery {
 }
 
 function lowerAsOf(clause: AsOfClause): AsOf {
-  const value = lowerScalar(clause.value)
-  switch (clause.basis) {
-    case 'SEQ':
-      return { Seq: value }
-    case 'TX':
-      return { Tx: value }
-    case 'TIME':
-      return { Time: value }
-  }
+  return { Seq: lowerScalar(clause.value) }
+}
+
+/**
+ * `{ expect_version_clause }` → at most one guard per plane. Two guards on one
+ * plane cannot both be meant, so the duplicate is rejected here rather than
+ * left for the engine to pick one.
+ */
+function lowerExpectVersions(clauses: ExpectVersionClause[]): ExpectVersion[] {
+  const seen = new Set<string>()
+  return clauses.map((clause) => {
+    let plane: VersionPlane | null = null
+    let key = 'element'
+    if (clause.plane) {
+      switch (clause.plane.kind) {
+        case 'ATTRIBUTES':
+          plane = 'Attributes'
+          key = 'attributes'
+          break
+        case 'STRUCTURAL':
+          plane = 'Structural'
+          key = 'structural'
+          break
+        case 'RETENTION':
+          plane = 'Retention'
+          key = 'retention'
+          break
+        case 'FACET': {
+          const facet = lowerSymbol(clause.plane.facet)
+          plane = { Facet: facet }
+          key = 'facet:' + ('Name' in facet ? facet.Name : ':' + facet.Param)
+          break
+        }
+      }
+    }
+    if (seen.has(key)) {
+      throw invalidSyntax(
+        `duplicate EXPECT VERSION guard on the same ${key === 'element' ? 'element' : 'plane'}`,
+        clause.range
+      )
+    }
+    seen.add(key)
+    return { version: lowerScalar(clause.value), plane }
+  })
 }
 
 function lowerFindExpression(expr: Expression): FindExpression {
@@ -864,45 +892,8 @@ function lowerMutationClause(
       return [{ CreateActivity: lowerRecordCreate(stmt) }]
     case 'UpdateStatement':
       return [{ Update: lowerUpdate(stmt) }]
-    case 'RetractAssertionStatement':
-      return [
-        {
-          RetractAssertion: {
-            target: lowerElementRef(stmt.target),
-            where_clauses: stmt.where ? lowerWhere(stmt.where) : null,
-            limit: stmt.limit ? lowerScalar(stmt.limit.value) : null,
-            expect_state: stmt.expectState
-              ? lowerScalar(stmt.expectState.value)
-              : null
-          }
-        }
-      ]
-    case 'SupersedeAssertionStatement':
-      return [
-        {
-          SupersedeAssertion: {
-            target: lowerElementRef(stmt.target),
-            by: lowerElementRef(stmt.by),
-            expect_state: stmt.expectState
-              ? lowerScalar(stmt.expectState.value)
-              : null
-          }
-        }
-      ]
-    case 'CorrectEvidenceStatement':
-      return [
-        {
-          CorrectEvidence: {
-            target: lowerElementRef(stmt.target),
-            by: lowerElementRef(stmt.by),
-            expect_state: stmt.expectState
-              ? lowerScalar(stmt.expectState.value)
-              : null
-          }
-        }
-      ]
-    case 'TransitionActivityStatement':
-      return [{ TransitionActivity: lowerTransition(stmt) }]
+    case 'TransitionStatement':
+      return [{ Transition: lowerTransition(stmt) }]
     case 'SetRetentionStatement':
       return [
         {
@@ -911,16 +902,10 @@ function lowerMutationClause(
             values: lowerAssignments(stmt.assignments, null),
             where_clauses: stmt.where ? lowerWhere(stmt.where) : null,
             limit: stmt.limit ? lowerScalar(stmt.limit.value) : null,
-            expect_version: stmt.expectVersion
-              ? lowerScalar(stmt.expectVersion.value)
-              : null
+            expect_versions: lowerExpectVersions(stmt.expectVersions)
           }
         }
       ]
-    case 'ArchiveStatement':
-      return [{ Archive: lowerRemoval(stmt) }]
-    case 'TombstoneStatement':
-      return [{ Tombstone: lowerRemoval(stmt) }]
     case 'PurgeStatement':
       return [{ Purge: lowerPurge(stmt) }]
     case 'PurgePayloadStatement':
@@ -932,9 +917,7 @@ function lowerMutationClause(
             source: lowerElementRef(stmt.source),
             into: lowerElementRef(stmt.into),
             where_clauses: stmt.where ? lowerWhere(stmt.where) : null,
-            expect_version: stmt.expectVersion
-              ? lowerScalar(stmt.expectVersion.value)
-              : null
+            expect_versions: lowerExpectVersions(stmt.expectVersions)
           }
         }
       ]
@@ -1003,9 +986,7 @@ function lowerUpsertConcept(stmt: UpsertConceptStatement): ConceptUpsert {
   return {
     handle: varName(stmt.handle.name, stmt.handle.range),
     match,
-    expect_version: stmt.expectVersion
-      ? lowerScalar(stmt.expectVersion.value)
-      : null,
+    expect_versions: lowerExpectVersions(stmt.expectVersions),
     set_fields: stmt.setFields
       ? lowerAssignments(stmt.setFields.assignments, null)
       : null,
@@ -1036,9 +1017,7 @@ function lowerEnsureProposition(
   return {
     handle: stmt.handle ? varName(stmt.handle.name, stmt.handle.range) : null,
     ...triple,
-    expect_version: stmt.expectVersion
-      ? lowerScalar(stmt.expectVersion.value)
-      : null
+    expect_versions: lowerExpectVersions(stmt.expectVersions)
   }
 }
 
@@ -1064,7 +1043,7 @@ function lowerRecordCreate(
 
 /**
  * Desugars `ASSERT` into exactly what the Spec defines it as (§55.1):
- * `ENSURE PROPOSITION` + `CREATE ASSERTION`, plus `SUPERSEDE` when written.
+ * `ENSURE PROPOSITION` + `CREATE ASSERTION`, plus `TRANSITION ... TO "superseded"` when `SUPERSEDING` is written.
  *
  * Nothing else is fabricated. The sugar exists because recording an
  * attributed claim is the hot path, not because it means anything new.
@@ -1135,7 +1114,7 @@ function lowerAssertSugar(
       EnsureProposition: {
         handle: propositionHandle,
         ...triple,
-        expect_version: null
+        expect_versions: []
       }
     }
   ]
@@ -1193,10 +1172,15 @@ function lowerAssertSugar(
 
   if (stmt.superseding) {
     clauses.push({
-      SupersedeAssertion: {
+      Transition: {
         target: lowerElementRef(stmt.superseding),
+        to: { Literal: { String: 'superseded' } },
         by: { Handle: assertionHandle },
-        expect_state: null
+        set_fields: null,
+        set_structural: null,
+        where_clauses: null,
+        limit: null,
+        expect_versions: []
       }
     })
   }
@@ -1204,7 +1188,33 @@ function lowerAssertSugar(
   return clauses
 }
 
-function lowerTransition(stmt: TransitionActivityStatement) {
+/** Moves that name the replacing element with `BY` (Spec §52.5). */
+const TRANSITION_WITH_BY = new Set(['superseded', 'corrected'])
+/** Activity status moves: the only ones that may finalize fields or topology. */
+const TRANSITION_ACTIVITY_STATES = new Set(['running', 'completed', 'failed', 'cancelled'])
+
+function lowerTransition(stmt: TransitionStatement): Transition {
+  // Spec §52.5: BY exactly for superseded / corrected, SET clauses only on
+  // Activity states. These are syntax errors, so they belong to the
+  // executability contract, not only to the editor diagnostics.
+  if (stmt.to.kind === 'StringLiteral') {
+    const to = stmt.to.parsed
+    if (TRANSITION_WITH_BY.has(to) && !stmt.by) {
+      throw invalidSyntax(
+        `TRANSITION TO "${to}" names the replacing element with BY`,
+        stmt.to.range
+      )
+    }
+    if (!TRANSITION_WITH_BY.has(to) && stmt.by) {
+      throw invalidSyntax(`TRANSITION TO "${to}" takes no BY`, stmt.by.range)
+    }
+    if (stmt.finalize.length > 0 && !TRANSITION_ACTIVITY_STATES.has(to)) {
+      throw invalidSyntax(
+        `TRANSITION TO "${to}" cannot finalize fields or topology; only a pending Activity does`,
+        stmt.finalize[0].range
+      )
+    }
+  }
   let setFields: Assignments | null = null
   let setStructural: StructuralEdge[] | null = null
   for (const clause of stmt.finalize) {
@@ -1223,18 +1233,12 @@ function lowerTransition(stmt: TransitionActivityStatement) {
   return {
     target: lowerElementRef(stmt.target),
     to: lowerScalar(stmt.to),
+    by: stmt.by ? lowerElementRef(stmt.by) : null,
     set_fields: setFields,
     set_structural: setStructural,
-    expect_state: stmt.expectState ? lowerScalar(stmt.expectState.value) : null
-  }
-}
-
-function lowerRemoval(stmt: ArchiveStatement | TombstoneStatement) {
-  return {
-    target: lowerElementRef(stmt.target),
     where_clauses: stmt.where ? lowerWhere(stmt.where) : null,
     limit: stmt.limit ? lowerScalar(stmt.limit.value) : null,
-    expect_state: stmt.expectState ? lowerScalar(stmt.expectState.value) : null
+    expect_versions: lowerExpectVersions(stmt.expectVersions)
   }
 }
 
@@ -1249,6 +1253,7 @@ function lowerPurge(stmt: PurgeStatement) {
     target: lowerElementRef(stmt.target),
     where_clauses: stmt.where ? lowerWhere(stmt.where) : null,
     limit: stmt.limit ? lowerScalar(stmt.limit.value) : null,
+    expect_versions: lowerExpectVersions(stmt.expectVersions),
     reference_policy: stmt.referencePolicy
       ? lowerScalar(stmt.referencePolicy)
       : null,
@@ -1267,6 +1272,7 @@ function lowerPurgePayload(stmt: PurgePayloadStatement) {
     target: lowerElementRef(stmt.target),
     where_clauses: stmt.where ? lowerWhere(stmt.where) : null,
     limit: stmt.limit ? lowerScalar(stmt.limit.value) : null,
+    expect_versions: lowerExpectVersions(stmt.expectVersions),
     confirm: 'PURGE'
   }
 }
@@ -1294,12 +1300,10 @@ function lowerUpdate(stmt: CstUpdateStatement) {
 
   return {
     target,
-    expect_version: stmt.expectVersion
-      ? lowerScalar(stmt.expectVersion.value)
-      : null,
     actions,
     where_clauses: stmt.where ? lowerWhere(stmt.where) : null,
-    limit: stmt.limit ? lowerScalar(stmt.limit.value) : null
+    limit: stmt.limit ? lowerScalar(stmt.limit.value) : null,
+    expect_versions: lowerExpectVersions(stmt.expectVersions)
   }
 }
 
@@ -1396,7 +1400,7 @@ function lowerUpdateAction(
  * Structural mutation reaches mutable Concept topology only (Spec §17.5).
  * Record kinds keep their topology: an Assertion's citations and an
  * Evidence's lineage are immutable payload, a Proposition has no structural
- * fields, and a pending Activity finalizes through TRANSITION ACTIVITY.
+ * fields, and a pending Activity finalizes through TRANSITION.
  */
 function guardStructuralMutation(
   verb: string,
@@ -1411,7 +1415,7 @@ function guardStructuralMutation(
       )
     case 'evidence':
       throw invalidSyntax(
-        `${verb} cannot change Evidence topology: correct it with CORRECT EVIDENCE :old BY :new`,
+        `${verb} cannot change Evidence topology: correct it with TRANSITION :old TO "corrected" BY :new`,
         range
       )
     case 'proposition':
@@ -1421,7 +1425,7 @@ function guardStructuralMutation(
       )
     case 'activity':
       throw invalidSyntax(
-        `${verb} cannot change Activity topology: finalize a pending Activity with TRANSITION ACTIVITY ... SET STRUCTURAL; a terminal Activity is immutable`,
+        `${verb} cannot change Activity topology: finalize a pending Activity with TRANSITION ... TO "completed" SET STRUCTURAL; a terminal Activity is immutable`,
         range
       )
     default:
@@ -1455,7 +1459,7 @@ function guardImmutableField(
   }
   if (kind === 'evidence' && EVIDENCE_IMMUTABLE.has(field)) {
     throw invalidSyntax(
-      `${field} is immutable Evidence payload: correct it with CORRECT EVIDENCE :old BY :new`,
+      `${field} is immutable Evidence payload: correct it with TRANSITION :old TO "corrected" BY :new`,
       range
     )
   }
@@ -1753,8 +1757,6 @@ function lowerMeta(stmt: Statement): MetaCommand {
                 }
               }
       }
-    case 'SnapshotStatement':
-      return { Snapshot: { as_of: stmt.asOf ? lowerAsOf(stmt.asOf) : null } }
     case 'ExportCapsuleStatement':
       return { ExportCapsule: lowerExport(stmt) }
     default:
@@ -1817,8 +1819,6 @@ function lowerDescribe(stmt: DescribeStatement): DescribeTarget {
       return { Primer: { mode: stmt.mode ? lowerScalar(stmt.mode) : null } }
     case 'PROTOCOL':
       return 'Protocol'
-    case 'EXECUTION_CONTEXT':
-      return 'ExecutionContext'
     case 'CAPABILITIES':
       return 'Capabilities'
     case 'SPACE':
@@ -1854,15 +1854,18 @@ function lowerDescribe(stmt: DescribeStatement): DescribeTarget {
     case 'TRANSACTION_BY_IDEMPOTENCY_KEY':
       return { TransactionByIdempotencyKey: value() }
     case 'SNAPSHOT':
-      return { Snapshot: { as_of: stmt.asOf ? lowerAsOf(stmt.asOf) : null } }
+      return {
+        Snapshot: {
+          as_of: stmt.asOf ? lowerAsOf(stmt.asOf) : null,
+          at_time: stmt.atTime ? lowerScalar(stmt.atTime) : null
+        }
+      }
     case 'CAPSULE':
       return { Capsule: value() }
     case 'EPISTEMIC_POLICY':
       return {
         EpistemicPolicy: { value: stmt.value ? lowerScalar(stmt.value) : null }
       }
-    case 'PROJECTION_CAPABILITY':
-      return 'ProjectionCapability'
     case 'TRUST':
       return { Trust: { value: stmt.value ? lowerScalar(stmt.value) : null } }
     case 'ACCESS':

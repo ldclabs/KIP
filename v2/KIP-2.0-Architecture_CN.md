@@ -2034,34 +2034,15 @@ causal memory utility (因果记忆实用度)
 
 # 22. KIP 2.0 设计不变式 (KIP 2.0 Design Invariants)
 
-以下不变式在后续的语法讨论中必须保持成立：
+本架构设计最初确立的设计不变式，现已由两处来源统一维护在一个公共注册表中，本文档不再逐条重述：
 
-1. **命题是真值中立的。**
-2. **信念通过断言 (Assertions) 来表示。**
-3. **多个相互矛盾的断言可以共存。**
-4. **置信度属于断言，而不属于召回频率。**
-5. **来源信任度与断言置信度是独立的两个概念。**
-6. **引擎源头与声明溯源相互分离。**
-7. **源头血统不能通过内容自行提权。**
-8. **字面量值事实可以获得一等认识论处理。**
-9. **需要溯源 / 冲突处理 / 有效性控制的值不应被困在属性中。**
-10. **领域 (Domain) 与记忆空间 (MemorySpace) 保持分离。**
-11. **标识不等于显示名称。**
-12. **现实世界时间与知识时间保持分离。**
-13. **记忆强度、显著性、置信度、信任度和实用度保持分离。**
-14. **KIP 核心层不硬编码 Event/Experience/Skill。**
-15. **Experience 和 Skill 属于认知记忆 Profile。**
-16. **隐藏思维链绝不是必需的记忆制品。**
-17. **失败的经验具备高价值留存资格。**
-18. **仅凭语义相似性不能授权执行行动。**
-19. **导入的可执行记忆默认处于未激活状态。**
-20. **策略执行发生在认知中枢内部，而非仅依赖提示词。**
-21. **为多步骤认知状态转换提供原子事务支持。**
-22. **胶囊签名证明完整性/源头，而非证明真实性或安全性。**
-23. **巩固过程保留足够的溯源信息以供修正。**
-24. **物理删除与认识论遗忘、记忆性遗忘相互分离。**
-25. **KIP 提供原语；记忆大脑掌管认知策略。**
-26. **学习最终通过持久的行为影响来评估。**
+```text
+Specification §102    必须遵守的合规不变式：38 条协议层条目，收录于注册表 Part A
+Profile §23           Profile 不变量：35 条记忆层条目，收录于注册表 Part B
+KIP-2.0-Invariants_CN.md 两处均指向的这唯一一份公共注册表，每条标明确立章节与钉住向量
+```
+
+最初设计不变式中有两条不属于协议运行时格式，因而作为纯粹的架构承诺保留在此：**单纯的语义相似度绝不能直接授予行动权限**（公理 11），以及**学习的最终评价依据是持久的行为改变成效**（§3.9, §21.3）。
 
 ---
 
@@ -2570,7 +2551,9 @@ KIP 核心层一致性不要求实现任何 Brain 策略。
 ## E.1 规范性协议统合 (Normative Protocol Consolidation)
 
 ```text
-KIP-2.0-SPECIFICATION.md
+KIP-2.0-SPECIFICATION_CN.md
+KIP-2.0-Capsule-Specification_CN.md           §37–§41 与 §95，沿用规范自身的章节编号
+KIP-2.0-Optional-Profiles-and-Migration_CN.md §100, §101, §103 以及附录 I
 ```
 
 针对 LLM 提示词注入，维护了一个忠实精简的卡片 `KIPSyntax.md`；若发生任何冲突，以规范为准，并且在协议发生任何变更时必须保持该卡片同步更新。
@@ -2582,20 +2565,20 @@ KIP-2.0-SPECIFICATION.md
 ## E.2 参考性设计依据 (Informative Design Rationale)
 
 ```text
-KIP-2.0-Architecture.md
+KIP-2.0-Architecture_CN.md
 KIP-2.0-Core-Data-Model.md
 KIP-2.0-Epistemic-Model.md
 KIP-2.0-Governance.md
 KIP-2.0-Schema-Packages.md
 KIP-2.0-Transactions.md
-KIP-2.0-Capsule.md
+KIP-2.0-Cognitive-Capsule.md
 KIP-2.0-KQL.md
 KIP-2.0-KML.md
 KIP-2.0-META.md
 KIP-2.0-Protocol-Runtime.md
 ```
 
-这些文档阐述了统合规范背后的设计依据与深层语义。
+这些文档解释了整合后规范背后的设计考量与深层语义。十篇 `design/` 草案文档自 2026-09-02 起**已冻结**：它们属于整合前的设计草稿，不再继续维护，其对应的中文镜像亦不再同步。阅读它们仅用于理解设计推导过程，不作为当前有效规则。
 
 ## E.3 标准认知 Profile (Standard Cognitive Profile)
 
@@ -2613,11 +2596,17 @@ ExperienceStep
 Preference
 Insight
 Commitment
+Watch
 Skill
 SleepTask
 SelfModel
+WorkingState
 MnemonicState
-SkillUtility
+GradingState
+TrialState
+DerivationState
+DecisionRecord
+OutcomeRecord
 ```
 
 Profile 与核心层相互分离，因为 KIP 允许存在其他认知分类体系。

@@ -1,10 +1,10 @@
 # KIP 2.0 Protocol Runtime
 
-**[English](./KIP-2.0-Protocol-Runtime.md) | [中文](./KIP-2.0-Protocol-Runtime_CN.md)**
-
 ## Status
 
 **Protocol Runtime Proposal / Pre-Specification Draft**
+
+> **Frozen (2026-09-02).** Historical design rationale written before the normative consolidation. This document is no longer maintained and its Chinese twin is no longer synchronized; where it differs from [KIP-2.0-SPECIFICATION.md](../KIP-2.0-SPECIFICATION.md), the Specification is right and this document is out of date.
 
 This document defines the execution and wire-level runtime contract of KIP 2.0: how KQL, KML, META, Transactions, snapshots, parameters, artifacts, streaming results, receipts, errors, authentication context, and capability negotiation are carried between an Agent and a Cognitive Nexus.
 

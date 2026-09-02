@@ -67,6 +67,9 @@ key           optional immutable Space-local logical key (idempotent identity)
 name          mutable display/grounding only; duplicates allowed; NEVER identity
 canonical_id  optional verified cross-system identity (Governance-protected)
 client_key    retry-safe logical identity for one historical creation
+schema_ref    exact package version, persisted and used for validation; matching, keys and
+              Proposition identity use the symbol LINEAGE (package path + symbol), so a
+              package upgrade never splits memory (Spec §20.14)
 ```
 
 Unverified "these are the same entity" → `same_as` Proposition + Assertion (feeds review, never auto-merges).
@@ -106,7 +109,7 @@ Baseline Core Literals are finite JSON `string | number | boolean | null`. Array
 ```text
 FIND(<projections>)
 WHERE { <patterns and filters> }
-[AS OF SEQ :seq | AS OF TX :tx | AS OF TIME :t]   // cognitive history: what the Brain contained/believed then
+[AS OF SEQ :seq]                                  // cognitive history: what the Brain contained/believed then (a tx id or instant → seq via DESCRIBE TRANSACTION / DESCRIBE SNAPSHOT AT TIME)
 [FOR TIME :world_time]                            // world-valid time: what was applicable then
 [WITH EPISTEMIC { purpose: "...", risk: "low", policy: "...", include_historical: false,
                   include_hypothetical: false, explanation: "none|summary|ledger" }]
@@ -147,7 +150,9 @@ STRUCTURAL (?experience, "has_step", ?step)          // the edge binding is opti
 ?slot BELIEF SLOT (?person, "timezone")              // whole functional slot: candidates + conflicts
 ```
 
-**BELIEF output**: `status` ∈ `accepted | rejected | contested | uncertain | insufficient`, plus support/opposition, uncertainty, policy identity, temporal basis. A fully grounded BELIEF over a never-stored Proposition returns `insufficient` (not zero rows). BELIEF SLOT returns `accepted_values` + `candidate_projections`. Support and opposition scores don't sum to 1. `BELIEF` / `BELIEF SLOT` are `FIND`-only: never inside a mutation's `WHERE` or an `EXPORT` selection, and their predicate is exact (no path operators).
+**BELIEF output**: `status` ∈ `accepted | rejected | contested | uncertain | insufficient`, `leading` ∈ `support | opposition | none` (the heavier side under `contested`; disclosure, never a verdict), plus support/opposition, uncertainty, policy identity, temporal basis. A fully grounded BELIEF over a never-stored Proposition returns `insufficient` (not zero rows). BELIEF SLOT returns `accepted_values` + `candidate_projections`. Support and opposition scores don't sum to 1. `BELIEF` / `BELIEF SLOT` are `FIND`-only: never inside a mutation's `WHERE` or an `EXPORT` selection, and their predicate is exact (no path operators).
+
+**Merges**: raw Proposition patterns match through `merged_into` — a term naming `B` finds tuples recorded on an `A` merged into `B`, and naming `A` finds them too. `?p.subject` / `?p.object` are the stored endpoints, `?p.canonical_subject` / `?p.canonical_object` the merge-resolved ones; the tuple itself is never rewritten.
 
 **When to use what**: answering "what is true?" → `BELIEF` / `BELIEF SLOT`. Auditing "who said what, based on what?" → raw Proposition/Assertion/Evidence patterns. Never present raw rows as accepted belief.
 
@@ -193,7 +198,7 @@ ASSERT (:alice, "prefers", :dark_mode) {
 }
 ```
 
-Correction (same actor changed their claim):
+Correction — the same actor's earlier claim was wrong:
 
 ```kip
 ASSERT ?a (:alice, "timezone", "+01:00") {   // the handle ?a is optional
@@ -201,7 +206,14 @@ ASSERT ?a (:alice, "timezone", "+01:00") {   // the handle ?a is optional
 } SUPERSEDING :old_assertion
 ```
 
-Desugars exactly to `ENSURE PROPOSITION` + `CREATE ASSERTION` (+ `SUPERSEDE`). Never fabricates extra state. The tuple must be a structural `(s, "p", o)`: the `(id: …)` form is match-only and rejected here. The long form — needed for `challenge` / `context` citations or fine control:
+Change — the world moved, the old claim was true for its time. Never supersede it for being wrong; close its open interval with a re-assertion and start the new value where it ends (both stay active; `FOR TIME` before the move still answers the old value):
+
+```text
+ASSERT (:alice, "timezone", "+08:00") {by: :alice, mode: "stated", valid: {from: :since, until: :moved_at}, evidence: :msg} SUPERSEDING :old_assertion
+ASSERT (:alice, "timezone", "+01:00") {by: :alice, mode: "stated", valid: {from: :moved_at}, evidence: :msg}
+```
+
+Desugars exactly to `ENSURE PROPOSITION` + `CREATE ASSERTION` (+ `TRANSITION ... TO "superseded" BY` the new Assertion). Never fabricates extra state. The tuple must be a structural `(s, "p", o)`: the `(id: …)` form is match-only and rejected here. The long form — needed for `challenge` / `context` citations or fine control:
 
 ```kip
 MUTATE {
@@ -219,7 +231,8 @@ Append `EXPECT VERSION 0` immediately after an `ENSURE PROPOSITION` tuple only w
 
 Rules of stance:
 
-- Someone tells you a fact → `ASSERT ... {by: <them>, mode: "stated"}`. Recording "Alice said X" needs no permission to *be* Alice.
+- Someone tells you a fact → `ASSERT ... {by: <them>, mode: "stated"}`. Recording "Alice said X" needs no permission to *be* Alice: `by` naming an actor you are not bound to needs `record_attributed_assertion`; naming yourself needs `assert`; speaking *as* a reserved actor needs `assert_as_actor` and a binding.
+- `SUPERSEDING` means "that claim was wrong". A fact that stopped being true is not wrong: give the old claim its `valid.until` by re-asserting it, and start the new one with `valid.from`.
 - You (the Brain) infer something → `by: <self>, mode: "inferred"`, cite premises as evidence.
 - Disagreement between actors → two coexisting Assertions (contested), **never** supersession or deletion.
 - Denial → `stance: "reject"` toward the positive Proposition, not a fabricated `false` object.
@@ -236,7 +249,7 @@ CREATE EVIDENCE ?e {
 }
 ```
 
-`CREATE EVIDENCE` / `CREATE ASSERTION` / `CREATE ACTIVITY` share one body: `[CLIENT KEY]`, `SET FIELDS`, `SET FACET`*, `SET STRUCTURAL` — no `TYPE`/`NAME`/`SET ATTRIBUTES` (those are Concept clauses). Wrong Evidence is corrected, never edited: `CORRECT EVIDENCE :old BY :new [EXPECT STATE "..."]`.
+`CREATE EVIDENCE` / `CREATE ASSERTION` / `CREATE ACTIVITY` share one body: `[CLIENT KEY]`, `SET FIELDS`, `SET FACET`*, `SET STRUCTURAL` — no `TYPE`/`NAME`/`SET ATTRIBUTES` (those are Concept clauses). Wrong Evidence is corrected, never edited: `TRANSITION :old TO "corrected" BY :new`.
 
 #### 3.3. Concepts
 
@@ -254,12 +267,11 @@ CREATE CONCEPT ?exp {                       // historically distinct thing
 ```kip
 UPSERT CONCEPT ?proj {                      // stable identity-bearing Concept
   MATCH { type: "Project", key: "kip-2" }   // identity = type + id/key; name-only upsert is forbidden
-  EXPECT VERSION :v                         // optional; 0 = create-only
   SET FIELDS { name: "KIP 2.0" }
-}
+} EXPECT VERSION :v                         // optional trailing guard; 0 = create-only
 ```
 
-Clause menus (any order inside the braces, each at most once except `SET/UNSET FACET`): `CREATE CONCEPT` — `TYPE` (required), `CLIENT KEY`, `NAME`, `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`. `UPSERT CONCEPT` — `MATCH` (required), `EXPECT VERSION`, `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`, `UNSET ATTRIBUTES | FACET | STRUCTURAL`. `MATCH { type: "Person", key: "alice" }` may create; `MATCH { id: :id }` only matches. The `type` is not decoration: a key is identity *within* its type (a Person and a Preference may both be keyed `alice`), and on a create it is the only source of the new Concept's type — so an upsert that must create without one is rejected, and a bare `{key: …}` that names two Concepts is an `IdentityConflict` rather than a coin flip. Where a value goes: Core fields (`name`, `key`) → `SET FIELDS`; schema-declared attributes (`goal`, `status`, …) → `SET ATTRIBUTES`; Profile facet values → `SET FACET "Facet"`; references → `SET STRUCTURAL`.
+Clause menus (any order inside the braces, each at most once except `SET/UNSET FACET`): `CREATE CONCEPT` — `TYPE` (required), `CLIENT KEY`, `NAME`, `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`. `UPSERT CONCEPT` — `MATCH` (required), `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`, `UNSET ATTRIBUTES | FACET | STRUCTURAL`, then `EXPECT VERSION` after the closing brace. `MATCH { type: "Person", key: "alice" }` may create; `MATCH { id: :id }` only matches. The `type` is not decoration: a key is identity *within* its type (a Person and a Preference may both be keyed `alice`), and on a create it is the only source of the new Concept's type — so an upsert that must create without one is rejected, and a bare `{key: …}` that names two Concepts is an `IdentityConflict` rather than a coin flip. Where a value goes: Core fields (`name`, `key`) → `SET FIELDS`; schema-declared attributes (`goal`, `status`, …) → `SET ATTRIBUTES`; Profile facet values → `SET FACET "Facet"`; references → `SET STRUCTURAL`.
 
 #### 3.4. `MUTATE` — one atomic cognitive transition
 
@@ -284,7 +296,7 @@ Handles (`?e`, `?a`) are block-local; forward references are allowed; the engine
 #### 3.5. UPDATE — mutable state only
 
 ```kip
-UPDATE ?m EXPECT VERSION :v
+UPDATE ?m
 SET FACET "MnemonicState" {
   memory_strength: CLAMP(MUL(?m.facets["MnemonicState"].memory_strength, :decay), 0, 1)
 }
@@ -293,6 +305,7 @@ WHERE {
   FILTER(?m.facets["MnemonicState"].memory_strength > 0)
 }
 LIMIT :n
+EXPECT VERSION :v OF FACET "MnemonicState"
 ```
 
 Actions (one or more, in this position): `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL` and `UNSET ATTRIBUTES | FACET | STRUCTURAL`. `SET FIELDS` deliberately has **no** `UNSET FIELDS`; only schema-legal Core field assignments are allowed. Exact removal shapes:
@@ -304,44 +317,46 @@ UNSET FACET "MnemonicState" {salience}
 UNSET STRUCTURAL { ("has_step", :wrong_step) }
 ```
 
-`UNSET ATTRIBUTES` / `UNSET FACET` contain comma-separated field names, not `{field: null}` assignments. `UNSET STRUCTURAL` removes one named reference; ordered fields re-densify and cardinality is validated. `SET/UNSET STRUCTURAL` through UPDATE applies only to mutable Concept topology. Assertion and Evidence citations/topology are immutable; a pending Activity finalizes topology only through `TRANSITION ACTIVITY ... SET STRUCTURAL`, and terminal Activity topology is immutable.
+`UNSET ATTRIBUTES` / `UNSET FACET` contain comma-separated field names, not `{field: null}` assignments. `UNSET STRUCTURAL` removes one named reference; ordered fields re-densify and cardinality is validated. `SET/UNSET STRUCTURAL` through UPDATE applies only to mutable Concept topology. Assertion and Evidence citations/topology are immutable; a pending Activity finalizes topology only through `TRANSITION ... TO "completed" SET STRUCTURAL`, and terminal Activity topology is immutable.
 
-Update expressions: `ADD` `MUL` `CLAMP` `COALESCE` (deterministic, per-target; operands may read only the target's own paths). UPDATE never creates. A direct target needs no `WHERE`: `UPDATE :id SET FACET "MnemonicState" {salience: 0.9}` (same rule as ARCHIVE/TOMBSTONE/PURGE/SET RETENTION/RETRACT — a `?var` target is bound by WHERE, `:id`/`"id"` already names the element).
+Update expressions: `ADD` `MUL` `CLAMP` `COALESCE` (deterministic, per-target; operands may read only the target's own paths). UPDATE never creates. A direct target needs no `WHERE`: `UPDATE :id SET FACET "MnemonicState" {salience: 0.9}` (same rule as TRANSITION/PURGE/SET RETENTION — a `?var` target is bound by WHERE, `:id`/`"id"` already names the element).
 
-**UPDATE can never touch**: Proposition tuples, Assertion epistemic payload or initial citations, Evidence payload/topology, Activity topology, `_system`, Governance, Schema. A pending Activity uses `TRANSITION ACTIVITY` to finalize fields/topology; a terminal Activity is immutable. Attempting an illegal rewrite → `EpistemicRevisionRequired` / `EvidenceCorrectionRequired` / `ImmutableField`. **Never decay Assertion confidence over time** — disuse decays `memory_strength`; staleness is Projection's job; new knowledge is a new Assertion.
+**UPDATE can never touch**: Proposition tuples, Assertion epistemic payload or citations, Evidence payload/topology, Activity topology, `_system`, Governance, Schema. A pending Activity uses `TRANSITION` to finalize fields/topology; a terminal Activity is immutable. Attempting an illegal rewrite → `EpistemicRevisionRequired` / `EvidenceCorrectionRequired` / `ImmutableField`. **Never decay Assertion confidence over time** — disuse decays `memory_strength`; staleness is Projection's job; new knowledge is a new Assertion.
 
-#### 3.6. Lifecycle & removal (each one a different thing)
+#### 3.6. Lifecycle & removal — one `TRANSITION`, the state names the move
 
 ```text
-RETRACT ASSERTION :a [WHERE {...}] [LIMIT :n] [EXPECT STATE "active"]   // the assertor withdraws their own claim
-SUPERSEDE ASSERTION :old BY ?new [EXPECT STATE "active"]               // same actor/lineage revision — not disagreement
-TRANSITION ACTIVITY :act TO "completed"                                // lifecycle move; may finalize terminal fields atomically
-  [SET FIELDS { ended_at: :t }] [SET STRUCTURAL { ("outputs", ?a) }] [EXPECT STATE "running"]
-ARCHIVE :target [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]     // out of ordinary recall; history preserved
-TOMBSTONE :target [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]   // logical deletion; identity/audit preserved
-PURGE :target [WHERE {...}] [LIMIT :n]                             // physical erasure; exceptional
-  [REFERENCE POLICY "deny_if_referenced"] CONFIRM "PURGE"          // policies: deny_if_referenced | tombstone_reference | authorized_cascade
-PURGE PAYLOAD :evidence [WHERE {...}] [LIMIT :n] CONFIRM "PURGE"   // erase Evidence bytes only; record, digest, citations, provenance survive
+TRANSITION :a TO "retracted" [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]   // the assertor withdraws their own claim
+TRANSITION :old TO "superseded" BY ?new                                    // same actor's claim was wrong — not disagreement, not world change
+TRANSITION :old TO "corrected" BY :new                                     // wrong Evidence: new record + lineage, never an edit
+TRANSITION :act TO "completed" [SET FIELDS {ended_at: :t}] [SET STRUCTURAL {("outputs", ?a)}]   // Activity: running|completed|failed|cancelled; may finalize atomically
+TRANSITION :target TO "archived" [WHERE {...}] [LIMIT :n]                  // out of ordinary recall; history preserved
+TRANSITION :target TO "tombstoned" [WHERE {...}] [LIMIT :n]                // logical deletion; identity/audit preserved
+PURGE :target [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]                 // physical erasure; exceptional
+  [REFERENCE POLICY "deny_if_referenced"] CONFIRM "PURGE"                  // policies: deny_if_referenced | tombstone_reference | authorized_cascade
+PURGE PAYLOAD :evidence [WHERE {...}] [LIMIT :n] CONFIRM "PURGE"           // erase Evidence bytes only; record, digest, citations, provenance survive
 SET RETENTION :target { retention_class: "standard", expires_at: :t } [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]
 MERGE CONCEPT ?src INTO ?tgt [WHERE {...}] [EXPECT VERSION :v]
 ```
 
-Every mutation whose `WHERE` can select an unbounded set takes an optional `LIMIT` right after it (`UPDATE`, `RETRACT ASSERTION`, `SET RETENTION`, `ARCHIVE`, `TOMBSTONE`, `PURGE`, `PURGE PAYLOAD`) — bound your sweeps. `LIMIT` caps how many are affected, not which: don't assume an order. `MERGE CONCEPT` takes none.
+The engine checks the state against the target's kind and its current state: an Assertion goes to `retracted` or `superseded` (`BY` the newer Assertion), Evidence to `corrected` (`BY` the new Evidence), an Activity to `running` or a terminal state, and any element to `archived` or `tombstoned`. A move from the wrong state fails `InvalidLifecycleTransition`, so there is no `EXPECT STATE`.
+
+Every mutation whose `WHERE` can select an unbounded set takes an optional `LIMIT` right after it (`UPDATE`, `TRANSITION`, `SET RETENTION`, `PURGE`, `PURGE PAYLOAD`) — bound your sweeps. `LIMIT` caps how many are affected, not which: don't assume an order. `MERGE CONCEPT` takes none.
 
 `MERGE CONCEPT` is non-destructive: source stays addressable as merged history; future writes canonicalize to target. Cycle-creating merges (target already resolves back to source) are rejected.
 
-Preconditions: `EXPECT VERSION :n` (optimistic concurrency; `EXPECT VERSION 0` = create-only) sits right after the target in `UPDATE`, after `MATCH` in `UPSERT CONCEPT`, after the tuple in `ENSURE PROPOSITION`, and last in `SET RETENTION` / `MERGE CONCEPT`; `EXPECT STATE "..."` is always the last clause of a lifecycle statement.
+Preconditions: `EXPECT VERSION :n [OF ATTRIBUTES | STRUCTURAL | RETENTION | FACET "X"]` (optimistic concurrency; `0` = create-only; a plane guards only that plane's own version, so a status verdict is not spoiled by a Facet sweep) is always the **last** clause of a mutation — after `WHERE` and `LIMIT`, after `UPSERT`'s closing brace, after `ENSURE PROPOSITION`'s tuple — and may repeat, one guard per plane.
 
 ---
 
 ### 4. META — Ground, Verify, Inspect
 
 ```text
-DESCRIBE PRIMER [MODE "compact" | "full" | :mode]   // identity, Space, schema map, capabilities, safety invariants
-DESCRIBE PROTOCOL | EXECUTION CONTEXT | CAPABILITIES | PROJECTION CAPABILITY   // CAPABILITIES: supported vs available (for THIS caller)
+DESCRIBE PRIMER [MODE "compact" | "full" | :mode]   // identity, Space, execution context, schema map, capabilities, safety invariants
+DESCRIBE PROTOCOL | CAPABILITIES                      // CAPABILITIES: supported vs available (for THIS caller), projection capabilities included
 DESCRIBE SPACE ["space-id" | :space_id]
-DESCRIBE SCHEMA ENVIRONMENT [AS OF SEQ :s | AS OF TX :tx | AS OF TIME :t]
-DESCRIBE SNAPSHOT [AS OF SEQ :s | AS OF TX :tx | AS OF TIME :t]
+DESCRIBE SCHEMA ENVIRONMENT [AS OF SEQ :s]
+DESCRIBE SNAPSHOT [AS OF SEQ :s | AT TIME :t]         // the snapshot coordinate; AT TIME resolves an instant to a seq
 DESCRIBE TYPE :t | PREDICATE :p | FACET :f | STRUCTURAL FIELD :sf | PACKAGE :pkg | COMPATIBILITY FROM :pkg_a TO :pkg_b
 DESCRIBE ERROR :code | CAPSULE :artifact | EPISTEMIC POLICY [:id] | TRUST [:scope] | ACCESS [WITH {operation: "...", resource: :r}]
 DESCRIBE TRANSACTION :tx_id | DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :key
@@ -351,13 +366,12 @@ LIST DEPENDENTS :id [DEPTH :n] [LIMIT :n] [CURSOR :c]   // cognition derived fro
 HISTORY ELEMENT :id [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]   // transition chronology
 HISTORY SPACE [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]
 CHANGES SINCE :cursor [LIMIT :n] | CHANGES AFTER SEQ :seq [LIMIT :n]   // transaction-grained stream
-SNAPSHOT [AS OF SEQ :s | AS OF TX :tx | AS OF TIME :t]
 VERIFY CAPSULE | SCHEMA PACKAGE | RECEIPT | BLOB | CHECKPOINT :artifact
 VALIDATE KQL | KML | CAPSULE | SCHEMA PACKAGE | IMPORT PLAN :input [WITH {...}]
 PREVIEW KML :cmd | PREVIEW IMPORT CAPSULE :capsule INTO :space
 EXPORT CAPSULE ?roots WHERE {...}                                      // ?roots bound by WHERE, or :id / "id" for one root
   [WITH {closure: "referential", provenance_depth: 2, include_schema: true, include_blobs: false, proof_profile: "..."}]
-  [AS OF SEQ :s | AS OF TX :tx | AS OF TIME :t]
+  [AS OF SEQ :s]
 ```
 
 ```text
@@ -402,7 +416,7 @@ This is a complete **common-path request**, not the full wire grammar:
       "payload": "I prefer dark mode.",
       "media_type": "text/plain",
       "observed_at": "2026-08-16T01:00:00Z",
-      "source_actor": "alice",
+      "source_actor": {"id": "concept-alice"},
       "client_key": "message:123"
     }]
   },
@@ -420,8 +434,8 @@ This is a complete **common-path request**, not the full wire grammar:
 
 #### 5.1. Ingestion, execution, and recovery
 
-- **Execution modes** (required when >1 operation): `independent` (isolated, concurrent) | `sequence` (ordered, separate commits, no rollback of earlier) | `atomic` (one transaction, one snapshot, read-your-writes, all-or-none).
-- **§5.1 Ingestion**: each `ingest.evidence[].key` becomes a parameter bound to runtime-minted Evidence — observed payloads never pass through your generated text. Each entry supplies exactly one of `payload` or `payload_artifact`.
+- **Execution modes** (required when >1 operation): `independent` (isolated, concurrent; each result states its `snapshot_seq`) | `sequence` (ordered, separate commits, no rollback of earlier; `on_error` defaults to `stop`) | `atomic` (one transaction, one snapshot, read-your-writes, all-or-none). In `sequence`/`independent` each write's Receipt is in `results[].receipt`; only `atomic` has the top-level `receipt`. `execution.idempotency_key` is echoed back.
+- **§5.1 Ingestion**: each `ingest.evidence[].key` becomes a parameter bound to runtime-minted Evidence — observed payloads never pass through your generated text. Each entry supplies exactly one of `payload` or `payload_artifact`, and may carry `facets` (e.g. `OutcomeRecord` on an `outcome`). Writing `outcome` Evidence needs `record_outcome`; an outcome grades a decision only through an `outcome_observation` Activity that names the `action_gate` among its inputs.
 - **Identity trio**: `request_id` (one network attempt) ≠ `idempotency_key` (one logical write intent) ≠ `tx_id` (committed fact). Retry the same logical write with the **same** idempotency key.
 - **Response**: top status `succeeded|failed|partial|outcome_unknown`; per-op `succeeded|failed|skipped|rolled_back|no_effect`; committed receipt carries `tx_id`, `space_seq`, digests.
 - **Timeout ≠ abort**: on lost response, `DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :key` or retry the identical request/key. Never re-form the memory fresh.
@@ -447,15 +461,15 @@ At startup or after `requires_refresh`, call `DESCRIBE PRIMER`; ground concrete 
 
 ### 6. Cognitive Memory Profile (quick reference)
 
-Types: `Person` `Event` (what happened) `Experience` (goal-directed trajectory; required `goal`, `outcome_status`) `ExperienceStep` (`step_kind`: context|observation|decision|action|feedback|belief_update; `summary`; order = has_step edge index) `Preference` (summary artifact — the claim itself stays Proposition+Assertion) `Insight` `Commitment` (`status`: pending|fulfilled|cancelled|expired|blocked; `due_at` ≠ retention expiry) `Watch` (armed attention; `watch_class`: delta|silence; `condition`; `status`: armed|fired|expired|disarmed; firing grants nothing) `Skill` (`skill_class`, required `task_family` — the outcome stream that grades it, `summary`, `procedure`, `status`: proposed|trialed|adopted|revoked; transitions only by deterministic `lifecycle_verdict` over graded outcomes) `SleepTask` (`task_class`: consolidate|review_conflict|review_skill|resolve_identity|review_retention|review_derived|refresh_self_model|inspect_quarantine; `summary`; `status`: pending|running|completed|cancelled|blocked|failed) `SelfModel` `WorkingState` (what matters now; required `basis_seq`; derived view, never Evidence)
+Types: `Person` `Event` (what happened) `Experience` (goal-directed trajectory; required `goal`, `outcome_status`) `ExperienceStep` (`step_kind`: context|observation|decision|action|feedback|belief_update; `summary`; order = has_step edge index) `Preference` (summary artifact — the claim itself stays Proposition+Assertion) `Insight` (optional `task_family` subscribes it to a consequence stream) `Commitment` (`status`: pending|fulfilled|cancelled|expired|blocked; `due_at` ≠ retention expiry) `Watch` (armed attention; `watch_class`: delta|silence; `condition` = `{element | slot: {subject, predicate} | type, ops, touched, text}` over Change Envelope entries, `text` alone is Brain-evaluated; `status`: armed|fired|expired|disarmed; firing is a guarded UPDATE + `watch_fire` Activity keyed `watch_fire:<id>:<seq>` so it never double-fires; a silence Watch is decided only after the stream is consumed through `due_at`, never on the clock alone; firing grants nothing) `Skill` (`skill_class`, required `task_family` — the stream its baseline comes from, `summary`, `procedure`, `status`: proposed|trialed|adopted|revoked; transitions only by deterministic `lifecycle_verdict` over outcomes linked to decisions that applied it) `SleepTask` (`task_class`: consolidate|review_conflict|review_skill|resolve_identity|review_retention|review_derived|refresh_self_model|inspect_quarantine; `summary`; `status`: pending|running|completed|cancelled|blocked|failed) `SelfModel` `WorkingState` (what matters now; required `basis_seq`; derived view, never Evidence)
 
 Predicates: `prefers` (Person→Concept) `caused_by` (Step→Step, effect→cause, evidence-backed) `same_as` (identity claim → review)
 
-Facets: `MnemonicState {memory_strength, salience, utility, last_metabolized_at}` `SkillUtility {utility, success_count, failure_count, graded_count, last_verdict_at}` `DerivationState {basis_seq, status: current|stale|under_review, reviewed_at}` `OutcomeRecord {task_family, outcome_status: success|partial|failure|aborted|unknown, magnitude}` (on `outcome` Evidence; written by instrumentation, never the graded actor) — the ratios are `[0,1]`, the counts are non-negative integers, the timestamps are nullable; none of them is truth, and `stale` is a review flag, not retraction.
+Facets: `MnemonicState {memory_strength, salience, utility, last_metabolized_at}` (Skills too: `utility` is the admission bet) `GradingState {success_count, failure_count, graded_count, last_verdict_at}` (Skill / subscribed Insight; counts only outcomes linked to a decision that applied it) `TrialState {opened_at, basis_seq, baseline_graded_count, baseline_success_count, baseline_failure_count, quota, rule_id}` (written by the verdict that opens a trial) `DerivationState {basis_seq, status: current|stale|under_review, reviewed_at}` `DecisionRecord {decision: act|ask|defer|silence, rationale}` (on an `action_gate` Activity whose `inputs` name the Skills and memories applied) `OutcomeRecord {task_family, outcome_status: success|partial|failure|aborted|unknown, magnitude}` (on `outcome` Evidence; written by instrumentation, never the graded actor) — the ratios are `[0,1]`, the counts are non-negative integers, the timestamps are nullable; none of them is truth, `stale` is a review flag, not retraction, and `task_family` finds the baseline but never attributes an outcome.
 
 Structural fields: `has_step` (ordered) `experienced_by` `involves` `mentions` `about` `derived_from` `consolidated_to` `compiled_from` `compiled_by` `committed_to` `owed_to` `assigned_to` `watches`; Core built-ins on records: `evidence` `source` `generated_by` `inputs` `outputs` `associated_actors`.
 
-Invariants: failed Experience is first-class memory; one success ≠ adopted Skill; adopted Skill ≠ execution authority; your own report of how your action went is `agent_statement`, never `outcome` Evidence; SelfModel ≠ Governance; a fired Watch is attention, not permission — record the gate outcome (`action_gate` Activity: act|ask|defer|silence), silence included; WorkingState is served with its `basis_seq` and never cited as Evidence; imported memory keeps `mode: "imported"` and never becomes local autobiography (an imported Skill re-enters at `proposed`).
+Invariants: failed Experience is first-class memory; one success ≠ adopted Skill; adopted Skill ≠ execution authority; your own report of how your action went is `agent_statement`, never `outcome` Evidence; SelfModel ≠ Governance; a fired Watch is attention, not permission — record the gate decision (`action_gate` Activity + `DecisionRecord`: act|ask|defer|silence, inputs = what you applied), silence included; an outcome grades a Skill only through the `outcome_observation` link to that decision, never by sharing its `task_family`; WorkingState is served with its `basis_seq` and never cited as Evidence; imported memory keeps `mode: "imported"` and never becomes local autobiography (an imported Skill re-enters at `proposed`).
 
 ---
 
@@ -479,7 +493,7 @@ Frequent codes → fix: `SchemaSymbolAmbiguous` (use exact `kip://pkg@ver/symbol
 3. **Belief questions get `BELIEF`/`BELIEF SLOT`**; raw `FIND` is for audit/history/conflict inspection. Report `insufficient` as "not enough basis", never as "no".
 4. **Correction ritual**: new Evidence → `ASSERT ... SUPERSEDING :old` (+ `belief_revision` Activity for material revisions). Disagreement between actors just coexists.
 5. **One coherent change = one atomic MUTATE/transaction**: Evidence+Assertion; Experience+Steps+Activity; correction+supersession. Don't leave misleading halves.
-6. **Metabolism touches Facets only**: decay `memory_strength`, adjust `salience`, update `SkillUtility` — Assertion confidence is never edited; epistemically material change creates a new Assertion, optionally superseding the old one.
+6. **Metabolism touches Facets only**: decay `memory_strength`, adjust `salience`, tally `GradingState` from linked outcomes — Assertion confidence is never edited; epistemically material change creates a new Assertion, optionally superseding the old one.
 7. **Removal is a ladder**: archive → tombstone → purge (policied, confirmed). Merging is non-destructive; identity suspicion = `same_as` claim + review.
 8. **Respect the write path for retries**: same intent = same `idempotency_key`; distinct real-world observations = distinct `client_key`s. Retry ≠ new Experience.
 9. **Time is two axes**: use `FOR TIME` for "when was it valid", `AS OF` for "what did the Brain hold then"; combine them only when both cognitive-history time and world-valid time are specified.

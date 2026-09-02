@@ -188,7 +188,7 @@ Future recall changes through `memory_strength`/salience. Truth does not change.
 
 ## Procedural learning
 
-Future action policy changes through Skill, SkillUtility, applicability, and counterexamples.
+Future action policy changes through Skill, GradingState, applicability, and counterexamples.
 
 ## Self-model learning
 
@@ -229,7 +229,7 @@ Transitions execute only as deterministic verdicts over graded Outcome Evidence 
 
 After Skill use, capture context, whether preconditions held, selected procedure, outcome, feedback, and unexpected observations.
 
-Classify success under matching conditions, failure under matching conditions, failure under non-matching conditions, and unknown outcome. Matching-condition failure is a strong negative signal and may narrow the Skill or, through a verdict, demote it to re-trial. The grades that count are Outcome Evidence written by instrumentation — the agent's own account of how it went is `agent_statement`, never a grade.
+Classify success under matching conditions, failure under matching conditions, failure under non-matching conditions, and unknown outcome. Matching-condition failure is a strong negative signal and may narrow the Skill or, through a verdict, demote it to re-trial. The grades that count are Outcome Evidence written by instrumentation and linked, through an `outcome_observation` Activity, to the `action_gate` decision that applied the Skill — the agent's own account of how it went is `agent_statement`, never a grade, and an outcome that merely shares the task family is baseline, never a grade either.
 
 # 20. Action Recall
 
@@ -345,26 +345,13 @@ NEXT WAKE
 
 # 35. Design Invariants
 
+The protocol-level invariants live in Specification §102 and the Profile-level ones in Profile §23, both registered in one list, `KIP-2.0-Invariants.md`; this document does not restate them. What it adds is the learning-specific residue:
+
 1. A write is not proof of learning.
-2. Event is not Experience.
-3. Experience is not Skill.
-4. Skill is not authority.
-5. Failure is first-class.
-6. Prediction error is not confidence.
-7. Memory strength is not truth.
-8. Repetition is not independent Evidence.
-9. Summary is not a new root.
-10. Temporal order is not causality.
-11. Similarity is not applicability.
-12. Retrieval is not functional memory unless it can influence future cognition.
-13. Contradiction is data, not corruption.
-14. Revision preserves history.
-15. External action is outside KIP rollback.
-16. Retry is not repeated Experience.
-17. Remote Experience is not local autobiography.
-18. Hidden chain-of-thought is unnecessary.
-19. Learning should be behaviorally evaluable.
-20. Protocol provides signals; Brain owns policy.
+2. Prediction error is not confidence.
+3. Similarity is not applicability.
+4. Retrieval is not functional memory unless it can influence future cognition.
+5. Learning should be behaviorally evaluable — with the relevant memory against its ablation.
 
 # 36. Final Principle
 

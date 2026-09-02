@@ -172,7 +172,8 @@ export interface KqlQuery {
   cursor: Scalar | null
 }
 
-export type AsOf = { Seq: Scalar } | { Tx: Scalar } | { Time: Scalar }
+/** Cognitive time is a sequence coordinate; ids and instants resolve to one first. */
+export type AsOf = { Seq: Scalar }
 
 export interface FindClause {
   expressions: FindExpression[]
@@ -306,16 +307,26 @@ export type MutationClause =
   | { CreateAssertion: RecordCreate }
   | { CreateActivity: RecordCreate }
   | { Update: UpdateStatement }
-  | { RetractAssertion: RetractAssertion }
-  | { SupersedeAssertion: SupersedeAssertion }
-  | { CorrectEvidence: CorrectEvidence }
-  | { TransitionActivity: TransitionActivity }
+  | { Transition: Transition }
   | { SetRetention: SetRetention }
-  | { Archive: RemovalStatement }
-  | { Tombstone: RemovalStatement }
   | { Purge: PurgeStatement }
   | { PurgePayload: PurgePayloadStatement }
   | { MergeConcept: MergeConcept }
+
+/**
+ * `EXPECT VERSION n [OF plane]` (Spec §35.1). Without a plane the guard is
+ * on the element's `_system.version`; with one, on that plane's own version.
+ */
+export interface ExpectVersion {
+  version: Scalar
+  plane: VersionPlane | null
+}
+
+export type VersionPlane =
+  | 'Attributes'
+  | 'Structural'
+  | 'Retention'
+  | { Facet: SymbolRef }
 
 export interface ConceptCreate {
   handle: string
@@ -331,7 +342,7 @@ export interface ConceptCreate {
 export interface ConceptUpsert {
   handle: string
   match: ObjectMatcher | null
-  expect_version: Scalar | null
+  expect_versions: ExpectVersion[]
   set_fields: Assignments | null
   set_attributes: Assignments | null
   set_facets: FacetAssignment[]
@@ -355,7 +366,7 @@ export interface EnsureProposition {
   subject: Term
   predicate: PredAtom
   object: Term
-  expect_version: Scalar | null
+  expect_versions: ExpectVersion[]
 }
 
 export interface FacetAssignment {
@@ -406,14 +417,14 @@ export type UpdateFunction = 'Add' | 'Mul' | 'Clamp' | 'Coalesce'
 
 export interface UpdateStatement {
   target: ElementRef
-  expect_version: Scalar | null
   actions: UpdateAction[]
   /**
    * `null` when the statement names its target directly and omits WHERE —
-   * the same shape as the removal family (Spec §58).
+   * the same shape as TRANSITION and the removal family (Spec §58).
    */
   where_clauses: WhereClause[] | null
   limit: Scalar | null
+  expect_versions: ExpectVersion[]
 }
 
 export type UpdateAction =
@@ -425,31 +436,21 @@ export type UpdateAction =
   | { SetStructural: StructuralEdge[] }
   | { UnsetStructural: StructuralRemoval[] }
 
-export interface RetractAssertion {
-  target: ElementRef
-  where_clauses: WhereClause[] | null
-  limit: Scalar | null
-  expect_state: Scalar | null
-}
-
-export interface SupersedeAssertion {
-  target: ElementRef
-  by: ElementRef
-  expect_state: Scalar | null
-}
-
-export interface CorrectEvidence {
-  target: ElementRef
-  by: ElementRef
-  expect_state: Scalar | null
-}
-
-export interface TransitionActivity {
+/**
+ * The one lifecycle statement (Spec §52.5): `to` names the move, the engine
+ * validates it against the target's kind and current state. `by` carries the
+ * replacing element for `superseded` / `corrected`; `set_fields` and
+ * `set_structural` finalize a pending Activity in the same transition.
+ */
+export interface Transition {
   target: ElementRef
   to: Scalar
+  by: ElementRef | null
   set_fields: Assignments | null
   set_structural: StructuralEdge[] | null
-  expect_state: Scalar | null
+  where_clauses: WhereClause[] | null
+  limit: Scalar | null
+  expect_versions: ExpectVersion[]
 }
 
 export interface SetRetention {
@@ -457,20 +458,14 @@ export interface SetRetention {
   values: Assignments
   where_clauses: WhereClause[] | null
   limit: Scalar | null
-  expect_version: Scalar | null
-}
-
-export interface RemovalStatement {
-  target: ElementRef
-  where_clauses: WhereClause[] | null
-  limit: Scalar | null
-  expect_state: Scalar | null
+  expect_versions: ExpectVersion[]
 }
 
 export interface PurgeStatement {
   target: ElementRef
   where_clauses: WhereClause[] | null
   limit: Scalar | null
+  expect_versions: ExpectVersion[]
   reference_policy: Scalar | null
   /** Always the literal `PURGE`; the grammar freezes the spelling. */
   confirm: string
@@ -484,6 +479,7 @@ export interface PurgePayloadStatement {
   target: ElementRef
   where_clauses: WhereClause[] | null
   limit: Scalar | null
+  expect_versions: ExpectVersion[]
   /** Always the literal `PURGE`; the grammar freezes the spelling. */
   confirm: string
 }
@@ -492,7 +488,7 @@ export interface MergeConcept {
   source: ElementRef
   into: ElementRef
   where_clauses: WhereClause[] | null
-  expect_version: Scalar | null
+  expect_versions: ExpectVersion[]
 }
 
 // ---------------------------------------------------------------------------
@@ -508,13 +504,11 @@ export type MetaCommand =
   | { Preview: PreviewCommand }
   | { History: HistoryCommand }
   | { Changes: ChangesCommand }
-  | { Snapshot: { as_of: AsOf | null } }
   | { ExportCapsule: ExportCapsuleCommand }
 
 export type DescribeTarget =
   | { Primer: { mode: Scalar | null } }
   | 'Protocol'
-  | 'ExecutionContext'
   | 'Capabilities'
   | { Space: { value: Scalar | null } }
   | { SchemaEnvironment: { as_of: AsOf | null } }
@@ -527,10 +521,9 @@ export type DescribeTarget =
   | { Error: Scalar }
   | { Transaction: Scalar }
   | { TransactionByIdempotencyKey: Scalar }
-  | { Snapshot: { as_of: AsOf | null } }
+  | { Snapshot: { as_of: AsOf | null; at_time: Scalar | null } }
   | { Capsule: Scalar }
   | { EpistemicPolicy: { value: Scalar | null } }
-  | 'ProjectionCapability'
   | { Trust: { value: Scalar | null } }
   | { Access: { with: Record<string, BoundValue> | null } }
 

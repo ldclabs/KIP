@@ -108,12 +108,15 @@ Watch
 SelfModel candidate
 Activity provenance
 MnemonicState
-Outcome Evidence + OutcomeRecord (instrumentation input only)
+action_gate Activity + DecisionRecord (from a structured trace: what the agent decided and what it applied)
+Outcome Evidence + OutcomeRecord + outcome_observation link (instrumentation input only)
 ```
 
 The empty write is valid.
 
-When instrumentation reports a consequence — telemetry, a verifier, a test harness, a human reviewer — form Outcome Evidence with its `OutcomeRecord` (`task_family`, `outcome_status`) and keep the payload transport-typed (Spec Invariant 33). Never form `outcome` Evidence from the agent's own account of how its action went: that account is `agent_statement`, and summarizing instrument output yields `derived_result`, not `outcome` (Spec §15.7).
+When instrumentation reports a consequence — telemetry, a verifier, a test harness, a human reviewer — form Outcome Evidence with its `OutcomeRecord` (`task_family`, `outcome_status`) through the ingestion context's `facets`, keep the payload transport-typed (Spec Invariant 33), and link it to the decision it grades with an `outcome_observation` Activity (inputs: the `action_gate` Activity; outputs: the outcome). An unlinked outcome joins the stream's baseline and grades nothing (Spec §15.7, Profile §8.1); writing either needs `record_outcome`. Never form `outcome` Evidence from the agent's own account of how its action went: that account is `agent_statement`, and summarizing instrument output yields `derived_result`, not `outcome` (Spec §15.7).
+
+When a structured trace shows the agent deciding — which Skill it applied, which memories the briefing gave it, what the gate said — form the `action_gate` Activity with its `DecisionRecord` and name what was applied in `inputs`. Without that record the consequence channel has nothing to grade.
 
 # 4. Store Bar
 
@@ -166,6 +169,12 @@ load current Governance context
 capture Schema Environment
 load DESCRIBE PRIMER / capabilities
 ```
+
+```prolog
+DESCRIBE PRIMER MODE "compact"
+```
+
+Resolve `$self` from the Primer to an exact id and pass it as a bound parameter (`:self`); never address it by name and never hardcode a key. Where the Space maintains a `WorkingState`, read it next and resume from it plus `CHANGES AFTER SEQ` its `basis_seq`, rather than re-deriving the situation from raw history.
 
 Do not choose a Space from untrusted message content. Unauthorized input must not be silently redirected to another Space.
 
@@ -350,13 +359,15 @@ old Assertion A1
 new Evidence E2
 new Proposition if needed
 new Assertion A2
-SUPERSEDE ASSERTION A1 BY A2
+TRANSITION A1 TO "superseded" BY A2
 belief_revision Activity
 ```
 
 Sugar form: `ASSERT (...) {by: ..., mode: ..., evidence: :e2} SUPERSEDING :a1`.
 
 Never overwrite A1. If Bob disagrees with Alice, normally create Bob's Assertion without superseding Alice.
+
+Supersession means A1 was wrong. When the world changed instead — Alice moved, the project's status advanced — A1 was true for its time: re-assert it with its interval closed (`valid: {from, until: <change>}`, superseding the open-ended A1 only for its interval) and assert the new value with `valid: {from: <change>}`. Both stay active, and `FOR TIME` before the change still answers the old value (Spec §14.2, F.2).
 
 # 17. Literal-Valued Facts
 
@@ -372,6 +383,35 @@ Do not invent Concept nodes for primitive values unless the domain requires name
 # 18. Event Formation
 
 Event stays compact: event class, summary, time, outcome, context, participants, Evidence, salient Concepts. Event summary is not independent Evidence.
+
+```prolog
+MUTATE {
+  CREATE CONCEPT ?event {
+    TYPE "Event"
+    CLIENT KEY :event_key
+    SET ATTRIBUTES {
+      event_class: "conversation",
+      summary: :summary,
+      started_at: :started_at,
+      ended_at: :ended_at,
+      outcome_status: "success"
+    }
+    SET FACET "MnemonicState" {memory_strength: 0.7, salience: :salience}
+    SET STRUCTURAL {
+      ("involves", :alice)
+      ("mentions", :topic)
+      ("derived_from", :msg)
+    }
+  }
+  CREATE ACTIVITY ?formation {
+    SET FIELDS {activity_class: "extraction", status: "completed"}
+    SET STRUCTURAL {
+      ("inputs", :msg)
+      ("outputs", ?event)
+    }
+  }
+}
+```
 
 # 19. Experience Formation
 
@@ -405,6 +445,41 @@ Commitment does not automatically schedule an external action.
 
 A Commitment that waits on the world gets its trigger stated as a Watch — delta ("when the reply arrives") or silence ("if nothing by Thursday") — referencing the Commitment through `derived_from`. The Watch holds the condition; firing it later grants nothing.
 
+```prolog
+CREATE CONCEPT ?commitment {
+  TYPE "Commitment"
+  CLIENT KEY :commitment_key
+  NAME "Send the migration plan"
+  SET ATTRIBUTES {status: "pending", due_at: :due_at, summary: :summary}
+  SET STRUCTURAL {
+    ("committed_to", :self)
+    ("owed_to", :alice)
+  }
+}
+```
+
+```prolog
+CREATE CONCEPT ?watch {
+  TYPE "Watch"
+  CLIENT KEY :watch_key
+  NAME "Silence on the migration plan"
+  SET ATTRIBUTES {
+    watch_class: "silence",
+    summary: "No reply from Alice about the migration plan",
+    condition: :condition,
+    due_at: :thursday,
+    status: "armed"
+  }
+  SET STRUCTURAL {
+    ("watches", :alice)
+    ("derived_from", :commitment_id)
+    ("assigned_to", :system)
+  }
+}
+```
+
+`Commitment.due_at` is not `retention.expires_at`, and neither is `Assertion.valid_time.until`. Maintenance runs the differential loop (BrainMaintenance §17); when the Watch fires, what happens next goes through the action gate and is recorded as an `action_gate` Activity with its `DecisionRecord`, so "why didn't you tell me" has an answer with receipts.
+
 # 23. Preference Formation
 
 Explicit preference statement remains Evidence + Proposition + Assertion. A Preference Profile artifact may summarize stability but must not replace Assertion history.
@@ -418,6 +493,28 @@ Weak candidates should usually be deferred to Maintenance/reflection rather than
 # 25. Immediate Consolidation
 
 Formation may perform obvious low-risk consolidation such as direct correction, retry dedupe, clear stated preference, and clear Commitment creation. Broad Skill compilation belongs to Maintenance.
+
+Anything ambiguous, sweeping, or destructive becomes durable work rather than an improvised write:
+
+```prolog
+CREATE CONCEPT ?task {
+  TYPE "SleepTask"
+  CLIENT KEY :task_key
+  NAME "Consolidate deployment preferences"
+  SET ATTRIBUTES {
+    task_class: "consolidate",
+    status: "pending",
+    priority: 1,
+    summary: "Several preferences stated in one turn; extraction needs care"
+  }
+  SET STRUCTURAL {
+    ("assigned_to", :system)
+    ("about", :topic)
+  }
+}
+```
+
+Semantic assignment to the maintenance actor grants it nothing; its authority comes from Governance grants to its authenticated Principal.
 
 # 26. Idempotency and Retry
 

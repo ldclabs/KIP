@@ -10,7 +10,7 @@
 
 本文档是 KIP 2.0 协议设计的**规范性统合定义**。
 
-以下 KIP 2.0 设计文档作为参考性说明与设计依据：
+以下 KIP 2.0 设计文档作为参考性说明与设计依据。十篇 `design/` 目录下的设计文档自 2026-09-02 起**正式冻结**：它们属于规范统合前的参考草案，不再进行维护更新，对应的中文镜像文档亦不再保持同步；凡与本规范存在差异之处，均以本规范为准。
 
 - `KIP-2.0-Architecture.md`
 - `design/KIP-2.0-Core-Data-Model.md`
@@ -24,14 +24,17 @@
 - `design/KIP-2.0-META.md`
 - `design/KIP-2.0-Protocol-Runtime.md`
 
-以下工件是本规范的规范性配套件：
+以下工件是本规范的规范性伴随文档与配套件：
 
-- `grammar/KIP-2.0-KQL.ebnf`、`grammar/KIP-2.0-KML.ebnf`、`grammar/KIP-2.0-META.ebnf`——规范性语法定义
-- `schemas/kip-request.schema.json`、`schemas/kip-response.schema.json`——规范性线上报文结构
-- `profiles/cognitive-memory-2.0.0.schema.json` 与 `profiles/CognitiveMemoryProfile-2.0.md`——标准 Profile 包
-- `conformance/KIP-2.0-Conformance-Tests.md`、`conformance/conformance-test-vector.schema.json`、`conformance/conformance-report.schema.json` 与 `conformance/fixtures/`——一致性测试套件
+- `grammar/KIP-2.0-KQL.ebnf`、`grammar/KIP-2.0-KML.ebnf`、`grammar/KIP-2.0-META.ebnf` —— 规范性语法定义
+- `schemas/kip-request.schema.json`、`schemas/kip-response.schema.json`、`schemas/kip-change-envelope.schema.json` —— 规范性传输层信封结构
+- `profiles/cognitive-memory-2.0.0.schema.json` 与 `profiles/CognitiveMemoryProfile-2.0.md` —— 标准认知记忆 Profile 包
+- `conformance/KIP-2.0-Conformance-Tests.md`、`conformance/conformance-test-vector.schema.json`、`conformance/conformance-report.schema.json`、`conformance/conformance-state-fixture.schema.json`、`conformance/conformance-governance-policy.schema.json` 与 `conformance/fixtures/` —— 一致性测试套件
+- `KIP-2.0-Capsule-Specification_CN.md` —— 本规范的 §37–§41 与 §95，即认知胶囊（Cognitive Capsule），以相同的章节编号独立成伴随规范维护
+- `KIP-2.0-Optional-Profiles-and-Migration_CN.md` —— 本规范的 §100、§101、§103 及附录 I：可选的历史一致性与高保障一致性 Profile，以及 KIP 1.x 迁移指南
+- `KIP-2.0-Invariants_CN.md` —— 不变量统一注册表：涵盖 §102 的 38 条 Core 核心不变量（Part A）与认知记忆 Profile 的 35 条不变量（Part B）
 
-`KIPSyntax.md` 是面向 LLM 的参考性语法速查卡，不属于规范性工件。
+`KIPSyntax_CN.md` 是面向 LLM 的参考性语法速查卡，不属于规范性工件。
 
 若本规范与早期的 KIP 2.0 设计文档发生冲突，**以本规范为准**。
 
@@ -513,6 +516,12 @@ WorkingState (工作状态)
 
   "_system": {
     "version": 1,
+    "plane_versions": {
+      "attributes": 1,
+      "structural": 1,
+      "retention": 1,
+      "facets": {}
+    },
     "created_at": "...",
     "updated_at": "...",
     "created_tx": "...",
@@ -540,6 +549,7 @@ WorkingState (工作状态)
 
 ```text
 version
+plane_versions
 created_at
 updated_at
 created_tx
@@ -548,6 +558,8 @@ state
 origin
 space_seq
 ```
+
+`version` 在每次对元素提交变更时递增。`plane_versions` 则为每个**版本平面 (version plane)** 维护一个独立计数器 —— `attributes`（字段与属性）、`structural`（结构引用）、`retention`（留存记录）以及 `facets`（每个 Facet 符号对应一个计数器）—— 且每个计数器仅在该平面发生变更时才递增。`EXPECT VERSION ... OF <plane>`（§35.1）守卫单一平面，因此对一个平面的并发写入不会破坏对另一个平面的乐观锁判定。
 
 ---
 
@@ -594,6 +606,11 @@ KIP 2.0 不再提供规范性的通用作者可写 `metadata` 黑盒。
 
 允许存在重复的名称。
 
+- 它**可以**随时间变更。
+- 它在 Space 内部**无需**唯一。
+- 它**严禁**被当作稳定的身份标识使用。
+- 两个共享相同名称的 Concept 绝不会被引擎自动合并（§11.2, §38.3）。
+
 ---
 
 ## 7.3 键 `key`
@@ -603,17 +620,14 @@ KIP 2.0 不再提供规范性的通用作者可写 `metadata` 黑盒。
 `key` **必须**在以下作用域内唯一：
 
 ```text
-(space_id, schema_ref, key)
+(space_id, lineage of schema_ref, key)
 ```
 
-因此 `key` 是其概念类型 (Concept Type) *之内*的身份标识，而非跨类型的身份标识：
-一个 `Person` 与一个 `Preference` 可以同时以 `"alice"` 为键，它们是两个不同的身份。
-正是这一点，使得以 `(type, name)` 作为身份标识的 1.x 数据库能够把这些名称迁移为键，
-而不会合并本不相干的概念。
+该作用域是概念类型的**符号谱系 (lineage)**（§20.14），而非单一特定的精确包版本：在 `Person@1.0.0` 下以 `"alice"` 为键的概念，与包升级到 `1.1.0` 后对键为 `"alice"` 的 `Person` 执行的 upsert，寻址的是**同一个身份**，因此包升级绝不会凭空创建出第二个 `"alice"`。
 
-仅指定 `key` 而未指定类型的选择器**可能**匹配到多个概念。运行时**严禁**通过从中挑选
-一个来解析此类选择器，而应报告 `IdentityConflict`。挑选行为正是 §7.2 针对名称所禁止
-的"任意挑选赢家"，只不过换成了经由 `key` 发生。
+因此 `key` 是其概念类型*之内*的身份标识，而非跨类型的身份标识：一个 `Person` 与一个 `Preference` 可以同时以 `"alice"` 为键，它们是两个不同的身份。正是这一点，使得以 `(type, name)` 作为身份标识的 1.x 数据库能够把这些名称迁移为键，而不会合并本不相干的概念。
+
+仅指定 `key` 而未指定类型的选择器**可能**匹配到多个概念。运行时**严禁**通过从中挑选一个来解析此类选择器，而应报告 `IdentityConflict`。挑选行为正是 §7.2 针对名称所禁止的"任意挑选赢家"，只不过换成了经由 `key` 发生。
 
 `key` 适用于：
 
@@ -788,6 +802,8 @@ Infinity
 不存在"无类型概念"。`schema_ref` 在创建时即固定，因此若运行时铸造出一个不带类型的
 概念，那将是一个后续任何写入都无法修复、任何 `{type: …}` 模式都永远匹配不到的元素。
 
+元素依照 `schema_ref` 中的精确版本进行校验。模式匹配与身份判定则使用该符号的谱系（lineage，§20.14），因此在所属模式包升级后，元素依然能通过其本地类型名正常访问。将元素迁移至其谱系下的另一个版本属于 `manage_schema`（§20.10）管辖的模式迁移操作，绝不能通过普通 KML 执行。
+
 ---
 
 ## 10.4 属性 (Attributes)
@@ -905,9 +921,11 @@ A.merged_into = B
 
 ```text
 规范主语 (canonical subject)
-确切谓词引用 (exact predicate_ref)
+谓词谱系 (predicate lineage, §20.14)
 规范宾语 (canonical object)
 ```
+
+*规范 (Canonical)* 意味着合并解析之后：若端点的 `merged_into` 链（§11.4, §61）最终指向 B，则其规范端点就是 B。元组按写入的原样物理存储，绝不会因合并而被改写；规范化解析仅在身份比较与模式匹配时动态应用（§43.2）。存储的 `predicate_ref` 是命题创建时解析出的精确引用；身份比较时则比较其谱系。因此，在同一模式包的较新版本下执行 `ENSURE PROPOSITION` 将解析为现有的命题，而不会铸造出一个平行的副本；无论槽位内的命题最初是在哪个版本下创建的，`BELIEF SLOT` 都能看到该槽位内的全部 Assertion。
 
 ---
 
@@ -1232,15 +1250,21 @@ context (背景上下文)
 
 ## 15.7 结果证据 (Outcome Evidence)
 
-**结果证据 (Outcome Evidence)**（`evidence_class: "outcome"`）记录一次决策、行动或程序试用发生之后，现实世界实际产生的客观反馈。它是**后果通道 (consequence channel)**：使后续裁决能够对照被客观记录的现实——而非行动者自身的单方陈述——来评定认知。
+**结果证据 (Outcome Evidence)**（`evidence_class: "outcome"`）记录一次决策、行动或程序试用发生之后，现实世界实际产生的客观反馈。它是**后果通道 (consequence channel)**：使后续裁决能够对照被客观记录的现实 —— 而非行动者自身的单方陈述 —— 来评定认知。
 
-结果证据**应当**由仪器化组件写入——遥测、验证器、测试装置、工具，或人工审查者——经由运行时摄取路径（§71.1），使载荷以传输原样进入并保持原样（不变式 33）。
+结果证据**应当**由仪器化组件写入 —— 遥测、验证器、测试装置、工具，或人工审查者 —— 经由运行时摄取路径（§71.1），使载荷以传输原样进入并保持原样（不变式 33）。
 
 行动者对其**自身行动结果**的陈述**严禁**被记录为 `outcome` 证据。它是 `agent_statement`（或 `user_statement`）：可作为上下文引用，但永远不是被评定的后果本身。对仪器输出进行摘要或重新转述得到的是 `derived_result` 而非 `outcome`，且衍生转换绝不会增加认知独立性（§23.1）。
 
-在开放协议中，这一分离是**可审计的**而非密码学上绝对的。引擎起源（§2.5）始终记录写入元素的已认证主体 (Principal)；治理**应当**支持将 `outcome` 类证据的创建限定于指定的仪器化主体；通道的任何消费者——生命周期裁决、信任校准（§22.6）、效用校准——**必须**能够追溯其所评定的每条结果的起源链，并且**应当**拒绝起源不符合其策略的结果。
+在开放协议中，这一分离是**可审计的**而非密码学上绝对的。引擎底层起源（§2.5）始终记录写入元素的已认证主体 (Principal)；治理**应当**支持将 `outcome` 类证据的创建限定于指定的仪器化主体；通道的任何消费者 —— 生命周期裁决、信任校准（§22.6）、效用校准 —— **必须**能够追踪其所评定之每个结果的起源链，且**应当**拒绝起源不符合其策略的结果。
 
-每条结果证据**应当**携带**任务族 (task family)**：它所属的可比后果流的命名空间名称（例如 `"deploy/rollback"`、`"outreach/reply"`）。被评定的认知通过携带相同的任务族值来订阅后果流——联结键是任务族，而非元素引用，因此一条结果永远不需要知道自己最终会评定哪些模式。认知记忆 Profile 定义了标准的 `OutcomeRecord` Facet（任务族、结果状态、量级）以及消费该通道的技能生命周期机制。
+每项结果证据**应当**携带一个**任务族 (task family)**：即其所属的带命名空间的可比后果流（例如 `"deploy/rollback"`、`"outreach/reply"`）。被评定的认知通过携带相同的任务族名称来订阅对应的数据流，因此仪器无需预先知晓哪些模式规则会消费其写入的数据。认知记忆 Profile（Cognitive Memory Profile）定义了标准的 `OutcomeRecord` 切面（任务族、结果状态、影响幅度）以及消费该通道的技能生命周期机制。
+
+任务族用于寻找可比后果；它**绝不直接归因**后果。一项用于对具体决策 —— 应用的某项技能、做出的网关裁决 —— 进行打分的结果，**必须**在溯源上显式链接到该决策：记录该观测的活动（Profile 中的 `outcome_observation`）将其决策活动列入 `inputs`，并将结果证据列入 `outputs`。打分消费者仅能通过该链接将结果计入技能评分。未建立决策链接的结果仅归属于数据流自身，因而仅作为该流的对比基线，不归属于其他任何实体。正是这一点使得比较性裁决完全可复算：处理集是关联的结果，对比基线则是该任务族的其余结果。
+
+写入 `outcome` 类的证据及链接它的观测活动，需要持有 `record_outcome` 权限（§29.8）。
+
+通过数据导入进来的 outcome 携带 `_system.origin.import_id`（§6.2）。它是在其他系统由本地从未授权过的仪器观测到的：它属于可供阅读的普通证据，绝不能作为本地的评定打分，打分消费者**必须**排除此类导入的 outcome（§41.6）。
 
 ---
 
@@ -1759,6 +1783,65 @@ belief status         accepted | rejected | contested | uncertain | insufficient
 模式包**严禁**在其解析作用域内定义或设置别名来遮蔽保留的核心符号名称。文档注明为可扩展的注册项（例如 `activity_class` 取值）**可以**通过包注册扩展添加新值。
 
 ---
+## 20.14 符号谱系 (Symbol Lineage)
+
+一个 Schema 模式符号具有两重身份：
+
+```text
+精确身份 (exact identity)      kip://<package-path>@<exact-version>/<symbol>
+谱系身份 (lineage identity)    kip://<package-path>/<symbol>
+```
+
+精确身份是持久化状态所保存的内容（§20.4），也是合法性校验所依据的准绳：元素依据其 `schema_ref` 所指明的定义进行校验，Proposition 的 object 依据其 `predicate_ref` 所指明的 Predicate 定义进行校验。
+
+谱系身份则是**实体身份识别与模式匹配**所依据的基准。所有按符号进行比较、匹配或去重的规则均在谱系层面运作，使在同一模式包的不同版本下写入的元素始终保持为同一个认知群体：
+
+```text
+键唯一性 (key uniqueness)              §7.3
+命题元组身份 (Proposition tuple identity) §12.3
+type: / MATCH 语法糖                   §43.1, §54.4
+模式中的谓词解析                       §43.2, §46, §47, §55
+切面与结构字段名称                     §44.1, §17
+胶囊身份映射                           §38.2
+```
+
+规则：
+
+- 本地名称解析为一个谱系，而非单一版本。仅当两个不同的包路径导出了同名符号时，才会发生歧义（§20.7）。
+- 读取操作能看到谱系中所有可读的版本。创建元素的新写入操作将其绑定至当前 Schema 环境中该谱系的当前写入版本。
+- 同一包路径下定义相同符号名的两个版本，定义的是同一个谱系。若包需要表达不同的语义，**必须**使用不同的符号名或不同的包路径；即使内容完全相同，分支 fork 也是不同的谱系。
+- 较新版本**可以**声明符号更名（指明其继承者）或废弃。解析与身份遵从声明的更名；废弃的符号在该版本终止其谱系，但绑定到较早版本的元素依然可被读取。
+- 将元素的精确 `schema_ref` 更改为同一谱系下的另一个版本属于 `manage_schema`（§20.10）管辖的模式迁移，绝不能通过普通 KML 执行。
+
+若无此规则，模式包升级将人为割裂记忆：在旧版本下写入的未决 Commitment 将不再匹配 `{type: "Commitment"}`，按 `key` 执行的 upsert 将铸造出重复项，在较新 Predicate 版本上的 `BELIEF SLOT` 查询将在堆满断言的槽位上荒谬地报告 `insufficient`。
+
+---
+
+## 20.15 谓词定义字段 (Predicate definition fields)
+
+谓词定义承载了 §12.7、§24 和 §25 所引用的各项声明。模式包**必须**使用以下字段进行表达：
+
+```text
+subject               {concept_types: [...]} | {kinds: [...]}
+object                {concept_types: [...]} | {kinds: [...]} | {literal_types: [...]}
+                      外加 nullable: true（当 null 属于允许的 object 时，§9.5），
+                      以及 format: "timestamp" | "uri" | <package-defined name>
+                      （用于谓词对其形状施加约束的字符串字面量，§9.2；format 在写入时校验，绝不影响身份）
+functional            true  → 每个主语在特定世界有效时间下至多有一个被接受的 object；
+                              多个值构成冲突集 (§25.1)
+open_world            true  → 命题不存在代表依据不足 insufficient (§24)
+                      false → 当前 Space 快照对该谓词具备权威性，缺失可视为封闭世界否决 (§24.2)
+complete              true  → 函数槽位的候选对象具有排他性：接受一个即自动拒绝其他 (§25，排他值)
+boolean_completeness  true  → 对于布尔值谓词，object 为 false 即为 object 为 true 的否定 (§12.7)；
+                              为 false 时两者在结构上保持为不同主张
+temporal_conflict     "overlapping_valid_time" → 两个被接受的值仅在其有效时间区间重叠时才冲突 (§25.2)
+                      "none" → 值之间永远不在时间上冲突
+```
+
+字段缺失时的默认值：`functional: false`, `open_world: true`, `complete: false`, `boolean_completeness: false`, `temporal_conflict: "overlapping_valid_time"`。认知投影策略**可以**比声明更严格，但绝不能更宽松：它不能将 `open_world: true` 的谓词视为封闭世界。
+
+---
+
 # 21. 认识模型 (Epistemic Model)
 
 ## 21.1 认识论投影 (Epistemic Projection)
@@ -1841,6 +1924,8 @@ insufficient (证据不足 / 未知)
 
 > 实质性的支持与实质性的反对同时并存且尚未决议。
 
+处于存在争议状态的投影**依然可以**拥有占优势的一方；输出中的 `leading` 字段（§27.2）将对其进行披露。信息披露不是终局裁决：`leading` 绝不能将 `contested` 强行转变为 `accepted` 或 `rejected`。
+
 ---
 
 ## 21.7 不确定 `uncertain`
@@ -1878,6 +1963,14 @@ valid-time basis (有效时间依据)
 - 提供物化结果时**必须**通过结果上下文 (§50) 披露其策略标识与快照依据；将其伪装成在当前快照下全新计算的结果属于非合规行为。
 - 物化结果在作为当前结果提供之前，**必须**使其失效，或对照 `space_seq` / 变更外壳重新验证其有效性。
 - 物化投影仍然属于视图：**严禁**将其回写为证据或断言，且**严禁**用于佐证其自身的输入来源 (§23.5, §26.6)。
+
+---
+
+## 21.10 结构化投影基线 (Structural projection baseline)
+
+合规的最小化认知投影策略仅使用结构化材料：断言生命周期、世界有效时间、调用者可见性、`mode`（模式）、`stance`（立场）以及溯源根节点独立性（§23）。它不进行任何权重计算 —— 无信任得分、无置信度算术、无数值输出（`score: null`）—— 且完全由可见状态确定性推导得出，因此两个独立的运行时在给定相同状态和策略时，必定产生完全相同的 status、`leading` 和 ledger 账本。一致性测试套件的 `test-deterministic` 策略即为该基准策略。
+
+每个声明实现 KIP-Epistemic 的系统都**必须**能够运行结构化策略（§92）。基于信任加权的策略（§22, §27.3）建立在该基线之上，并通过 `weighted_projection` 能力（§67.4）对外通告；仅提供结构化基线的运行时依然完全合规。
 
 ---
 
@@ -2170,6 +2263,7 @@ explanation level (解释详细程度)
 ```json
 {
   "status": "accepted",
+  "leading": "support",
 
   "support": {
     "score": null,
@@ -2448,6 +2542,36 @@ X ∈ Activity.inputs
 
 ---
 
+## 29.8 `record_outcome` (后果记录权限)
+
+允许创建 `outcome` 类的结果证据（§15.7）以及将该结果链接至被评估决策的观测活动。
+
+治理策略**应当**将该权限授予测量仪器主体 —— 遥测、验证器、测试工具链、人工审查员 —— 且**不应当**授予其 ActorBinding 覆盖了被评估行动者的主体。在同一主体既行动又评定的部署中，在设计上便无法满足不变量 36：此类系统依然可以运行后果通道，但其裁决属于自评自赞，打分消费者的起源校验（§15.7）**必须**能仅从 `_system.origin` 识别出这一点。
+
+观测边 —— `inputs` 中的决策活动，`outputs` 中的结果证据 —— 记录的是对外部世界的观测，而非对已有认知的推导转换。它不需要额外的 `derive` 权限（§29.6）；结果的密级分类遵循其自身的治理钩子和策略。
+
+无法区分 `record_outcome` 的运行时，若授权声明中包含该名称，**必须**显式拒绝。
+
+---
+
+## 29.9 `manage_legal_hold` (法律保全管理权限)
+
+允许设置与解除 `retention.legal_hold`（§19.1）。它与 `manage_retention` 严格区分：未持有该权限的 `SET RETENTION` 若试图触碰 `legal_hold`，即便持有其余留存权限也会报错 `NotAuthorized`。保全状态会阻止所有人的物理清除（§60.3），因此设置或解除保全的权限绝不能通过普通认知写入路径触达。
+
+---
+
+## 29.10 `quarantine` (检疫隔离权限)
+
+允许将元素置入或移出**检疫隔离 (quarantine)** 状态：这是一种治理层排除状态（§31.6），将元素移出常规 Recall 召回视图与认知投影资格，而无需将其标记为已撤回、已替代或已归档。这是执行内容审查与导入认知复审的有效工具；伪造撤回（§14.1）绝不是合规手段。
+
+---
+
+## 29.11 `declassify` 与 `approve` (降级与审批权限)
+
+`declassify` 允许降低元素的密级分类（§31.1, §31.2）；派生内容本身绝不能自动将其输入的密级降级。`approve` 允许记录需要审批的策略所等待的双人决策：触发 `RequiresApproval`（§87.5）的操作仅当持有 `approve` 的主体以治理变迁记录批准时方可完成，且批准主体**必须不同于**发起请求的主体。
+
+---
+
 # 30. 治理策略评估 (Governance Policy Evaluation)
 
 ## 30.1 可信输入源 (Trusted inputs)
@@ -2464,7 +2588,7 @@ X ∈ Activity.inputs
 
 ---
 
-## 30.2 拒绝优先原则 (Deny-overrides)
+## 30.2 拒绝优先与默认拒绝原则 (Deny-overrides and default deny)
 
 保守的基线原则是：
 
@@ -2472,6 +2596,7 @@ X ∈ Activity.inputs
 显式拒绝 / 协议不变式 (explicit deny / protocol invariant)
     优先于 (overrides)
 允许 (allow)。
+未显式授予的操作默认为拒绝 (default deny)。
 ```
 
 ---
@@ -2567,6 +2692,22 @@ executable (可执行性)
 语义内容绝无法自行提升其权限上限。
 
 ---
+
+## 31.6 检疫隔离 (Quarantine)
+
+检疫隔离是挂载在元素上的受保护治理状态，而非生命周期状态。处于隔离状态的元素：
+
+```text
+被排除在常规 Recall 召回视图与认知投影资格之外
+完整保留其原有的生命周期状态、载荷、溯源与历史不变
+对持有 discover + read 权限的主体可见，并明确标为 quarantined (DESCRIBE ACCESS)
+仅在持有 quarantine 权限（§29.10）时方可设置或解除
+```
+
+胶囊的 `isolate` 导入模式（§39.2）将导入元素置于检疫隔离中。隔离是实现审查与复审的标准手段，无需对源系统的原始陈述编造谎言。
+
+---
+
 # 32. 事务 (Transactions)
 
 ## 32.1 定义 (Definition)
@@ -2796,10 +2937,14 @@ IdempotencyConflict
 对可变现有元素的修改**可以**使用前置条件进行防护：
 
 ```text
-EXPECT VERSION n
+EXPECT VERSION n [OF ATTRIBUTES | STRUCTURAL | RETENTION | FACET "<symbol>"]
 ```
 
-仅当当前 `_system.version == n` 时，变更方可执行成功。
+缺省 `OF` 时，仅当当前 `_system.version == n` 时变更方可执行成功。
+
+携带 `OF` 时，守卫指明了一个**版本平面 (version plane)**，并将 `n` 与该平面在 `_system.plane_versions`（§6.3）中的专属计数器进行比较：`attributes`（字段与属性）、`structural`（结构引用）、`retention`（留存记录）或 `facets["<symbol>"]`（单一 Facet）。平面计数器仅在该平面发生变更时递增，而 `_system.version` 在任何变更时均递增。因此，对一个平面的守卫不会因对另一平面的并发写入而失效：`MnemonicState` 的代谢衰减扫描不会破坏受 `OF ATTRIBUTES` 守卫的状态裁决，裁决也不会使衰减扫描失效。
+
+`EXPECT VERSION` 始终是变更语句的尾部子句（§52.8），且**可以**重复声明，每个平面限一条守卫；对同一平面命名两次属于语法错误。任何一条守卫失配都会导致语句报错 `VersionConflict`，其 `details.plane` 指明失配的平面，且事务中的任何内容均不提交（§33）。
 
 ---
 
@@ -2811,13 +2956,13 @@ EXPECT VERSION n
 EXPECT VERSION 0
 ```
 
-表示所寻址的逻辑身份在系统中必须尚不存在。
+表示所寻址的逻辑身份在系统中必须尚不存在。仅有裸形式才代表仅创建：`EXPECT VERSION 0 OF <plane>` 是普通平面守卫（§35.1），声明该平面从未被写入过。
 
 ---
 
-## 35.3 `EXPECT STATE`
+## 35.3 生命周期前置条件 (Lifecycle preconditions)
 
-生命周期操作**应当**支持显式指定预期的生命周期状态。
+协议不提供 `EXPECT STATE` 守卫。`TRANSITION`（§52.5）会依据所请求的迁移自身对目标的当前生命周期状态进行校验，若该迁移在当前状态下不合法则直接报错 `InvalidLifecycleTransition`，因此显式的期望状态子句只会冗余重述引擎已然校验的内容。若调用者还需要确保在此期间没有发生其他变更，应守卫元素的版本号。
 
 ---
 
@@ -2842,11 +2987,11 @@ schema_environment_version
 
 # 36. 变更流 (Change Stream)
 
-## 36.1 变更外壳 (Change Envelope)
+## 36.1 变更信封 (Change Envelope)
 
-一次产生状态变更的提交会生成一个逻辑变更外壳。
+一次产生状态变更的提交会生成一个逻辑变更信封。
 
-概念形态：
+规范形态（参见 `schemas/kip-change-envelope.schema.json`）：
 
 ```json
 {
@@ -2855,9 +3000,40 @@ schema_environment_version
   "tx_id": "tx-900",
   "committed_at": "...",
   "transaction_class": "cognitive",
-  "changes": []
+  "changes": [
+    {
+      "op": "create",
+      "kind": "assertion",
+      "id": "A-2",
+      "new_version": 1,
+      "refs": {"proposition": "P-1"}
+    },
+    {
+      "op": "lifecycle",
+      "kind": "assertion",
+      "id": "A-1",
+      "old_version": 2,
+      "new_version": 3,
+      "state": {"from": "active", "to": "superseded"},
+      "refs": {"proposition": "P-1"}
+    },
+    {
+      "op": "update",
+      "kind": "concept",
+      "id": "C-7",
+      "schema_ref": "kip://profiles/cognitive-memory@2.0.0/Commitment",
+      "old_version": 4,
+      "new_version": 5,
+      "touched": ["attributes.status", "facets.MnemonicState"],
+      "planes": {"attributes": 3, "facets": {"MnemonicState": 2}}
+    }
+  ]
 }
 ```
+
+每个条目**必须**携带 `op`（`create | update | lifecycle | retention | merge | purge | payload_purge`）、`kind`、`id` 与 `new_version`；元素已存在时携带 `old_version`；`lifecycle` 操作携带 `state {from, to}`；Concept 携带 `schema_ref`；Assertion 条目携带 `refs.proposition`，Proposition 条目携带 `refs.subject` 与 `refs.predicate_ref`；`planes` 记录提交后该条目所触碰的每个平面的计数器（§6.3）；`touched` 记录发生变更的路径列表（属性、切面、结构字段或留存名称）——仅记录名称，绝不携带值。这是 Watch（认知记忆 Profile）在无需载荷的情况下判断某个槽位、元素或类型是否发生变化所需的最小信息。
+
+存在性保护（§30.4）按条目独立生效：消费方无权 discover 发现的元素将从其收到的信封中被剔除。超出条目元数据的载荷数据（新旧值）不属于信封的一部分；消费方需凭自身权限按需读取。
 
 ---
 
@@ -2889,318 +3065,44 @@ space_id + space_seq + tx_id
 
 # 37. 认知胶囊 (Cognitive Capsule)
 
-## 37.1 定义 (Definition)
-
-**认知胶囊 (Cognitive Capsule)** 是一种便携、不可变且可检查的构件，用于在不同系统或记忆空间之间承载认知状态或状态增量。
-
-胶囊本身不具备可执行的变更权限。
-
----
-
-## 37.2 核心不变式 (Core invariant)
+第 37 至 41 节的完整规范已移至规范性伴随文档 [KIP-2.0-Capsule-Specification_CN.md](./KIP-2.0-Capsule-Specification_CN.md) 中，该文档保持完全相同的章节编号，以确保 Core、Profile 及一致性测试套件中所有对 §37–§41 的引用保持原样解析有效：
 
 ```text
-胶囊字节数据 (Capsule bytes)
-    ≠
-目标空间的变更权限 (destination mutation authority)
+§37  认知胶囊 (Cognitive Capsule)
+§38  胶囊身份模型 (Capsule Identity Model)
+§39  胶囊导入模式 (Capsule Import Modes)
+§40  胶囊闭包与外部引用 (Capsule Closure and External References)
+§41  胶囊导出/导入管线 (Capsule Export/Import Pipeline)
 ```
 
----
-
-## 37.3 胶囊类别 (Capsule kinds)
-
-基线类别：
-
-```text
-snapshot (快照胶囊)
-delta (增量胶囊)
-```
+在此重述两条基础规则，因为 Core 的其余部分依赖它们。胶囊是一种在不同系统或 Space 之间迁移认知状态或状态变更的可移植、不可变、可审查的人工制品；它**绝非**可执行的变更授权。胶囊引入的所有内容均在目标系统的 Schema 环境下重新校验，并在目标系统的 Governance 治理策略下重新授权：源系统的信任度、权限与生命周期地位绝不自动迁移（§31.4, §41.4）。
 
 ---
 
-## 37.4 快照胶囊 (Snapshot Capsule)
+# 38. 胶囊身份模型 (Capsule Identity Model)
 
-表示单一源快照下的选定认知状态。
-
----
-
-## 37.5 增量胶囊 (Delta Capsule)
-
-表示在同一源血统上介于以下两者之间的有序变更序列：
-
-```text
-base_seq (基础序列号)
-target_seq (目标序列号)
-```
-
-增量胶囊的应用要求基础版本/检查点具备兼容性。
-
----
-
-## 37.6 逻辑结构 (Logical structure)
-
-概念上，胶囊**应当**包含：
-
-```text
-payload (载荷)
-  manifest (清单)
-  source (来源)
-  schema dependencies (模式依赖)
-  records (认知记录)
-  external_refs (外部引用)
-  blobs (二进制大对象)
-  handling (处理指示)
-
-integrity (完整性保证)
-  content_digest (内容摘要)
-  proofs/signatures (证明 / 签名)
-```
-
----
-
-## 37.7 规范化表示 (Canonical representation)
-
-原生胶囊格式**应当**具备确定性的规范序列化形式，以适用于哈希计算与数字签名。
-
-规范 JSON (Canonical JSON) 是基线设计目标。
-
----
-
-## 37.8 签名语义 (Signature semantics)
-
-胶囊签名仅证明签名者对特定内容摘要/范围进行了证明签署。
-
-签名并不证明：
-
-```text
-真实性 (truth)
-安全性 (safety)
-效用度 (utility)
-信任度 (trust)
-权限 (authority)
-对目标系统的适用性 (destination applicability)
-```
-
----
-
-# 38. 胶囊身份标识模型 (Capsule Identity Model)
-
-## 38.1 三重身份标识 (Three identities)
-
-导入过程必须严格区分：
-
-```text
-胶囊本地引用 (capsule-local reference)
-源元素引用 (source element reference)
-目标空间本地元素 ID (destination local element ID)
-```
-
-源元素 ID **严禁**直接自动成为目标空间的本地主键 ID。
-
----
-
-## 38.2 身份解析顺序 (Identity resolution)
-
-推荐的保守解析顺序：
-
-```text
-1. 先前已验证的导入映射 (prior verified import mapping)
-2. 受信任的规范身份 canonical_id (trusted canonical_id)
-3. 显式批准的映射关系 (explicitly approved mapping)
-4. 模式定义的可移植身份标识 (schema-defined portable identity)
-5. 创建新概念 (create new Concept)
-```
-
----
-
-## 38.3 名称不是合并身份依据 (Name is not merge identity)
-
-```text
-名称相同 (same name)
-    ≠
-身份相同 (same identity)
-```
-
----
-
-## 38.4 `$self` (自身身份)
-
-来源系统的 `$self` **严禁**自动转换为目标系统的 `$self`。
-
-普通的智能体间共享会将源 self 映射为该源智能体的语义身份。
-
----
-
-## 38.5 恢复模式特例 (Restore exception)
-
-仅当治理验证满足以下条件时，经过验证的恢复模式**可以**将源 `$self` 映射为目标 `$self`：
-
-```text
-同一所有者 (same owner)
-同一大脑 / 自身身份 (same Brain/self identity)
-备份血统 (backup lineage)
-显式恢复权限 (explicit restore authority)
-```
+参见胶囊伴随规范 §38。
 
 ---
 
 # 39. 胶囊导入模式 (Capsule Import Modes)
 
-推荐模式：
-
-```text
-preview (预览)
-isolate (隔离)
-merge (合并)
-restore (恢复)
-```
-
----
-
-## 39.1 预览模式 (Preview)
-
-只读模拟执行。
-
-不创建任何目标认知状态。
-
----
-
-## 39.2 隔离模式 (Isolate)
-
-导入至隔离/审查状态，而非普通的召回 (Recall) 状态。
-
----
-
-## 39.3 合并模式 (Merge)
-
-在目标系统的身份与治理策略约束下，将外部来源的认知合并至目标空间。
-
----
-
-## 39.4 恢复模式 (Restore)
-
-在更严格的身份核验下，恢复同一大脑/所有者血统的认知状态。
-
----
-
-## 39.5 源信任度不自动迁移 (Source trust does not migrate automatically)
-
-目标系统**必须**应用自身的策略体系：
-
-```text
-trust (信任策略)
-classification (密级策略)
-authority (权限策略)
-Schema (模式策略)
-Governance (治理策略)
-```
+参见胶囊伴随规范 §39。
 
 ---
 
 # 40. 胶囊闭包与外部引用 (Capsule Closure and External References)
 
-## 40.1 外部引用 `ExternalRef` (ExternalRef)
-
-省略的依赖项**应当**显式表示，而非留下悬空的未解析 ID。
-
-推荐类别：
-
-```text
-source_element (源元素)
-canonical_identity (规范身份)
-semantic_locator (语义定位符)
-external_artifact (外部构件)
-redacted (已脱敏/隐匿)
-unavailable (不可用)
-```
-
----
-
-## 40.2 脱敏与不可用的区分 (Redacted vs unavailable)
-
-在策略允许的情况下，**必须**保持两者可区分：
-
-```text
-redacted (已脱敏)
-    源系统故意隐匿保留
-
-unavailable (不可用)
-    源系统未持有 / 未提供该数据
-```
-
----
-
-## 40.3 闭包声明 (Closure)
-
-胶囊**应当**声明其闭包类型，例如：
-
-```text
-closed (完全闭合)
-referential (引用闭合)
-selective (选择性闭合)
-```
-
-并**可以**分别描述：
-
-```text
-semantic closure (语义闭包)
-Evidence closure (证据闭包)
-provenance closure (溯源闭包)
-structural closure (结构闭包)
-```
+参见胶囊伴随规范 §40。
 
 ---
 
 # 41. 胶囊导出/导入管线 (Capsule Export/Import Pipeline)
 
-## 41.1 导出 (Export)
-
-导出操作**必须**具备快照一致性。
-
-大规模导出**应当**使用固定的源快照/导出握手会话。
-
-传输分片**严禁**产生多个独立的语义胶囊，除非显式表示为胶囊集合 (Capsule Set)。
+参见胶囊伴随规范 §41。
 
 ---
 
-## 41.2 导入管线 (Import pipeline)
-
-原生导入在概念上遵循如下流程：
-
-```text
-VERIFY (验证完整性)
-→ VALIDATE (校验合法性)
-→ PREVIEW / identity resolution (预览与身份解析)
-→ Governance analysis (治理分析)
-→ Import Plan (生成导入计划)
-→ atomic Import Transaction (执行原子导入事务)
-```
-
----
-
-## 41.3 内嵌 Schema (Embedded schema)
-
-内嵌的模式包**仅可**用于校验目的。
-
-它们**严禁**自动激活。
-
----
-
-## 41.4 导入技能的权限 (Imported Skill authority)
-
-导入的技能默认处于未激活/不可执行状态，除非目标治理策略显式对其提升权限。
-
----
-
-## 41.5 外部二进制对象 (External blobs)
-
-胶囊**可以**引用内容寻址的外部 Blob。
-
-导入**严禁**自动拉取任意外部 URL。
-
-网络请求需要独立的运行时/工具授权。
-
----
 # 42. KQL — 认知查询语言 (Cognitive Query Language)
 
 ## 42.1 用途与定位 (Purpose)
@@ -3636,9 +3538,9 @@ accepted_values = []
 
 ```prolog
 AS OF SEQ 1500
-AS OF TX "tx-..."
-AS OF TIME "..."
 ```
+
+`AS OF SEQ` 是唯一的历史坐标语法。若持有事务 ID 或挂钟时间戳，可通过 `DESCRIBE TRANSACTION` 或 `DESCRIBE SNAPSHOT AT TIME :t`（§68）将其解析为对应的 `seq` 序列号。
 
 ---
 
@@ -3817,9 +3719,26 @@ UPDATE 绝不创建新元素。
 
 ---
 
-## 52.5 TRANSITION (状态迁移)
+## 52.5 TRANSITION (生命周期状态流转)
 
-通过合法的状态跃迁迁移生命周期状态。
+通过一条统一的语句流转生命周期状态；带引号的目标状态直接命名该动作：
+
+```text
+TRANSITION <target> TO "<state>" [BY <ref>]
+           [SET FIELDS {...}] [SET STRUCTURAL {...}]
+           [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v ...]
+```
+
+| 状态 | 目标类型 | `BY` 子句 | 动作语义 |
+|---|---|---|---|
+| `retracted` | Assertion | — | 断言者自身撤回该主张（§57.3） |
+| `superseded` | Assertion | 必需：指明较新的 Assertion | 原主张被证明是错的；修订血统（§57.4） |
+| `corrected` | Evidence | 必需：指明新的 Evidence | 证据记录有误；纠错血统（§57.2） |
+| `running`, `completed`, `failed`, `cancelled` | Activity | — | 活动状态（§16）；`SET FIELDS` / `SET STRUCTURAL` 在同一语句中原子固化终态字段与拓扑 |
+| `archived` | 任意元素 | — | 移出常规召回视图，历史完全保留（§60） |
+| `tombstoned` | 任意元素 | — | 逻辑删除，身份标识与审计线索保留（§60） |
+
+引擎会根据目标类型及其当前生命周期状态对流转动作进行合法性校验，若非法则直接报错 `InvalidLifecycleTransition`；迁移至目标当前已处于的状态产生 `no_effect`（§34.4）；协议不提供 `EXPECT STATE` 守卫（§35.3）。在 `superseded` / `corrected` 以外的状态上使用 `BY`，或在 Activity 状态以外使用 `SET FIELDS` / `SET STRUCTURAL`，均属于语法错误。该状态迁移记录在元素的 `_system.state` 中，并作为 `lifecycle` 条目写入变更信封（§36.1）。`ASSERT ... SUPERSEDING` 脱糖为此语句（§55.1）。
 
 ---
 
@@ -3835,19 +3754,23 @@ UPDATE 绝不创建新元素。
 
 ```text
 UPDATE
-RETRACT ASSERTION
+TRANSITION
 SET RETENTION
-ARCHIVE
-TOMBSTONE
 PURGE
 PURGE PAYLOAD
 ```
 
 一次匹配范围超出作者预期的维护性扫描，就是一次认知状态变更；在 `PURGE` 之下更是不可逆的变更。此类扫描因此**应当**设界。
 
-`MERGE CONCEPT` 不接受 `LIMIT`：其源与目标已被指名，`WHERE` 仅起守卫作用。
+`MERGE CONCEPT` 不接受 `LIMIT`：其源和目标已被显式命名，`WHERE` 仅用于守卫它们。
 
-`LIMIT` 限定受影响的元素数量，它不是选择顺序；因此除非运行时明确规定了顺序，**严禁**假定在更大匹配集上的有界扫描具有确定性。
+`LIMIT` 仅限制受影响的元素数量，并非选择顺序；因此除非运行时显式声明了特定顺序，否则绝不能假定对较大数据集的有界扫描是确定性顺序的。
+
+---
+
+## 52.8 子句顺序与守卫位置 (Clause order and guard position)
+
+每条变更语句均以相同的顺序收尾：`[WHERE {...}] [LIMIT :n] {EXPECT VERSION ...}`。`EXPECT VERSION` 位于 `UPSERT CONCEPT` 的大括号闭合之后、`ENSURE PROPOSITION` 的元组之后；`PURGE` 和 `PURGE PAYLOAD` 的 `REFERENCE POLICY` / `CONFIRM "PURGE"` 子句位于守卫之后。守卫绝不夹在目标和动作之间。因此一条语句只有唯一指定的前置条件位置，读者在语句结尾处即可找到它们。
 
 ---
 
@@ -4287,94 +4210,109 @@ memory_strength (记忆强度)
 
 ```text
 SET RETENTION <target> {retention_class: "...", expires_at: ...}
-                       [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]
-ARCHIVE       <target> [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]
-TOMBSTONE     <target> [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]
-PURGE         <target> [WHERE {...}] [LIMIT :n]
+                       [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v ...]
+TRANSITION    <target> TO "archived"   [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v ...]
+TRANSITION    <target> TO "tombstoned" [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v ...]
+PURGE         <target> [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v ...]
                        [REFERENCE POLICY "..."] CONFIRM "PURGE"
-PURGE PAYLOAD <target> [WHERE {...}] [LIMIT :n] CONFIRM "PURGE"
+PURGE PAYLOAD <evidence> [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v ...] CONFIRM "PURGE"
 ```
 
-`<target>` 遵循与通用 UPDATE (§58) 相同的规则：`?variable` 目标由 `WHERE` 块绑定，而 `:parameter` / `"id"` 已经直接指明元素，因而**可以**省略 `WHERE`。
+`<target>` 遵循与通用 UPDATE 相同的规则：`?variable` 目标由 `WHERE` 块绑定，而 `:parameter` / `"id"` 已经直接指明元素，因而**可以**省略 `WHERE`。
 
 ---
 
-## 60.1 归档 (Archive)
+## 60.1 归档 `archived` (Archive)
 
-归档操作在保留历史记录的同时，将其从日常召回中移除或降低优先级。
+将元素移出常规 Recall 召回与活跃检索视图。
 
----
-
-## 60.2 墓碑标记 (Tombstone)
-
-墓碑标记在逻辑上将元素从活跃状态中移除，同时保留最低限度的身份标识/引用历史。
+历史完全保留，且仍可通过时间旅行 `AS OF SEQ`（§48）访问。
 
 ---
 
-## 60.3 物理清除 (Purge)
+## 60.2 逻辑墓碑 `tombstoned` (Tombstone)
 
-物理清除在严格的重大影响策略下从物理上抹除字节数据。
+逻辑删除。
 
-引用策略取值如下：
+保留：
 
 ```text
-deny_if_referenced      存在必要引用时拒绝执行清除
-tombstone_reference     清除字节，并将悬空引用置为墓碑
-authorized_cascade      在显式授权下级联清除引用方元素
+元素身份标识 (id / key)
+Schema 符号类型 (schema_ref)
+墓碑生命周期标记 (tombstoned state)
+历史审计记录 (audit trail)
 ```
 
-默认值为 `deny_if_referenced`：当必要引用将被破坏时**应当**拒绝物理清除。`CONFIRM "PURGE"` 是**必需**的，且不能被引用策略取代。
-
-留存控制挂钩中设置了 `legal_hold`（§19.1）的元素**禁止**被物理清除。该保全锁定须在引用策略之前、在任何销毁被决定之前完成判定，且任何引用策略都不能凌驾于它之上：`authorized_cascade` 遇到被锁定的元素时**必须**停下，而不得将其作为他者的依赖方一并抹除。`purge` 权限并不解除保全锁定——保全锁定对所有人一律阻断抹除，这正是它之所以是"锁定"而非"偏好"的原因。
-
-正因为保全锁定对所有人一律阻断抹除，运行时**应当**将设置或解除它的权限与普通的留存管理权限分开划定（§29.7 对物理清除本身给出的是同一条理由）。能够为自己设置保全锁定的内容，就能让自己永久不可删除；能够解除保全锁定的内容，就能解开当初正是为阻止某次抹除而设下的封锁。
-
-物理清除**可以**留下一个极小的、不可恢复的**存根 (stub)** —— 包括元素类型、内容摘要、类别、观测时间以及执行清除的活动引用 —— 以确保引用完整性、溯源根源标识 (§23.3) 以及独立性计数能够在字节被销毁后依然有效。存根不是内容本身，也不是可恢复的证据。
+载荷在逻辑上不可用。
 
 ---
 
-## 60.4 默认不采用破坏性级联删除 (No destructive cascade default)
+## 60.3 物理清除 `PURGE` (Purge)
 
-原生 KIP 2.0 **严禁**将 v1 风格的破坏性 `DETACH` 级联删除作为默认的删除行为。
+物理擦除。属于受严格控制的破坏性操作。
 
----
-
-## 60.5 有界移除 (Bounded removal)
-
-各移除族均接受紧随 `WHERE` 之后的可选 `LIMIT`（§52.7）。移除性扫描**应当**设界；`PURGE` 与 `PURGE PAYLOAD` 扫描除必须书写的 `CONFIRM "PURGE"` 之外，**应当**同时设界。
-
----
-
-## 60.6 载荷清除 (Payload purge)
-
-`PURGE PAYLOAD` 抹除一个证据元素的原始载荷字节，同时完整保留元素本身。
-
-载荷清除之后，证据记录仍保有：
+要求提供显式的 `CONFIRM "PURGE"` 确认，并遵循引用的处理策略：
 
 ```text
-元素身份与生命周期
-evidence_class
-content_digest
-media_type
-observed_at
-source / generated_by 引用
-来自断言的引用关系 (citations)
+deny_if_referenced       若存在外部引用则拒绝清除
+tombstone_reference      将引用方置为墓碑
+authorized_cascade       在显式授权下级联清除引用方
 ```
 
-其载荷被标记为已清除；字节本身——无论是内联内容，还是由 `content_ref` 指向且由运行时持有的内容——均被彻底销毁且不可恢复。
+设置了 `retention.legal_hold`（§19.1）的元素**严禁**被清除。由于保全状态会阻止所有人的清除，设置或解除保全的权限绝不能通过普通认知写入触达。
+
+---
+
+## 60.4 移除操作梯度分级 (Removal ladder)
+
+推荐遵循降级阶梯：
+
+```text
+归档 (archived)
+    ↓
+逻辑墓碑 (tombstoned)
+    ↓
+物理清除 (purge)
+```
+
+---
+
+## 60.5 留存与清理的区别 (Retention vs Purge)
+
+留存（retention）通过策略声明生命周期预期；清除（purge）是实际执行的物理擦除动作。
+
+---
+
+## 60.6 载荷清除 `PURGE PAYLOAD` (Payload purge)
+
+`PURGE PAYLOAD` 彻底抹除 Evidence 元素的字节数据，同时完整保留元素记录本身。
+
+执行载荷清除后，该 Evidence 记录保留：
+
+```text
+元素身份标识与生命周期状态
+evidence_class 证据分类
+content_digest 内容哈希摘要
+media_type 媒体类型
+observed_at 观测时间戳
+source / generated_by 来源与生成活动引用
+来自断言的引用证据边
+```
+
+其载荷被标记为已清除（purged）；原始字节数据 —— 内联内容或由 `content_ref` 引用的运行时内容 —— 被物理销毁且无法恢复。
 
 规则：
-
-- 目标**必须**是证据 (Evidence)；其他元素类型没有可清除的载荷。
-- `CONFIRM "PURGE"` 为**必需**：字节销毁不可逆。
+- 目标**必须**是 Evidence；其他类型的元素没有载荷可清除。
+- **必需**提供 `CONFIRM "PURGE"`：字节销毁是不可逆的。
 - 载荷清除需要 `purge` 权限；治理策略**可以**将载荷清除与元素清除分别授权。
-- `legal_hold` 阻止载荷清除，与阻止元素清除的方式完全一致。
-- 不存在 `REFERENCE POLICY` 子句：元素本身仍然存活，不会产生悬空引用。
-- 就事务而言，载荷清除是一次普通的状态变更；对已清除载荷再次清除产生 `no_effect`。
-- 佐证分组与独立性计数 (§23) 继续基于存留的摘要与溯源拓扑运作；载荷清除**严禁**改变它们。
-- 投影策略**可以**权衡内容不再可检视这一事实（例如在 §22.4 的可验证性维度下），但证据事件本身依然真实存在。
+- `legal_hold` 法律保全同样阻止载荷清除。
+- **不包含** `REFERENCE POLICY` 子句：因为 Evidence 记录本身存留，不会产生悬空引用。
+- 载荷清除在事务中属于普通的状态变更变更操作；对已清除的载荷执行清除返回 `no_effect`。
+- 佐证聚类与独立性统计（§23）继续基于存留的摘要和溯源信息运作；载荷清除**绝不能**破坏它们。
+- 认知投影策略**可以**权衡可审查内容的缺失，但证据事件本身依然真实存在。
+- 清除仅触及当前 Space 持有的字节。在清除前导出的胶囊依然携带载荷并能通过核验；Space 无法收回该胶囊。清除后导出的胶囊携带标记为 `payload: {status: "purged"}` 的记录与 `content_digest`，其自身的摘要和签名基于 Space 实际持有的内容计算。
 
-载荷清除是实现数据最小化（Data Minimization）的关键机制：记忆空间在完成信息消化与认知提炼后，可安全丢弃观测到的原始字节，而无需破坏证据事件本身、其引用关联或其在溯源拓扑中的角色。若需彻底销毁证据记录本身，则应使用元素物理清除（§60.3）。
+载荷清除是实现数据最小化的核心工具：Space 可以在提取消化信息后丢弃观测到的原始字节，而无需销毁证据事件本身、其被引用关系或其溯源角色。元素清除（§60.3）仍是销毁记录本身的唯一手段。
 
 ---
 
@@ -4744,6 +4682,41 @@ limits (配额限制)
 
 ---
 
+## 67.4 能力注册表 (Capability registry)
+
+`DESCRIBE CAPABILITIES` 会通告、且请求中的 `requires`（§71）可声明本注册表中的条目。运行时**可以**添加命名空间化的条目；**严禁**重命名以下标准能力：
+
+```text
+serializable_isolation      §32.2
+idempotency_retention       §34.5   取值：留存窗口时长，例如 {"seconds": 86400}
+historical_reads            §48, §100
+historical_search           §66.1
+semantic_search             §66.3
+hybrid_search               §66.3
+search_index_freshness      §66.5
+belief_slot                 §47
+weighted_projection         §22, §27.3   超出结构化基准（§21.10）的信任加权策略
+materialized_projection     §21.9
+signed_receipts             §33.3
+ingestion_context           §71.1
+streaming                   §84
+artifacts                   §85
+change_stream               §36, §68
+filtered_delivery           §36.3
+watch_evaluation            运行时求值的 Watch 条件（认知记忆 Profile §5.11）
+list_dependents             §63.5
+payload_purge               §60.6
+capsule_export              §63.4
+capsule_import              §39
+capsule_signatures          §37.8
+derive_permission           §29.6
+record_outcome_permission   §29.8
+```
+
+请求的 `requires` 中若声明了未注册的能力，将报错 `UnsupportedCapability`，处理方式与声明了运行时不支持的能力相同。
+
+---
+
 # 68. META 事务与历史 (META Transaction / History)
 
 推荐命令：
@@ -4751,12 +4724,11 @@ limits (配额限制)
 ```text
 DESCRIBE TRANSACTION :tx_id
 DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :key
-DESCRIBE SNAPSHOT [AS OF ...]
+DESCRIBE SNAPSHOT [AS OF SEQ :seq | AT TIME :t]
 HISTORY ELEMENT :id [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]
 HISTORY SPACE [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]
 CHANGES SINCE :cursor [LIMIT :n]
 CHANGES AFTER SEQ :seq [LIMIT :n]
-SNAPSHOT [AS OF ...]
 ```
 
 ---
@@ -4932,7 +4904,7 @@ JSON 文本**必须**采用 UTF-8 编码。
         "payload": "I prefer dark mode.",
         "media_type": "text/plain",
         "observed_at": "2026-08-14T01:00:00Z",
-        "source_actor": "alice",
+        "source_actor": {"id": "concept-alice"},
         "client_key": "message:msg-123"
       }
     ]
@@ -5832,21 +5804,7 @@ Change Envelope (变更外壳)
 
 # 95. KIP-Capsule 胶囊合规性 (KIP-Capsule Conformance)
 
-要求支持：
-
-```text
-canonical artifact (规范构件表示)
-snapshot Capsule (快照胶囊)
-digest (哈希摘要)
-Schema dependency identity (Schema依赖标识)
-source/destination identity separation (来源与目标身份隔离)
-ExternalRef (显式外部引用)
-closure declaration (闭包声明)
-verify/validate/preview pipeline (验证/校验/预览管线)
-destination-local import authority (目标本地导入权限控制)
-```
-
-增量胶囊、恢复模式与数字签名**可以**作为高级子 Profile 实现。
+参见胶囊伴随规范 [KIP-2.0-Capsule-Specification_CN.md](./KIP-2.0-Capsule-Specification_CN.md) §95：要求列表与其所测试的章节一并维护。不支持胶囊的实现不声明 KIP-Capsule 合规性，亦不通告导出/导入能力（§67）。
 
 ---
 
@@ -5985,199 +5943,27 @@ transaction lookup (事务状态查找)
 
 # 100. 历史记录合规性 (Historical Conformance)
 
-在声明的留存期内，要求支持：
-
-```text
-AS OF SEQ (基于序列号的历史查询)
-lifecycle reconstruction (生命周期历史重构)
-historical Schema Environment (历史Schema环境解析)
-historical cognitive read (历史认知读取)
-current authorization (当前生效授权)
-transaction chronology (事务编年史)
-```
+参见 [KIP-2.0-Optional-Profiles-and-Migration_CN.md](./KIP-2.0-Optional-Profiles-and-Migration_CN.md) §100。
 
 ---
 
 # 101. 高保证合规性 (High-Assurance Conformance)
 
-可要求具备：
-
-```text
-serializable transactions (严格可串行化事务)
-signed Receipts (签名收据)
-canonical request/plan digests (规范请求与计划摘要)
-strict duplicate-JSON-key rejection (严格拒绝重复JSON键)
-exact historical Schema (精确历史Schema)
-tamper-evident checkpoints (防篡改检查点)
-strict existence-neutral behavior (严格的存在性中立行为)
-strong proof registries (强证明注册表)
-auditable Projection policy versions (可审计的投影策略版本)
-```
+参见同一伴随规范 §101。其各项要求是在合规的核心协议实现之上的加固要求。
 
 ---
 
 # 102. 核心合规不变式列表 (Required Conformance Invariants)
 
-合规的原生 KIP 2.0 系统实现**必须**严格遵守以下 35 条跨领域不变式：
+合规的原生 KIP 2.0 系统实现**必须**严格遵守 38 条跨领域不变量。
 
-1. **命题存在具有真值中立性** (Proposition existence is truth-neutral)。
-2. **断言置信度不等于大脑信念** (Assertion confidence is not Brain belief)。
-3. **检索相关性不等于置信度** (Search relevance is not confidence)。
-4. **缺失可见匹配不等于为假** (Missing visible match is not falsehood)。
-5. **未知状态 `insufficient` 严格区别于已拒绝 `rejected`** (`insufficient` is distinct from `rejected`)。
-6. **相互矛盾的断言允许并存** (Contradictory Assertions can coexist)。
-7. **命题元组严格不可变** (Proposition tuple is immutable)。
-8. **断言的历史认识载荷采用只追加模式** (Assertion historical epistemic payload is append-oriented)。
-9. **证据纠错不得覆盖原始证据数据** (Evidence correction does not overwrite original Evidence)。
-10. **派生认知不得凭空产生独立佐证** (Derived cognition does not create independent corroboration)。
-11. **溯源信息不直接赋予治理权限** (Provenance does not grant Governance authority)。
-12. **调用主体与语义行动主体严格分离** (Principal and semantic actor are distinct)。
-13. **认知内容绝无法自行赋予系统权限** (Cognitive content cannot self-grant authority)。
-14. **当前治理规则控制历史记录的可见性** (Current Governance controls historical visibility)。
-15. **记忆强度与认识置信度严格分离** (Memory strength is distinct from epistemic confidence)。
-16. **读取操作不会自动强化记忆强度** (Read does not automatically reinforce memory)。
-17. **合并操作不得重写原始历史身份** (Merge does not rewrite raw historical identity)。
-18. **源系统的 `$self` 不会自动变成目标系统的 `$self`** (Source `$self` does not automatically become destination `$self`)。
-19. **胶囊数字签名不代表内容真实或可信** (Capsule signature does not imply truth/trust)。
-20. **胶囊导入不会自动继承源系统权限** (Capsule import does not inherit source authority automatically)。
-21. **内嵌的 Schema 绝不自动激活** (Embedded Schema does not auto-activate)。
-22. **批处理不等于事务，除非显式声明为原子模式** (Batch is not transaction unless explicitly atomic)。
-23. **请求ID、幂等键与事务ID严格区分** (Request ID, idempotency key, and tx_id are distinct)。
-24. **执行超时不代表事务已中止** (Timeout does not prove abort)。
-25. **流式进度不代表事务已提交** (Progress does not prove commit)。
-26. **模拟预览不预留或提交任何状态** (Preview does not reserve/commit state)。
-27. **当前的权限撤销优先于过期的游标/快照/委托假设** (Current revocation overrides stale cursor/snapshot/delegation assumptions)。
-28. **游标是不透明且不可跨操作族系混用的** (Cursors are opaque and non-interchangeable across operation families)。
-29. **严禁自动拉取外部 URL 作为构件数据** (External URLs are not auto-fetched as artifacts)。
-30. **现实世界外部行动处于 KIP 回滚语义范围之外** (External world actions are outside KIP rollback semantics)。
-31. **`ASSERT` 严格提交与其规范脱糖定义完全相同的语义** (`ASSERT` commits exactly the semantics of its normative desugaring)。
-32. **对外提供服务的物化投影必须披露其策略标识与快照依据** (A served materialized projection discloses its policy identity and snapshot basis)。
-33. **运行时摄入的证据必须如实保留传输层提供的载荷而不得经过模型重写** (Runtime-ingested Evidence preserves the transport-supplied payload without model re-typing)。
-34. **载荷清除销毁的是证据字节，绝不销毁证据记录的身份、引用关系或溯源拓扑** (Payload purge destroys Evidence bytes, never the Evidence record's identity, citations, or provenance topology)。
-35. **修订一个溯源根不会静默撤回或改写从它派生出的认知** (Revising a provenance root does not silently retract or rewrite cognition derived from it)。
-36. **行动者对其自身行动结果的自我报告永远不是结果证据** (An actor's self-report about its own action's result is never Outcome Evidence)。
+全部清单完整收录于公共注册表 [KIP-2.0-Invariants_CN.md](./KIP-2.0-Invariants_CN.md) 的 Part A 中，每条不变量标明确立章节与钉住向量；同一注册表的 Part B 承载认知记忆 Profile 的 35 条不变量。
 
 ---
 
 # 103. KIP 1.x 迁移指南 (KIP 1.x Migration)
 
-## 103.1 迁移目标 (Migration objective)
-
-迁移**应当**保留遗留数据的含义与历史，而不应假装 KIP 1.x 存储了当时并不存在的认识论区分。
-
----
-
-## 103.2 遗留概念迁移 (Legacy Concept)
-
-KIP 1 的 Concept **应当**转换为 v2 的 Concept。
-
-对于依赖 `(type, name)` 作为身份标识的 v1 数据，迁移**可以**根据遗留身份推导出稳定的 v2 `key`。
-
----
-
-## 103.3 遗留命题迁移 (Legacy Proposition)
-
-v1 的事实性 Proposition **应当**转换为：
-
-```text
-规范 v2 命题 (canonical v2 Proposition)
-+
-迁移生成的肯定断言 (migrated positive Assertion)
-```
-
-以保留其遗留的事实性语义。
-
----
-
-## 103.4 遗留元数据映射 (Legacy metadata)
-
-遗留元数据**必须**进行分类映射。
-
-示例：
-
-```text
-confidence (置信度)
-    → 断言置信度（语义有效时） (Assertion confidence where semantically valid)
-
-source / author (来源 / 作者)
-    → 证据 / 断言主体 / 溯源 (Evidence / asserted_by / provenance)
-
-observed_at (观测时间)
-    → 证据观测时间 (Evidence observation time)
-
-valid_from / valid_until (有效时间区间)
-    → 断言有效时间 (Assertion valid_time)
-
-expires_at (过期时间)
-    → 留存规则 (retention)
-
-access_level (访问等级)
-    → 治理策略映射 (Governance mapping)
-
-operational markers (操作标记)
-    → Profile 切面 (Profile Facet)
-
-unknown legacy fields (未知遗留字段)
-    → 安全时保留在带命名空间的遗留切面中 (namespaced legacy Facet if safe)
-```
-
----
-
-## 103.5 遗留置信度衰减 (Legacy confidence decay)
-
-v1 中的定期置信度衰减**不应当**直接迁移为原生的断言置信度衰减。
-
-根据其真实意图：
-
-```text
-遗忘机制 (forgetting)
-    → 记忆强度 (memory_strength)
-
-陈旧度 (staleness)
-    → 认识论投影新鲜度 (Epistemic Projection freshness)
-
-新证据 (new evidence)
-    → 创建新的断言修订 (new Assertion revision)
-```
-
----
-
-## 103.6 遗留 DELETE 迁移 (Legacy DELETE)
-
-原生迁移**应当**优先采用：
-
-```text
-archive (归档)
-tombstone (墓碑标记)
-explicit purge (显式物理清除)
-Assertion lifecycle (断言生命周期流转)
-```
-
-而非直接重建通用的破坏性 DETACH 级联删除语义。
-
----
-
-## 103.7 遗留 MERGE 迁移 (Legacy MERGE)
-
-遗留的破坏性边重定向/删除操作应当迁移为 v2 的非破坏性身份整合。
-
----
-
-## 103.8 遗留 EXPORT 迁移 (Legacy EXPORT)
-
-KIP 1 的 UPSERT 导出脚本属于遗留构件。
-
-原生 v2 的可移植性使用认知胶囊 (Cognitive Capsule)。
-
-v2 运行时**可以**提供兼容的导入/导出转换器。
-
----
-
-## 103.9 遗留 Schema 节点迁移 (Legacy schema nodes)
-
-KIP 1 自描述的图谱类型节点应当迁移为权威的 Schema 模式包或兼容包。
-
-在原生 v2 中，普通认知节点**严禁**直接成为权威的 Schema 状态。
+参见伴随规范 [KIP-2.0-Optional-Profiles-and-Migration_CN.md](./KIP-2.0-Optional-Profiles-and-Migration_CN.md) §103。操作层面的详细指南请参阅 [migration/KIP-2.0-Migration-from-1.x_CN.md](./migration/KIP-2.0-Migration-from-1.x_CN.md)。
 
 ---
 
@@ -6536,7 +6322,7 @@ list_target :=
         "payload": "I prefer dark mode.",
         "media_type": "text/plain",
         "observed_at": "2026-08-14T01:00:00Z",
-        "source_actor": "alice",
+        "source_actor": {"id": "concept-alice"},
         "client_key": "message:msg-123"
       }
     ]
@@ -6697,16 +6483,11 @@ ASSERT (:alice, "prefers", :dark_mode) {
 
 ---
 
-## F.2 用户纠错 (User correction)
+## F.2 纠错与世界变迁的区分 (Correction versus change)
 
-Alice 变更时区：
+两种情况表面相似，但在协议中写入方式截然不同（§14.2）。
 
-```text
-旧值: +08:00
-新值: +01:00
-```
-
-推荐操作：
+**更正 —— 原先的主张是错误的。** Alice 当初说的是 `+08:00`，但她实际意思是 `+07:00`。早先的主张从来就没有正确过：建立新证据，断言新值，并废弃替代（supersede）旧断言：
 
 ```prolog
 MUTATE {
@@ -6727,7 +6508,7 @@ MUTATE {
   ENSURE PROPOSITION ?p_new (
     :alice,
     "timezone",
-    "+01:00"
+    "+07:00"
   )
 
   CREATE ASSERTION ?a_new {
@@ -6747,7 +6528,7 @@ MUTATE {
     }
   }
 
-  SUPERSEDE ASSERTION :a_old BY ?a_new
+  TRANSITION :a_old TO "superseded" BY ?a_new
 
   CREATE ACTIVITY ?revision {
     SET FIELDS {
@@ -6763,6 +6544,42 @@ MUTATE {
   }
 }
 ```
+
+**变迁 —— 现实世界发生了改变。** Alice 之前居住在 `+08:00`，但在 `:moved_at` 搬迁到了 `+01:00`。她早先的主张在其所处时期是完全真实的，因此绝不能因其过时而将其作为错误标记为 superseded；通过重新断言同一数值关闭其开放有效区间，并在旧区间结束处开启新数值的有效区间。两条断言均保持 `active` 状态，且在 `:moved_at` 之前的 `FOR TIME` 查询依然返回 `+08:00`（附录 G.4）：
+
+```prolog
+MUTATE {
+  ASSERT ?closed (:alice, "timezone", "+08:00") {
+    by: :alice,
+    mode: "stated",
+    valid: {from: :since, until: :moved_at},
+    evidence: :msg
+  } SUPERSEDING :a_old
+
+  ASSERT ?new (:alice, "timezone", "+01:00") {
+    by: :alice,
+    mode: "stated",
+    valid: {from: :moved_at},
+    evidence: :msg
+  }
+
+  CREATE ACTIVITY ?revision {
+    SET FIELDS {
+      activity_class: "belief_revision",
+      status: "completed"
+    }
+
+    SET STRUCTURAL {
+      ("inputs", :a_old)
+      ("inputs", :msg)
+      ("outputs", ?closed)
+      ("outputs", ?new)
+    }
+  }
+}
+```
+
+在此处，`SUPERSEDING :a_old` 仅修订了时间区间：原开放式主张在 *until* 截止时间上有误，但在其数值本身上并没有错。若在首次写入断言时两个时间区间均已知晓，则完全不需要执行废弃替代（架构设计附录 B）。
 
 ---
 
@@ -6824,16 +6641,37 @@ source Evidence (源证据)
 ## F.6 结果评定与生命周期裁决 (Outcome grading and a lifecycle verdict)
 
 ```text
-外部行动 / 试用运行 (external action / trial run)
+决策 (action_gate 活动: inputs 指明所应用的技能)
+    ↓
+外部行动 / 试用运行
     ↓
 仪器化组件（绝不是行动模型自身）
     ↓
 结果证据 Outcome Evidence {task_family, outcome_status}
+    + outcome_observation 活动 {inputs: 决策活动, outputs: 结果证据}
     ↓
-确定性裁决代码读取已评定的结果流
+确定性裁决代码依据 TrialState 基线读取关联的结果证据
     ↓
 lifecycle_verdict 活动 + 一条受保护的 UPDATE
 ```
+
+仪器通过摄入上下文（§71.1）写入并在其 `facets` 中携带 `OutcomeRecord` 切面的观测记录，以及使其具备打分归因能力的链接：
+
+```prolog
+CREATE ACTIVITY ?obs {
+  SET FIELDS {
+    activity_class: "outcome_observation",
+    status: "completed"
+  }
+  SET STRUCTURAL {
+    ("inputs", :decision)
+    ("outputs", :outcome)
+    ("associated_actors", :verifier)
+  }
+}
+```
+
+当试用期关联结果达到配额时执行的裁决：
 
 ```prolog
 MUTATE {
@@ -6851,19 +6689,19 @@ MUTATE {
   }
 
   UPDATE :skill
-  EXPECT VERSION :version
   SET ATTRIBUTES {status: "adopted"}
-  SET FACET "SkillUtility" {
-    utility: 0.78,
+  SET FACET "GradingState" {
     success_count: 9,
     failure_count: 2,
     graded_count: 12,
     last_verdict_at: :now
   }
+  SET FACET "MnemonicState" {utility: 0.78}
+  EXPECT VERSION :version OF ATTRIBUTES
 }
 ```
 
-晋升操作在一条受保护的语句中执行：`EXPECT VERSION` 确保并发安全，裁决 Activity 通过 `parameters_digest` 锚定评估规则、通过 `inputs` 锚定所评定的结果证据，使整个状态迁移过程完全可被审计者复算验证。
+晋升操作在一条受保护的语句中执行：`EXPECT VERSION ... OF ATTRIBUTES` 确保其并发安全性，且不会被并发的 `MnemonicState` 衰减扫描所破坏（§35.1），裁决 Activity 锚定评估规则（`parameters_digest`）与所评定的结果证据（`inputs`），且 Skill 上的 `TrialState` 忠实承载了试用开启时的对比基线，使整个状态迁移过程对审计员完全可独立复算。仅有关联至应用了该技能之决策的结果才会进入 `inputs`；该任务族的其余结果则构成开启试用时的对比基线。
 
 ---
 
@@ -6999,54 +6837,7 @@ DESCRIBE TRANSACTION BY IDEMPOTENCY KEY (根据幂等键查询事务)
 
 # 附录 I. 兼容性对照总结 (Compatibility Summary)
 
-KIP 1 → KIP 2 的核心语义演变：
-
-```text
-v1 概念身份:
-    通常由 type + name 共同构成身份标识
-v2:
-    不可变的 id/key；name 仅用于接地展示
-
-v1 命题:
-    关系/事实 + 元数据黑盒
-v2:
-    真值中立命题 + 断言 + 证据严格解耦
-
-v1 元数据置信度:
-    直接存储于边上
-v2:
-    断言置信度、投影信念、记忆强度三者彻底正交分离
-
-v1 通用元数据:
-    通用的 metadata 键值包
-v2:
-    显式分工的语义平面
-
-v1 合并:
-    重定向边并删除源概念
-v2:
-    非破坏性身份整合
-
-v1 删除/断开连接:
-    常规的图拓扑操作
-v2:
-    归档 / 墓碑 / 物理清除三级严格区分
-
-v1 导出:
-    幂等的 UPSERT 脚本
-v2:
-    认知胶囊构件 (Cognitive Capsule)
-
-v1 查询边:
-    作为事实对待
-v2:
-    默认读取原始命题，除非显式使用 BELIEF
-
-v1 命令批处理:
-    遗留的批处理执行行为
-v2:
-    显式声明 independent / sequence / atomic 执行模式
-```
+完整内容收录于伴随规范 [KIP-2.0-Optional-Profiles-and-Migration_CN.md](./KIP-2.0-Optional-Profiles-and-Migration_CN.md) 附录 I，紧随 §103 之后。
 
 ---
 

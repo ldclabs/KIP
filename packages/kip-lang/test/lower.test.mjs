@@ -139,8 +139,8 @@ describe('lower: KQL', () => {
   })
 
   test('the two time axes lower independently', () => {
-    const cmd = lowerOne('FIND(?x) WHERE { ?x {id: "1"} } AS OF TX :tx FOR TIME :t')
-    assert.deepEqual(cmd.Kql.as_of, { Tx: { Param: 'tx' } })
+    const cmd = lowerOne('FIND(?x) WHERE { ?x {id: "1"} } AS OF SEQ :s FOR TIME :t')
+    assert.deepEqual(cmd.Kql.as_of, { Seq: { Param: 's' } })
     assert.deepEqual(cmd.Kql.for_time, { Param: 't' })
   })
 
@@ -204,14 +204,31 @@ describe('lower: ASSERT desugaring', () => {
     assert.deepEqual(fields.confidence, { Value: { Number: 0.9 } })
   })
 
-  test('SUPERSEDING adds exactly one SUPERSEDE clause, nothing more', () => {
+  test('SUPERSEDING adds exactly one TRANSITION TO "superseded", nothing more', () => {
     const cmd = lowerOne(
       'ASSERT ?a (:alice, "tz", "+01:00") { by: :alice, mode: "stated" } SUPERSEDING :old'
     )
     assert.equal(cmd.Kml.clauses.length, 3)
-    const supersede = cmd.Kml.clauses[2].SupersedeAssertion
-    assert.deepEqual(supersede.target, { Param: 'old' })
-    assert.deepEqual(supersede.by, { Handle: 'a' })
+    const transition = cmd.Kml.clauses[2].Transition
+    assert.deepEqual(transition.target, { Param: 'old' })
+    assert.deepEqual(transition.to, { Literal: { String: 'superseded' } })
+    assert.deepEqual(transition.by, { Handle: 'a' })
+    assert.deepEqual(transition.expect_versions, [])
+  })
+
+  test('EXPECT VERSION lowers per plane and rejects a duplicate plane', () => {
+    const cmd = lowerOne(
+      'UPDATE :s SET ATTRIBUTES {a: 1} EXPECT VERSION 7 OF ATTRIBUTES EXPECT VERSION 2 OF FACET "GradingState" EXPECT VERSION 9'
+    )
+    assert.deepEqual(cmd.Kml.clauses[0].Update.expect_versions, [
+      { version: { Literal: { Number: 7 } }, plane: 'Attributes' },
+      { version: { Literal: { Number: 2 } }, plane: { Facet: { Name: 'GradingState' } } },
+      { version: { Literal: { Number: 9 } }, plane: null }
+    ])
+    assert.match(
+      lowerThrows('UPDATE :s SET ATTRIBUTES {a: 1} EXPECT VERSION 1 OF ATTRIBUTES EXPECT VERSION 2 OF ATTRIBUTES').message,
+      /duplicate EXPECT VERSION/
+    )
   })
 
   test('the sugar member names map onto Assertion fields', () => {
@@ -424,7 +441,7 @@ describe('lower: KML invariants', () => {
     const err = lowerThrows(
       'UPDATE ?e SET FIELDS {payload: :new} WHERE { ?e EVIDENCE {id: "E-1"} }'
     )
-    assert.match(err.message, /CORRECT EVIDENCE/)
+    assert.match(err.message, /TRANSITION :old TO "corrected"/)
   })
 
   test('a Proposition tuple is immutable', () => {
@@ -476,11 +493,11 @@ describe('lower: KML invariants', () => {
       )
       assert.match(
         lowerThrows(`UPDATE ?ev ${action} WHERE { ?ev EVIDENCE {id: "E-1"} }`).message,
-        /CORRECT EVIDENCE/
+        /TRANSITION :old TO "corrected"/
       )
       assert.match(
         lowerThrows(`UPDATE ?act ${action} WHERE { ?act ACTIVITY {id: "X-1"} }`).message,
-        /TRANSITION ACTIVITY/
+        /TRANSITION \.\.\. TO "completed"/
       )
       assert.match(
         lowerThrows(`UPDATE ?p ${action} WHERE { ?p (?s, "pred", ?o) }`).message,
@@ -532,8 +549,8 @@ describe('lower: KML invariants', () => {
   })
 
   test('the removal ladder lowers to distinct clauses', () => {
-    assert.ok('Archive' in lowerOne('ARCHIVE :t').Kml.clauses[0])
-    assert.ok('Tombstone' in lowerOne('TOMBSTONE :t').Kml.clauses[0])
+    assert.ok('Transition' in lowerOne('TRANSITION :t TO "archived"').Kml.clauses[0])
+    assert.ok('Transition' in lowerOne('TRANSITION :t TO "tombstoned"').Kml.clauses[0])
     assert.ok('Purge' in lowerOne('PURGE :t CONFIRM "PURGE"').Kml.clauses[0])
     assert.ok(
       'SetRetention' in
@@ -558,11 +575,11 @@ describe('lower: KML invariants', () => {
 
   test('LIMIT lowers on every WHERE-scanning mutation', () => {
     const cases = [
-      ['ARCHIVE :t WHERE { ?x {a: 1} } LIMIT 200', 'Archive'],
-      ['TOMBSTONE :t WHERE { ?x {a: 1} } LIMIT :n', 'Tombstone'],
+      ['TRANSITION :t TO "archived" WHERE { ?x {a: 1} } LIMIT 200', 'Transition'],
+      ['TRANSITION :t TO "tombstoned" WHERE { ?x {a: 1} } LIMIT :n', 'Transition'],
       ['PURGE :t WHERE { ?x {a: 1} } LIMIT 10 CONFIRM "PURGE"', 'Purge'],
       ['SET RETENTION :t {a: 1} WHERE { ?x {a: 1} } LIMIT 50', 'SetRetention'],
-      ['RETRACT ASSERTION :a WHERE { ?a ASSERTION {b: 1} } LIMIT 5', 'RetractAssertion']
+      ['TRANSITION :a TO "retracted" WHERE { ?a ASSERTION {b: 1} } LIMIT 5', 'Transition']
     ]
     for (const [source, tag] of cases) {
       const clause = lowerOne(source).Kml.clauses[0]
@@ -574,8 +591,8 @@ describe('lower: KML invariants', () => {
   test('an omitted LIMIT lowers to null, not to a default bound', () => {
     // A missing bound means "no bound"; inventing one would silently change
     // how much cognitive state a sweep touches.
-    const clause = lowerOne('ARCHIVE :t WHERE { ?x {a: 1} }').Kml.clauses[0]
-    assert.equal(clause.Archive.limit, null)
+    const clause = lowerOne('TRANSITION :t TO "archived" WHERE { ?x {a: 1} }').Kml.clauses[0]
+    assert.equal(clause.Transition.limit, null)
   })
 
   test('a structural edge keeps its options', () => {
@@ -628,10 +645,9 @@ describe('lower: KML invariants', () => {
 describe('lower: META', () => {
   test('DESCRIBE targets lower to their tagged forms', () => {
     assert.deepEqual(lowerOne('DESCRIBE PROTOCOL').Meta.Describe, 'Protocol')
-    assert.deepEqual(
-      lowerOne('DESCRIBE PROJECTION CAPABILITY').Meta.Describe,
-      'ProjectionCapability'
-    )
+    assert.deepEqual(lowerOne('DESCRIBE SNAPSHOT AT TIME :t').Meta.Describe, {
+      Snapshot: { as_of: null, at_time: { Param: 't' } }
+    })
     assert.deepEqual(lowerOne('DESCRIBE TYPE :t').Meta.Describe, {
       Type: { Param: 't' }
     })
@@ -822,5 +838,31 @@ describe('version', () => {
 
   test('the spec revision identifies the normative draft', () => {
     assert.equal(KIP_SPEC_REVISION, '2.0-draft')
+  })
+})
+
+describe('TRANSITION lowering enforces the BY and finalize rules (Spec §52.5)', () => {
+  test('superseded and corrected need BY; every other state refuses it', () => {
+    assert.throws(() => lowerOne('TRANSITION :a TO "superseded"'), /names the replacing element with BY/)
+    assert.throws(() => lowerOne('TRANSITION :e TO "corrected"'), /names the replacing element with BY/)
+    assert.throws(() => lowerOne('TRANSITION :a TO "retracted" BY :b'), /takes no BY/)
+    assert.ok('Transition' in lowerOne('TRANSITION :e TO "corrected" BY :new').Kml.clauses[0])
+  })
+
+  test('only an Activity state may finalize fields or topology', () => {
+    assert.throws(
+      () => lowerOne('TRANSITION :a TO "retracted" SET FIELDS {ended_at: :t}'),
+      /only a pending Activity does/
+    )
+    const clause = lowerOne(
+      'TRANSITION :act TO "completed" SET FIELDS {ended_at: :t} SET STRUCTURAL {("outputs", :o)}'
+    ).Kml.clauses[0]
+    assert.ok('Transition' in clause)
+    assert.ok(clause.Transition.set_fields !== null)
+    assert.ok(clause.Transition.set_structural !== null)
+  })
+
+  test('a parameter state defers the rules to the engine', () => {
+    assert.ok('Transition' in lowerOne('TRANSITION :a TO :state').Kml.clauses[0])
   })
 })

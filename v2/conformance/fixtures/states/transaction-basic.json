@@ -1,0 +1,121 @@
+{
+  "format": "KIP-Conformance-State-Fixture",
+  "format_version": "2.0-draft",
+  "fixture": "transaction-basic",
+  "description": "Versioned and lifecycle-varied targets for concurrency, idempotency and TRANSITION vectors: a Document at version 2, a running Activity, and alice's own revision of a claim (a superseded Assertion next to the Assertion that superseded it).",
+  "extends": "core-basic",
+  "schema_environment": {
+    "id": "schema_env:test-v1",
+    "packages": [
+      "kip://test/core-domain@1.0.0"
+    ],
+    "version": 17
+  },
+  "clock": "2026-01-01T00:00:00Z",
+  "epistemic_policy": "test-deterministic",
+  "governance_policy": "governance-test-policy",
+  "trust": {
+    "alice": "trusted",
+    "bob": "trusted",
+    "carol": "weak"
+  },
+  "bindings": {
+    ":note_versioned": "note_versioned",
+    ":a_light_old": "a_light_old",
+    ":a_light_new": "a_light_new",
+    ":act_pending": "act_pending",
+    ":p_alice_prefers_light": "p_alice_prefers_light"
+  },
+  "commits": [
+    {
+      "label": "S2",
+      "at": "2026-01-02T00:00:00Z",
+      "principal": "owner",
+      "creates": [
+        {
+          "handle": "note_versioned",
+          "kind": "concept",
+          "type": "Document",
+          "key": "note-versioned",
+          "name": "Note v1"
+        },
+        {
+          "handle": "p_alice_prefers_light",
+          "kind": "proposition",
+          "subject": "alice",
+          "predicate": "prefers",
+          "object": {
+            "ref": "light_mode"
+          }
+        },
+        {
+          "handle": "a_light_old",
+          "kind": "assertion",
+          "proposition": "p_alice_prefers_light",
+          "asserted_by": "alice",
+          "stance": "support",
+          "mode": "stated",
+          "confidence": 0.9,
+          "asserted_at": "2026-01-01T10:00:00Z",
+          "evidence": [
+            "e_alice_msg"
+          ]
+        },
+        {
+          "handle": "act_pending",
+          "kind": "activity",
+          "activity_class": "analysis",
+          "status": "running",
+          "started_at": "2026-01-01T10:30:00Z",
+          "inputs": [
+            "e_alice_msg"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "S3",
+      "at": "2026-01-03T00:00:00Z",
+      "principal": "alice_writer",
+      "creates": [
+        {
+          "handle": "e_alice_correction",
+          "kind": "evidence",
+          "evidence_class": "message",
+          "payload": {
+            "text": "Sorry, I meant dark mode, not light."
+          },
+          "media_type": "application/json",
+          "observed_at": "2026-01-02T09:00:00Z",
+          "source": "alice"
+        },
+        {
+          "handle": "a_light_new",
+          "kind": "assertion",
+          "proposition": "p_alice_prefers_light",
+          "asserted_by": "alice",
+          "stance": "reject",
+          "mode": "stated",
+          "confidence": 0.9,
+          "asserted_at": "2026-01-02T09:01:00Z",
+          "evidence": [
+            "e_alice_correction"
+          ]
+        }
+      ],
+      "changes": [
+        {
+          "op": "transition",
+          "target": "a_light_old",
+          "to": "superseded",
+          "by": "a_light_new"
+        },
+        {
+          "op": "set_name",
+          "target": "note_versioned",
+          "name": "Note v2"
+        }
+      ]
+    }
+  ]
+}

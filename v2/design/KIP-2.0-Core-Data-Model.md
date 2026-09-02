@@ -1,10 +1,10 @@
 # KIP 2.0 Core Data Model
 
-**[English](./KIP-2.0-Core-Data-Model.md) | [中文](./KIP-2.0-Core-Data-Model_CN.md)**
-
 ## Status
 
 **Core Data Model Proposal / Pre-Specification Draft**
+
+> **Frozen (2026-09-02).** Historical design rationale written before the normative consolidation. This document is no longer maintained and its Chinese twin is no longer synchronized; where it differs from [KIP-2.0-SPECIFICATION.md](../KIP-2.0-SPECIFICATION.md), the Specification is right and this document is out of date.
 
 This document defines the concrete logical data model that implements the architectural principles in [KIP-2.0-Architecture.md](../KIP-2.0-Architecture.md).
 
@@ -112,14 +112,14 @@ Concept   Proposition  Assertion   Evidence    Activity
 
 These element kinds exist for different reasons and MUST NOT be collapsed merely for graph uniformity.
 
-| Element | Primary question |
-| --- | --- |
-| `Concept` | What entity, category, abstraction, or referable object is this? |
-| `Proposition` | What semantic statement can be referred to? |
-| `Assertion` | Who or what takes what epistemic stance toward that proposition? |
-| `Evidence` | What observation/artifact/result is cited as support or challenge? |
-| `Activity` | Through what transformation, observation, import, inference, or consolidation was something produced? |
-| `MemorySpace` | Under whose ownership and policy boundary does this state exist? |
+| Element       | Primary question                                                                                      |
+| ------------- | ----------------------------------------------------------------------------------------------------- |
+| `Concept`     | What entity, category, abstraction, or referable object is this?                                      |
+| `Proposition` | What semantic statement can be referred to?                                                           |
+| `Assertion`   | Who or what takes what epistemic stance toward that proposition?                                      |
+| `Evidence`    | What observation/artifact/result is cited as support or challenge?                                    |
+| `Activity`    | Through what transformation, observation, import, inference, or consolidation was something produced? |
+| `MemorySpace` | Under whose ownership and policy boundary does this state exist?                                      |
 
 Profile-defined cognitive structures such as:
 
@@ -1300,14 +1300,14 @@ imported
 
 Meaning:
 
-| Mode | Meaning |
-| --- | --- |
-| `observed` | Produced directly from an observation/measurement/tool/world signal |
-| `stated` | Attributed to a person/organization/agent statement |
-| `inferred` | Derived from other cognitive state |
-| `predicted` | Forward-looking claim |
-| `hypothetical` | Deliberately non-committed scenario/model |
-| `imported` | Preserved from an external memory source |
+| Mode           | Meaning                                                             |
+| -------------- | ------------------------------------------------------------------- |
+| `observed`     | Produced directly from an observation/measurement/tool/world signal |
+| `stated`       | Attributed to a person/organization/agent statement                 |
+| `inferred`     | Derived from other cognitive state                                  |
+| `predicted`    | Forward-looking claim                                               |
+| `hypothetical` | Deliberately non-committed scenario/model                           |
+| `imported`     | Preserved from an external memory source                            |
 
 `mode` does not determine trust.
 
@@ -2799,28 +2799,28 @@ This is a view, not canonical storage.
 
 Recommended Core mutability:
 
-| Element / field | Mutable? | Rule |
-| --- | --- | --- |
-| `id` | No | immutable |
-| `space_id` | No | move = export/import or explicit privileged migration |
-| Concept `schema_ref` | Normally No | type migration is explicit |
-| Concept `key` | No | idempotent logical identity |
-| Concept `name` | Yes | grounding label |
-| Concept `canonical_id` | Restricted | identity-binding operation |
-| Concept `attributes` | Yes | schema/policy governed |
-| Concept Structural References | Yes | SET/UNSET per reference; cardinality validated at commit |
-| Proposition tuple | No | new tuple = new Proposition |
-| Assertion epistemic payload | No | new belief = new Assertion |
-| Assertion lifecycle | Yes | retract/supersede |
-| Assertion / Evidence Structural References | No | wrong reference is corrected by a new record, never removed |
-| Evidence payload | No | correction = new Evidence |
-| Evidence lifecycle | Yes | correction/retraction/archive |
-| Activity inputs/outputs | No after completion | provenance integrity |
-| Activity status | Yes until terminal | controlled transition |
-| governance | Yes | policy-controlled |
-| retention | Yes | policy-controlled |
-| facets | Profile-defined | profile rules |
-| `_system` | Engine only | non-author-writable |
+| Element / field                            | Mutable?            | Rule                                                        |
+| ------------------------------------------ | ------------------- | ----------------------------------------------------------- |
+| `id`                                       | No                  | immutable                                                   |
+| `space_id`                                 | No                  | move = export/import or explicit privileged migration       |
+| Concept `schema_ref`                       | Normally No         | type migration is explicit                                  |
+| Concept `key`                              | No                  | idempotent logical identity                                 |
+| Concept `name`                             | Yes                 | grounding label                                             |
+| Concept `canonical_id`                     | Restricted          | identity-binding operation                                  |
+| Concept `attributes`                       | Yes                 | schema/policy governed                                      |
+| Concept Structural References              | Yes                 | SET/UNSET per reference; cardinality validated at commit    |
+| Proposition tuple                          | No                  | new tuple = new Proposition                                 |
+| Assertion epistemic payload                | No                  | new belief = new Assertion                                  |
+| Assertion lifecycle                        | Yes                 | retract/supersede                                           |
+| Assertion / Evidence Structural References | No                  | wrong reference is corrected by a new record, never removed |
+| Evidence payload                           | No                  | correction = new Evidence                                   |
+| Evidence lifecycle                         | Yes                 | correction/retraction/archive                               |
+| Activity inputs/outputs                    | No after completion | provenance integrity                                        |
+| Activity status                            | Yes until terminal  | controlled transition                                       |
+| governance                                 | Yes                 | policy-controlled                                           |
+| retention                                  | Yes                 | policy-controlled                                           |
+| facets                                     | Profile-defined     | profile rules                                               |
+| `_system`                                  | Engine only         | non-author-writable                                         |
 
 ---
 

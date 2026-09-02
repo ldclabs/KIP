@@ -1,10 +1,10 @@
 # KIP 2.0 KML — Cognitive Mutation Language
 
-**[English](./KIP-2.0-KML.md) | [中文](./KIP-2.0-KML_CN.md)**
-
 ## Status
 
 **Mutation Language Proposal / Pre-Specification Draft**
+
+> **Frozen (2026-09-02).** Historical design rationale written before the normative consolidation. This document is no longer maintained and its Chinese twin is no longer synchronized; where it differs from [KIP-2.0-SPECIFICATION.md](../KIP-2.0-SPECIFICATION.md), the Specification is right and this document is out of date.
 
 This document defines the mutation semantics of KIP 2.0: how an Agent records new cognitive state, creates truth-neutral Propositions, records Assertions and Evidence, preserves provenance through Activities, revises belief without rewriting history, updates mutable memory/profile state, manages lifecycle transitions, consolidates identity, and expresses compound cognitive changes safely inside Transactions.
 

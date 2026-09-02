@@ -34,13 +34,9 @@ import type {
   UnsetFacetClause,
   UpdateStatement,
   UpdateAction,
-  RetractAssertionStatement,
-  SupersedeAssertionStatement,
-  CorrectEvidenceStatement,
-  TransitionActivityStatement,
+  ExpectVersionClause,
+  TransitionStatement,
   SetRetentionStatement,
-  ArchiveStatement,
-  TombstoneStatement,
   PurgeStatement,
   PurgePayloadStatement,
   MergeConceptStatement,
@@ -52,7 +48,6 @@ import type {
   PreviewStatement,
   HistoryStatement,
   ChangesStatement,
-  SnapshotStatement,
   ExportCapsuleStatement,
   Expression,
   ScalarValue,
@@ -198,9 +193,6 @@ class Formatter {
       case 'ChangesStatement':
         this.formatChanges(stmt)
         break
-      case 'SnapshotStatement':
-        this.formatSnapshot(stmt)
-        break
       case 'ExportCapsuleStatement':
         this.formatExport(stmt)
         break
@@ -235,26 +227,11 @@ class Formatter {
       case 'UpdateStatement':
         this.formatUpdate(stmt)
         break
-      case 'RetractAssertionStatement':
-        this.formatRetract(stmt)
-        break
-      case 'SupersedeAssertionStatement':
-        this.formatSupersede(stmt)
-        break
-      case 'CorrectEvidenceStatement':
-        this.formatCorrect(stmt)
-        break
-      case 'TransitionActivityStatement':
+      case 'TransitionStatement':
         this.formatTransition(stmt)
         break
       case 'SetRetentionStatement':
         this.formatSetRetention(stmt)
-        break
-      case 'ArchiveStatement':
-        this.formatRemoval('ARCHIVE', stmt)
-        break
-      case 'TombstoneStatement':
-        this.formatRemoval('TOMBSTONE', stmt)
         break
       case 'PurgeStatement':
         this.formatPurge(stmt)
@@ -329,7 +306,28 @@ class Formatter {
   }
 
   private asOfToString(clause: AsOfClause): string {
-    return `AS OF ${clause.basis} ${this.scalar(clause.value)}`
+    return `AS OF SEQ ${this.scalar(clause.value)}`
+  }
+
+  private expectVersionToString(clause: ExpectVersionClause): string {
+    let text = `EXPECT VERSION ${this.scalar(clause.value)}`
+    if (clause.plane) {
+      text +=
+        clause.plane.kind === 'FACET'
+          ? ` OF FACET ${this.symbol(clause.plane.facet)}`
+          : ` OF ${clause.plane.kind}`
+    }
+    return text
+  }
+
+  /** Trailing guards, one per line at the statement's own indentation. */
+  private formatExpectVersions(clauses: ExpectVersionClause[]): void {
+    for (const clause of clauses) {
+      this.emitCommentsBefore(clause.range.start.line)
+      this.writeIndent()
+      this.write(this.expectVersionToString(clause))
+      this.newline()
+    }
   }
 
   // ────────────────────────────────────────────────────────────────────
@@ -602,17 +600,6 @@ class Formatter {
         }
       })
     }
-    if (stmt.expectVersion) {
-      const node = stmt.expectVersion
-      clauses.push({
-        node,
-        print: () => {
-          this.writeIndent()
-          this.write(`EXPECT VERSION ${this.scalar(node.value)}`)
-          this.newline()
-        }
-      })
-    }
     if (stmt.setFields) {
       const node = stmt.setFields
       clauses.push({
@@ -655,6 +642,7 @@ class Formatter {
       stmt.range.end.line,
       clauses
     )
+    this.formatExpectVersions(stmt.expectVersions)
   }
 
   private formatRecordCreate(
@@ -702,8 +690,8 @@ class Formatter {
     this.write('ENSURE PROPOSITION ')
     if (stmt.handle) this.write(`${stmt.handle.name} `)
     this.write(this.tupleToString(stmt.tuple))
-    if (stmt.expectVersion) {
-      this.write(` EXPECT VERSION ${this.scalar(stmt.expectVersion.value)}`)
+    for (const clause of stmt.expectVersions) {
+      this.write(` ${this.expectVersionToString(clause)}`)
     }
     this.newline()
   }
@@ -730,12 +718,6 @@ class Formatter {
     this.write(`UPDATE ${this.targetRef(stmt.target)}`)
     this.newline()
 
-    if (stmt.expectVersion) {
-      this.emitCommentsBefore(stmt.expectVersion.range.start.line)
-      this.writeIndent()
-      this.write(`EXPECT VERSION ${this.scalar(stmt.expectVersion.value)}`)
-      this.newline()
-    }
     for (const action of stmt.actions) {
       this.emitCommentsBefore(action.range.start.line)
       this.formatUpdateAction(action)
@@ -748,6 +730,7 @@ class Formatter {
       this.emitCommentsBefore(stmt.limit.range.start.line)
       this.formatLimit(stmt.limit)
     }
+    this.formatExpectVersions(stmt.expectVersions)
   }
 
   private formatUpdateAction(action: UpdateAction): void {
@@ -780,52 +763,13 @@ class Formatter {
     }
   }
 
-  private formatRetract(stmt: RetractAssertionStatement): void {
+  private formatTransition(stmt: TransitionStatement): void {
     this.writeIndent()
-    this.write(`RETRACT ASSERTION ${this.targetRef(stmt.target)}`)
-    if (!stmt.where && !stmt.limit && stmt.expectState) {
-      this.write(` EXPECT STATE ${this.scalar(stmt.expectState.value)}`)
-      this.newline()
-      return
-    }
+    this.write(`TRANSITION ${this.targetRef(stmt.target)} TO ${this.scalar(stmt.to)}`)
+    if (stmt.by) this.write(` BY ${this.targetRef(stmt.by)}`)
+    const tail = stmt.finalize.length > 0 || stmt.where || stmt.limit || stmt.expectVersions.length > 0
     this.newline()
-    if (stmt.where) this.formatWhere(stmt.where, 'WHERE')
-    if (stmt.limit) this.formatLimit(stmt.limit)
-    if (stmt.expectState) {
-      this.writeIndent()
-      this.write(`EXPECT STATE ${this.scalar(stmt.expectState.value)}`)
-      this.newline()
-    }
-  }
-
-  private formatSupersede(stmt: SupersedeAssertionStatement): void {
-    this.writeIndent()
-    this.write(
-      `SUPERSEDE ASSERTION ${this.targetRef(stmt.target)} BY ${this.targetRef(stmt.by)}`
-    )
-    if (stmt.expectState) {
-      this.write(` EXPECT STATE ${this.scalar(stmt.expectState.value)}`)
-    }
-    this.newline()
-  }
-
-  private formatCorrect(stmt: CorrectEvidenceStatement): void {
-    this.writeIndent()
-    this.write(
-      `CORRECT EVIDENCE ${this.targetRef(stmt.target)} BY ${this.targetRef(stmt.by)}`
-    )
-    if (stmt.expectState) {
-      this.write(` EXPECT STATE ${this.scalar(stmt.expectState.value)}`)
-    }
-    this.newline()
-  }
-
-  private formatTransition(stmt: TransitionActivityStatement): void {
-    this.writeIndent()
-    this.write(
-      `TRANSITION ACTIVITY ${this.targetRef(stmt.target)} TO ${this.scalar(stmt.to)}`
-    )
-    this.newline()
+    if (!tail) return
     if (stmt.finalize.length > 0) {
       this.indentLevel++
       for (const clause of stmt.finalize) {
@@ -838,14 +782,9 @@ class Formatter {
       }
       this.indentLevel--
     }
-    if (stmt.expectState) {
-      this.indentLevel++
-      this.emitCommentsBefore(stmt.expectState.range.start.line)
-      this.writeIndent()
-      this.write(`EXPECT STATE ${this.scalar(stmt.expectState.value)}`)
-      this.newline()
-      this.indentLevel--
-    }
+    if (stmt.where) this.formatWhere(stmt.where, 'WHERE')
+    if (stmt.limit) this.formatLimit(stmt.limit)
+    this.formatExpectVersions(stmt.expectVersions)
   }
 
   private formatSetRetention(stmt: SetRetentionStatement): void {
@@ -855,34 +794,7 @@ class Formatter {
     this.newline()
     if (stmt.where) this.formatWhere(stmt.where, 'WHERE')
     if (stmt.limit) this.formatLimit(stmt.limit)
-    if (stmt.expectVersion) {
-      this.writeIndent()
-      this.write(`EXPECT VERSION ${this.scalar(stmt.expectVersion.value)}`)
-      this.newline()
-    }
-  }
-
-  private formatRemoval(
-    keyword: string,
-    stmt: ArchiveStatement | TombstoneStatement
-  ): void {
-    this.writeIndent()
-    this.write(`${keyword} ${this.targetRef(stmt.target)}`)
-    if (!stmt.where && !stmt.limit) {
-      if (stmt.expectState) {
-        this.write(` EXPECT STATE ${this.scalar(stmt.expectState.value)}`)
-      }
-      this.newline()
-      return
-    }
-    this.newline()
-    if (stmt.where) this.formatWhere(stmt.where, 'WHERE')
-    if (stmt.limit) this.formatLimit(stmt.limit)
-    if (stmt.expectState) {
-      this.writeIndent()
-      this.write(`EXPECT STATE ${this.scalar(stmt.expectState.value)}`)
-      this.newline()
-    }
+    this.formatExpectVersions(stmt.expectVersions)
   }
 
   private formatPurge(stmt: PurgeStatement): void {
@@ -891,6 +803,7 @@ class Formatter {
     this.newline()
     if (stmt.where) this.formatWhere(stmt.where, 'WHERE')
     if (stmt.limit) this.formatLimit(stmt.limit)
+    this.formatExpectVersions(stmt.expectVersions)
     this.indentLevel++
     if (stmt.referencePolicy) {
       this.writeIndent()
@@ -909,6 +822,7 @@ class Formatter {
     this.newline()
     if (stmt.where) this.formatWhere(stmt.where, 'WHERE')
     if (stmt.limit) this.formatLimit(stmt.limit)
+    this.formatExpectVersions(stmt.expectVersions)
     this.indentLevel++
     this.writeIndent()
     this.write(`CONFIRM ${stmt.confirm.value}`)
@@ -923,11 +837,7 @@ class Formatter {
     )
     this.newline()
     if (stmt.where) this.formatWhere(stmt.where, 'WHERE')
-    if (stmt.expectVersion) {
-      this.writeIndent()
-      this.write(`EXPECT VERSION ${this.scalar(stmt.expectVersion.value)}`)
-      this.newline()
-    }
+    this.formatExpectVersions(stmt.expectVersions)
   }
 
   // ────────────────────────────────────────────────────────────────────
@@ -1018,7 +928,6 @@ class Formatter {
     const words: Record<DescribeStatement['target'], string> = {
       PRIMER: 'PRIMER',
       PROTOCOL: 'PROTOCOL',
-      EXECUTION_CONTEXT: 'EXECUTION CONTEXT',
       CAPABILITIES: 'CAPABILITIES',
       SPACE: 'SPACE',
       SCHEMA_ENVIRONMENT: 'SCHEMA ENVIRONMENT',
@@ -1034,7 +943,6 @@ class Formatter {
       SNAPSHOT: 'SNAPSHOT',
       CAPSULE: 'CAPSULE',
       EPISTEMIC_POLICY: 'EPISTEMIC POLICY',
-      PROJECTION_CAPABILITY: 'PROJECTION CAPABILITY',
       TRUST: 'TRUST',
       ACCESS: 'ACCESS'
     }
@@ -1047,6 +955,7 @@ class Formatter {
     }
     if (stmt.mode) this.write(` MODE ${this.scalar(stmt.mode)}`)
     if (stmt.asOf) this.write(` ${this.asOfToString(stmt.asOf)}`)
+    if (stmt.atTime) this.write(` AT TIME ${this.scalar(stmt.atTime)}`)
     if (stmt.with) this.write(` WITH ${this.objectLiteralToString(stmt.with)}`)
     this.newline()
   }
@@ -1144,13 +1053,6 @@ class Formatter {
     const keyword = stmt.mode === 'SINCE' ? 'SINCE' : 'AFTER SEQ'
     this.write(`CHANGES ${keyword} ${this.scalar(stmt.value)}`)
     if (stmt.limit) this.write(` LIMIT ${this.scalar(stmt.limit.value)}`)
-    this.newline()
-  }
-
-  private formatSnapshot(stmt: SnapshotStatement): void {
-    this.writeIndent()
-    this.write('SNAPSHOT')
-    if (stmt.asOf) this.write(` ${this.asOfToString(stmt.asOf)}`)
     this.newline()
   }
 

@@ -194,14 +194,17 @@ describe('KQL', () => {
     const stmt = parseOne(
       'FIND(?x) WHERE { ?x {id: "1"} } AS OF SEQ :seq FOR TIME :t'
     )
-    assert.equal(stmt.asOf.basis, 'SEQ')
+    assert.equal(stmt.asOf.value.name, ':seq')
     assert.equal(stmt.forTime.value.name, ':t')
   })
 
-  test('AS OF accepts each of the three bases', () => {
-    for (const basis of ['SEQ', 'TX', 'TIME']) {
-      const stmt = parseOne(`FIND(?x) WHERE { ?x {id: "1"} } AS OF ${basis} :v`)
-      assert.equal(stmt.asOf.basis, basis)
+  test('AS OF takes a sequence only: ids and instants resolve to one first', () => {
+    assert.equal(parseOne('FIND(?x) WHERE { ?x {id: "1"} } AS OF SEQ 1500').asOf.value.value, 1500)
+    for (const basis of ['TX', 'TIME']) {
+      assert.match(
+        parseErrors(`FIND(?x) WHERE { ?x {id: "1"} } AS OF ${basis} :v`)[0].message,
+        /Expected SEQ after AS OF/
+      )
     }
   })
 
@@ -377,9 +380,9 @@ describe('KML', () => {
     )
   })
 
-  test('the removal ladder parses as four distinct statements', () => {
-    assert.equal(parseOne('ARCHIVE :t WHERE { ?x {id:"1"} }').kind, 'ArchiveStatement')
-    assert.equal(parseOne('TOMBSTONE :t').kind, 'TombstoneStatement')
+  test('the removal ladder is TRANSITION plus PURGE and SET RETENTION', () => {
+    assert.equal(parseOne('TRANSITION :t TO "archived" WHERE { ?x {id:"1"} }').kind, 'TransitionStatement')
+    assert.equal(parseOne('TRANSITION :t TO "tombstoned"').kind, 'TransitionStatement')
     assert.equal(
       parseOne('PURGE :t REFERENCE POLICY "deny_if_referenced" CONFIRM "PURGE"').kind,
       'PurgeStatement'
@@ -444,9 +447,9 @@ describe('KML', () => {
     // A LIMIT still needs its WHERE to be meaningful, but the grammar keeps
     // the same clause order either way.
     const guarded = parseOne(
-      'UPDATE "C-1" EXPECT VERSION 3 SET ATTRIBUTES {a: 1} WHERE { ?c {id: "C-1"} } LIMIT 1'
+      'UPDATE "C-1" SET ATTRIBUTES {a: 1} WHERE { ?c {id: "C-1"} } LIMIT 1 EXPECT VERSION 3'
     )
-    assert.equal(guarded.expectVersion.value.value, 3)
+    assert.equal(guarded.expectVersions[0].value.value, 3)
     assert.equal(guarded.where.patterns.length, 1)
     assert.ok(guarded.limit)
 
@@ -456,11 +459,11 @@ describe('KML', () => {
 
   test('the WHERE-scanning family accepts a LIMIT after its WHERE', () => {
     const cases = [
-      ['ARCHIVE :t WHERE { ?x {a: 1} } LIMIT 200', 'ArchiveStatement'],
-      ['TOMBSTONE :t WHERE { ?x {a: 1} } LIMIT :n', 'TombstoneStatement'],
+      ['TRANSITION :t TO "archived" WHERE { ?x {a: 1} } LIMIT 200', 'TransitionStatement'],
+      ['TRANSITION :t TO "tombstoned" WHERE { ?x {a: 1} } LIMIT :n', 'TransitionStatement'],
       ['PURGE :t WHERE { ?x {a: 1} } LIMIT 10 CONFIRM "PURGE"', 'PurgeStatement'],
       ['SET RETENTION :t {retention_class: "standard"} WHERE { ?x {a: 1} } LIMIT 50', 'SetRetentionStatement'],
-      ['RETRACT ASSERTION :a WHERE { ?a ASSERTION {b: 1} } LIMIT 5', 'RetractAssertionStatement']
+      ['TRANSITION :a TO "retracted" WHERE { ?a ASSERTION {b: 1} } LIMIT 5', 'TransitionStatement']
     ]
     for (const [source, kind] of cases) {
       const stmt = parseOne(source)
@@ -470,9 +473,9 @@ describe('KML', () => {
   })
 
   test('LIMIT still composes with the trailing precondition', () => {
-    const archive = parseOne('ARCHIVE :t WHERE { ?x {a: 1} } LIMIT 200 EXPECT STATE "active"')
+    const archive = parseOne('TRANSITION :t TO "archived" WHERE { ?x {a: 1} } LIMIT 200 EXPECT VERSION 4')
     assert.equal(archive.limit.value.value, 200)
-    assert.equal(archive.expectState.value.parsed, 'active')
+    assert.equal(archive.expectVersions[0].value.value, 4)
 
     const purge = parseOne(
       'PURGE :t WHERE { ?x {a: 1} } LIMIT 10 REFERENCE POLICY "deny_if_referenced" CONFIRM "PURGE"'
@@ -485,12 +488,25 @@ describe('KML', () => {
     assert.ok(parseErrors('MERGE CONCEPT ?a INTO ?b WHERE { ?a {x: 1} } LIMIT 5').length > 0)
   })
 
-  test('EXPECT VERSION and EXPECT STATE are told apart by their second word', () => {
-    const version = parseOne('MERGE CONCEPT ?a INTO ?b EXPECT VERSION 3')
-    assert.equal(version.expectVersion.value.value, 3)
+  test('EXPECT VERSION trails every mutation and may name a plane', () => {
+    const merge = parseOne('MERGE CONCEPT ?a INTO ?b EXPECT VERSION 3')
+    assert.equal(merge.expectVersions[0].value.value, 3)
+    assert.equal(merge.expectVersions[0].plane, undefined)
 
-    const state = parseOne('RETRACT ASSERTION :a EXPECT STATE "active"')
-    assert.equal(state.expectState.value.parsed, 'active')
+    const planes = parseOne(
+      'UPDATE :s SET ATTRIBUTES {status: "adopted"} EXPECT VERSION 7 OF ATTRIBUTES EXPECT VERSION 2 OF FACET "GradingState"'
+    )
+    assert.equal(planes.expectVersions.length, 2)
+    assert.equal(planes.expectVersions[0].plane.kind, 'ATTRIBUTES')
+    assert.equal(planes.expectVersions[1].plane.kind, 'FACET')
+    assert.equal(planes.expectVersions[1].plane.facet.parsed, 'GradingState')
+
+    const upsert = parseOne('UPSERT CONCEPT ?p { MATCH {key: "k"} SET FIELDS {name: "n"} } EXPECT VERSION 0')
+    assert.equal(upsert.expectVersions[0].value.value, 0)
+
+    // The old head position and EXPECT STATE are gone (Spec §35.3, §52.8).
+    assert.ok(parseErrors('UPDATE :s EXPECT VERSION 3 SET ATTRIBUTES {a: 1}').length > 0)
+    assert.ok(parseErrors('TRANSITION :a TO "retracted" EXPECT STATE "active"').length > 0)
   })
 
   test('BELIEF cannot appear in a mutation selection', () => {
@@ -518,7 +534,6 @@ describe('META', () => {
       ['DESCRIBE PRIMER', 'PRIMER'],
       ['DESCRIBE PRIMER MODE "compact"', 'PRIMER'],
       ['DESCRIBE PROTOCOL', 'PROTOCOL'],
-      ['DESCRIBE EXECUTION CONTEXT', 'EXECUTION_CONTEXT'],
       ['DESCRIBE CAPABILITIES', 'CAPABILITIES'],
       ['DESCRIBE SPACE', 'SPACE'],
       ['DESCRIBE SCHEMA ENVIRONMENT', 'SCHEMA_ENVIRONMENT'],
@@ -532,9 +547,10 @@ describe('META', () => {
       ['DESCRIBE TRANSACTION :tx', 'TRANSACTION'],
       ['DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :k', 'TRANSACTION_BY_IDEMPOTENCY_KEY'],
       ['DESCRIBE SNAPSHOT', 'SNAPSHOT'],
+      ['DESCRIBE SNAPSHOT AS OF SEQ :s', 'SNAPSHOT'],
+      ['DESCRIBE SNAPSHOT AT TIME :t', 'SNAPSHOT'],
       ['DESCRIBE CAPSULE :c', 'CAPSULE'],
       ['DESCRIBE EPISTEMIC POLICY', 'EPISTEMIC_POLICY'],
-      ['DESCRIBE PROJECTION CAPABILITY', 'PROJECTION_CAPABILITY'],
       ['DESCRIBE TRUST', 'TRUST'],
       ['DESCRIBE ACCESS WITH { operation: "read" }', 'ACCESS']
     ]
@@ -602,14 +618,17 @@ describe('META', () => {
     assert.equal(preview.into.name, ':space')
   })
 
-  test('HISTORY, CHANGES and SNAPSHOT parse', () => {
+  test('HISTORY, CHANGES and DESCRIBE SNAPSHOT parse', () => {
     assert.equal(parseOne('HISTORY ELEMENT :id').target, 'ELEMENT')
     const space = parseOne('HISTORY SPACE FROM SEQ :a TO SEQ :b')
     assert.equal(space.fromSeq.name, ':a')
     assert.equal(space.toSeq.name, ':b')
     assert.equal(parseOne('CHANGES SINCE :c').mode, 'SINCE')
     assert.equal(parseOne('CHANGES AFTER SEQ :s LIMIT 10').mode, 'AFTER_SEQ')
-    assert.equal(parseOne('SNAPSHOT AS OF SEQ :s').asOf.basis, 'SEQ')
+    // SNAPSHOT folded into DESCRIBE SNAPSHOT, which also resolves an instant.
+    assert.equal(parseOne('DESCRIBE SNAPSHOT AS OF SEQ :s').asOf.value.name, ':s')
+    assert.equal(parseOne('DESCRIBE SNAPSHOT AT TIME :t').atTime.name, ':t')
+    assert.ok(parseErrors('SNAPSHOT AS OF SEQ :s').length > 0)
   })
 
   test('EXPORT CAPSULE excludes BELIEF from its selection', () => {
@@ -748,11 +767,11 @@ WHERE { ?m {} }`,
         [/\/\/ decay\n\s*SET FACET "F"/, /\/\/ and unset\n\s*UNSET ATTRIBUTES/]
       ],
       [
-        `TRANSITION ACTIVITY :a TO "completed"
+        `TRANSITION :a TO "completed"
   // finalize
   SET FIELDS { ended_at: :t }
-  EXPECT STATE "running"`,
-        [/\/\/ finalize\n\s*SET FIELDS \{ended_at: :t\}\n\s*EXPECT STATE/]
+EXPECT VERSION 3`,
+        [/\/\/ finalize\n\s*SET FIELDS \{ended_at: :t\}\n\s*EXPECT VERSION/]
       ]
     ]
     for (const [source, expectations] of cases) {
@@ -809,16 +828,17 @@ WHERE { ?m {} }`,
       'ASSERT (:a, "b", :c) {by: :x, mode: "stated"} SUPERSEDING :old',
       'CREATE EVIDENCE ?e { CLIENT KEY :k SET FIELDS {evidence_class: "tool_result"} }',
       'UPDATE ?m SET FACET "F" {v: CLAMP(MUL(?m.v, :d), 0, 1)} WHERE { ?m {type: "T"} } LIMIT 10',
-      'RETRACT ASSERTION :a EXPECT STATE "active"',
-      'SUPERSEDE ASSERTION :o BY :n',
-      'CORRECT EVIDENCE :o BY :n',
-      'TRANSITION ACTIVITY :a TO "completed" SET FIELDS {ended_at: :t} EXPECT STATE "running"',
+      'TRANSITION :a TO "retracted" EXPECT VERSION 2',
+      'TRANSITION :o TO "superseded" BY :n',
+      'TRANSITION :o TO "corrected" BY :n',
+      'TRANSITION :a TO "completed" SET FIELDS {ended_at: :t} EXPECT VERSION 1',
       'SET RETENTION :t {retention_class: "standard"}',
-      'ARCHIVE :t WHERE { ?x {a: 1} }',
-      'ARCHIVE :t WHERE { ?x {a: 1} } LIMIT 200 EXPECT STATE "active"',
-      'TOMBSTONE :t',
-      'TOMBSTONE :t WHERE { ?x {a: 1} } LIMIT :n',
-      'RETRACT ASSERTION :a WHERE { ?a ASSERTION {b: 1} } LIMIT 5',
+      'TRANSITION :t TO "archived" WHERE { ?x {a: 1} }',
+      'TRANSITION :t TO "archived" WHERE { ?x {a: 1} } LIMIT 200 EXPECT VERSION 4',
+      'TRANSITION :t TO "tombstoned"',
+      'TRANSITION :t TO "tombstoned" WHERE { ?x {a: 1} } LIMIT :n',
+      'TRANSITION :a TO "retracted" WHERE { ?a ASSERTION {b: 1} } LIMIT 5',
+      'UPSERT CONCEPT ?p { MATCH {key: "kip-2"} SET FIELDS {name: "n"} } EXPECT VERSION 2',
       'SET RETENTION :t {retention_class: "standard"} WHERE { ?x {a: 1} } LIMIT 50',
       'FIND(?p) WHERE { ?p (id: :prop_id) }',
       'FIND(?p) WHERE { ?p PROPOSITION (id: "P-1") }',
@@ -827,7 +847,7 @@ WHERE { ?m {} }`,
       'FIND(?b) WHERE { ?b BELIEF (id: :x) }',
       'FIND(?b) WHERE { ?b BELIEF (id: "P-1") } WITH EPISTEMIC {explanation: "ledger"}',
       'UPDATE :exp SET FACET "MnemonicState" {salience: 0.9}',
-      'UPDATE "C-1" EXPECT VERSION 3 SET ATTRIBUTES {a: 1}',
+      'UPDATE "C-1" SET ATTRIBUTES {a: 1} EXPECT VERSION 3 OF ATTRIBUTES EXPECT VERSION 1 OF FACET "MnemonicState"',
       'PURGE :t REFERENCE POLICY "deny_if_referenced" CONFIRM "PURGE"',
       'PURGE :t WHERE { ?x {a: 1} } LIMIT 10 CONFIRM "PURGE"',
       'MERGE CONCEPT :a INTO :b EXPECT VERSION 2',
@@ -840,7 +860,8 @@ WHERE { ?m {} }`,
       'PREVIEW IMPORT CAPSULE :c INTO :s',
       'HISTORY SPACE FROM SEQ :a TO SEQ :b',
       'CHANGES AFTER SEQ :s LIMIT 10',
-      'SNAPSHOT AS OF SEQ :s',
+      'DESCRIBE SNAPSHOT AT TIME :t',
+      'DESCRIBE SNAPSHOT AS OF SEQ :s',
       'EXPORT CAPSULE ?r WHERE { ?r {a: 1} } WITH {closure: "referential"} AS OF SEQ :s'
     ]
     for (const source of sources) {
@@ -972,23 +993,20 @@ describe('semantics', () => {
     )
   })
 
-  test('EXPECT STATE uses the Assertion registry only where the target is one', () => {
-    // RETRACT and SUPERSEDE name an Assertion by construction.
-    assert.ok(
-      codes('RETRACT ASSERTION :a EXPECT STATE "archived"').includes('KIP_2001')
-    )
-    assert.ok(
-      codes('SUPERSEDE ASSERTION :o BY :n EXPECT STATE "archived"').includes(
-        'KIP_2001'
-      )
-    )
-    assert.deepEqual(codes('RETRACT ASSERTION :a EXPECT STATE "active"'), [])
-
-    // ARCHIVE and TOMBSTONE take any element. Core registers no element
-    // lifecycle vocabulary, and guarding an idempotent sweep with the state
-    // the sweep produces is exactly what an author would write.
-    assert.deepEqual(codes('ARCHIVE :c EXPECT STATE "archived"'), [])
-    assert.deepEqual(codes('TOMBSTONE :c EXPECT STATE "archived"'), [])
+  test('TRANSITION checks its vocabulary, its BY, and its finalize clauses', () => {
+    // A state no kind has is a mistake the toolkit can name now.
+    assert.ok(codes('TRANSITION :a TO "active"').includes('KIP_2001'))
+    assert.deepEqual(codes('TRANSITION :a TO "retracted"'), [])
+    // "superseded" / "corrected" name the replacing element with BY.
+    assert.ok(codes('TRANSITION :o TO "superseded"').includes('KIP_2001'))
+    assert.deepEqual(codes('TRANSITION :o TO "superseded" BY :n'), [])
+    assert.ok(codes('TRANSITION :a TO "retracted" BY :n').includes('KIP_2001'))
+    // Only an Activity move finalizes fields or topology.
+    assert.ok(codes('TRANSITION :a TO "retracted" SET FIELDS {x: 1}').includes('KIP_2001'))
+    assert.deepEqual(codes('TRANSITION :a TO "completed" SET FIELDS {ended_at: :t}'), [])
+    assert.deepEqual(codes('TRANSITION :c TO "archived"'), [])
+    // A parameter is bound at execution time; nothing is checkable.
+    assert.deepEqual(codes('TRANSITION :c TO :state'), [])
   })
 
   test('every bounded-selection family warns when its sweep is unbounded', () => {
@@ -996,17 +1014,17 @@ describe('semantics', () => {
     // removal ladder had it backwards.
     const sweeps = [
       'UPDATE ?x SET FIELDS {name: "n"} WHERE { ?x {} }',
-      'RETRACT ASSERTION ?a WHERE { ?a ASSERTION {} }',
+      'TRANSITION ?a TO "retracted" WHERE { ?a ASSERTION {} }',
       'SET RETENTION ?x {retention_class: "standard"} WHERE { ?x {} }',
-      'ARCHIVE ?x WHERE { ?x {} }',
-      'TOMBSTONE ?x WHERE { ?x {} }',
+      'TRANSITION ?x TO "archived" WHERE { ?x {} }',
+      'TRANSITION ?x TO "tombstoned" WHERE { ?x {} }',
       'PURGE ?x WHERE { ?x {} } CONFIRM "PURGE"'
     ]
     for (const sweep of sweeps) {
       assert.ok(codes(sweep).includes('KIP_4002'), sweep)
     }
-    assert.deepEqual(codes('ARCHIVE ?x WHERE { ?x {} } LIMIT 10'), [])
-    assert.deepEqual(codes('ARCHIVE ?x WHERE { ?x {type: "Event"} }'), [])
+    assert.deepEqual(codes('TRANSITION ?x TO "archived" WHERE { ?x {} } LIMIT 10'), [])
+    assert.deepEqual(codes('TRANSITION ?x TO "archived" WHERE { ?x {type: "Event"} }'), [])
   })
 
   test('a Core field is range-checked wherever it is written', () => {
@@ -1019,9 +1037,10 @@ describe('semantics', () => {
     assert.ok(!codes('FIND(?x) WHERE { ?x {} } LIMIT 10').includes('KIP_4002'))
   })
 
-  test('TRANSITION ACTIVITY only reaches terminal states', () => {
-    assert.ok(codes('TRANSITION ACTIVITY :a TO "running"').includes('KIP_2001'))
-    assert.deepEqual(codes('TRANSITION ACTIVITY :a TO "completed"'), [])
+  test('an Activity may move to running or to a terminal state', () => {
+    assert.deepEqual(codes('TRANSITION :a TO "running"'), [])
+    assert.deepEqual(codes('TRANSITION :a TO "completed"'), [])
+    assert.ok(codes('TRANSITION :a TO "done"').includes('KIP_2001'))
   })
 
   test('diagnostics include executable-AST constraints', () => {

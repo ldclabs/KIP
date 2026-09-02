@@ -1,10 +1,10 @@
 # KIP 2.0 Transactions
 
-**[English](./KIP-2.0-Transactions.md) | [中文](./KIP-2.0-Transactions_CN.md)**
-
 ## Status
 
 **Transaction Model Proposal / Pre-Specification Draft**
+
+> **Frozen (2026-09-02).** Historical design rationale written before the normative consolidation. This document is no longer maintained and its Chinese twin is no longer synchronized; where it differs from [KIP-2.0-SPECIFICATION.md](../KIP-2.0-SPECIFICATION.md), the Specification is right and this document is out of date.
 
 This document defines the transaction architecture of KIP 2.0: how cognitive, epistemic, schema, governance, maintenance, migration, and import state transitions become atomic, durable, idempotent, auditable, historically reconstructable changes in a Cognitive Nexus.
 

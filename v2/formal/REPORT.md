@@ -2,9 +2,9 @@
 
 **[English](./REPORT.md) | [中文](./REPORT_CN.md)**
 
-**Date**: 2026-08-15
-**Target**: `v2/KIP-2.0-SPECIFICATION.md` (2.0-draft) and `v2/grammar/*.ebnf`
-**Artifacts**: [`alloy/kip-core.als`](./alloy/kip-core.als), [`tla/KipTransactions.tla`](./tla/KipTransactions.tla), [`governance/check_governance.py`](./governance/check_governance.py), [`grammar/check_ebnf.py`](./grammar/check_ebnf.py), [`run.sh`](./run.sh)
+**Date**: 2026-08-15; addendum 2026-09-02 (suites 5–7); last full run of all seven suites 2026-09-02 (§12)
+**Target**: `v2/KIP-2.0-SPECIFICATION.md` (2.0-draft), `v2/profiles/CognitiveMemoryProfile-2.0.md`, and `v2/grammar/*.ebnf`
+**Artifacts**: [`alloy/kip-core.als`](./alloy/kip-core.als), [`tla/KipTransactions.tla`](./tla/KipTransactions.tla), [`governance/check_governance.py`](./governance/check_governance.py), [`grammar/check_ebnf.py`](./grammar/check_ebnf.py), [`lifecycle/check_lifecycle.py`](./lifecycle/check_lifecycle.py), [`watch/check_watch.py`](./watch/check_watch.py), [`purge/check_purge.py`](./purge/check_purge.py), [`run.sh`](./run.sh)
 
 ---
 
@@ -18,6 +18,9 @@ KIP 2.0 splits cleanly into layers with very different verifiability:
 | Core data model invariants (§5–§23) | Yes, bounded                   | Alloy 6 temporal model checking             |
 | Transaction runtime (§32–§36)       | Yes, bounded                   | TLA+ / TLC explicit-state model checking    |
 | Governance evaluation (§29–§31)     | Yes, bounded-exhaustive        | exhaustive decision-procedure checking      |
+| Consequence channel / Skill lifecycle (§15.7, §29.8, §41.6; Profile §6, §14, §21) | Yes, bounded-exhaustive | explicit-state Python model checking (suite 5) |
+| Watch firing under concurrency (Profile §5.11) | Yes, bounded | explicit-state Python model checking (suite 6) |
+| Erasure: purge, legal hold, payload purge (§19.1, §60) | Yes, bounded-exhaustive | explicit-state Python model checking (suite 7) |
 | Epistemic Projection *policies*     | No — deliberately unprescribed | (frame properties only)                     |
 | Memory/learning as behavior         | No — empirical, Brain-level    | §21.3-style ablation benchmarks, not proofs |
 
@@ -118,7 +121,7 @@ An implementation that retains only *state-changing* outcomes under
 idempotency keys (a plausible misreading of §32.8 + §33.1) violates
 §34.3: submit(k) → `no_effect`; another transaction changes the state;
 retry(k) with identical bytes now *commits*. One key produced two
-different successful outcomes. **This is FINDING F2** — see §6.
+different successful outcomes. **This is FINDING F2** — see §9.
 
 ---
 
@@ -171,7 +174,96 @@ recommendation.
 
 ---
 
-## 6. Findings
+## 6. Suite 5 — Consequence channel and Skill lifecycle (added 2026-09-02)
+
+`lifecycle/check_lifecycle.py` is an explicit-state model checker in the
+style of suite 3: a breadth-first search over every interleaving of recording
+a decision (an `action_gate` whose inputs name the Skills applied), observing
+outcomes (instrument-written, acting-Principal-written, or imported), opening
+trials, and running the deterministic verdict rule, for two Skills that
+share one task family plus a third Skill that arrives by import already
+`adopted` at its source. Every reachable state and transition is checked.
+
+| Property | Meaning | Spec / Profile |
+| --- | --- | --- |
+| I1 AttributionOnly | a verdict's inputs, hence a Skill's `GradingState`, contain only outcomes linked to a decision that applied it, with instrument origin; observing an outcome changes no tally by itself | Spec §15.7, Inv. 37; Profile §6.2, §14 rule 7 |
+| I2 BasisBeforeCount | a verdict on a trialed/adopted Skill finds a `TrialState` whose basis precedes every graded outcome | Profile §6.5, §14 rule 2 |
+| I3 VerdictOnly | the lifecycle status changes only in a step that appends a `lifecycle_verdict` | Profile §9, §14 rule 1 |
+| I4 Recomputable | re-running the rule on the recorded basis and inputs reproduces every recorded transition | Profile §14 rule 2 |
+| I5 RevocationNotHarder | demotion bar ≤ promotion bar; `adopted → revoked` reachable with fewer graded outcomes than adoption needed | Profile §14 rule 3 |
+| I6 ImportResets | an imported Skill starts `proposed` with no grading and no trial; an imported outcome is in no verdict's inputs | Profile §21; Spec §41.6 |
+| I7 SelfGradingVisible | under the `record_outcome` gate no acting-Principal outcome exists; without the gate every verdict that consumed one is flagged from origin alone | Spec §29.8, Inv. 36 |
+
+Results (`run.sh` section 5): spec mode **368,247 states, all properties
+hold, all three witnesses reachable** (adoption; adoption then revocation on
+one linked failure; S1 adopted while its family-mate S2 stays ungraded).
+The self-graded-deployment variant (`--self-graded`, 2.1M states) holds.
+Four bug injections each produce their counterexample: `--family-join` (the
+pre-2026-09-02 design: the family is the attribution) violates I1 with S2
+graded by S1's outcome; `--skip-trialstate` violates I2; `--count-imported`
+violates I1 and I6; `--no-gate` (acting-Principal outcomes accepted and not
+flagged) violates I7.
+
+---
+
+## 7. Suite 6 — Watch firing under concurrency (added 2026-09-02)
+
+`watch/check_watch.py` models two maintenance workers consuming one Change
+Stream at their own pace, with at-least-once redelivery, both trying to fire
+the same Watch through the transition Profile §5.11 prescribes: a
+`watch_fire` Activity keyed `watch_fire:<watch>:<seq>` (or
+`…:silence:<due_at>`) plus a guarded `UPDATE … EXPECT VERSION` of the status,
+in one transaction. Four scenarios (delta with one and two matches, silence
+with and without a match before `due_at`) are explored exhaustively.
+
+| Property | Meaning |
+| --- | --- |
+| W1 OncePerKey | at most one `watch_fire` Activity and one SleepTask per firing key |
+| W2 FiredIsOnce | a `fired` Watch has exactly one firing |
+| W3 MatchOnly | a delta Watch fires only on an envelope its condition matches |
+| W4 VersionOnce | the Watch's version advanced exactly once (§35.5) |
+| W5 SilenceSound | a silence Watch fires only after the evaluator consumed the stream through the due point and saw no match |
+| W6 Reachable | firing is reachable where it should be |
+
+Results (`run.sh` section 6): spec mode holds. **Either guard alone
+suffices** when the firing is one transaction — `--no-client-key` (EXPECT
+VERSION only) and `--no-guard` (client_key only) both hold — and the double
+fire needs both absent (`--no-guard --no-client-key`: two Activities and two
+SleepTasks for `watch_fire:W:2`, violating W1/W2). `--premature-silence`
+(fire on the clock without having consumed the stream through the due point)
+violates W5: the silence Watch fires although a matching change committed
+before `due_at`. **This is FINDING F5.**
+
+---
+
+## 8. Suite 7 — Purge, legal hold, payload purge (added 2026-09-02)
+
+`purge/check_purge.py` enumerates, over a five-element universe (two
+Evidence, an Assertion citing one of them, an Activity with provenance
+references to all three, a Concept with an optional structural reference),
+every legal-hold assignment (32) and every purge sequence of length ≤ 3 over
+element purge under the three reference policies and payload purge —
+26,248 operations — checking after each:
+
+| Property | Meaning | Spec |
+| --- | --- | --- |
+| P1 HeldNeverErased | a held element is never stubbed, erased, or payload-purged, including as a cascade dependent | §19.1, §60.3 |
+| P2 DenyRespectsRefs | `deny_if_referenced` never erases an element a required reference points to | §60.3 |
+| P3 NoDanglingRequired | a required reference from a live or tombstoned element resolves to live, tombstoned, or stub — never nothing | §60.3 stub |
+| P4 CascadeStopsAtHold | an authorized cascade erases unheld dependents and never a held one | §60.3 |
+| P5 PayloadPurgeKeeps | after `PURGE PAYLOAD` the record is live, citations and provenance survive, and a repeat is `no_effect` | §60.6, Inv. 34 |
+| P6 NoResurrection | a stub never becomes live; a purged payload never returns | §60.3, §60.6 |
+
+Results (`run.sh` section 7): spec mode holds with all witnesses (a cascade
+erasing an unheld dependent, a hold stopping a cascade, a payload purge).
+`--hold-after-policy` violates P1 (a held element erased under
+`authorized_cascade`), `--no-stub` violates P3 (the Assertion's citation
+dangles the moment its Evidence is purged under `tombstone_reference`), and
+`--payload-drops-citations` violates P5.
+
+---
+
+## 9. Findings
 
 > **Status**: the recommendations below were applied on 2026-08-15 in the
 > same change set that adds this report — Specification §11.1 / §29.6 /
@@ -237,6 +329,38 @@ having three names. Both directions invite silent drift on future edits.
 `grammar/check_ebnf.py` in CI so the reviewed whitelist is the single
 source of truth for permitted divergence.
 
+### F5 — A silence Watch must consume the stream through its due point (Profile gap, applied 2026-09-02)
+
+Profile §5.11 said a silence Watch "fires when `due_at` passes without a
+match", which an evaluator can read as a clock check. Suite 6 shows the
+race: a matching change commits before `due_at`, the evaluator sees the
+clock pass before it has fetched that envelope, and fires the silence Watch
+on a silence that never happened (`--premature-silence`, scenario
+`envelopes=(True, False), due=2`). **Applied**: §5.11 now requires the
+evaluator to have consumed the Change Stream through the `space_seq` current
+at `due_at` before concluding silence; BrainMaintenance §17 says the same.
+
+### F6 — The family-level join was the wrong attribution (design defect, applied 2026-09-02)
+
+Suite 5's `--family-join` mode reproduces the consequence channel as
+drafted on 2026-08-31, where the task family was the join between outcomes
+and Skills: with two Skills in one family, an outcome produced by a decision
+that applied S1 grades S2 as well, and an outcome linked to no decision
+grades both. The redesign — attribution only through the
+`outcome_observation → action_gate` link, `TrialState` written at trial
+opening, the family reduced to the baseline stream — holds under every
+interleaving in scope (I1–I7). The model is the mechanical form of review
+finding P0-2.
+
+### F7 — The hold is evaluated before the policy, and the stub is load-bearing (confirmation)
+
+Suite 7 confirms two sentences of §60.3 that read like drafting choices:
+evaluating `legal_hold` after the reference policy lets an
+`authorized_cascade` erase a held element (`--hold-after-policy`), and an
+element purge that leaves no digest stub dangles every required reference to
+it (`--no-stub`) — the Assertion that cited the purged Evidence would point
+at nothing. Both are already normative; the suite keeps them so.
+
 ### Positive assurance worth stating
 
 - The §23 Epistemic Independence machinery does exactly what
@@ -252,7 +376,9 @@ source of truth for permitted divergence.
 
 ---
 
-## 7. What was deliberately not verified
+## 10. What was deliberately not verified
+
+- **Version planes (§35.1, 2026-09-02).** `KipTransactions.tla` keeps one version counter per element, i.e. the bare `EXPECT VERSION`. That a guard `OF ATTRIBUTES` is not spoiled by a Facet sweep, and that two guards on different planes commit together, is stated by TX-027 / TX-028 and not yet model-checked; extending the TLA+ model is one more counter per plane and a guard that names one.
 
 - **Belief/projection policies, confidence formulas, forgetting curves,
   ranking** — the spec deliberately does not prescribe them (Architecture
@@ -262,8 +388,15 @@ source of truth for permitted divergence.
   empirical properties of a Brain + model; the spec itself says the right
   instrument is ablation benchmarking (§21.3-adjacent, Architecture
   §21.3), not proof.
-- **Physical purge (§19.3, §29.7)** — excluded from the Alloy scope
-  (`Live` is monotone); modeling audited purge is listed as future work.
+- **Physical purge inside the Alloy model (§19.3, §29.7)** — the Alloy scope
+  keeps `Live` monotone; erasure is verified separately by suite 7, which
+  does not model the Alloy properties' interaction with purge (a purged
+  Evidence root still counts for independence through its stub, by §60.3;
+  that interaction is asserted, not checked).
+- **The verdict rule itself** — suite 5 fixes one deterministic rule
+  (`adopt-if-better-v1`) to have something to run; which rule a Brain uses
+  is policy, and the properties checked are about attribution, basis, and
+  recomputability, not about whether the rule is wise.
 - **Capsule canonicalization/digests (§37.7)** — deterministic
   serialization is a test-vector problem (the conformance suite's job),
   not a model-checking problem.
@@ -271,7 +404,7 @@ source of truth for permitted divergence.
   §37.8's "integrity ≠ truth" separation is enforced structurally in the
   authority model instead.
 
-## 8. Reproducing
+## 11. Reproducing
 
 ```bash
 export ALLOY_JAR=/path/to/org.alloytools.alloy.dist.jar   # Alloy ≥ 6.2
@@ -281,5 +414,25 @@ v2/formal/run.sh
 
 Java 17+ and Python 3.10+ required. The script asserts the *expected*
 result of every obligation — including that the bug-injection
-configurations do produce counterexamples — so a green run means the
-whole argument above still holds.
+configurations do produce counterexamples — so a green run (exit 0) means
+the whole argument above still holds. Without the jars, suites 1–2 are
+skipped and the run exits 3 after suites 3–7: the Python suites alone take
+about a minute, most of it suite 5's self-graded variant.
+
+---
+
+## 12. Last full run — 2026-09-02
+
+All seven suites, run by `run.sh` on one machine (Java 17.0.20, Alloy 6.2.0, TLC 2.19, Python 3), wall clock 4 min 33 s, exit code 0:
+
+| Suite | Result |
+|---|---|
+| 1 Alloy Core data model | C1–C7 UNSAT (no counterexample in scope); R1–R4 SAT (witness traces found) |
+| 2 TLC transactions | `_spec.cfg` all invariants hold; `_toctou.cfg` and `_noretain.cfg` produce the expected counterexamples |
+| 3 Governance evaluation | 10,939,388 decision checks, P1–P6 hold |
+| 4 EBNF grammars | G1–G5 PASS (post-`TRANSITION` grammars) |
+| 5 Consequence channel / Skill lifecycle | spec and self-graded variant hold I1–I7; the four bug injections each produce their counterexample |
+| 6 Watch firing | spec and both single-guard variants hold W1–W6; `--no-guard --no-client-key` double-fires, `--premature-silence` fires without cause |
+| 7 Purge / legal hold / payload purge | P1–P6 hold; the three bug injections each produce their counterexample |
+
+The run postdates the 2026-09-02 draft revisions (§14.2 supersession as revision, §35.1 version planes, §52.5 `TRANSITION`, §31.3 `governance.authority_class`). None of those changed what the models check: the Alloy `authority` relation is the field §31.3 now names, the lifecycle moves in suites 1 and 5 are the moves `TRANSITION` spells, and the TLA+ model's single per-element counter is the bare `EXPECT VERSION`. What the models do **not** yet cover is listed in §10: the plane counters of §35.1 are the one new mechanism with no model.

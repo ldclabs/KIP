@@ -188,7 +188,8 @@
             "stop",
             "continue"
           ],
-          "description": "Meaningful primarily for sequence execution."
+          "default": "stop",
+          "description": "Meaningful for sequence execution; defaults to stop. Atomic execution aborts unconditionally."
         },
         "isolation": {
           "type": "string",
@@ -408,6 +409,52 @@
       },
       "description": "Namespaced extension registry. Unnamespaced vendor semantic fields are not allowed at the top level."
     },
+    "ElementReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "Concept Type, local name or exact reference; resolves through the symbol lineage (§20.14)."
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "id"
+          ],
+          "not": {
+            "required": [
+              "key"
+            ]
+          }
+        },
+        {
+          "required": [
+            "type",
+            "key"
+          ],
+          "not": {
+            "required": [
+              "id"
+            ]
+          }
+        }
+      ],
+      "description": "A same-Space element reference: by exact id, or by Concept Type lineage plus key. Names are never references (§7.2)."
+    },
     "IngestContext": {
       "type": "object",
       "additionalProperties": false,
@@ -460,15 +507,25 @@
           "format": "date-time"
         },
         "source_actor": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 512,
-          "description": "Semantic source actor reference; recorded as Evidence source, never as Principal identity."
+          "$ref": "#/$defs/ElementReference",
+          "description": "Semantic source actor as an element reference ({id} or {type, key}); recorded as the Evidence's source, never as Principal identity and never resolved by name."
         },
         "client_key": {
           "type": "string",
           "minLength": 1,
           "maxLength": 1024
+        },
+        "facets": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "additionalProperties": {
+            "type": "object"
+          },
+          "description": "Facet name (local or exact ref) to value object, validated exactly as SET FACET on CREATE EVIDENCE would be. This is how instrumentation attaches OutcomeRecord to an ingested outcome without re-typing anything."
         },
         "extensions": {
           "$ref": "#/$defs/Extensions"

@@ -1,0 +1,770 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kip.ldclabs.org/schemas/2.0/conformance-state-fixture.schema.json",
+  "title": "KIP 2.0 Conformance State Fixture",
+  "description": "Declarative seed for one named conformance state (KIP-2.0-Conformance-Tests.md §5, §41). A harness loads it out of band — never through the KML under test — commit by commit, so that each commit label is a stable snapshot coordinate vectors can name (S1, S2, ...). Handles are fixture-local; the harness maps them and the canonical binding symbols (§9) to implementation-local ids.",
+  "type": "object",
+  "required": [
+    "format",
+    "format_version",
+    "fixture",
+    "schema_environment",
+    "clock",
+    "commits"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "const": "KIP-Conformance-State-Fixture"
+    },
+    "format_version": {
+      "const": "2.0-draft"
+    },
+    "fixture": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "maxLength": 64
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "extends": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Seed this fixture first; its handles stay addressable and its commits precede this fixture's."
+    },
+    "schema_environment": {
+      "type": "object",
+      "required": [
+        "id",
+        "packages",
+        "version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "packages": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^kip://"
+          },
+          "minItems": 1
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "clock": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Test clock at the start of seeding (§30)."
+    },
+    "epistemic_policy": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "policy_id of the Epistemic Policy installed for this fixture (fixtures/epistemic-test-deterministic.json)."
+    },
+    "governance_policy": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "policy_id of the Governance policy installed for this fixture (fixtures/governance-test-policy.json)."
+    },
+    "trust": {
+      "type": "object",
+      "additionalProperties": {
+        "enum": [
+          "trusted",
+          "weak",
+          "low_trust",
+          "untrusted",
+          "unknown"
+        ]
+      },
+      "description": "Source trust class per actor handle in the fixture-protected trust context (§11)."
+    },
+    "bindings": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^:[a-z][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/Handle"
+      },
+      "description": "Canonical binding symbols (§9) → handles."
+    },
+    "commits": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Commit"
+      }
+    }
+  },
+  "$defs": {
+    "Handle": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "maxLength": 64
+    },
+    "Ref": {
+      "type": "object",
+      "required": [
+        "ref"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/Handle"
+        }
+      }
+    },
+    "Literal": {
+      "type": [
+        "string",
+        "number",
+        "boolean",
+        "null"
+      ]
+    },
+    "Origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "import_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "channel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_trust": {
+          "enum": [
+            "trusted",
+            "weak",
+            "low_trust",
+            "untrusted",
+            "unknown"
+          ]
+        }
+      },
+      "description": "Seeded engine origin (Spec §6.3, §41.2): present only for elements that arrived by import."
+    },
+    "Governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authority_class": {
+          "enum": [
+            "descriptive",
+            "advisory",
+            "behavioral",
+            "executable"
+          ]
+        }
+      }
+    },
+    "Retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "retention_class": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "legal_hold": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Commit": {
+      "type": "object",
+      "required": [
+        "label",
+        "at",
+        "principal"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "type": "string",
+          "pattern": "^S[0-9]+$"
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "principal": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Canonical Principal (§10) the seeded commit is attributed to."
+        },
+        "creates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Element"
+          }
+        },
+        "changes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Change"
+          }
+        }
+      },
+      "description": "One transaction; the harness commits it as one space_seq."
+    },
+    "Element": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Concept"
+        },
+        {
+          "$ref": "#/$defs/Proposition"
+        },
+        {
+          "$ref": "#/$defs/Evidence"
+        },
+        {
+          "$ref": "#/$defs/Assertion"
+        },
+        {
+          "$ref": "#/$defs/Activity"
+        }
+      ]
+    },
+    "Concept": {
+      "type": "object",
+      "required": [
+        "handle",
+        "kind",
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "handle": {
+          "$ref": "#/$defs/Handle"
+        },
+        "kind": {
+          "const": "concept"
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Local type name resolved in the fixture's Schema Environment."
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object"
+        },
+        "facets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          }
+        },
+        "structural": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "field",
+              "target"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "target": {
+                "$ref": "#/$defs/Handle"
+              },
+              "options": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "governance": {
+          "$ref": "#/$defs/Governance"
+        },
+        "retention": {
+          "$ref": "#/$defs/Retention"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        }
+      }
+    },
+    "Proposition": {
+      "type": "object",
+      "required": [
+        "handle",
+        "kind",
+        "subject",
+        "predicate",
+        "object"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "handle": {
+          "$ref": "#/$defs/Handle"
+        },
+        "kind": {
+          "const": "proposition"
+        },
+        "subject": {
+          "$ref": "#/$defs/Handle"
+        },
+        "predicate": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Local predicate name resolved in the fixture's Schema Environment."
+        },
+        "object": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Ref"
+            },
+            {
+              "$ref": "#/$defs/Literal"
+            }
+          ]
+        }
+      }
+    },
+    "Evidence": {
+      "type": "object",
+      "required": [
+        "handle",
+        "kind",
+        "evidence_class",
+        "payload",
+        "observed_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "handle": {
+          "$ref": "#/$defs/Handle"
+        },
+        "kind": {
+          "const": "evidence"
+        },
+        "evidence_class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "payload": {},
+        "media_type": {
+          "type": "string"
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "source": {
+          "$ref": "#/$defs/Handle"
+        },
+        "facets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          }
+        },
+        "governance": {
+          "$ref": "#/$defs/Governance"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        }
+      }
+    },
+    "Assertion": {
+      "type": "object",
+      "required": [
+        "handle",
+        "kind",
+        "proposition",
+        "asserted_by",
+        "stance",
+        "mode",
+        "asserted_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "handle": {
+          "$ref": "#/$defs/Handle"
+        },
+        "kind": {
+          "const": "assertion"
+        },
+        "proposition": {
+          "$ref": "#/$defs/Handle"
+        },
+        "asserted_by": {
+          "$ref": "#/$defs/Handle"
+        },
+        "stance": {
+          "enum": [
+            "support",
+            "reject",
+            "uncertain"
+          ]
+        },
+        "mode": {
+          "enum": [
+            "observed",
+            "stated",
+            "inferred",
+            "hypothetical",
+            "predicted"
+          ]
+        },
+        "confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "asserted_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "valid_time": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "from": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "until": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Handle"
+          }
+        },
+        "client_key": {
+          "type": "string"
+        },
+        "governance": {
+          "$ref": "#/$defs/Governance"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        }
+      }
+    },
+    "Activity": {
+      "type": "object",
+      "required": [
+        "handle",
+        "kind",
+        "activity_class",
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "handle": {
+          "$ref": "#/$defs/Handle"
+        },
+        "kind": {
+          "const": "activity"
+        },
+        "activity_class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "running",
+            "completed",
+            "failed",
+            "cancelled"
+          ]
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ended_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Handle"
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Handle"
+          }
+        },
+        "facets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          }
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        }
+      }
+    },
+    "Change": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "target",
+            "attributes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "const": "set_attributes"
+            },
+            "target": {
+              "$ref": "#/$defs/Handle"
+            },
+            "attributes": {
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "target",
+            "name"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "const": "set_name"
+            },
+            "target": {
+              "$ref": "#/$defs/Handle"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "target",
+            "facet",
+            "values"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "const": "set_facet"
+            },
+            "target": {
+              "$ref": "#/$defs/Handle"
+            },
+            "facet": {
+              "type": "string"
+            },
+            "values": {
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "target",
+            "to"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "const": "transition"
+            },
+            "target": {
+              "$ref": "#/$defs/Handle"
+            },
+            "to": {
+              "enum": [
+                "retracted",
+                "superseded",
+                "corrected",
+                "running",
+                "completed",
+                "failed",
+                "cancelled",
+                "archived",
+                "tombstoned"
+              ]
+            },
+            "by": {
+              "$ref": "#/$defs/Handle"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "target",
+            "retention"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "const": "set_retention"
+            },
+            "target": {
+              "$ref": "#/$defs/Handle"
+            },
+            "retention": {
+              "$ref": "#/$defs/Retention"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "source",
+            "into"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "const": "merge"
+            },
+            "source": {
+              "$ref": "#/$defs/Handle"
+            },
+            "into": {
+              "$ref": "#/$defs/Handle"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "package"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "const": "activate_package"
+            },
+            "package": {
+              "type": "string",
+              "pattern": "^kip://"
+            },
+            "schema_environment_version": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "target",
+            "classification"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "const": "set_classification"
+            },
+            "target": {
+              "$ref": "#/$defs/Handle"
+            },
+            "classification": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "target",
+            "authority_class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "const": "set_authority_class"
+            },
+            "target": {
+              "$ref": "#/$defs/Handle"
+            },
+            "authority_class": {
+              "enum": [
+                "descriptive",
+                "advisory",
+                "behavioral",
+                "executable"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Declarative post-creation changes, applied in order inside the commit; the harness performs them out of band, never through the KML under test."
+    }
+  }
+}

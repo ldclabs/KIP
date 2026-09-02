@@ -39,13 +39,8 @@ export type MutationClause =
   | CreateAssertionStatement
   | CreateActivityStatement
   | UpdateStatement
-  | RetractAssertionStatement
-  | SupersedeAssertionStatement
-  | CorrectEvidenceStatement
-  | TransitionActivityStatement
+  | TransitionStatement
   | SetRetentionStatement
-  | ArchiveStatement
-  | TombstoneStatement
   | PurgeStatement
   | PurgePayloadStatement
   | MergeConceptStatement
@@ -60,7 +55,6 @@ export type MetaStatement =
   | PreviewStatement
   | HistoryStatement
   | ChangesStatement
-  | SnapshotStatement
   | ExportCapsuleStatement
 
 // ─── Shared operand shapes ───────────────────────────────────────────
@@ -96,10 +90,15 @@ export interface FindStatement extends BaseNode {
   cursor?: CursorClause
 }
 
-/** `AS OF SEQ|TX|TIME` — which cognitive history the read runs against. */
+/**
+ * `AS OF SEQ` — which cognitive history the read runs against.
+ *
+ * Cognitive time is a sequence coordinate. A transaction id or a wall-clock
+ * instant is resolved to one first (`DESCRIBE TRANSACTION`, `DESCRIBE SNAPSHOT
+ * AT TIME`), so the read itself names the sequence it ran against.
+ */
 export interface AsOfClause extends BaseNode {
   kind: 'AsOfClause'
-  basis: 'SEQ' | 'TX' | 'TIME'
   value: ScalarValue
 }
 
@@ -356,7 +355,6 @@ export interface UpsertConceptStatement extends BaseNode {
   kind: 'UpsertConceptStatement'
   handle: Handle
   match?: MatchClause
-  expectVersion?: ExpectVersionClause
   setFields?: SetFieldsClause
   setAttributes?: SetAttributesClause
   setFacets: SetFacetClause[]
@@ -364,13 +362,15 @@ export interface UpsertConceptStatement extends BaseNode {
   unsetFacets: UnsetFacetClause[]
   setStructural?: SetStructuralClause
   unsetStructural?: UnsetStructuralClause
+  /** Trailing preconditions, after the closing brace (Spec §35.1). */
+  expectVersions: ExpectVersionClause[]
 }
 
 export interface EnsurePropositionStatement extends BaseNode {
   kind: 'EnsurePropositionStatement'
   handle?: Handle
   tuple: PropositionTuple
-  expectVersion?: ExpectVersionClause
+  expectVersions: ExpectVersionClause[]
 }
 
 /**
@@ -507,15 +507,23 @@ export interface StructuralRemoval extends BaseNode {
   value: Expression
 }
 
+/**
+ * `EXPECT VERSION n [OF ATTRIBUTES | STRUCTURAL | RETENTION | FACET "X"]`.
+ *
+ * Without a plane the guard compares the element's `_system.version`; with
+ * one it compares that plane's own version, so a lifecycle verdict guarded on
+ * `ATTRIBUTES` is not spoiled by a metabolism sweep that touched a Facet
+ * (Spec §35.1). A statement may carry several, at most one per plane.
+ */
 export interface ExpectVersionClause extends BaseNode {
   kind: 'ExpectVersionClause'
   value: ScalarValue
+  plane?: VersionPlane
 }
 
-export interface ExpectStateClause extends BaseNode {
-  kind: 'ExpectStateClause'
-  value: ScalarValue
-}
+export type VersionPlane =
+  | { kind: 'ATTRIBUTES' | 'STRUCTURAL' | 'RETENTION' }
+  | { kind: 'FACET'; facet: SchemaSymbol }
 
 // ─── KML: update ─────────────────────────────────────────────────────
 
@@ -529,15 +537,16 @@ export interface ExpectStateClause extends BaseNode {
 export interface UpdateStatement extends BaseNode {
   kind: 'UpdateStatement'
   target: TargetRef
-  expectVersion?: ExpectVersionClause
   actions: UpdateAction[]
   /**
    * Binds a `?variable` target; a direct `:id` / `"id"` target already names
-   * the element and may omit it — the same rule as ARCHIVE, TOMBSTONE, PURGE,
-   * SET RETENTION and RETRACT ASSERTION (Spec §58).
+   * the element and may omit it — the same rule as TRANSITION, PURGE and
+   * SET RETENTION (Spec §58).
    */
   where?: WhereClause
   limit?: LimitClause
+  /** Trailing preconditions: `[WHERE] [LIMIT] {EXPECT VERSION}` (Spec §52.8). */
+  expectVersions: ExpectVersionClause[]
 }
 
 export type UpdateAction =
@@ -549,36 +558,30 @@ export type UpdateAction =
   | SetStructuralClause
   | UnsetStructuralClause
 
-// ─── KML: lifecycle and correction ───────────────────────────────────
+// ─── KML: lifecycle ──────────────────────────────────────────────────
 
-export interface RetractAssertionStatement extends BaseNode {
-  kind: 'RetractAssertionStatement'
-  target: TargetRef
-  where?: WhereClause
-  limit?: LimitClause
-  expectState?: ExpectStateClause
-}
-
-export interface SupersedeAssertionStatement extends BaseNode {
-  kind: 'SupersedeAssertionStatement'
-  target: TargetRef
-  by: TargetRef
-  expectState?: ExpectStateClause
-}
-
-export interface CorrectEvidenceStatement extends BaseNode {
-  kind: 'CorrectEvidenceStatement'
-  target: TargetRef
-  by: TargetRef
-  expectState?: ExpectStateClause
-}
-
-export interface TransitionActivityStatement extends BaseNode {
-  kind: 'TransitionActivityStatement'
+/**
+ * `TRANSITION target TO "state" [BY ref] [SET FIELDS] [SET STRUCTURAL]
+ *  [WHERE] [LIMIT] {EXPECT VERSION}` — the one lifecycle statement (Spec §52.5).
+ *
+ * The state names the move and the engine checks it against the target's
+ * kind: an Assertion goes to `retracted` or `superseded` (`BY` the newer
+ * Assertion), Evidence to `corrected` (`BY` the new Evidence), a pending
+ * Activity to `running` or a terminal state (finalizing fields and topology
+ * in the same statement), and any element to `archived` or `tombstoned`.
+ * The transition itself validates the current state, which is why there is
+ * no `EXPECT STATE`: a move from the wrong state fails
+ * `InvalidLifecycleTransition`, and a version guard covers the rest.
+ */
+export interface TransitionStatement extends BaseNode {
+  kind: 'TransitionStatement'
   target: TargetRef
   to: ScalarValue
+  by?: TargetRef
   finalize: (SetFieldsClause | SetStructuralClause)[]
-  expectState?: ExpectStateClause
+  where?: WhereClause
+  limit?: LimitClause
+  expectVersions: ExpectVersionClause[]
 }
 
 // ─── KML: retention and removal ──────────────────────────────────────
@@ -589,23 +592,7 @@ export interface SetRetentionStatement extends BaseNode {
   assignments: ObjectLiteral
   where?: WhereClause
   limit?: LimitClause
-  expectVersion?: ExpectVersionClause
-}
-
-export interface ArchiveStatement extends BaseNode {
-  kind: 'ArchiveStatement'
-  target: TargetRef
-  where?: WhereClause
-  limit?: LimitClause
-  expectState?: ExpectStateClause
-}
-
-export interface TombstoneStatement extends BaseNode {
-  kind: 'TombstoneStatement'
-  target: TargetRef
-  where?: WhereClause
-  limit?: LimitClause
-  expectState?: ExpectStateClause
+  expectVersions: ExpectVersionClause[]
 }
 
 /** Physical erasure. The grammar freezes the confirmation as `CONFIRM "PURGE"`. */
@@ -614,6 +601,7 @@ export interface PurgeStatement extends BaseNode {
   target: TargetRef
   where?: WhereClause
   limit?: LimitClause
+  expectVersions: ExpectVersionClause[]
   referencePolicy?: ScalarValue
   confirm: StringLiteral
 }
@@ -628,6 +616,7 @@ export interface PurgePayloadStatement extends BaseNode {
   target: TargetRef
   where?: WhereClause
   limit?: LimitClause
+  expectVersions: ExpectVersionClause[]
   confirm: StringLiteral
 }
 
@@ -637,7 +626,7 @@ export interface MergeConceptStatement extends BaseNode {
   source: TargetRef
   into: TargetRef
   where?: WhereClause
-  expectVersion?: ExpectVersionClause
+  expectVersions: ExpectVersionClause[]
 }
 
 // ─── META: DESCRIBE ──────────────────────────────────────────────────
@@ -645,7 +634,6 @@ export interface MergeConceptStatement extends BaseNode {
 export type DescribeTargetKind =
   | 'PRIMER'
   | 'PROTOCOL'
-  | 'EXECUTION_CONTEXT'
   | 'CAPABILITIES'
   | 'SPACE'
   | 'SCHEMA_ENVIRONMENT'
@@ -661,7 +649,6 @@ export type DescribeTargetKind =
   | 'SNAPSHOT'
   | 'CAPSULE'
   | 'EPISTEMIC_POLICY'
-  | 'PROJECTION_CAPABILITY'
   | 'TRUST'
   | 'ACCESS'
 
@@ -675,8 +662,10 @@ export interface DescribeStatement extends BaseNode {
   /** `DESCRIBE COMPATIBILITY FROM ... TO ...` */
   from?: ScalarValue
   to?: ScalarValue
-  /** `DESCRIBE SCHEMA ENVIRONMENT` / `DESCRIBE SNAPSHOT` */
+  /** `DESCRIBE SCHEMA ENVIRONMENT` / `DESCRIBE SNAPSHOT` — `AS OF SEQ` */
   asOf?: AsOfClause
+  /** `DESCRIBE SNAPSHOT AT TIME` — resolves a wall-clock instant to a sequence. */
+  atTime?: ScalarValue
   /** `DESCRIBE ACCESS WITH {...}` */
   with?: ObjectLiteral
 }
@@ -771,7 +760,7 @@ export interface PreviewStatement extends BaseNode {
   into?: ScalarValue
 }
 
-// ─── META: HISTORY / CHANGES / SNAPSHOT ──────────────────────────────
+// ─── META: HISTORY / CHANGES ─────────────────────────────────────────
 
 export interface HistoryStatement extends BaseNode {
   kind: 'HistoryStatement'
@@ -789,11 +778,6 @@ export interface ChangesStatement extends BaseNode {
   mode: 'SINCE' | 'AFTER_SEQ'
   value: ScalarValue
   limit?: LimitClause
-}
-
-export interface SnapshotStatement extends BaseNode {
-  kind: 'SnapshotStatement'
-  asOf?: AsOfClause
 }
 
 // ─── META: EXPORT CAPSULE ────────────────────────────────────────────

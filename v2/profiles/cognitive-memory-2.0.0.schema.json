@@ -363,13 +363,21 @@
       "Insight": {
         "ref": "kip://profiles/cognitive-memory@2.0.0/Insight",
         "kind": "ConceptType",
-        "description": "Declarative lesson derived from Evidence or Experience.",
+        "description": "Declarative lesson derived from Evidence or Experience. May carry a task_family to subscribe to a consequence stream, in which case it may carry GradingState and TrialState like a Skill.",
         "attributes": {
           "open": true,
           "fields": {
             "summary": {
               "type": "string",
               "required": true,
+              "mutable": true
+            },
+            "task_family": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "required": false,
               "mutable": true
             },
             "scope": {
@@ -446,16 +454,6 @@
               ],
               "required": false,
               "mutable": true
-            },
-            "conditions": {
-              "type": [
-                "string",
-                "array",
-                "object",
-                "null"
-              ],
-              "required": false,
-              "mutable": true
             }
           }
         },
@@ -467,7 +465,7 @@
       "Skill": {
         "ref": "kip://profiles/cognitive-memory@2.0.0/Skill",
         "kind": "ConceptType",
-        "description": "Reusable procedural cognition compiled from Experience, Evidence, or validated instruction. Carries a required task_family (its scoring handle) and an outcome-graded lifecycle: proposed | trialed | adopted | revoked.",
+        "description": "Reusable procedural cognition compiled from Experience, Evidence, or validated instruction. Carries a required task_family (its scoring handle: where its baseline comes from) and an outcome-graded lifecycle: proposed | trialed | adopted | revoked. Its graded record is GradingState, its open trial TrialState, its admission bet MnemonicState.utility.",
         "attributes": {
           "open": true,
           "fields": {
@@ -582,7 +580,8 @@
         },
         "model_hints": {
           "authority_invariant": "Adopted Skill != executable authority.",
-          "lifecycle_invariant": "Transitions execute only as deterministic lifecycle_verdict Activities over graded Outcome Evidence; the acting model never promotes, and revocation is never harder than adoption."
+          "lifecycle_invariant": "Transitions execute only as deterministic lifecycle_verdict Activities over graded Outcome Evidence; the acting model never promotes, and revocation is never harder than adoption.",
+          "attribution_invariant": "An outcome counts toward this Skill only through an outcome_observation Activity that names an action_gate decision which applied it; sharing the task_family attributes nothing."
         }
       },
       "SleepTask": {
@@ -690,7 +689,8 @@
                 "object"
               ],
               "required": true,
-              "mutable": true
+              "mutable": true,
+              "description": "Structured filter over Change Envelope entries — element | slot {subject, predicate} | type, plus optional ops[] and touched[] — with text as the Brain-interpreted fallback; a text-only condition is not runtime-evaluable."
             },
             "due_at": {
               "type": [
@@ -739,7 +739,8 @@
         },
         "model_hints": {
           "authority_invariant": "A fired Watch creates attention (SleepTask/wake signal), never an external action or permission.",
-          "firing_invariant": "Firing is recorded as a watch_fire Activity; the outward decision goes through the action_gate outcomes act | ask | defer | silence."
+          "firing_invariant": "Firing is one atomic transition: watch_fire Activity (client_key watch_fire:<id>:<envelope seq> or watch_fire:<id>:silence:<due_at>) plus a guarded UPDATE of status; concurrent evaluators replay, never double-fire. The outward decision goes through the action_gate and its DecisionRecord (act | ask | defer | silence).",
+          "condition_form": "Baseline object members: element, slot {subject, predicate}, type (at least one); ops (create|update|lifecycle|retention|merge|purge|payload_purge); touched (paths); text (fallback)."
         }
       },
       "SelfModel": {
@@ -967,28 +968,23 @@
             "memory_strength != Assertion confidence",
             "salience != source trust",
             "utility is the admission bet, revised by outcomes; not truth, salience, or permission",
-            "Facet state cannot override Core/Governance fields"
+            "Facet state cannot override Core/Governance fields",
+            "Skills carry it too: a Skill's expected usefulness is MnemonicState.utility; its graded record is GradingState"
           ]
         }
       },
-      "SkillUtility": {
-        "ref": "kip://profiles/cognitive-memory@2.0.0/SkillUtility",
+      "GradingState": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/GradingState",
         "kind": "FacetDefinition",
-        "description": "Mutable empirical/procedural usefulness state for Skill: tallies of graded Outcome Evidence under the Skill's task_family, maintained by verdict/grading Activities, never by the acting model's own report. Not epistemic probability or authority.",
+        "description": "Graded record of an artifact that carries a task_family (Skill; an Insight that subscribes to a stream): tallies of Outcome Evidence linked, through an outcome_observation Activity, to a decision that applied the artifact. Maintained by verdict/grading Activities, never by the acting model's own report, and never by an outcome that merely shares the task_family. Not epistemic probability, not utility, not authority.",
         "closed": true,
         "applicable_to": {
           "concept_types": [
-            "kip://profiles/cognitive-memory@2.0.0/Skill"
+            "kip://profiles/cognitive-memory@2.0.0/Skill",
+            "kip://profiles/cognitive-memory@2.0.0/Insight"
           ]
         },
         "fields": {
-          "utility": {
-            "type": "number",
-            "required": false,
-            "mutable": true,
-            "minimum": 0.0,
-            "maximum": 1.0
-          },
           "success_count": {
             "type": "integer",
             "required": false,
@@ -1017,7 +1013,8 @@
           }
         },
         "model_hints": {
-          "authority_invariant": "High utility != executable authority."
+          "attribution_invariant": "A tally changes only through an outcome linked to the decision that applied the artifact; task_family finds the baseline and never attributes.",
+          "authority_invariant": "A perfect record != executable authority."
         }
       },
       "DerivationState": {
@@ -1063,7 +1060,7 @@
       "OutcomeRecord": {
         "ref": "kip://profiles/cognitive-memory@2.0.0/OutcomeRecord",
         "kind": "FacetDefinition",
-        "description": "Graded index over Outcome Evidence (evidence_class outcome): the consequence channel entry. task_family is the join key grading subscribes to; the raw instrument output stays untouched in the Evidence payload.",
+        "description": "Graded index over Outcome Evidence (evidence_class outcome): the consequence channel entry. task_family is the stream key that finds comparable consequences (the baseline); attribution to a decision is the outcome_observation Activity that names the action_gate among its inputs, never the family. The raw instrument output stays untouched in the Evidence payload.",
         "closed": true,
         "applicable_to": {
           "kinds": [
@@ -1100,7 +1097,105 @@
           }
         },
         "model_hints": {
-          "origin_invariant": "Written by instrumentation, never by the actor whose action it grades; the actor's account is agent_statement, citable as context only."
+          "origin_invariant": "Written by instrumentation, never by the actor whose action it grades; the actor's account is agent_statement, citable as context only.",
+          "attribution_invariant": "task_family != attribution; an outcome without a decision link belongs to the stream's baseline and grades nothing."
+        }
+      },
+      "TrialState": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/TrialState",
+        "kind": "FacetDefinition",
+        "description": "Recorded comparison basis of an open Skill trial: written by the lifecycle_verdict that opens the trial and rewritten only by a later verdict. basis_seq is the space_seq at opening; baseline_* are the family's outcomes not linked to this artifact that the rule counted up to that basis; quota is how many linked graded outcomes the rule needs before deciding; rule_id names the deterministic rule and matches the verdict's parameters_digest.",
+        "closed": true,
+        "applicable_to": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Skill",
+            "kip://profiles/cognitive-memory@2.0.0/Insight"
+          ]
+        },
+        "fields": {
+          "opened_at": {
+            "type": [
+              "timestamp",
+              "null"
+            ],
+            "required": false,
+            "mutable": true
+          },
+          "basis_seq": {
+            "type": "integer",
+            "required": true,
+            "mutable": true,
+            "minimum": 0
+          },
+          "baseline_graded_count": {
+            "type": "integer",
+            "required": false,
+            "mutable": true,
+            "minimum": 0
+          },
+          "baseline_success_count": {
+            "type": "integer",
+            "required": false,
+            "mutable": true,
+            "minimum": 0
+          },
+          "baseline_failure_count": {
+            "type": "integer",
+            "required": false,
+            "mutable": true,
+            "minimum": 0
+          },
+          "quota": {
+            "type": "integer",
+            "required": false,
+            "mutable": true,
+            "minimum": 1
+          },
+          "rule_id": {
+            "type": "string",
+            "required": true,
+            "mutable": true
+          }
+        },
+        "model_hints": {
+          "audit_invariant": "With the basis on the artifact and the treatment set as the verdict's inputs, an auditor recomputes the verdict from state alone.",
+          "standing_invariant": "An open trial is not adoption."
+        }
+      },
+      "DecisionRecord": {
+        "ref": "kip://profiles/cognitive-memory@2.0.0/DecisionRecord",
+        "kind": "FacetDefinition",
+        "description": "What an action_gate Activity decided before anything outward happened. The Activity's inputs name the cognition applied (the trigger, the Skills, the memories the briefing drew on) and its associated_actors name who decided; this is the decision half of the consequence channel that an outcome_observation Activity links an outcome to.",
+        "closed": true,
+        "applicable_to": {
+          "kinds": [
+            "Activity"
+          ]
+        },
+        "fields": {
+          "decision": {
+            "type": "string",
+            "required": true,
+            "mutable": false,
+            "enum": [
+              "act",
+              "ask",
+              "defer",
+              "silence"
+            ]
+          },
+          "rationale": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "required": false,
+            "mutable": false
+          }
+        },
+        "model_hints": {
+          "authority_invariant": "Recording that the gate said act is not permission to act.",
+          "privacy_invariant": "rationale is a concise reusable account, never hidden chain-of-thought."
         }
       }
     },
@@ -1432,7 +1527,7 @@
           "outcome_observation",
           "lifecycle_verdict"
         ],
-        "description": "Recommended Profile activity_class values; Activity remains a KIP Core kind. action_gate outcomes: act | ask | defer | silence. outcome_observation is the instrument's record of writing Outcome Evidence; lifecycle_verdict is the deterministic, recomputable evaluation that moves a Skill between lifecycle states."
+        "description": "Recommended Profile activity_class values; Activity remains a KIP Core kind. action_gate is the decision record: DecisionRecord facet (act | ask | defer | silence), inputs = the cognition applied. outcome_observation is the instrument's record of writing Outcome Evidence, with the graded action_gate among its inputs (required when the outcome is to count); lifecycle_verdict is the deterministic, recomputable evaluation that moves a Skill between lifecycle states, its inputs the linked outcomes and its basis the Skill's TrialState."
       }
     }
   },
@@ -1525,7 +1620,19 @@
       "id": "cognitive-memory.skill-lifecycle-verdict",
       "scope": "kip://profiles/cognitive-memory@2.0.0/Skill",
       "kind": "profile_invariant",
-      "description": "Skill lifecycle transitions (proposed | trialed | adopted | revoked) execute only as deterministic lifecycle_verdict Activities over graded Outcome Evidence under the Skill's task_family; trial entry requires a task_family; revocation is never harder than adoption; adoption is provisional; lifecycle standing does not survive import."
+      "description": "Skill lifecycle transitions (proposed | trialed | adopted | revoked) execute only as deterministic lifecycle_verdict Activities over Outcome Evidence linked to decisions that applied the Skill, measured against the TrialState basis written when the trial opened; trial entry requires a task_family; revocation is never harder than adoption; adoption is provisional; lifecycle standing, GradingState and TrialState do not survive import."
+    },
+    {
+      "id": "cognitive-memory.outcome-attribution",
+      "scope": "kip://profiles/cognitive-memory@2.0.0/GradingState",
+      "kind": "provenance_invariant",
+      "description": "task_family finds comparable consequences and never attributes one. A GradingState tally, a lifecycle verdict, or a MnemonicState.utility calibration changes only through an outcome whose outcome_observation Activity names the action_gate decision that applied the artifact; an outcome that merely shares the task_family is baseline."
+    },
+    {
+      "id": "cognitive-memory.decision-record-is-not-authorization",
+      "scope": "kip://profiles/cognitive-memory@2.0.0/DecisionRecord",
+      "kind": "authority_boundary",
+      "description": "A DecisionRecord records what the gate decided; it never authorizes the action, and its inputs name what was applied so that a linked outcome can grade it."
     }
   ],
   "aliases": {
@@ -1554,10 +1661,13 @@
       "Watch = armed attention (delta or silence); firing grants nothing",
       "SelfModel = cognition about self; not Governance",
       "WorkingState = what matters now, with its basis_seq; never Evidence",
-      "MnemonicState = accessibility/importance/expected usefulness; not confidence",
-      "SkillUtility = graded outcome tallies + utility; not authority",
+      "MnemonicState = accessibility/importance/expected usefulness; not confidence; Skills carry it too",
+      "GradingState = tallies of outcomes linked to decisions that applied the artifact; not authority",
+      "TrialState = the recorded basis an open trial is measured against; not standing",
       "DerivationState = review state relative to provenance roots; not belief",
+      "DecisionRecord = act|ask|defer|silence on an action_gate Activity whose inputs name what was applied; not authorization",
       "OutcomeRecord = task_family + outcome_status on Outcome Evidence; instruments write it, never the graded actor",
+      "task_family finds the baseline; only the outcome_observation link attributes an outcome to a decision",
       "lifecycle_verdict = deterministic recorded evaluation; the only path between Skill lifecycle states"
     ],
     "common_confusions": [
@@ -1577,7 +1687,11 @@
       "stale != retracted",
       "WorkingState != Evidence",
       "Outcome Evidence != the acting model's self-report",
-      "adopted != authorized"
+      "adopted != authorized",
+      "task_family != attribution",
+      "GradingState != utility",
+      "TrialState != adoption",
+      "DecisionRecord != authorization"
     ]
   },
   "canonicalization": {
@@ -1587,7 +1701,7 @@
   },
   "integrity": {
     "digest_profile": "kip-draft-canonical-json-v1",
-    "content_digest": "sha256:7a3a62d0b2257ea1b30d3be184eb7c791419d104d03fc328b70c875e76183384",
+    "content_digest": "sha256:c851d4e3638f1996c4caa3bb573b9dd33cd2a6b59945a0cc70b42f44a310840a",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

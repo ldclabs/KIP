@@ -8,7 +8,7 @@
 
 This document explains how to migrate real KIP 1.x deployments into KIP 2.0 safely.
 
-The normative migration invariants live in `KIP-2.0-SPECIFICATION.md`. If this guide conflicts with the Specification, the Specification takes precedence.
+The normative migration invariants are Specification §103 and Appendix I, carried in [`KIP-2.0-Optional-Profiles-and-Migration.md`](../KIP-2.0-Optional-Profiles-and-Migration.md). If this guide conflicts with them, they take precedence.
 
 ---
 

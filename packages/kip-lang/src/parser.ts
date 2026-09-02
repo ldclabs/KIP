@@ -63,16 +63,11 @@ import type {
   UnsetStructuralClause,
   StructuralRemoval,
   ExpectVersionClause,
-  ExpectStateClause,
+  VersionPlane,
   UpdateStatement,
   UpdateAction,
-  RetractAssertionStatement,
-  SupersedeAssertionStatement,
-  CorrectEvidenceStatement,
-  TransitionActivityStatement,
+  TransitionStatement,
   SetRetentionStatement,
-  ArchiveStatement,
-  TombstoneStatement,
   PurgeStatement,
   PurgePayloadStatement,
   MergeConceptStatement,
@@ -89,7 +84,6 @@ import type {
   PreviewStatement,
   HistoryStatement,
   ChangesStatement,
-  SnapshotStatement,
   ExportCapsuleStatement,
   Expression,
   FunctionCallExpr,
@@ -200,13 +194,8 @@ class Parser {
       case TokenType.Ensure:
       case TokenType.Assert:
       case TokenType.Update:
-      case TokenType.Retract:
-      case TokenType.Supersede:
-      case TokenType.Correct:
       case TokenType.Transition:
       case TokenType.Set:
-      case TokenType.Archive:
-      case TokenType.Tombstone:
       case TokenType.Purge:
       case TokenType.Merge:
         return this.parseMutationClause()
@@ -228,8 +217,6 @@ class Parser {
         return this.parseHistoryStatement()
       case TokenType.Changes:
         return this.parseChangesStatement()
-      case TokenType.Snapshot:
-        return this.parseSnapshotStatement()
       case TokenType.Export:
         return this.parseExportCapsuleStatement()
 
@@ -256,20 +243,10 @@ class Parser {
         return this.parseAssertStatement()
       case TokenType.Update:
         return this.parseUpdateStatement()
-      case TokenType.Retract:
-        return this.parseRetractAssertion()
-      case TokenType.Supersede:
-        return this.parseSupersedeAssertion()
-      case TokenType.Correct:
-        return this.parseCorrectEvidence()
       case TokenType.Transition:
-        return this.parseTransitionActivity()
+        return this.parseTransitionStatement()
       case TokenType.Set:
         return this.parseSetRetention()
-      case TokenType.Archive:
-        return this.parseArchiveStatement()
-      case TokenType.Tombstone:
-        return this.parseTombstoneStatement()
       case TokenType.Purge:
         return this.parsePurgeStatement()
       case TokenType.Merge:
@@ -386,25 +363,18 @@ class Parser {
     const start = this.currentPos()
     const first = this.expect(TokenType.As)
     this.expectSecondWord(TokenType.Of, first)
-
-    let basis: 'SEQ' | 'TX' | 'TIME'
-    if (this.match(TokenType.Seq)) {
-      basis = 'SEQ'
-    } else if (this.match(TokenType.Tx)) {
-      basis = 'TX'
-    } else if (this.match(TokenType.Time)) {
-      basis = 'TIME'
-    } else {
+    // Cognitive time is a sequence coordinate. A transaction id or an instant
+    // is resolved to one first (DESCRIBE TRANSACTION / DESCRIBE SNAPSHOT AT
+    // TIME), so the read names the sequence it actually ran against.
+    if (!this.match(TokenType.Seq)) {
       this.error(
-        `Expected SEQ, TX or TIME after AS OF but got '${this.current().value}'`,
+        `Expected SEQ after AS OF but got '${this.current().value}'`,
         this.current()
       )
-      basis = 'SEQ'
     }
     const value = this.parseScalarValue()
     return {
       kind: 'AsOfClause',
-      basis,
       value,
       range: { start, end: this.endPos() }
     }
@@ -1264,6 +1234,7 @@ class Parser {
       handle,
       setFacets: [],
       unsetFacets: [],
+      expectVersions: [],
       range: { start, end: start },
       leadingComments: leadingComments.length ? leadingComments : undefined
     }
@@ -1277,10 +1248,6 @@ class Parser {
         case TokenType.Match:
           this.rejectRepeat(stmt.match, 'MATCH', tok)
           stmt.match = this.parseMatchClause()
-          break
-        case TokenType.Expect:
-          this.rejectRepeat(stmt.expectVersion, 'EXPECT VERSION', tok)
-          stmt.expectVersion = this.parseExpectVersionClause()
           break
         case TokenType.Set: {
           const clause = this.parseSetClause()
@@ -1320,6 +1287,9 @@ class Parser {
       if (this.pos === before) break
     }
     this.expect(TokenType.RBrace)
+    // Preconditions trail the body, in the one tail order every mutation
+    // shares: [WHERE] [LIMIT] {EXPECT VERSION} (Spec §52.8).
+    stmt.expectVersions = this.parseExpectVersions()
     stmt.range = { start, end: this.endPos() }
     return stmt
   }
@@ -1335,15 +1305,13 @@ class Parser {
       : undefined
     this.dialect = 'raw'
     const tuple = this.parsePropositionTuple()
-    const expectVersion = this.check(TokenType.Expect)
-      ? this.parseExpectVersionClause()
-      : undefined
+    const expectVersions = this.parseExpectVersions()
 
     return {
       kind: 'EnsurePropositionStatement',
       handle,
       tuple,
-      expectVersion,
+      expectVersions,
       range: { start, end: this.endPos() },
       leadingComments: leadingComments.length ? leadingComments : undefined
     }
@@ -1614,23 +1582,52 @@ class Parser {
     const expect = this.expect(TokenType.Expect)
     this.expectSecondWord(TokenType.Version, expect)
     const value = this.parseScalarValue()
+
+    // `OF <plane>` guards one plane's own version instead of the element's
+    // (Spec §35.1): a verdict guarded on ATTRIBUTES is not spoiled by a
+    // metabolism sweep that touched a Facet.
+    let plane: VersionPlane | undefined
+    if (this.match(TokenType.Of)) {
+      const tok = this.current()
+      switch (tok.type) {
+        case TokenType.Attributes:
+          this.advance()
+          plane = { kind: 'ATTRIBUTES' }
+          break
+        case TokenType.Structural:
+          this.advance()
+          plane = { kind: 'STRUCTURAL' }
+          break
+        case TokenType.Retention:
+          this.advance()
+          plane = { kind: 'RETENTION' }
+          break
+        case TokenType.Facet:
+          this.advance()
+          plane = { kind: 'FACET', facet: this.parseSchemaSymbol() }
+          break
+        default:
+          this.error(
+            `Expected ATTRIBUTES, STRUCTURAL, RETENTION or FACET after OF but got '${tok.value}'`,
+            tok
+          )
+      }
+    }
     return {
       kind: 'ExpectVersionClause',
       value,
+      plane,
       range: { start, end: this.endPos() }
     }
   }
 
-  private parseExpectStateClause(): ExpectStateClause {
-    const start = this.currentPos()
-    const expect = this.expect(TokenType.Expect)
-    this.expectSecondWord(TokenType.State, expect)
-    const value = this.parseScalarValue()
-    return {
-      kind: 'ExpectStateClause',
-      value,
-      range: { start, end: this.endPos() }
+  /** `{ expect_version_clause }` — the trailing precondition list. */
+  private parseExpectVersions(): ExpectVersionClause[] {
+    const clauses: ExpectVersionClause[] = []
+    while (this.check(TokenType.Expect)) {
+      clauses.push(this.parseExpectVersionClause())
     }
+    return clauses
   }
 
   // ────────────────────────────────────────────────────────────────────
@@ -1642,10 +1639,6 @@ class Parser {
     const start = this.currentPos()
     this.expectKeywordWithSpace(TokenType.Update)
     const target = this.parseTargetRef()
-
-    const expectVersion = this.check(TokenType.Expect)
-      ? this.parseExpectVersionClause()
-      : undefined
 
     const actions: UpdateAction[] = []
     for (;;) {
@@ -1670,9 +1663,9 @@ class Parser {
     }
 
     // WHERE binds a ?variable target; a direct :id / "id" target already names
-    // the element and may omit it, exactly as ARCHIVE / TOMBSTONE / PURGE /
-    // SET RETENTION / RETRACT ASSERTION do (Spec §58). Whether a bare
-    // ?variable is bound is semantic — inside MUTATE it may be a local handle.
+    // the element and may omit it, exactly as TRANSITION / PURGE /
+    // SET RETENTION do (Spec §58). Whether a bare ?variable is bound is
+    // semantic — inside MUTATE it may be a local handle.
     let where: WhereClause | undefined
     if (this.check(TokenType.Where)) {
       this.expectKeywordWithSpace(TokenType.Where)
@@ -1680,107 +1673,40 @@ class Parser {
       where = this.parseWhereClause()
     }
     const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
+    const expectVersions = this.parseExpectVersions()
 
     return {
       kind: 'UpdateStatement',
       target,
-      expectVersion,
       actions,
       where,
       limit,
+      expectVersions,
       range: { start, end: this.endPos() },
       leadingComments: leadingComments.length ? leadingComments : undefined
     }
   }
 
   // ────────────────────────────────────────────────────────────────────
-  //  KML — lifecycle and correction
+  //  KML — TRANSITION (the one lifecycle statement, Spec §52.5)
   // ────────────────────────────────────────────────────────────────────
 
-  private parseRetractAssertion(): RetractAssertionStatement {
+  private parseTransitionStatement(): TransitionStatement {
     const leadingComments = this.collectLeadingComments()
     const start = this.currentPos()
-    const retract = this.expectKeywordWithSpace(TokenType.Retract)
-    this.expectSecondWord(TokenType.Assertion, retract)
-    const target = this.parseTargetRef()
-
-    let where: WhereClause | undefined
-    if (this.check(TokenType.Where)) {
-      this.expectKeywordWithSpace(TokenType.Where)
-      this.dialect = 'raw'
-      where = this.parseWhereClause()
-    }
-    const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
-    const expectState = this.check(TokenType.Expect)
-      ? this.parseExpectStateClause()
-      : undefined
-
-    return {
-      kind: 'RetractAssertionStatement',
-      target,
-      where,
-      limit,
-      expectState,
-      range: { start, end: this.endPos() },
-      leadingComments: leadingComments.length ? leadingComments : undefined
-    }
-  }
-
-  private parseSupersedeAssertion(): SupersedeAssertionStatement {
-    const leadingComments = this.collectLeadingComments()
-    const start = this.currentPos()
-    const supersede = this.expectKeywordWithSpace(TokenType.Supersede)
-    this.expectSecondWord(TokenType.Assertion, supersede)
-    const target = this.parseTargetRef()
-    this.expect(TokenType.By)
-    const by = this.parseTargetRef()
-    const expectState = this.check(TokenType.Expect)
-      ? this.parseExpectStateClause()
-      : undefined
-
-    return {
-      kind: 'SupersedeAssertionStatement',
-      target,
-      by,
-      expectState,
-      range: { start, end: this.endPos() },
-      leadingComments: leadingComments.length ? leadingComments : undefined
-    }
-  }
-
-  private parseCorrectEvidence(): CorrectEvidenceStatement {
-    const leadingComments = this.collectLeadingComments()
-    const start = this.currentPos()
-    const correct = this.expectKeywordWithSpace(TokenType.Correct)
-    this.expectSecondWord(TokenType.Evidence, correct)
-    const target = this.parseTargetRef()
-    this.expect(TokenType.By)
-    const by = this.parseTargetRef()
-    const expectState = this.check(TokenType.Expect)
-      ? this.parseExpectStateClause()
-      : undefined
-
-    return {
-      kind: 'CorrectEvidenceStatement',
-      target,
-      by,
-      expectState,
-      range: { start, end: this.endPos() },
-      leadingComments: leadingComments.length ? leadingComments : undefined
-    }
-  }
-
-  private parseTransitionActivity(): TransitionActivityStatement {
-    const leadingComments = this.collectLeadingComments()
-    const start = this.currentPos()
-    const transition = this.expectKeywordWithSpace(TokenType.Transition)
-    this.expectSecondWord(TokenType.Activity, transition)
+    this.expectKeywordWithSpace(TokenType.Transition)
     const target = this.parseTargetRef()
     this.expect(TokenType.To)
     const to = this.parseScalarValue()
 
-    // Terminal outputs and ended_at may be finalized in the same statement
-    // that moves the Activity to its terminal state.
+    // `BY` names the replacing element for "superseded" / "corrected".
+    let by: TargetRef | undefined
+    if (this.match(TokenType.By)) {
+      by = this.parseTargetRef()
+    }
+
+    // A pending Activity finalizes terminal fields and topology in the same
+    // statement that moves it (Spec §17.5, §52.5).
     const finalize: (SetFieldsClause | SetStructuralClause)[] = []
     while (this.check(TokenType.Set)) {
       const clause = this.parseSetClause()
@@ -1788,23 +1714,31 @@ class Parser {
         finalize.push(clause)
       } else {
         this.error(
-          'TRANSITION ACTIVITY accepts only SET FIELDS and SET STRUCTURAL',
+          'TRANSITION accepts only SET FIELDS and SET STRUCTURAL',
           this.current()
         )
         break
       }
     }
 
-    const expectState = this.check(TokenType.Expect)
-      ? this.parseExpectStateClause()
-      : undefined
+    let where: WhereClause | undefined
+    if (this.check(TokenType.Where)) {
+      this.expectKeywordWithSpace(TokenType.Where)
+      this.dialect = 'raw'
+      where = this.parseWhereClause()
+    }
+    const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
+    const expectVersions = this.parseExpectVersions()
 
     return {
-      kind: 'TransitionActivityStatement',
+      kind: 'TransitionStatement',
       target,
       to,
+      by,
       finalize,
-      expectState,
+      where,
+      limit,
+      expectVersions,
       range: { start, end: this.endPos() },
       leadingComments: leadingComments.length ? leadingComments : undefined
     }
@@ -1829,9 +1763,7 @@ class Parser {
       where = this.parseWhereClause()
     }
     const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
-    const expectVersion = this.check(TokenType.Expect)
-      ? this.parseExpectVersionClause()
-      : undefined
+    const expectVersions = this.parseExpectVersions()
 
     return {
       kind: 'SetRetentionStatement',
@@ -1839,72 +1771,9 @@ class Parser {
       assignments,
       where,
       limit,
-      expectVersion,
+      expectVersions,
       range: { start, end: this.endPos() },
       leadingComments: leadingComments.length ? leadingComments : undefined
-    }
-  }
-
-  private parseArchiveStatement(): ArchiveStatement {
-    const { start, target, where, limit, expectState, leadingComments } =
-      this.parseRemovalBody(TokenType.Archive)
-    return {
-      kind: 'ArchiveStatement',
-      target,
-      where,
-      limit,
-      expectState,
-      range: { start, end: this.endPos() },
-      leadingComments
-    }
-  }
-
-  private parseTombstoneStatement(): TombstoneStatement {
-    const { start, target, where, limit, expectState, leadingComments } =
-      this.parseRemovalBody(TokenType.Tombstone)
-    return {
-      kind: 'TombstoneStatement',
-      target,
-      where,
-      limit,
-      expectState,
-      range: { start, end: this.endPos() },
-      leadingComments
-    }
-  }
-
-  /** ARCHIVE and TOMBSTONE share one shape; PURGE adds its confirmation. */
-  private parseRemovalBody(keyword: TokenType): {
-    start: Position
-    target: TargetRef
-    where?: WhereClause
-    limit?: LimitClause
-    expectState?: ExpectStateClause
-    leadingComments?: string[]
-  } {
-    const comments = this.collectLeadingComments()
-    const start = this.currentPos()
-    this.expectKeywordWithSpace(keyword)
-    const target = this.parseTargetRef()
-
-    let where: WhereClause | undefined
-    if (this.check(TokenType.Where)) {
-      this.expectKeywordWithSpace(TokenType.Where)
-      this.dialect = 'raw'
-      where = this.parseWhereClause()
-    }
-    const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
-    const expectState = this.check(TokenType.Expect)
-      ? this.parseExpectStateClause()
-      : undefined
-
-    return {
-      start,
-      target,
-      where,
-      limit,
-      expectState,
-      leadingComments: comments.length ? comments : undefined
     }
   }
 
@@ -1925,6 +1794,7 @@ class Parser {
     }
 
     const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
+    const expectVersions = this.parseExpectVersions()
 
     let referencePolicy: ScalarValue | undefined
     if (this.check(TokenType.Reference)) {
@@ -1951,6 +1821,7 @@ class Parser {
       target,
       where,
       limit,
+      expectVersions,
       referencePolicy,
       confirm,
       range: { start, end: this.endPos() },
@@ -1979,6 +1850,7 @@ class Parser {
     }
 
     const limit = this.check(TokenType.Limit) ? this.parseLimitClause() : undefined
+    const expectVersions = this.parseExpectVersions()
 
     this.expect(TokenType.Confirm)
     const confirmTok = this.current()
@@ -1995,6 +1867,7 @@ class Parser {
       target,
       where,
       limit,
+      expectVersions,
       confirm,
       range: { start, end: this.endPos() },
       leadingComments: leadingComments.length ? leadingComments : undefined
@@ -2016,16 +1889,14 @@ class Parser {
       this.dialect = 'raw'
       where = this.parseWhereClause()
     }
-    const expectVersion = this.check(TokenType.Expect)
-      ? this.parseExpectVersionClause()
-      : undefined
+    const expectVersions = this.parseExpectVersions()
 
     return {
       kind: 'MergeConceptStatement',
       source,
       into,
       where,
-      expectVersion,
+      expectVersions,
       range: { start, end: this.endPos() },
       leadingComments: leadingComments.length ? leadingComments : undefined
     }
@@ -2062,11 +1933,6 @@ class Parser {
       case TokenType.Protocol:
         this.expectSecondWord(TokenType.Protocol, describe)
         return stmt('PROTOCOL')
-      case TokenType.Execution: {
-        const exec = this.expectSecondWord(TokenType.Execution, describe)
-        this.expectSecondWord(TokenType.Context, exec)
-        return stmt('EXECUTION_CONTEXT')
-      }
       case TokenType.Capabilities:
         this.expectSecondWord(TokenType.Capabilities, describe)
         return stmt('CAPABILITIES')
@@ -2123,8 +1989,18 @@ class Parser {
       }
       case TokenType.Snapshot: {
         this.expectSecondWord(TokenType.Snapshot, describe)
-        const asOf = this.check(TokenType.As) ? this.parseAsOfClause() : undefined
-        return stmt('SNAPSHOT', { asOf })
+        // A snapshot is addressed by sequence, or resolved from an instant:
+        // the one place wall-clock time enters cognitive-time addressing.
+        let asOf: AsOfClause | undefined
+        let atTime: ScalarValue | undefined
+        if (this.check(TokenType.As)) {
+          asOf = this.parseAsOfClause()
+        } else if (this.check(TokenType.At)) {
+          const at = this.expect(TokenType.At)
+          this.expectSecondWord(TokenType.Time, at)
+          atTime = this.parseScalarValue()
+        }
+        return stmt('SNAPSHOT', { asOf, atTime })
       }
       case TokenType.Capsule:
         this.expectSecondWord(TokenType.Capsule, describe)
@@ -2134,11 +2010,6 @@ class Parser {
         this.expectSecondWord(TokenType.Policy, epistemic)
         const value = this.isMetaValueStart() ? this.parseScalarValue() : undefined
         return stmt('EPISTEMIC_POLICY', { value })
-      }
-      case TokenType.Projection: {
-        const projection = this.expectSecondWord(TokenType.Projection, describe)
-        this.expectSecondWord(TokenType.Capability, projection)
-        return stmt('PROJECTION_CAPABILITY')
       }
       case TokenType.Trust: {
         this.expectSecondWord(TokenType.Trust, describe)
@@ -2478,7 +2349,7 @@ class Parser {
   }
 
   // ────────────────────────────────────────────────────────────────────
-  //  META — HISTORY / CHANGES / SNAPSHOT
+  //  META — HISTORY / CHANGES
   // ────────────────────────────────────────────────────────────────────
 
   private parseHistoryStatement(): HistoryStatement {
@@ -2564,19 +2435,6 @@ class Parser {
       mode,
       value,
       limit,
-      range: { start, end: this.endPos() },
-      leadingComments: leadingComments.length ? leadingComments : undefined
-    }
-  }
-
-  private parseSnapshotStatement(): SnapshotStatement {
-    const leadingComments = this.collectLeadingComments()
-    const start = this.currentPos()
-    this.expect(TokenType.Snapshot)
-    const asOf = this.check(TokenType.As) ? this.parseAsOfClause() : undefined
-    return {
-      kind: 'SnapshotStatement',
-      asOf,
       range: { start, end: this.endPos() },
       leadingComments: leadingComments.length ? leadingComments : undefined
     }
@@ -3508,13 +3366,8 @@ class Parser {
     TokenType.Ensure,
     TokenType.Assert,
     TokenType.Update,
-    TokenType.Retract,
-    TokenType.Supersede,
-    TokenType.Correct,
     TokenType.Transition,
     TokenType.Set,
-    TokenType.Archive,
-    TokenType.Tombstone,
     TokenType.Purge,
     TokenType.Merge,
     TokenType.Describe,
@@ -3525,7 +3378,6 @@ class Parser {
     TokenType.Preview,
     TokenType.History,
     TokenType.Changes,
-    TokenType.Snapshot,
     TokenType.Export,
     TokenType.EOF
   ])

@@ -1,10 +1,10 @@
 # KIP 2.0 Epistemic Model
 
-**[English](./KIP-2.0-Epistemic-Model.md) | [中文](./KIP-2.0-Epistemic-Model_CN.md)**
-
 ## Status
 
 **Epistemic Model Proposal / Pre-Specification Draft**
+
+> **Frozen (2026-09-02).** Historical design rationale written before the normative consolidation. This document is no longer maintained and its Chinese twin is no longer synchronized; where it differs from [KIP-2.0-SPECIFICATION.md](../KIP-2.0-SPECIFICATION.md), the Specification is right and this document is out of date.
 
 This document defines the epistemic semantics of KIP 2.0: how a Cognitive Nexus interprets multiple Assertions, Evidence, provenance chains, trust policies, temporal context, contradictions, and uncertainty in order to produce a **context-dependent belief view** for an Agent.
 

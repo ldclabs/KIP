@@ -1,0 +1,296 @@
+{
+  "format": "KIP-Conformance-State-Fixture",
+  "format_version": "2.0-draft",
+  "fixture": "epistemic-conflict",
+  "description": "Contested and slot-conflict states under the deterministic policy: one trusted root on each side of (project_alpha, project_status, active) → contested with leading none; two trusted independent support roots against one trusted opposition root on (service_api, service_healthy, true) → contested with leading support; two accepted candidates with overlapping valid time in alice's functional timezone slot → slot contested; bob's two timezone values with non-overlapping valid time → no conflict. Carol is trusted in this fixture.",
+  "extends": "core-basic",
+  "schema_environment": {
+    "id": "schema_env:test-v1",
+    "packages": [
+      "kip://test/core-domain@1.0.0"
+    ],
+    "version": 17
+  },
+  "clock": "2026-01-01T00:00:00Z",
+  "epistemic_policy": "test-deterministic",
+  "governance_policy": "governance-test-policy",
+  "trust": {
+    "alice": "trusted",
+    "bob": "trusted",
+    "carol": "trusted"
+  },
+  "bindings": {
+    ":p_project_active": "p_project_active",
+    ":p_service_healthy": "p_service_healthy",
+    ":p_alice_tz_9": "p_alice_tz_9",
+    ":p_bob_tz_1": "p_bob_tz_1",
+    ":p_bob_tz_2": "p_bob_tz_2"
+  },
+  "commits": [
+    {
+      "label": "S2",
+      "at": "2026-01-02T00:00:00Z",
+      "principal": "owner",
+      "creates": [
+        {
+          "handle": "e_pa_alice",
+          "kind": "evidence",
+          "evidence_class": "observation",
+          "payload": {
+            "text": "Alpha is active."
+          },
+          "media_type": "application/json",
+          "observed_at": "2026-01-01T09:00:00Z",
+          "source": "alice"
+        },
+        {
+          "handle": "e_pa_bob",
+          "kind": "evidence",
+          "evidence_class": "observation",
+          "payload": {
+            "text": "Alpha is not active."
+          },
+          "media_type": "application/json",
+          "observed_at": "2026-01-01T09:00:00Z",
+          "source": "bob"
+        },
+        {
+          "handle": "p_project_active",
+          "kind": "proposition",
+          "subject": "project_alpha",
+          "predicate": "project_status",
+          "object": {
+            "ref": "status_active"
+          }
+        },
+        {
+          "handle": "a_pa_support",
+          "kind": "assertion",
+          "proposition": "p_project_active",
+          "asserted_by": "alice",
+          "stance": "support",
+          "mode": "observed",
+          "confidence": 0.9,
+          "asserted_at": "2026-01-01T09:01:00Z",
+          "evidence": [
+            "e_pa_alice"
+          ]
+        },
+        {
+          "handle": "a_pa_reject",
+          "kind": "assertion",
+          "proposition": "p_project_active",
+          "asserted_by": "bob",
+          "stance": "reject",
+          "mode": "observed",
+          "confidence": 0.9,
+          "asserted_at": "2026-01-01T09:01:00Z",
+          "evidence": [
+            "e_pa_bob"
+          ]
+        },
+        {
+          "handle": "e_sh_alice",
+          "kind": "evidence",
+          "evidence_class": "observation",
+          "payload": {
+            "probe": "ok"
+          },
+          "media_type": "application/json",
+          "observed_at": "2026-01-01T09:10:00Z",
+          "source": "alice"
+        },
+        {
+          "handle": "e_sh_bob",
+          "kind": "evidence",
+          "evidence_class": "observation",
+          "payload": {
+            "probe": "ok"
+          },
+          "media_type": "application/json",
+          "observed_at": "2026-01-01T09:10:00Z",
+          "source": "bob"
+        },
+        {
+          "handle": "e_sh_carol",
+          "kind": "evidence",
+          "evidence_class": "observation",
+          "payload": {
+            "probe": "timeout"
+          },
+          "media_type": "application/json",
+          "observed_at": "2026-01-01T09:10:00Z",
+          "source": "carol"
+        },
+        {
+          "handle": "p_service_healthy",
+          "kind": "proposition",
+          "subject": "service_api",
+          "predicate": "service_healthy",
+          "object": true
+        },
+        {
+          "handle": "a_sh_alice",
+          "kind": "assertion",
+          "proposition": "p_service_healthy",
+          "asserted_by": "alice",
+          "stance": "support",
+          "mode": "observed",
+          "confidence": 0.9,
+          "asserted_at": "2026-01-01T09:11:00Z",
+          "evidence": [
+            "e_sh_alice"
+          ]
+        },
+        {
+          "handle": "a_sh_bob",
+          "kind": "assertion",
+          "proposition": "p_service_healthy",
+          "asserted_by": "bob",
+          "stance": "support",
+          "mode": "observed",
+          "confidence": 0.9,
+          "asserted_at": "2026-01-01T09:11:00Z",
+          "evidence": [
+            "e_sh_bob"
+          ]
+        },
+        {
+          "handle": "a_sh_carol",
+          "kind": "assertion",
+          "proposition": "p_service_healthy",
+          "asserted_by": "carol",
+          "stance": "reject",
+          "mode": "observed",
+          "confidence": 0.9,
+          "asserted_at": "2026-01-01T09:11:00Z",
+          "evidence": [
+            "e_sh_carol"
+          ]
+        },
+        {
+          "handle": "a_alice_tz_8",
+          "kind": "assertion",
+          "proposition": "p_alice_tz",
+          "asserted_by": "alice",
+          "stance": "support",
+          "mode": "stated",
+          "confidence": 0.9,
+          "asserted_at": "2026-01-01T09:20:00Z",
+          "evidence": [
+            "e_alice_msg"
+          ],
+          "valid_time": {
+            "from": "2025-01-01T00:00:00Z",
+            "until": null
+          }
+        },
+        {
+          "handle": "e_bob_on_alice_tz",
+          "kind": "evidence",
+          "evidence_class": "message",
+          "payload": {
+            "text": "Alice moved to UTC+9."
+          },
+          "media_type": "application/json",
+          "observed_at": "2026-01-01T09:20:00Z",
+          "source": "bob"
+        },
+        {
+          "handle": "p_alice_tz_9",
+          "kind": "proposition",
+          "subject": "alice",
+          "predicate": "timezone",
+          "object": "+09:00"
+        },
+        {
+          "handle": "a_alice_tz_9",
+          "kind": "assertion",
+          "proposition": "p_alice_tz_9",
+          "asserted_by": "bob",
+          "stance": "support",
+          "mode": "stated",
+          "confidence": 0.9,
+          "asserted_at": "2026-01-01T09:21:00Z",
+          "evidence": [
+            "e_bob_on_alice_tz"
+          ],
+          "valid_time": {
+            "from": "2025-01-01T00:00:00Z",
+            "until": null
+          }
+        },
+        {
+          "handle": "e_bob_tz_1",
+          "kind": "evidence",
+          "evidence_class": "message",
+          "payload": {
+            "text": "Until June I was on UTC+1."
+          },
+          "media_type": "application/json",
+          "observed_at": "2026-01-01T09:30:00Z",
+          "source": "bob"
+        },
+        {
+          "handle": "e_bob_tz_2",
+          "kind": "evidence",
+          "evidence_class": "message",
+          "payload": {
+            "text": "Since June I am on UTC+2."
+          },
+          "media_type": "application/json",
+          "observed_at": "2026-01-01T09:30:00Z",
+          "source": "bob"
+        },
+        {
+          "handle": "p_bob_tz_1",
+          "kind": "proposition",
+          "subject": "bob",
+          "predicate": "timezone",
+          "object": "+01:00"
+        },
+        {
+          "handle": "p_bob_tz_2",
+          "kind": "proposition",
+          "subject": "bob",
+          "predicate": "timezone",
+          "object": "+02:00"
+        },
+        {
+          "handle": "a_bob_tz_1",
+          "kind": "assertion",
+          "proposition": "p_bob_tz_1",
+          "asserted_by": "bob",
+          "stance": "support",
+          "mode": "stated",
+          "confidence": 0.9,
+          "asserted_at": "2026-01-01T09:31:00Z",
+          "evidence": [
+            "e_bob_tz_1"
+          ],
+          "valid_time": {
+            "from": "2025-01-01T00:00:00Z",
+            "until": "2025-06-01T00:00:00Z"
+          }
+        },
+        {
+          "handle": "a_bob_tz_2",
+          "kind": "assertion",
+          "proposition": "p_bob_tz_2",
+          "asserted_by": "bob",
+          "stance": "support",
+          "mode": "stated",
+          "confidence": 0.9,
+          "asserted_at": "2026-01-01T09:31:00Z",
+          "evidence": [
+            "e_bob_tz_2"
+          ],
+          "valid_time": {
+            "from": "2025-06-01T00:00:00Z",
+            "until": null
+          }
+        }
+      ]
+    }
+  ]
+}

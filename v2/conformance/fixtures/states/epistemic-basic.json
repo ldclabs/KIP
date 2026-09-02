@@ -1,0 +1,258 @@
+{
+  "format": "KIP-Conformance-State-Fixture",
+  "format_version": "2.0-draft",
+  "fixture": "epistemic-basic",
+  "description": "One Proposition per deterministic-policy status (§11): trusted support → accepted, trusted opposition → rejected, weak-only material → uncertain, bare Proposition → insufficient; plus a hypothetical, a predicted and an untrusted imported Assertion that ordinary current-world projection excludes, and a derived-summary chain whose copies share one provenance root next to one genuinely independent observation.",
+  "extends": "core-basic",
+  "schema_environment": {
+    "id": "schema_env:test-v1",
+    "packages": [
+      "kip://test/core-domain@1.0.0"
+    ],
+    "version": 17
+  },
+  "clock": "2026-01-01T00:00:00Z",
+  "epistemic_policy": "test-deterministic",
+  "governance_policy": "governance-test-policy",
+  "trust": {
+    "alice": "trusted",
+    "bob": "trusted",
+    "carol": "weak",
+    "self_agent": "trusted"
+  },
+  "bindings": {
+    ":p_bob_tz": "p_bob_tz",
+    ":p_carol_veg": "p_carol_veg",
+    ":p_bob_prefers_light": "p_bob_prefers_light",
+    ":p_project_paused": "p_project_paused",
+    ":p_project_active": "p_project_active",
+    ":p_carol_tz": "p_carol_tz",
+    ":e_summary": "e_summary",
+    ":e_bob_obs": "e_bob_obs"
+  },
+  "commits": [
+    {
+      "label": "S2",
+      "at": "2026-01-02T00:00:00Z",
+      "principal": "owner",
+      "creates": [
+        {
+          "handle": "e_bob_msg",
+          "kind": "evidence",
+          "evidence_class": "message",
+          "payload": {
+            "text": "I'm on UTC+1."
+          },
+          "media_type": "application/json",
+          "observed_at": "2026-01-01T10:00:00Z",
+          "source": "bob"
+        },
+        {
+          "handle": "p_bob_tz",
+          "kind": "proposition",
+          "subject": "bob",
+          "predicate": "timezone",
+          "object": "+01:00"
+        },
+        {
+          "handle": "a_bob_tz",
+          "kind": "assertion",
+          "proposition": "p_bob_tz",
+          "asserted_by": "bob",
+          "stance": "support",
+          "mode": "stated",
+          "confidence": 0.9,
+          "asserted_at": "2026-01-01T10:01:00Z",
+          "evidence": [
+            "e_bob_msg"
+          ]
+        },
+        {
+          "handle": "e_alice_on_carol",
+          "kind": "evidence",
+          "evidence_class": "message",
+          "payload": {
+            "text": "Carol is not vegetarian, she ordered steak."
+          },
+          "media_type": "application/json",
+          "observed_at": "2026-01-01T10:10:00Z",
+          "source": "alice"
+        },
+        {
+          "handle": "p_carol_veg",
+          "kind": "proposition",
+          "subject": "carol",
+          "predicate": "is_vegetarian",
+          "object": true
+        },
+        {
+          "handle": "a_carol_veg_reject",
+          "kind": "assertion",
+          "proposition": "p_carol_veg",
+          "asserted_by": "alice",
+          "stance": "reject",
+          "mode": "stated",
+          "confidence": 0.9,
+          "asserted_at": "2026-01-01T10:11:00Z",
+          "evidence": [
+            "e_alice_on_carol"
+          ]
+        },
+        {
+          "handle": "e_carol_guess",
+          "kind": "evidence",
+          "evidence_class": "message",
+          "payload": {
+            "text": "I think Alice is on UTC+8?"
+          },
+          "media_type": "application/json",
+          "observed_at": "2026-01-01T10:20:00Z",
+          "source": "carol"
+        },
+        {
+          "handle": "a_alice_tz_weak",
+          "kind": "assertion",
+          "proposition": "p_alice_tz",
+          "asserted_by": "carol",
+          "stance": "support",
+          "mode": "stated",
+          "confidence": 0.5,
+          "asserted_at": "2026-01-01T10:21:00Z",
+          "evidence": [
+            "e_carol_guess"
+          ]
+        },
+        {
+          "handle": "p_bob_prefers_light",
+          "kind": "proposition",
+          "subject": "bob",
+          "predicate": "prefers",
+          "object": {
+            "ref": "light_mode"
+          }
+        },
+        {
+          "handle": "p_project_paused",
+          "kind": "proposition",
+          "subject": "project_alpha",
+          "predicate": "project_status",
+          "object": {
+            "ref": "status_paused"
+          }
+        },
+        {
+          "handle": "a_project_paused_hyp",
+          "kind": "assertion",
+          "proposition": "p_project_paused",
+          "asserted_by": "alice",
+          "stance": "support",
+          "mode": "hypothetical",
+          "confidence": 0.6,
+          "asserted_at": "2026-01-01T10:30:00Z"
+        },
+        {
+          "handle": "p_project_active",
+          "kind": "proposition",
+          "subject": "project_alpha",
+          "predicate": "project_status",
+          "object": {
+            "ref": "status_active"
+          }
+        },
+        {
+          "handle": "a_project_active_pred",
+          "kind": "assertion",
+          "proposition": "p_project_active",
+          "asserted_by": "alice",
+          "stance": "support",
+          "mode": "predicted",
+          "confidence": 0.7,
+          "asserted_at": "2026-01-01T10:31:00Z"
+        },
+        {
+          "handle": "p_carol_tz",
+          "kind": "proposition",
+          "subject": "carol",
+          "predicate": "timezone",
+          "object": "+00:00"
+        },
+        {
+          "handle": "a_carol_tz_imported",
+          "kind": "assertion",
+          "proposition": "p_carol_tz",
+          "asserted_by": "carol",
+          "stance": "support",
+          "mode": "stated",
+          "confidence": 0.9,
+          "asserted_at": "2025-11-01T00:00:00Z",
+          "origin": {
+            "import_id": "cap-source-1",
+            "channel": "capsule_import",
+            "source_trust": "untrusted"
+          }
+        },
+        {
+          "handle": "act_summarize",
+          "kind": "activity",
+          "activity_class": "summarization",
+          "status": "completed",
+          "started_at": "2026-01-01T11:00:00Z",
+          "ended_at": "2026-01-01T11:01:00Z",
+          "inputs": [
+            "e_alice_msg"
+          ],
+          "outputs": [
+            "e_summary"
+          ]
+        },
+        {
+          "handle": "e_summary",
+          "kind": "evidence",
+          "evidence_class": "derived_summary",
+          "payload": {
+            "text": "Alice prefers dark mode (summary of her message)."
+          },
+          "media_type": "application/json",
+          "observed_at": "2026-01-01T11:01:00Z"
+        },
+        {
+          "handle": "a_alice_prefers_derived",
+          "kind": "assertion",
+          "proposition": "p_alice_prefers_dark",
+          "asserted_by": "self_agent",
+          "stance": "support",
+          "mode": "inferred",
+          "confidence": 0.8,
+          "asserted_at": "2026-01-01T11:02:00Z",
+          "evidence": [
+            "e_summary"
+          ]
+        },
+        {
+          "handle": "e_bob_obs",
+          "kind": "evidence",
+          "evidence_class": "observation",
+          "payload": {
+            "text": "Saw Alice's editor in dark mode."
+          },
+          "media_type": "application/json",
+          "observed_at": "2026-01-01T12:00:00Z",
+          "source": "bob"
+        },
+        {
+          "handle": "a_bob_obs",
+          "kind": "assertion",
+          "proposition": "p_alice_prefers_dark",
+          "asserted_by": "bob",
+          "stance": "support",
+          "mode": "observed",
+          "confidence": 0.9,
+          "asserted_at": "2026-01-01T12:01:00Z",
+          "evidence": [
+            "e_bob_obs"
+          ]
+        }
+      ]
+    }
+  ]
+}

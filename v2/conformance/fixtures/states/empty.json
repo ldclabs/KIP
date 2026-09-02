@@ -1,0 +1,23 @@
+{
+  "format": "KIP-Conformance-State-Fixture",
+  "format_version": "2.0-draft",
+  "fixture": "empty",
+  "description": "The canonical Schema Environment, policies and Principals with no elements: the start state for creation, idempotency and envelope vectors.",
+  "extends": null,
+  "schema_environment": {
+    "id": "schema_env:test-v1",
+    "packages": [
+      "kip://test/core-domain@1.0.0"
+    ],
+    "version": 17
+  },
+  "clock": "2026-01-01T00:00:00Z",
+  "epistemic_policy": "test-deterministic",
+  "governance_policy": "governance-test-policy",
+  "trust": {
+    "alice": "trusted",
+    "bob": "trusted",
+    "carol": "weak"
+  },
+  "commits": []
+}

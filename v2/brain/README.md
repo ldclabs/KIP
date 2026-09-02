@@ -70,7 +70,7 @@ The Cognitive Nexus distinguishes four related but non-equivalent products:
 | **Event**      | What happened?                                                    | episodic anchor Concept + Evidence refs            |
 | **Experience** | What did the agent try, observe, and learn while pursuing a goal? | Experience + ordered ExperienceSteps               |
 | **Knowledge**  | What is generally true?                                           | Proposition + Assertion (+ Evidence); Insight      |
-| **Skill**      | What tends to work, under which conditions?                       | Skill Concept + SkillUtility + compilation lineage |
+| **Skill**      | What tends to work, under which conditions?                       | Skill Concept + GradingState / TrialState + compilation lineage |
 
 A useful mental model is:
 
@@ -90,7 +90,7 @@ Experience ──reflect───> Insight / SelfModel
 | **Recall**      | [BrainRecall.md](./BrainRecall.md)           | Retrieve knowledge, experiences, skills, and action-relevant context | business agent query / pre-action briefing |
 | **Maintenance** | [BrainMaintenance.md](./BrainMaintenance.md) | Consolidate, compare, compile, review, metabolize, and retain memory | scheduled, threshold, or change-driven triggers |
 
-For a single agent that owns its Nexus directly, with no Brain service in front of it, the compact alternative is the [`$self`](../SelfInstructions.md) / [`$system`](../SystemInstructions.md) pair.
+For a single agent that owns its Nexus directly, with no Brain service in front of it, the [`$self`](../SelfInstructions.md) / [`$system`](../SystemInstructions.md) pair is a thin delta loaded on top of these three documents: they stay canonical, and the pair adds only what changes when one mind does all three jobs.
 
 ## Interaction Flow
 
@@ -144,9 +144,9 @@ It also:
 
 - reviews contradictions, preserving disagreement between actors and superseding only an actor's own revision;
 - walks `LIST DEPENDENTS` after a material revision and flags derived artifacts `stale` for review, so a revised root cannot leave ghosts in its derivations;
-- evaluates armed Watches against the change stream — delta and silence triggers alike — recording each firing as a `watch_fire` Activity and each outward decision as an `action_gate` outcome (act / ask / defer / silence);
+- evaluates armed Watches against the change stream — delta and silence triggers alike — recording each firing as a `watch_fire` Activity and each outward decision as an `action_gate` Activity whose `DecisionRecord` says act / ask / defer / silence and whose inputs name what was applied;
 - compares successful and failed experiences to identify discriminating actions or conditions;
-- runs the Skill lifecycle (`proposed → trialed → adopted → revoked`) as deterministic verdicts over graded Outcome Evidence under each Skill's `task_family` — recorded as `lifecycle_verdict` Activities, with tallies in `SkillUtility`, never promoted on the acting model's own report;
+- runs the Skill lifecycle (`proposed → trialed → adopted → revoked`) as deterministic verdicts over Outcome Evidence linked to the decisions that applied each Skill, measured against the `TrialState` baseline drawn from its `task_family` — recorded as `lifecycle_verdict` Activities, with tallies in `GradingState`, never promoted on the acting model's own report and never on an outcome that merely shares the family;
 - reviews identity suspicions (`same_as`) before any non-destructive `MERGE CONCEPT`;
 - refreshes `$self`'s SelfModel from evidence rather than from the latest conversation;
 - rebuilds the WorkingState digest — stamped with its `basis_seq` — that the next waking session resumes from;
@@ -194,7 +194,7 @@ KIP 2.0 keeps these orthogonal, and each lives in a different place:
 | `confidence`      | Strength of one actor's stance toward one Proposition | Assertion             | new evidence → new Assertion        |
 | `memory_strength` | How available a memory should be for future cognition | `MnemonicState` Facet | reinforcement and disuse            |
 | `salience`        | How noteworthy a memory is                            | `MnemonicState` Facet | impact, correction, identity weight |
-| `utility`         | Expected future decision value — the admission bet (Skills use `SkillUtility`) | `MnemonicState` Facet | explicit calibration on outcomes    |
+| `utility`         | Expected future decision value — the admission bet (Skills too; their graded record is `GradingState`) | `MnemonicState` Facet | explicit calibration through the decision an outcome is linked to |
 | supersession      | An actor's own revision of an earlier claim           | Assertion lifecycle   | explicit correction                 |
 | retention         | Storage lifecycle                                     | `retention` state     | policy, review, archive ladder      |
 | trust             | How much a source is credited                         | Governance            | policy, never cognition             |
@@ -202,7 +202,7 @@ KIP 2.0 keeps these orthogonal, and each lives in a different place:
 
 **Do not decay epistemic `confidence` merely because a fact has not been recalled recently.** Disuse reduces `memory_strength`. A stable fact may remain highly credible after a long period without retrieval, and a vivid memory may be false.
 
-For Skills, procedural evidence is tracked in `SkillUtility` separately from truth confidence. Repeating a failed procedure three times is not three votes that the procedure is correct.
+For Skills, the graded record is tracked in `GradingState` separately from truth confidence, and it counts only outcomes linked through an `outcome_observation` Activity to an `action_gate` decision that applied the Skill — the `task_family` supplies the baseline, never the attribution. Repeating a failed procedure three times is not three votes that the procedure is correct.
 
 ## Memory Quality Principles
 

@@ -2,6 +2,58 @@
 
 All notable changes to `@ldclabs/kip-lang` are documented here.
 
+## 2.2.0
+
+Tracks the 2.0-draft syntax convergence (Spec §35, §48.1, §51.2, §52.8,
+§57, §63.3, §68): one lifecycle statement, one trailing guard position, one
+history axis. Source text written for 2.x lifecycle statements no longer
+parses; the exec AST changes shape for every consumer of `expect_version`.
+
+### Changed (breaking)
+
+- **`TRANSITION <target> TO "<state>" [BY <ref>] [SET FIELDS] [SET STRUCTURAL]
+  [WHERE] [LIMIT] {EXPECT VERSION}` replaces `RETRACT ASSERTION`,
+  `SUPERSEDE ASSERTION`, `CORRECT EVIDENCE`, `TRANSITION ACTIVITY`, `ARCHIVE`
+  and `TOMBSTONE`.** The quoted state names the move; semantics check that the
+  state exists (KIP_2001), that `BY` is present exactly for `superseded` /
+  `corrected`, and that `SET FIELDS` / `SET STRUCTURAL` appear only on
+  Activity states. `ASSERT ... SUPERSEDING :old` now desugars to
+  `TRANSITION :old TO "superseded" BY <new assertion>`.
+- **`EXPECT STATE` is gone.** The engine validates the current lifecycle state
+  itself (`InvalidLifecycleTransition`), so the guard carried no information.
+- **`EXPECT VERSION` is always the trailing clause** — after `WHERE` and
+  `LIMIT`, after `UPSERT`'s closing brace, after `ENSURE PROPOSITION`'s tuple —
+  and gains version planes: `EXPECT VERSION :v [OF ATTRIBUTES | STRUCTURAL |
+  RETENTION | FACET "X"]`, repeatable one guard per plane. `UPDATE ?x EXPECT
+  VERSION :v SET ...` and `UPSERT CONCEPT ?x { ... EXPECT VERSION :v ... }`
+  no longer parse. Exec AST: every `expect_version: ExpectVersion | null`
+  field became `expect_versions: ExpectVersion[]`, and `ExpectVersion` gained
+  `plane` (`'Attributes' | 'Structural' | 'Retention' | { Facet } | null`).
+  Lowering rejects a repeated plane.
+- **`AS OF SEQ` is the only history axis.** `AS OF TX` and `AS OF TIME` are
+  removed from KQL, META and EXPORT; resolve a transaction id through
+  `DESCRIBE TRANSACTION`, an instant through `DESCRIBE SNAPSHOT AT TIME :t`.
+  Exec AST `AsOf` is now `{ Seq }` only.
+- **META:** `SNAPSHOT` (the token statement), `DESCRIBE EXECUTION CONTEXT` and
+  `DESCRIBE PROJECTION CAPABILITY` are removed — `DESCRIBE PRIMER` /
+  `DESCRIBE CAPABILITIES` carry that information. `DESCRIBE SNAPSHOT` takes
+  `[AS OF SEQ :s | AT TIME :t]`; `DescribeStatement` gains `atTime`.
+- Tokens removed: `TX`, `RETRACT`, `SUPERSEDE`, `CORRECT`, `ARCHIVE`,
+  `TOMBSTONE`, `STATE`, `EXECUTION`, `CONTEXT`, `CAPABILITY`, `PROJECTION`.
+  Token added: `AT`. Those words are ordinary identifiers again.
+- Exported types: `TransitionStatement`, `VersionPlane`, `ExpectVersion`,
+  `ExecVersionPlane`, `Transition` replace the removed per-statement types.
+- `lower()` now throws on a `TRANSITION` that omits `BY` for `superseded` /
+  `corrected`, adds `BY` to any other state, or finalizes fields / topology
+  on a non-Activity state — Spec §52.5 calls these syntax errors, so they are
+  part of the executability contract, not only editor diagnostics.
+
+### Added
+
+- The syntax-docs test's KML coverage map now keys `transition_statement` to
+  the `TRANSITION ` marker and drops `snapshot_statement`; the EBNF header
+  notes (KML 5 / 5a / 6a) describe the same decisions.
+
 ## 2.1.0
 
 ### Added

@@ -1,10 +1,10 @@
 # KIP 2.0 META — Cognitive Nexus Introspection & Grounding
 
-**[English](./KIP-2.0-META.md) | [中文](./KIP-2.0-META_CN.md)**
-
 ## Status
 
 **META Protocol Proposal / Pre-Specification Draft**
+
+> **Frozen (2026-09-02).** Historical design rationale written before the normative consolidation. This document is no longer maintained and its Chinese twin is no longer synchronized; where it differs from [KIP-2.0-SPECIFICATION.md](../KIP-2.0-SPECIFICATION.md), the Specification is right and this document is out of date.
 
 This document defines the introspection, grounding, verification, validation, capability-negotiation, runtime-history, and portable-artifact inspection layer of KIP 2.0.
 

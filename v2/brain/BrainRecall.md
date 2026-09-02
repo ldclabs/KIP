@@ -25,7 +25,7 @@ and returns a provenance-aware answer to the consuming agent.
 
 # 1. Read-Only Invariant
 
-Recall MUST NOT write Assertions, increase confidence, change memory_strength, increment recall counters, change SkillUtility, archive, or tombstone anything. New learning goes to a separate Formation/Maintenance path.
+Recall MUST NOT write Assertions, increase confidence, change memory_strength, increment recall counters, change GradingState, archive, or tombstone anything. New learning goes to a separate Formation/Maintenance path. What a briefing was used for is recorded by the acting side, in the `action_gate` Activity's inputs, not by Recall.
 
 # 2. Identity and Space
 
@@ -143,6 +143,16 @@ WITH EPISTEMIC {
 ```
 
 BELIEF is virtual and read-only.
+
+Read the projection honestly:
+
+```text
+accepted      believe it
+rejected      believe its negation
+contested     actors disagree — surface both sides; `leading` names the heavier side, not a verdict
+uncertain     support too weak to commit
+insufficient  nothing to go on — say "I don't have a basis", never "no"
+```
 
 # 10. Open World
 

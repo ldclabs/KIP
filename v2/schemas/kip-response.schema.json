@@ -239,6 +239,12 @@
           "minLength": 1,
           "maxLength": 64
         },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "Echo of the request's idempotency key when one was given, so an outcome_unknown response can be recovered by key (§80.4)."
+        },
         "extensions": {
           "$ref": "#/$defs/Extensions"
         }
@@ -276,6 +282,10 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 8192
+        },
+        "receipt": {
+          "$ref": "#/$defs/Receipt",
+          "description": "The operation's own transaction Receipt in sequence and independent modes (§75); absent in atomic mode, where the top-level receipt is the transaction's."
         },
         "extensions": {
           "$ref": "#/$defs/Extensions"
@@ -547,6 +557,42 @@
         },
         "extensions": {
           "$ref": "#/$defs/Extensions"
+        },
+        "receipt_digest": {
+          "$ref": "#/$defs/Digest",
+          "description": "Canonical digest of the Receipt without receipt_digest and proofs (Spec §33.2); a signed Receipt signs it."
+        },
+        "origin": {
+          "type": "object",
+          "required": [
+            "principal_id"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "principal_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "actor_binding_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 512
+            },
+            "delegation_digest": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Digest"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "description": "The Principal the commit was attributed to, the ActorBinding exercised, and the delegation chain digest (Spec §33.2)."
         }
       },
       "allOf": [
@@ -577,6 +623,26 @@
             "properties": {
               "status": {
                 "const": "aborted"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "space_seq"
+              ]
+            }
+          }
+        },
+        {
+          "$comment": "A no_effect transaction allocates no space_seq (§32.8); the field is omitted, never null.",
+          "if": {
+            "properties": {
+              "status": {
+                "const": "no_effect"
               }
             },
             "required": [

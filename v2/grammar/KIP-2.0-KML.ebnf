@@ -22,16 +22,24 @@
      4. KML WHERE uses raw KQL-visible-state patterns. BELIEF/BELIEF SLOT are
         intentionally excluded from this mutation grammar; a virtual Projection
         can never be a mutation target.
-     5. TRANSITION ACTIVITY may include SET FIELDS / SET STRUCTURAL before its
-        EXPECT STATE guard, formalizing the design text that terminal outputs
-        and ended_at may be finalized atomically.
+     5. TRANSITION is the single lifecycle statement: the quoted state names
+        the move (retracted | superseded | corrected | running | completed |
+        failed | cancelled | archived | tombstoned), BY names the successor
+        for superseded / corrected, and SET FIELDS / SET STRUCTURAL finalize
+        a terminal Activity atomically. Which states fit which target kind
+        and which current state is a runtime check (InvalidLifecycleTransition),
+        so there is no EXPECT STATE guard.
+     5a. EXPECT VERSION is always the trailing clause of a mutation — after
+        WHERE and LIMIT, after UPSERT's closing brace, after ENSURE
+        PROPOSITION's tuple — and may repeat, one guard per version plane
+        (OF ATTRIBUTES | STRUCTURAL | RETENTION | FACET "X"). Repeating a
+        plane is a semantic error, not a grammatical one.
      6. PURGE freezes the explicit confirmation spelling as CONFIRM "PURGE".
         PURGE PAYLOAD reuses it; it takes no REFERENCE POLICY clause because
         the Evidence element survives a payload purge (Spec §60.6).
      6a. Every mutation whose WHERE can select an unbounded set accepts an
-        optional LIMIT immediately after that WHERE (UPDATE, RETRACT,
-        SET RETENTION, ARCHIVE, TOMBSTONE, PURGE, PURGE PAYLOAD).
-        MERGE CONCEPT does not:
+        optional LIMIT immediately after that WHERE (UPDATE, TRANSITION,
+        SET RETENTION, PURGE, PURGE PAYLOAD). MERGE CONCEPT does not:
         its source and target are already named, and its WHERE only guards.
      6b. Every statement that takes a `target_ref` treats WHERE the same way,
         UPDATE included: a `?variable` target is bound by the WHERE block, a
@@ -160,13 +168,8 @@ kml_statement    = mutate_statement
                  | create_assertion
                  | create_activity
                  | update_statement
-                 | retract_assertion
-                 | supersede_assertion
-                 | correct_evidence
-                 | transition_activity
+                 | transition_statement
                  | set_retention
-                 | archive_statement
-                 | tombstone_statement
                  | purge_statement
                  | purge_payload_statement
                  | merge_concept ;
@@ -181,16 +184,15 @@ mutation_clause  = create_concept
                  | create_assertion
                  | create_activity
                  | update_statement
-                 | retract_assertion
-                 | supersede_assertion
-                 | correct_evidence
-                 | transition_activity
+                 | transition_statement
                  | set_retention
-                 | archive_statement
-                 | tombstone_statement
                  | purge_statement
                  | purge_payload_statement
                  | merge_concept ;
+
+(* Every mutation shares one tail: [WHERE] [LIMIT] { EXPECT VERSION }, with a
+   statement's own trailing words (REFERENCE POLICY, CONFIRM) after it
+   (Spec §52.8). *)
 
 (* ------------------------------------------------------------------------- *)
 (* Create / ensure / upsert                                                  *)
@@ -209,10 +211,10 @@ concept_create_clause
                  | set_structural_clause ;
 
 upsert_concept   = "UPSERT", "CONCEPT", handle,
-                   "{", { upsert_clause }, "}" ;
+                   "{", { upsert_clause }, "}",
+                   { expect_version_clause } ;
 
 upsert_clause    = match_clause
-                 | expect_version_clause
                  | set_fields_clause
                  | set_attributes_clause
                  | set_facet_clause
@@ -224,11 +226,12 @@ upsert_clause    = match_clause
 ensure_proposition
                  = "ENSURE", "PROPOSITION", [ handle ],
                    proposition_tuple,
-                   [ expect_version_clause ] ;
+                   { expect_version_clause } ;
 
 (* Normative sugar (Spec §55.1): ensure Proposition + create Assertion,
-   with optional supersession. Member keys (by, mode, stance, confidence,
-   at, valid, evidence, key) are validated semantically. *)
+   with optional supersession (TRANSITION ... TO "superseded" BY the new
+   Assertion). Member keys (by, mode, stance, confidence, at, valid,
+   evidence, key) are validated semantically. *)
 assert_statement = "ASSERT", [ handle ], proposition_tuple,
                    assignment_object,
                    [ "SUPERSEDING", target_ref ] ;
@@ -259,10 +262,10 @@ match_clause     = "MATCH", object_pattern ;
 (* ------------------------------------------------------------------------- *)
 
 update_statement = "UPDATE", target_ref,
-                   [ expect_version_clause ],
                    update_action, { update_action },
                    [ "WHERE", where_block ],
-                   [ limit_clause ] ;
+                   [ limit_clause ],
+                   { expect_version_clause } ;
 
 update_action    = set_fields_clause
                  | set_attributes_clause
@@ -314,29 +317,26 @@ unset_field_set  = "{",
 unset_field      = identifier | string_literal ;
 
 (* ------------------------------------------------------------------------- *)
-(* Lifecycle / correction                                                    *)
+(* Lifecycle — one statement (Spec §52.5)                                    *)
 (* ------------------------------------------------------------------------- *)
 
-retract_assertion
-                 = "RETRACT", "ASSERTION", target_ref,
+(* The state names the move; the engine validates it against the target's
+   kind and current state:
+     Assertion  "retracted" | "superseded" BY new_assertion
+     Evidence   "corrected" BY new_evidence
+     Activity   "running" | "completed" | "failed" | "cancelled"
+                (a terminal move may finalize fields and topology)
+     any        "archived" | "tombstoned"
+   A move from the wrong state fails InvalidLifecycleTransition, so there is
+   no EXPECT STATE; EXPECT VERSION guards concurrency. *)
+transition_statement
+                 = "TRANSITION", target_ref,
+                   "TO", scalar_or_parameter,
+                   [ "BY", target_ref ],
+                   { transition_finalize_clause },
                    [ "WHERE", where_block ],
                    [ limit_clause ],
-                   [ expect_state_clause ] ;
-
-supersede_assertion
-                 = "SUPERSEDE", "ASSERTION", target_ref,
-                   "BY", target_ref,
-                   [ expect_state_clause ] ;
-
-correct_evidence = "CORRECT", "EVIDENCE", target_ref,
-                   "BY", target_ref,
-                   [ expect_state_clause ] ;
-
-transition_activity
-                 = "TRANSITION", "ACTIVITY", target_ref,
-                   "TO", scalar_or_parameter,
-                   { transition_finalize_clause },
-                   [ expect_state_clause ] ;
+                   { expect_version_clause } ;
 
 transition_finalize_clause
                  = set_fields_clause | set_structural_clause ;
@@ -349,23 +349,12 @@ set_retention    = "SET", "RETENTION", target_ref,
                    assignment_object,
                    [ "WHERE", where_block ],
                    [ limit_clause ],
-                   [ expect_version_clause ] ;
-
-archive_statement
-                 = "ARCHIVE", target_ref,
-                   [ "WHERE", where_block ],
-                   [ limit_clause ],
-                   [ expect_state_clause ] ;
-
-tombstone_statement
-                 = "TOMBSTONE", target_ref,
-                   [ "WHERE", where_block ],
-                   [ limit_clause ],
-                   [ expect_state_clause ] ;
+                   { expect_version_clause } ;
 
 purge_statement  = "PURGE", target_ref,
                    [ "WHERE", where_block ],
                    [ limit_clause ],
+                   { expect_version_clause },
                    [ "REFERENCE", "POLICY", scalar_or_parameter ],
                    "CONFIRM", '"PURGE"' ;
 
@@ -373,22 +362,28 @@ purge_payload_statement
                  = "PURGE", "PAYLOAD", target_ref,
                    [ "WHERE", where_block ],
                    [ limit_clause ],
+                   { expect_version_clause },
                    "CONFIRM", '"PURGE"' ;
 
 merge_concept    = "MERGE", "CONCEPT", target_ref,
                    "INTO", target_ref,
                    [ "WHERE", where_block ],
-                   [ expect_version_clause ] ;
+                   { expect_version_clause } ;
 
 (* ------------------------------------------------------------------------- *)
 (* Preconditions                                                             *)
 (* ------------------------------------------------------------------------- *)
 
+(* Without a plane the guard compares _system.version; with one, that
+   plane's own version (Spec §35.1). At most one guard per plane. *)
 expect_version_clause
-                 = "EXPECT", "VERSION", scalar_or_parameter ;
+                 = "EXPECT", "VERSION", scalar_or_parameter,
+                   [ "OF", version_plane ] ;
 
-expect_state_clause
-                 = "EXPECT", "STATE", scalar_or_parameter ;
+version_plane    = "ATTRIBUTES"
+                 | "STRUCTURAL"
+                 | "RETENTION"
+                 | "FACET", schema_symbol ;
 
 limit_clause     = "LIMIT", scalar_or_parameter ;
 

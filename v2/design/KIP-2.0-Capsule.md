@@ -1,10 +1,10 @@
 # KIP 2.0 Cognitive Capsule
 
-**[English](./KIP-2.0-Capsule.md) | [中文](./KIP-2.0-Capsule_CN.md)**
-
 ## Status
 
 **Cognitive Capsule Proposal / Pre-Specification Draft**
+
+> **Frozen (2026-09-02).** Historical design rationale written before the normative consolidation. This document is no longer maintained and its Chinese twin is no longer synchronized; where it differs from [KIP-2.0-SPECIFICATION.md](../KIP-2.0-SPECIFICATION.md), the Specification is right and this document is out of date.
 
 This document defines the portable cognition architecture of KIP 2.0: how a bounded portion of Cognitive Nexus state can be exported, canonicalized, verified, signed, redacted, transported, inspected, imported, restored, synchronized, and re-grounded in another MemorySpace without confusing source identity, destination identity, trust, authority, schema meaning, or engine origin.
 

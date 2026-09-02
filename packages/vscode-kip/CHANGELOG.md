@@ -2,6 +2,22 @@
 
 All notable changes to the **KIP Language** extension are documented here.
 
+## 2.2.0
+
+Bundles `@ldclabs/kip-lang` 2.2.0, the 2.0-draft syntax convergence: the
+single `TRANSITION` lifecycle statement, `EXPECT VERSION` as the trailing
+guard with version planes, `AS OF SEQ` as the only history axis, and the
+removal of `SNAPSHOT`, `DESCRIBE EXECUTION CONTEXT` and `DESCRIBE PROJECTION
+CAPABILITY`. Files written in the 2.x lifecycle syntax now report diagnostics
+instead of formatting.
+
+### Changed
+
+- Highlighting drops `RETRACT`, `SUPERSEDE`, `CORRECT`, `ARCHIVE`,
+  `TOMBSTONE`, `TX`, `STATE`, `EXECUTION`, `CONTEXT`, `CAPABILITY`,
+  `PROJECTION` and the `EXPECT STATE` guard; adds `AT` (`DESCRIBE SNAPSHOT AT
+  TIME :t`). `SNAPSHOT` stays as a secondary keyword for `DESCRIBE SNAPSHOT`.
+
 ## 2.1.0
 
 Bundles `@ldclabs/kip-lang` 2.1.0, which adds the two new statements from the

@@ -1,10 +1,10 @@
 # KIP 2.0 Schema Packages
 
-**[English](./KIP-2.0-Schema-Packages.md) | [中文](./KIP-2.0-Schema-Packages_CN.md)**
-
 ## Status
 
 **Schema Package Model Proposal / Pre-Specification Draft**
+
+> **Frozen (2026-09-02).** Historical design rationale written before the normative consolidation. This document is no longer maintained and its Chinese twin is no longer synchronized; where it differs from [KIP-2.0-SPECIFICATION.md](../KIP-2.0-SPECIFICATION.md), the Specification is right and this document is out of date.
 
 This document defines the schema architecture of KIP 2.0: how semantic types, predicates, profile facets, structural fields, constraints, extension registries, compatibility, dependencies, migration declarations, and schema activation are packaged and resolved.
 

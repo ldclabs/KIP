@@ -591,6 +591,7 @@ Possible evidence classes:
 ```text
 observation
 user_statement
+agent_statement
 tool_result
 measurement
 document
@@ -599,6 +600,7 @@ message
 external_assertion
 derived_result
 human_feedback
+outcome
 ```
 
 Evidence SHOULD be immutable where possible. Corrections SHOULD create new evidence or attach a retraction/correction relation rather than silently rewriting history.
@@ -837,8 +839,10 @@ ExperienceStep
 Preference
 Insight
 Commitment
+Watch
 Skill
 SelfModel artifacts
+WorkingState
 ```
 
 plus their metabolism rules.
@@ -902,7 +906,7 @@ Repeated failure can increase the *learning value* of an Experience while decrea
 
 Beyond Skills, the Cognitive Memory Profile carries `utility` as a general mnemonic signal: the admission bet — expected future decision value — recorded when a memory is stored and calibrated against outcomes afterwards. Without that signal a memory system cannot tell which of its admissions earn their keep, and admission policy never learns.
 
-The calibration has a typed source. A signal in this system can be held three ways: set by whoever asserted it (confidence on an Assertion), metabolized by use and disuse (memory_strength), or earned — changed because a recorded consequence graded it. The consequence channel (Specification §15.7) is the third way made concrete: Outcome Evidence written by instrumentation, never by the actor it grades, joined to graded cognition by task family. Watching the world was never the hard part; the channel is what lets the world vote back.
+The calibration has a typed source. A signal in this system can be held three ways: set by whoever asserted it (confidence on an Assertion), metabolized by use and disuse (memory_strength), or earned — changed because a recorded consequence graded it. The consequence channel (Specification §15.7) is the third way made concrete: Outcome Evidence written by instrumentation, never by the actor it grades, found by task family and attributed by the decision record — the `action_gate` Activity whose inputs name the Skills and memories a decision applied, which the instrument's observation names in turn. The family supplies the baseline; only the link attributes. Watching the world was never the hard part; the channel is what lets the world vote back, and the decision record is what tells it whom to vote on.
 
 ## 9.7 Forgetting Has Multiple Meanings
 
@@ -1111,9 +1115,11 @@ ExperienceStep
 Preference
 Insight
 Commitment
+Watch
 Skill
 SleepTask
 SelfModel artifacts
+WorkingState
 ```
 
 This profile answers questions KIP Core intentionally does not:
@@ -1535,6 +1541,7 @@ KIP 2.0 SHOULD support import modes conceptually equivalent to:
 preview
 isolate
 merge
+restore
 ```
 
 Before merge, the engine or Brain should be able to inspect:
@@ -1796,6 +1803,10 @@ if same proposition:
 if new incompatible proposition:
     keep both propositions
     supersede or contest Assertion A as justified
+
+if the world changed rather than the claim being wrong:
+    keep A true for its interval (re-assert it closed)
+    assert B from the change date; nothing is superseded for being wrong
 ```
 
 No proposition needs to be deleted merely because belief changed.
@@ -2032,34 +2043,15 @@ performance after relevant memory ablation
 
 # 22. KIP 2.0 Design Invariants
 
-The following invariants should survive later syntax debates.
+The design invariants this architecture set out are now maintained in one registry, reached from two places, and this document no longer restates them:
 
-1. **A Proposition is truth-neutral.**
-2. **Belief is represented by Assertions.**
-3. **Multiple contradictory Assertions may coexist.**
-4. **Confidence belongs to an Assertion, not to recall frequency.**
-5. **Source trust and Assertion confidence are distinct.**
-6. **Engine origin is separate from claimed provenance.**
-7. **Origin lineage cannot be self-upgraded by content.**
-8. **Literal-valued facts can receive first-class epistemic treatment.**
-9. **Values needing provenance/conflict/validity should not be trapped in attributes.**
-10. **Domain and MemorySpace remain distinct.**
-11. **Identity is not equal to a display name.**
-12. **World time and knowledge time remain distinct.**
-13. **Memory strength, salience, confidence, trust, and utility remain distinct.**
-14. **KIP Core does not hard-code Event/Experience/Skill.**
-15. **Experience and Skill belong to a Cognitive Memory Profile.**
-16. **Hidden chain-of-thought is never a required memory artifact.**
-17. **Failed experience is eligible for high-value retention.**
-18. **Semantic similarity alone cannot authorize action.**
-19. **Imported executable memory is inactive by default.**
-20. **Policy enforcement occurs in the Nexus, not only in prompts.**
-21. **Atomic transaction support exists for multi-step cognitive transitions.**
-22. **Capsule signatures prove integrity/origin, not truth or safety.**
-23. **Consolidation preserves enough provenance for revision.**
-24. **Physical deletion is distinct from epistemic and mnemonic forgetting.**
-25. **KIP supplies primitives; the Brain owns cognitive strategy.**
-26. **Learning is ultimately evaluated by durable behavioral impact.**
+```text
+Specification §102    Required Conformance Invariants: 38 protocol-level rows, registry Part A
+Profile §23           Profile Invariants: 35 memory-level rows, registry Part B
+KIP-2.0-Invariants.md the one registry both point at, each row with its establishing section and pinning vectors
+```
+
+Two of the original design invariants have no protocol form and stay here as architecture commitments: **semantic similarity alone cannot authorize action** (Axiom 11), and **learning is ultimately evaluated by durable behavioral impact** (§3.9, §21.3).
 
 ---
 
@@ -2227,7 +2219,7 @@ Likely external content-addressed references + digest + metadata, rather than st
 
 `expires_at` and archival state may remain cross-cutting Core lifecycle fields. `memory_strength`, `salience`, and `utility` are better defined by the Cognitive Memory Profile.
 
-**Resolved**: as recommended — Core keeps `retention {retention_class, expires_at, legal_hold}` plus archive/tombstone/purge, while `memory_strength` / `salience` live in the Profile `MnemonicState` Facet and `utility` in `SkillUtility` (Specification §19, §18; Cognitive Memory Profile 2.0).
+**Resolved**: as recommended — Core keeps `retention {retention_class, expires_at, legal_hold}` plus archive/tombstone/purge, while `memory_strength` / `salience` / `utility` live in the Profile `MnemonicState` Facet, for Skills as for any other memory; a Skill's graded record is the separate `GradingState` Facet (Specification §19, §18; Cognitive Memory Profile 2.0).
 
 ---
 
@@ -2500,13 +2492,14 @@ Local Skill S1
   authority: advisory
 ```
 
-After a trial graded by the `deploy/service` outcome stream, and a deterministic verdict recorded as a `lifecycle_verdict` Activity:
+After a trial in which the outcomes linked to S1's own `action_gate` decisions were measured against the `deploy/service` baseline recorded in its `TrialState`, and a deterministic verdict recorded as a `lifecycle_verdict` Activity:
 
 ```text
 S1
-  status: adopted        (provisional — the stream keeps grading)
-  utility: 0.87
-  authority: behavioral  (a separate Governance decision, not the verdict's doing)
+  status: adopted                 (provisional — the stream keeps grading)
+  GradingState: 9 / 2 of 12       (linked outcomes only; family-mates grade nothing)
+  MnemonicState.utility: 0.87     (the admission bet, revised by the verdict)
+  authority: behavioral           (a separate Governance decision, not the verdict's doing)
 ```
 
 The imported Skill's valid signature never automatically grants it behavioral or executable authority.
@@ -2567,6 +2560,8 @@ No Brain policy is required for KIP Core conformance.
 
 ```text
 KIP-2.0-SPECIFICATION.md
+KIP-2.0-Capsule-Specification.md              §37–§41 and §95, under the Specification's own numbering
+KIP-2.0-Optional-Profiles-and-Migration.md    §100, §101, §103 and Appendix I
 ```
 
 A faithful LLM-facing condensation, `KIPSyntax.md`, is maintained alongside the Specification for prompt injection; on any conflict the Specification wins, and the card must be kept in sync on every protocol change.
@@ -2591,7 +2586,7 @@ KIP-2.0-META.md
 KIP-2.0-Protocol-Runtime.md
 ```
 
-These documents explain the design rationale and deeper semantics behind the consolidated Specification.
+These documents explain the design rationale and deeper semantics behind the consolidated Specification. The ten `design/` notes are **frozen** as of 2026-09-02: they are the pre-consolidation drafts, are no longer maintained, and their Chinese twins are no longer synchronized. Read them for the reasoning, not for the current rules.
 
 ## E.3 Standard Cognitive Profile
 
@@ -2612,8 +2607,14 @@ Commitment
 Skill
 SleepTask
 SelfModel
+Watch
+WorkingState
 MnemonicState
-SkillUtility
+GradingState
+TrialState
+DerivationState
+DecisionRecord
+OutcomeRecord
 ```
 
 The Profile is separate from Core because KIP permits other cognitive taxonomies.
@@ -2718,6 +2719,8 @@ KIP-2.0-META.ebnf
 KIP-2.0-Conformance-Tests.md
 conformance-test-vector.schema.json
 conformance-report.schema.json
+conformance-state-fixture.schema.json
+conformance-governance-policy.schema.json
 ```
 
 ### Canonical Conformance Fixtures
@@ -2726,6 +2729,8 @@ conformance-report.schema.json
 test-core-domain-1.0.0.schema.json
 test-secondary-1.0.0.schema.json
 epistemic-test-deterministic.json
+governance-test-policy.json
+states/{empty,core-basic,epistemic-basic,epistemic-conflict,governance-basic,transaction-basic,historical-basic}.json
 ```
 
 The machine-readable artifacts make the prose specification executable and independently testable.
@@ -2735,6 +2740,8 @@ The machine-readable artifacts make the prose specification executable and indep
 ```text
 KIP/
 ├── KIP-2.0-SPECIFICATION.md
+├── KIP-2.0-Capsule-Specification.md
+├── KIP-2.0-Optional-Profiles-and-Migration.md
 ├── KIP-2.0-Architecture.md
 ├── KIPSyntax.md
 ├── design/

@@ -27,7 +27,7 @@ Recall 负责将业务任务或查询问题转化为：
 
 # 1. 严格只读不变式
 
-Recall **严禁**执行以下操作：写入 Assertion、提高置信度、修改 `memory_strength`、递增召回计数器、调整 `SkillUtility`、归档或标记墓碑。任何新知识的学习必须走独立的 Formation 或 Maintenance 路径。
+Recall **严禁**执行以下操作：写入 Assertion、提高置信度、修改 `memory_strength`、递增召回计数器、调整 `GradingState`、归档或标记墓碑。任何新知识的学习必须走独立的 Formation 或 Maintenance 路径。简报的具体使用情况由行动端记录在 `action_gate` Activity 的 `inputs` 中，绝不由 Recall 记录。
 
 # 2. 身份与空间隔离
 
@@ -145,6 +145,16 @@ WITH EPISTEMIC {
 ```
 
 BELIEF 属于虚拟计算视图，完全只读。
+
+诚实理解投影结果：
+
+```text
+accepted      确信它为真
+rejected      确信其否定为真
+contested     各方存在分歧 —— 呈现双方观点；`leading` 仅标明权重偏向，不是定论
+uncertain     证据支撑太弱，尚不足以确信
+insufficient  缺乏依据 —— 诚实表达“我没有根据”，绝不能回答“否定/没有”
+```
 
 # 10. 开放世界假说 (Open World Assumption)
 

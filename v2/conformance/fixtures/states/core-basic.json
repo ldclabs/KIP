@@ -1,0 +1,260 @@
+{
+  "format": "KIP-Conformance-State-Fixture",
+  "format_version": "2.0-draft",
+  "fixture": "core-basic",
+  "description": "The shared baseline every other fixture extends: the canonical Persons, Project, Themes, StatusValues, Organization and Service of §9, one bare Proposition (alice, timezone, +08:00) with no Assertion (CORE-001), two stated Assertions grounded in one message Evidence, and one Experience with two ordered steps and a MnemonicState Facet.",
+  "extends": null,
+  "schema_environment": {
+    "id": "schema_env:test-v1",
+    "packages": [
+      "kip://test/core-domain@1.0.0"
+    ],
+    "version": 17
+  },
+  "clock": "2026-01-01T00:00:00Z",
+  "epistemic_policy": "test-deterministic",
+  "governance_policy": "governance-test-policy",
+  "trust": {
+    "alice": "trusted",
+    "bob": "trusted",
+    "carol": "weak"
+  },
+  "bindings": {
+    ":self": "self_agent",
+    ":alice": "alice",
+    ":bob": "bob",
+    ":carol": "carol",
+    ":project_alpha": "project_alpha",
+    ":dark_mode": "dark_mode",
+    ":light_mode": "light_mode",
+    ":status_planning": "status_planning",
+    ":status_active": "status_active",
+    ":status_paused": "status_paused",
+    ":org_acme": "org_acme",
+    ":service_api": "service_api",
+    ":exp_deploy": "exp_deploy",
+    ":e_alice_msg": "e_alice_msg"
+  },
+  "commits": [
+    {
+      "label": "S1",
+      "at": "2026-01-01T00:00:00Z",
+      "principal": "owner",
+      "creates": [
+        {
+          "handle": "self_agent",
+          "kind": "concept",
+          "type": "Person",
+          "key": "self",
+          "name": "Self"
+        },
+        {
+          "handle": "alice",
+          "kind": "concept",
+          "type": "Person",
+          "key": "alice",
+          "name": "Alice"
+        },
+        {
+          "handle": "bob",
+          "kind": "concept",
+          "type": "Person",
+          "key": "bob",
+          "name": "Bob"
+        },
+        {
+          "handle": "carol",
+          "kind": "concept",
+          "type": "Person",
+          "key": "carol",
+          "name": "Carol"
+        },
+        {
+          "handle": "project_alpha",
+          "kind": "concept",
+          "type": "Project",
+          "key": "project-alpha",
+          "name": "Alpha"
+        },
+        {
+          "handle": "dark_mode",
+          "kind": "concept",
+          "type": "Theme",
+          "key": "dark-mode",
+          "name": "Dark mode"
+        },
+        {
+          "handle": "light_mode",
+          "kind": "concept",
+          "type": "Theme",
+          "key": "light-mode",
+          "name": "Light mode"
+        },
+        {
+          "handle": "status_planning",
+          "kind": "concept",
+          "type": "StatusValue",
+          "key": "status-planning",
+          "name": "Planning",
+          "attributes": {
+            "code": "planning"
+          }
+        },
+        {
+          "handle": "status_active",
+          "kind": "concept",
+          "type": "StatusValue",
+          "key": "status-active",
+          "name": "Active",
+          "attributes": {
+            "code": "active"
+          }
+        },
+        {
+          "handle": "status_paused",
+          "kind": "concept",
+          "type": "StatusValue",
+          "key": "status-paused",
+          "name": "Paused",
+          "attributes": {
+            "code": "paused"
+          }
+        },
+        {
+          "handle": "org_acme",
+          "kind": "concept",
+          "type": "Organization",
+          "key": "acme",
+          "name": "Acme"
+        },
+        {
+          "handle": "service_api",
+          "kind": "concept",
+          "type": "Service",
+          "key": "api",
+          "name": "API"
+        },
+        {
+          "handle": "e_alice_msg",
+          "kind": "evidence",
+          "evidence_class": "message",
+          "payload": {
+            "text": "I'm on UTC+8 and I like dark mode."
+          },
+          "media_type": "application/json",
+          "observed_at": "2025-12-31T09:00:00Z",
+          "source": "alice"
+        },
+        {
+          "handle": "p_alice_tz",
+          "kind": "proposition",
+          "subject": "alice",
+          "predicate": "timezone",
+          "object": "+08:00"
+        },
+        {
+          "handle": "p_alice_prefers_dark",
+          "kind": "proposition",
+          "subject": "alice",
+          "predicate": "prefers",
+          "object": {
+            "ref": "dark_mode"
+          }
+        },
+        {
+          "handle": "a_alice_prefers",
+          "kind": "assertion",
+          "proposition": "p_alice_prefers_dark",
+          "asserted_by": "alice",
+          "stance": "support",
+          "mode": "stated",
+          "confidence": 0.9,
+          "asserted_at": "2025-12-31T09:05:00Z",
+          "evidence": [
+            "e_alice_msg"
+          ]
+        },
+        {
+          "handle": "p_alice_works_acme",
+          "kind": "proposition",
+          "subject": "alice",
+          "predicate": "works_for",
+          "object": {
+            "ref": "org_acme"
+          }
+        },
+        {
+          "handle": "a_alice_works",
+          "kind": "assertion",
+          "proposition": "p_alice_works_acme",
+          "asserted_by": "alice",
+          "stance": "support",
+          "mode": "stated",
+          "confidence": 0.9,
+          "asserted_at": "2025-12-31T09:05:00Z",
+          "evidence": [
+            "e_alice_msg"
+          ]
+        },
+        {
+          "handle": "step_1",
+          "kind": "concept",
+          "type": "ExperienceStep",
+          "key": "exp-deploy-step-1",
+          "name": "Run migration"
+        },
+        {
+          "handle": "step_2",
+          "kind": "concept",
+          "type": "ExperienceStep",
+          "key": "exp-deploy-step-2",
+          "name": "Restart service"
+        },
+        {
+          "handle": "exp_deploy",
+          "kind": "concept",
+          "type": "Experience",
+          "key": "exp-deploy",
+          "name": "Deploy API v2",
+          "facets": {
+            "MnemonicState": {
+              "memory_strength": 0.8,
+              "salience": 0.5,
+              "utility": 0.5,
+              "last_metabolized_at": null
+            }
+          },
+          "structural": [
+            {
+              "field": "experienced_by",
+              "target": "alice"
+            },
+            {
+              "field": "has_step",
+              "target": "step_1"
+            },
+            {
+              "field": "has_step",
+              "target": "step_2"
+            }
+          ]
+        },
+        {
+          "handle": "act_ingest",
+          "kind": "activity",
+          "activity_class": "ingestion",
+          "status": "completed",
+          "started_at": "2025-12-31T09:04:00Z",
+          "ended_at": "2025-12-31T09:05:00Z",
+          "inputs": [
+            "e_alice_msg"
+          ],
+          "outputs": [
+            "a_alice_prefers",
+            "a_alice_works"
+          ]
+        }
+      ]
+    }
+  ]
+}

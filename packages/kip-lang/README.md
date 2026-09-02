@@ -15,13 +15,13 @@ envelopes remain engine responsibilities.
 
 The parser targets the KIP 2.0 command-text syntax — all three languages:
 **KQL** (`FIND`) to read, **KML** (`ASSERT`, `MUTATE`, `CREATE`, `UPSERT`,
-`UPDATE`, and the retract/supersede/archive/tombstone/purge lifecycle) to
-change cognition, and **META** (`DESCRIBE`, `LIST`, `SEARCH`, `VERIFY`,
-`VALIDATE`, `PREVIEW`, `HISTORY`, `CHANGES`, `SNAPSHOT`, `EXPORT CAPSULE`) to
+`UPDATE`, the single `TRANSITION` lifecycle statement, `SET RETENTION`,
+`PURGE`, `MERGE`) to change cognition, and **META** (`DESCRIBE`, `LIST`,
+`SEARCH`, `VERIFY`, `VALIDATE`, `PREVIEW`, `HISTORY`, `CHANGES`, `EXPORT CAPSULE`) to
 ground and introspect. That includes the five Core element kinds (Concept,
 Proposition, Assertion, Evidence, Activity), `BELIEF` / `BELIEF SLOT`
 projection patterns, `STRUCTURAL` topology patterns, facets, the independent
-`AS OF` / `FOR TIME` time axes, `:parameter` placeholders in full value
+`AS OF SEQ` / `FOR TIME` time axes, `:parameter` placeholders in full value
 positions, ASCII case-insensitive keywords, JSON-compatible object literals
 with unquoted identifier keys, and batch-friendly multi-command source text.
 The request envelope (`kip`, `request_id`, `space`, `execution`, `ingest`,

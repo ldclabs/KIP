@@ -67,6 +67,8 @@ key           可选、不可变、空间局部逻辑键（幂等写入标识）
 name          可变显示名/接地名称；允许重复；绝不能当作唯一标识
 canonical_id  可选、跨系统已校验标识（受 Governance 保护）
 client_key    单次历史创建操作的重试安全逻辑标识
+schema_ref    精确模式包版本，用于持久化存储与校验；匹配、键唯一性与命题身份使用
+              符号谱系 LINEAGE（包路径 + 符号），包升级绝不会割裂记忆（规范 §20.14）
 ```
 
 未经严格核实的“两者为同一实体”主张，应使用 `same_as` Proposition + Assertion 表达（供人工或规则审核，严禁自动合并）。
@@ -106,14 +108,14 @@ object     本地 Element 引用，或 Predicate Schema 允许的标量 Literal
 ```text
 FIND(<projections>)
 WHERE { <patterns and filters> }
-[AS OF SEQ :seq | AS OF TX :tx | AS OF TIME :t]   // 认知历史：大脑在当时包含/确信的状态
-[FOR TIME :world_time]                            // 现实生效时间：陈述在现实世界中适用的时间
+[AS OF SEQ :seq]                                  // 认知历史：大脑当时所包含/相信的内容（tx id 或时间戳通过 DESCRIBE TRANSACTION / DESCRIBE SNAPSHOT AT TIME 转为 seq）
+[FOR TIME :world_time]                            // 世界有效时间：在现实世界什么时间适用
 [WITH EPISTEMIC { purpose: "...", risk: "low", policy: "...", include_historical: false,
                   include_hypothetical: false, explanation: "none|summary|ledger" }]
-[ORDER BY <expr> [ASC|DESC], ...] [LIMIT :n] [CURSOR :cursor]   // 可多个排序键；默认 ASC；null 排最后
+[ORDER BY <expr> [ASC|DESC], ...] [LIMIT :n] [CURSOR :cursor]   // 多排序键；默认 ASC；null 排最后
 ```
 
-`AS OF` 与 `FOR TIME` 是相互独立的时间维度。“大脑在认知时间 C 相信什么？” = `AS OF C`；“它在 C 时对现实时间 W 相信什么？” = `AS OF C` + `FOR TIME W`；“它现在对 W 相信什么？”仅用 `FOR TIME W`。投影可以是变量、点路径或聚合；普通表达式与聚合混用时，按普通表达式分组。
+`AS OF` 和 `FOR TIME` 是相互独立的正交时间轴。“大脑在认知时间点 C 相信什么？” = `AS OF C`；“大脑在认知时间点 C 对现实时间点 W 持何种信念？” = `AS OF C` + `FOR TIME W`；“大脑当前对现实时间点 W 持何种信念？” = 仅使用 `FOR TIME W`。投影项可为变量、点路径表达式或聚合；混合普通表达式与聚合将按普通表达式分组。
 
 ```kip
 FIND(?belief.status, ?timezone)
@@ -125,83 +127,92 @@ WITH EPISTEMIC {purpose: "answer_user", risk: "low", explanation: "summary"}
 LIMIT 10
 ```
 
-#### 2.1. 模式族
+#### 2.1. 模式家族
 
 ```text
-?person {type: "Person", name: "Alice"}              // Concept（type 为 schema 语法糖；`?person CONCEPT {...}` 亦合法）
-?exp {type: "Experience", attributes: {outcome_status: "failure"}}   // attributes/facets 以嵌套对象匹配（或对 ?exp.attributes.x 用 FILTER）
-?p (?person, "works_for", ?org)                      // 原始 Proposition——仅代表存在，不代表为真
-?p PROPOSITION (?person, "works_for", ?org)          // 显式形式；PROPOSITION 与 ?p 各自均可省略
-?p (?s, ?predicate, ?o)                              // 谓词变量 → 绑定精确谓词引用
-?p (id: :prop_id)                                    // 同一槽位、按 id 寻址——也可作为 term 端点
-(?drug, "treats", {type: "Symptom", name: "Headache"})   // term 可以是内联的 Concept 匹配、字面量或 :param
-?s (?user, "stated", (?drug, "treats", ?symptom))    // ……或嵌套元组：对陈述作陈述
+?person {type: "Person", name: "Alice"}              // Concept (type 属于 schema 糖；`?person CONCEPT {...}` 亦合法)
+?exp {type: "Experience", attributes: {outcome_status: "failure"}}   // attributes/facets 作为嵌套对象匹配 (或使用 FILTER(?exp.attributes.x))
+?p (?person, "works_for", ?org)                      // 原始 Proposition —— 代表存在性，而非信念真假
+?p PROPOSITION (?person, "works_for", ?org)          // 显式形式；PROPOSITION 与 ?p 均可独立缺省
+?p (?s, ?predicate, ?o)                              // 谓词变量 → 绑定精确 predicate ref
+?p (id: :prop_id)                                    // 同一槽位，按 id 定位 —— 亦可用作 term
+(?drug, "treats", {type: "Symptom", name: "Headache"})   // term 可以是内联 Concept 匹配、字面量或 :param
+?s (?user, "stated", (?drug, "treats", ?symptom))    // ... 或嵌套元组：对陈述的陈述
 ?a ASSERTION {proposition: ?p, asserted_by: ?actor, stance: "support", mode: "stated"}
 ?e EVIDENCE {evidence_class: "tool_result"}
 ?act ACTIVITY {activity_class: "inference", status: "completed"}
-?edge STRUCTURAL (?experience, "has_step", ?step)    // 拓扑结构；有序字段可用 ?edge.index
-STRUCTURAL (?experience, "has_step", ?step)          // 可省略 edge 绑定
-?belief BELIEF (?person, "timezone", ?tz)            // 认识投影 (Epistemic Projection)（虚拟、只读）
-?belief BELIEF (?p)                                  // 投影已绑定的命题
-?belief BELIEF (id: :prop_id)                        // ……或已按 id 获知的命题（同一 id 形式）
-?slot BELIEF SLOT (?person, "timezone")              // 完整功能槽位：候选值与冲突集
+?edge STRUCTURAL (?experience, "has_step", ?step)    // 拓扑边；有序字段提供 ?edge.index
+STRUCTURAL (?experience, "has_step", ?step)          // 边的绑定变量是可选的
+?belief BELIEF (?person, "timezone", ?tz)            // 认知投影 (虚拟只读视图)
+?belief BELIEF (?p)                                  // 投影一个已绑定的 Proposition
+?belief BELIEF (id: :prop_id)                        // ... 或已知 id 的命题 (相同 id 形式)
+?slot BELIEF SLOT (?person, "timezone")              // 整个函数槽位：候选值 + 冲突集
 ```
 
-**BELIEF 输出**：`status` ∈ `accepted | rejected | contested | uncertain | insufficient`，附带支持度/反对度、不确定性、策略标识、时间基准。若对从未存储过的命题进行全量接地 BELIEF 查询，返回 `insufficient`（而非 0 行）。`BELIEF SLOT` 返回 `accepted_values` + `candidate_projections`。支持度与反对度得分之和不强制等于 1。`BELIEF` / `BELIEF SLOT` 仅限 `FIND`：绝不出现在变更语句的 `WHERE` 或 `EXPORT` 选择块中，且其谓词必须是确切谓词（不带路径算子）。
+**BELIEF 输出**：`status` ∈ `accepted | rejected | contested | uncertain | insufficient`，`leading` ∈ `support | opposition | none`（在 `contested` 状态下占优势的一方；仅作信息披露，绝非最终裁定），加上支持/反对依据、不确定性信息、生效策略标识与时间基准。对一个从未存储过的命题进行充分绑定的 BELIEF 查询将返回 `insufficient`（而非 0 行结果）。BELIEF SLOT 返回 `accepted_values` + `candidate_projections`。支持度与反对度得分之和不强制为 1。`BELIEF` / `BELIEF SLOT` 仅用于 `FIND`：绝不能出现在 mutation 的 `WHERE` 块或 `EXPORT` 选择集内，且其谓词必须是精确名称（不支持路径运算符）。
 
-**选型准则**：回答“什么是真的？”使用 `BELIEF` / `BELIEF SLOT`。审计“谁基于什么证据说了什么？”使用原始 Proposition/Assertion/Evidence 模式。绝不能将原始数据行直接当作已被采信的信念。
+**合并（Merges）**：原始 Proposition 模式会穿透 `merged_into` 匹配——查询 term 包含 `B` 能检索出记录在已合并至 `B` 的 `A` 上的元组，term 包含 `A` 也能检索出来。`?p.subject` / `?p.object` 暴露物理存储端点，`?p.canonical_subject` / `?p.canonical_object` 暴露经合并解析后的端点；元组本身永远不会被改写。
+
+**选用原则**：回答“什么是真的？” → `BELIEF` / `BELIEF SLOT`。审计“谁在什么依据下说了什么？” → 原始 Proposition / Assertion / Evidence 模式。严禁把原始存储的行直接当作已接受的信念呈现给用户。
 
 #### 2.2. 表达式
 
 ```text
 FILTER(?a.confidence > 0.8 && ?a.lifecycle.status == "active")   // == != < > <= >=   && || !
-FILTER(IN(?x.name, ["A", "B"]))    // 亦支持：CONTAINS STARTS_WITH ENDS_WITH REGEX
+FILTER(IN(?x.name, ["A", "B"]))    // 以及: CONTAINS STARTS_WITH ENDS_WITH REGEX
 FILTER(IS_NULL(?opt))              // IS_NOT_NULL IS_LITERAL IS_ELEMENT IS_KIND LITERAL_TYPE
-NOT { (?person, "prefers", ?x) }   // = 无可见匹配；绝不代表现实世界中为假
-OPTIONAL { ... }                   // 左连接；null 表示无可见匹配
-UNION { ... }                      // 分支联合（独立作用域）
+NOT { (?person, "prefers", ?x) }   // = 无可见匹配；绝不代表现实世界为假
+OPTIONAL { ... }                   // 左连接；null = 无可见匹配
+UNION { ... }                      // 分支选择（作用域相互独立）
 ```
 
-点路径访问：`?x.id` `?x.name` `?x.attributes.goal` `?a.lifecycle.status` `?x._system.version` `?x.facets["MnemonicState"].memory_strength` `?x["exact-key"]` `?edge.index`；也可取整个对象（`?x.attributes`）。
+点路径：`?x.id` `?x.name` `?x.attributes.goal` `?a.lifecycle.status` `?x._system.version` `?x.facets["MnemonicState"].memory_strength` `?x["exact-key"]` `?edge.index`；支持访问整个对象（`?x.attributes`）。
 
-聚合函数：`COUNT(?x)` `COUNT(DISTINCT ?x)` `SUM/AVG/MIN/MAX`。`COUNT = 0` 绝不证明陈述为假。
+聚合操作：`COUNT(?x)` `COUNT(DISTINCT ?x)` `SUM/AVG/MIN/MAX`。`COUNT = 0` 绝不证明命题为假。
 
-原始路径遍历（仅用于图遍历，不传播信念）：`(?x, "is_subclass_of"{0,5}, ?anc)`——量词 `{n}` `{m,}` `{m,n}`；分支备选 `(?x, "related_to" | "depends_on", ?y)`。
+原始路径（仅用于图遍历，不传播信念）：`(?x, "is_subclass_of"{0,5}, ?anc)` —— 量词 `{n}` `{m,}` `{m,n}`；备选路径 `(?x, "related_to" | "depends_on", ?y)`。
 
-游标（Cursor）为不透明、绑定快照、特定模式族的凭证；翻页时当前 Governance 权限依然生效。
+游标是不透明的、锁定快照的、绑定于操作族的；游标继续翻页时当前 Governance 权限依然生效。
 
 ---
 
 ### 3. KML — 写入
 
-KML 变更仅在事务（Transaction）内生效并持久化（全成功或全失败，附带提交回执）。
+KML 变更仅通过事务持久化生效（全有或全无原子性，以回执 Receipt 确认）。
 
-#### 3.1. `ASSERT` — 核心写入语法糖（规范推荐）
+#### 3.1. `ASSERT` — 高频日常写入（语法糖，规范性定义）
 
-记录归属明确的主张是最常用的高频路径，优先使用语法糖：
+记录带归属的立场陈述是最常用路径，推荐使用语法糖：
 
 ```kip
 ASSERT (:alice, "prefers", :dark_mode) {
-  by: :alice,              // 必填：语义行动者 → asserted_by
-  mode: "stated",          // 必填：observed|stated|inferred|predicted|hypothetical|imported
-  confidence: 0.95,        // 可选 [0,1]：当前立场的强度，非客观真理概率
-  evidence: :msg,          // 可选：Evidence 引用或数组（推荐由运行时接入层注入）
+  by: :alice,              // 必需：语义行动者 → asserted_by
+  mode: "stated",          // 必需：observed|stated|inferred|predicted|hypothetical|imported
+  confidence: 0.95,        // 可选 [0,1]：本立场陈述的强度，绝非客观真值概率
+  evidence: :msg,          // 可选：Evidence 引用或数组（推荐使用摄取上下文 Evidence）
   stance: "support",       // 可选，默认 support (support|reject|uncertain)
   at: :time,               // 可选 → asserted_at（默认：引擎事务时间）
-  valid: {from: :t1, until: :t2},   // 可选 → valid_time（现实世界生效区间）
-  key: :client_key         // 可选：重试安全的逻辑标识
+  valid: {from: :t1, until: :t2},   // 可选 → valid_time（现实世界有效区间）
+  key: :client_key         // 可选：重试安全的客户端逻辑键
 }
 ```
 
-事实更正（同一行动者更新先前的主张）：
+修订——同一行动者此前的陈述被证明是错的：
 
 ```kip
-ASSERT ?a (:alice, "timezone", "+01:00") {   // 句柄 ?a 可选
+ASSERT ?a (:alice, "timezone", "+01:00") {   // 句柄 ?a 是可选的
   by: :alice, mode: "stated", evidence: :e2
 } SUPERSEDING :old_assertion
 ```
 
-该语法严格等价于 `ENSURE PROPOSITION` + `CREATE ASSERTION` (+ `SUPERSEDE`)，绝不伪造多余状态。元组必须是结构化的 `(s, "p", o)`：`(id: …)` 形式仅用于匹配，在此会被拒绝。展开的长形式——需要 `challenge` / `context` 角色引证或精细控制时使用：
+世界变迁——世界本身发生了变化，旧断言在当时是正确的。绝不能因其过时而将其作为错误标记为 superseded；应通过重新断言关闭其开放区间，并在其结束处开启新断言的有效区间（两者均保持 active 状态；在变迁之前的 `FOR TIME` 查询仍返回旧值）：
+
+```text
+ASSERT (:alice, "timezone", "+08:00") {by: :alice, mode: "stated", valid: {from: :since, until: :moved_at}, evidence: :msg} SUPERSEDING :old_assertion
+ASSERT (:alice, "timezone", "+01:00") {by: :alice, mode: "stated", valid: {from: :moved_at}, evidence: :msg}
+```
+
+该语法糖精确脱糖为 `ENSURE PROPOSITION` + `CREATE ASSERTION`（+ 通过新断言 `TRANSITION ... TO "superseded" BY` 旧断言）。绝不无端捏造额外状态。三元组必须是结构化的 `(s, "p", o)`：`(id: …)` 仅用于读取匹配，在写入时会被拒绝。用于 `challenge` / `context` 证据引用或精细控制的完整写法：
 
 ```kip
 MUTATE {
@@ -215,18 +226,19 @@ MUTATE {
 }
 ```
 
-只有当 Proposition 必须是新建而非解析已有元组时，才在 `ENSURE PROPOSITION` 元组后紧跟 `EXPECT VERSION 0`。
+仅当必须明确断言新建而非解析现有命题时，才在 `ENSURE PROPOSITION` 元组之后追加 `EXPECT VERSION 0`。
 
-立场判定规则：
+立场规则：
 
-- 他人陈述事实 → `ASSERT ... {by: <them>, mode: "stated"}`。记录“Alice 说了 X”不需要具备代表 Alice 的鉴权权限。
-- 大脑自身推理得出结论 → `by: <self>, mode: "inferred"`，并将前提引用为证据。
-- 不同行动者意见分歧 → 生成两条并存的 Assertion（状态为 contested），**严禁**直接废弃替代或删除对方断言。
-- 否定某事实 → 针对肯定式命题建立 `stance: "reject"` 的断言，严禁伪造包含 `false` 的对象。
+- 他人告知事实 → `ASSERT ... {by: <them>, mode: "stated"}`。记录“Alice 说了 X”不需要拥有*代表* Alice 的权限：`by` 指向未绑定的行动者需要 `record_attributed_assertion` 权限；`by` 指向自己需要 `assert` 权限；以受保护行动者的名义*代理*发言则需要 `assert_as_actor` 及绑定。
+- `SUPERSEDING` 意味着“原陈述是错的”。不再适用的事实并不是错误的：应通过重新断言为旧断言补充 `valid.until`，并为新断言标明 `valid.from`。
+- 大脑自身推理得出 → `by: <self>, mode: "inferred"`，将前提作为证据引用。
+- 行动者之间意见不合 → 两条断言共存（产生争议 contested），**绝不能**废弃替代或删除。
+- 否定事实 → 对正面肯定命题表达 `stance: "reject"`，而不是捏造 `false` 对象。
 
-#### 3.2. Evidence — 严禁手动重新输入观测载荷
+#### 3.2. 证据（Evidence）— 严禁直接重复键入观测内容
 
-最佳实践：请求的**接入上下文（ingestion context）**直接基于传输层封包生成 Evidence；语句中只需引用 `:key`（见第 5.1 节）。若必须手动创建：
+推荐做法：通过请求的**摄取上下文（ingestion context）**直接由传输层信封生成 Evidence；智能体仅引用其 `:key`（见 §5.1）。如需手动创建：
 
 ```kip
 CREATE EVIDENCE ?e {
@@ -236,12 +248,12 @@ CREATE EVIDENCE ?e {
 }
 ```
 
-`CREATE EVIDENCE` / `CREATE ASSERTION` / `CREATE ACTIVITY` 共享同一语句体：`[CLIENT KEY]`、`SET FIELDS`、`SET FACET`*、`SET STRUCTURAL`——没有 `TYPE`/`NAME`/`SET ATTRIBUTES`（那些是 Concept 的子句）。发现证据有误时应建立更正链，严禁直接原地修改：`CORRECT EVIDENCE :old BY :new [EXPECT STATE "..."]`。
+`CREATE EVIDENCE` / `CREATE ASSERTION` / `CREATE ACTIVITY` 共享统一的语句体：`[CLIENT KEY]`、`SET FIELDS`、`SET FACET`*、`SET STRUCTURAL` —— 不使用 `TYPE`/`NAME`/`SET ATTRIBUTES`（这些是 Concept 专属子句）。错误的证据只更正、不编辑：`TRANSITION :old TO "corrected" BY :new`。
 
 #### 3.3. 概念（Concept）
 
 ```kip
-CREATE CONCEPT ?exp {                       // 历史上独立的实体
+CREATE CONCEPT ?exp {                       // 历史唯一的全新实体
   TYPE "Experience"
   CLIENT KEY :exp_key
   NAME "Deploy v2 failure"
@@ -252,16 +264,15 @@ CREATE CONCEPT ?exp {                       // 历史上独立的实体
 ```
 
 ```kip
-UPSERT CONCEPT ?proj {                      // 具备稳定标识的 Concept
-  MATCH { type: "Project", key: "kip-2" }   // 标识 = type + id/key；严禁仅凭 name 进行 upsert
-  EXPECT VERSION :v                         // 可选；0 = 仅创建
+UPSERT CONCEPT ?proj {                      // 具备稳定标识的可变 Concept
+  MATCH { type: "Project", key: "kip-2" }   // 标识 = type + id/key; 严禁仅基于 name 进行 upsert
   SET FIELDS { name: "KIP 2.0" }
-}
+} EXPECT VERSION :v                         // 可选的尾部版本守卫；0 = 仅新建
 ```
 
-子句清单（花括号内顺序不限，除 `SET/UNSET FACET` 外每种至多一次）：`CREATE CONCEPT`——`TYPE`（必填）、`CLIENT KEY`、`NAME`、`SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`。`UPSERT CONCEPT`——`MATCH`（必填）、`EXPECT VERSION`、`SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`、`UNSET ATTRIBUTES | FACET | STRUCTURAL`。`MATCH { type: "Person", key: "alice" }` 可创建；`MATCH { id: :id }` 仅匹配已有元素。其中 `type` 不是装饰：key 是其类型*之内*的身份标识（一个 Person 与一个 Preference 可以同时以 `alice` 为键），且在创建时它是新概念类型的唯一来源——因此不带 type 却需要创建的 upsert 会被拒绝，而裸 `{key: …}` 若匹配到两个概念则报 `IdentityConflict`，而不是抛硬币。值该写在哪：核心字段（`name`、`key`）→ `SET FIELDS`；模式声明的属性（`goal`、`status` 等）→ `SET ATTRIBUTES`；Profile 切面值 → `SET FACET "Facet"`；引用 → `SET STRUCTURAL`。
+子句规则（大括号内可任意排列，除 `SET/UNSET FACET` 外各子句至多出现一次）：`CREATE CONCEPT` —— `TYPE`（必填）、`CLIENT KEY`、`NAME`、`SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`。`UPSERT CONCEPT` —— `MATCH`（必填）、`SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`、`UNSET ATTRIBUTES | FACET | STRUCTURAL`，大括号闭合后跟 `EXPECT VERSION`。`MATCH { type: "Person", key: "alice" }` 允许新建；`MATCH { id: :id }` 仅匹配现有对象。`type` 不是装饰字段：`key` 是其类型*内部*的唯一标识（Person 与 Preference 可以共享 key `alice`），在创建时它是新 Concept 类型的唯一来源——因此缺失 type 且需要新建的 upsert 会被拒绝，同时匹配两个 Concept 的裸 `{key: …}` 会触发 `IdentityConflict`。字段归属：核心系统字段（`name`, `key`）→ `SET FIELDS`；Schema 声明的业务属性（`goal`, `status`, …）→ `SET ATTRIBUTES`；Profile 切面值 → `SET FACET "Facet"`；拓扑引用 → `SET STRUCTURAL`。
 
-#### 3.4. `MUTATE` — 原子认知状态迁移
+#### 3.4. `MUTATE` — 原子认知变迁块
 
 ```kip
 MUTATE {
@@ -279,12 +290,12 @@ MUTATE {
 }
 ```
 
-局部句柄（`?e`, `?a`）的作用域限定在块内，支持前向引用；引擎会对整图进行校验，随后原子性全量提交。`MUTATE` 可容纳除另一个 `MUTATE` 之外的任意 KML 语句。
+句柄（`?e`, `?a`）仅在块内部有效；允许前向引用；引擎会对整张变迁图进行预校验，随后全有或全无提交。`MUTATE` 块内可以包含除嵌套 `MUTATE` 以外的任何 KML 语句。
 
 #### 3.5. UPDATE — 仅用于可变状态
 
 ```kip
-UPDATE ?m EXPECT VERSION :v
+UPDATE ?m
 SET FACET "MnemonicState" {
   memory_strength: CLAMP(MUL(?m.facets["MnemonicState"].memory_strength, :decay), 0, 1)
 }
@@ -293,9 +304,10 @@ WHERE {
   FILTER(?m.facets["MnemonicState"].memory_strength > 0)
 }
 LIMIT :n
+EXPECT VERSION :v OF FACET "MnemonicState"
 ```
 
-动作（一个或多个，位于此处）：`SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL` 与 `UNSET ATTRIBUTES | FACET | STRUCTURAL`。`SET FIELDS` 刻意**没有** `UNSET FIELDS`；只能向 Core 字段赋予 Schema 允许的值。精确移除形式：
+变更动作（一或多个，位于该位置）：`SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL` 以及 `UNSET ATTRIBUTES | FACET | STRUCTURAL`。`SET FIELDS` 刻意**不提供** `UNSET FIELDS`；仅允许进行符合模式规范的核心字段赋值。精确清除形式：
 
 ```kip
 UPDATE :concept_id
@@ -304,60 +316,61 @@ UNSET FACET "MnemonicState" {salience}
 UNSET STRUCTURAL { ("has_step", :wrong_step) }
 ```
 
-`UNSET ATTRIBUTES` / `UNSET FACET` 内部是以逗号分隔的字段名，不是 `{field: null}` 赋值。`UNSET STRUCTURAL` 移除一条指名引用；有序字段会重新致密化，基数在提交时校验。通过 UPDATE 执行的 `SET/UNSET STRUCTURAL` 仅适用于可变 Concept 拓扑。Assertion 与 Evidence 的引证/拓扑不可变；未终结 Activity 只能通过 `TRANSITION ACTIVITY ... SET STRUCTURAL` 完成拓扑，终态 Activity 拓扑不可变。
+`UNSET ATTRIBUTES` / `UNSET FACET` 包含逗号分隔的字段名列表，而不是 `{field: null}` 赋值。`UNSET STRUCTURAL` 移除一个具名引用；有序字段将重新紧凑编号并验证基数限制。通过 UPDATE 执行的 `SET/UNSET STRUCTURAL` 仅适用于可变的 Concept 拓扑。Assertion 和 Evidence 的引用与拓扑是不可变的；处于 pending 状态的 Activity 仅能通过 `TRANSITION ... TO "completed" SET STRUCTURAL` 一次性固化拓扑，终态 Activity 的拓扑完全不可变。
 
-更新表达式：`ADD`、`MUL`、`CLAMP`、`COALESCE`（针对每个目标确定性计算；操作数只能读取目标自身的路径）。UPDATE 绝不执行创建。直接引用目标无需 `WHERE`：`UPDATE :id SET FACET "MnemonicState" {salience: 0.9}`（与 ARCHIVE/TOMBSTONE/PURGE/SET RETENTION/RETRACT 同一规则——`?var` 目标由 WHERE 绑定，`:id`/`"id"` 已经指名了元素）。
+更新表达式：`ADD` `MUL` `CLAMP` `COALESCE`（确定性，按目标独立求值；操作数只能读取目标自身的路径）。UPDATE 绝不负责新建。直接指定目标对象时无需 `WHERE` 子句：`UPDATE :id SET FACET "MnemonicState" {salience: 0.9}`（与 TRANSITION/PURGE/SET RETENTION 规则一致——`?var` 目标由 WHERE 绑定，`:id`/`"id"` 则直接指明元素）。
 
-**UPDATE 严禁触碰的区域**：Proposition 元组、Assertion 认识载荷及初始引证、Evidence 载荷/拓扑、Activity 拓扑、`_system`、Governance、Schema。未终结 Activity 通过 `TRANSITION ACTIVITY` 完成字段/拓扑；终态 Activity 不可变。违规重写将抛出 `EpistemicRevisionRequired` / `EvidenceCorrectionRequired` / `ImmutableField`。**严禁随时间推移衰减 Assertion 置信度**——未被调用的记忆衰减的是 `memory_strength`；时效性由认识投影负责；认知更新必须创建新 Assertion。
+**UPDATE 严禁触碰**：Proposition 元组、Assertion 涉真载荷与引用、Evidence 载荷与拓扑、终态 Activity 拓扑、`_system` 内部状态、Governance 治理面、Schema 模式包。处于 pending 状态的 Activity 使用 `TRANSITION` 固化字段与拓扑；终态 Activity 不可变。尝试非法重写将触发 `EpistemicRevisionRequired` / `EvidenceCorrectionRequired` / `ImmutableField`。**严禁随时间推移衰减断言置信度（Assertion confidence）**——置信度代表表达时的坚信程度，记忆不用会降低 `memory_strength`；过期处理是投影的职责；产生新认知应创建新断言。
 
-#### 3.6. 生命周期与移除（每一种都是不同的事）
+#### 3.6. 生命周期与移除 — 统一 `TRANSITION`，目标状态命名动作
 
 ```text
-RETRACT ASSERTION :a [WHERE {...}] [LIMIT :n] [EXPECT STATE "active"]   // 断言者撤回自身的主张
-SUPERSEDE ASSERTION :old BY ?new [EXPECT STATE "active"]               // 同一行动者/血统链的版本迭代——非分歧
-TRANSITION ACTIVITY :act TO "completed"                                // 生命周期跃迁；可原子地一并敲定终态字段
-  [SET FIELDS { ended_at: :t }] [SET STRUCTURAL { ("outputs", ?a) }] [EXPECT STATE "running"]
-ARCHIVE :target [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]     // 移出常规召回范围；完整保留历史
-TOMBSTONE :target [WHERE {...}] [LIMIT :n] [EXPECT STATE "..."]   // 逻辑删除；保留标识与审计记录
-PURGE :target [WHERE {...}] [LIMIT :n]                             // 物理抹除；极端特殊操作
-  [REFERENCE POLICY "deny_if_referenced"] CONFIRM "PURGE"          // 策略：deny_if_referenced | tombstone_reference | authorized_cascade
-PURGE PAYLOAD :evidence [WHERE {...}] [LIMIT :n] CONFIRM "PURGE"   // 仅清除证据载荷字节；记录、摘要、引用拓扑与溯源完整保留
+TRANSITION :a TO "retracted" [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]   // 断言者撤回自身的主张
+TRANSITION :old TO "superseded" BY ?new                                    // 同一行动者的主张被证明错误 —— 非观点分歧，非世界变迁
+TRANSITION :old TO "corrected" BY :new                                     // 证据错误：建立新记录与血统链，严禁原位编辑
+TRANSITION :act TO "completed" [SET FIELDS {ended_at: :t}] [SET STRUCTURAL {("outputs", ?a)}]   // Activity: running|completed|failed|cancelled; 可原子固化
+TRANSITION :target TO "archived" [WHERE {...}] [LIMIT :n]                  // 移出常规召回视图；历史完全保留
+TRANSITION :target TO "tombstoned" [WHERE {...}] [LIMIT :n]                // 逻辑删除；身份标识与审计线索保留
+PURGE :target [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]                 // 物理彻底抹除；受严格控制的高危操作
+  [REFERENCE POLICY "deny_if_referenced"] CONFIRM "PURGE"                  // 策略: deny_if_referenced | tombstone_reference | authorized_cascade
+PURGE PAYLOAD :evidence [WHERE {...}] [LIMIT :n] CONFIRM "PURGE"           // 仅清除 Evidence 数据载荷；记录元数据、摘要、引用与溯源完整保留
 SET RETENTION :target { retention_class: "standard", expires_at: :t } [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]
 MERGE CONCEPT ?src INTO ?tgt [WHERE {...}] [EXPECT VERSION :v]
 ```
 
-凡 `WHERE` 可能选中无界集合的变更语句，都在其后接受可选的 `LIMIT`（`UPDATE`、`RETRACT ASSERTION`、`SET RETENTION`、`ARCHIVE`、`TOMBSTONE`、`PURGE`、`PURGE PAYLOAD`）——请为你的扫描设界。`LIMIT` 限定影响的数量而非选择的对象：不要假定顺序。`MERGE CONCEPT` 不接受 `LIMIT`。
+引擎会根据目标类型及其当前生命周期状态对流转动作进行合法性校验：Assertion 可流转至 `retracted` 或 `superseded`（通过 `BY` 指定新断言），Evidence 可流转至 `corrected`（通过 `BY` 指定新证据），Activity 可流转至 `running` 或终态，任意元素均可流转至 `archived` 或 `tombstoned`。从非法状态发起的流转将直接报错 `InvalidLifecycleTransition`，因此协议无需 `EXPECT STATE` 守卫。
 
-`MERGE CONCEPT` 为非破坏性合并：源节点作为已合并历史依然可寻址；后续新写入会自动规范化到目标节点。会制造环的合并（目标已传递解析回源）将被拒绝。
+所有其 `WHERE` 块可能选中无界集合的变更语句，都支持紧随其后的可选 `LIMIT`（`UPDATE`, `TRANSITION`, `SET RETENTION`, `PURGE`, `PURGE PAYLOAD`）——对批处理维护操作进行范围限制。`LIMIT` 仅限制受影响的最大数量，不保证特定顺序：除非运行时显式声明，否则不要假设特定顺序。`MERGE CONCEPT` 不接受 `LIMIT`。
 
-前置状态断言：`EXPECT VERSION :n`（乐观并发控制；`EXPECT VERSION 0` 代表仅允许新建）在 `UPDATE` 中紧跟目标之后、在 `UPSERT CONCEPT` 中位于 `MATCH` 之后、在 `ENSURE PROPOSITION` 中位于元组之后、在 `SET RETENTION` / `MERGE CONCEPT` 中位于最后；`EXPECT STATE "..."` 永远是生命周期语句的最后一个子句。
+`MERGE CONCEPT` 属于非破坏性操作：源实体作为历史合并记录依然保持可寻址；未来的写入将自动规范化指向目标实体。导致环状依赖的合并（目标已解析回源实体）将被拒绝。
+
+前置条件：`EXPECT VERSION :n [OF ATTRIBUTES | STRUCTURAL | RETENTION | FACET "X"]`（乐观并发控制；`0` = 仅新建；指定平面仅守卫该平面自身的版本计数器，使状态裁决与切面扫描互不抢锁）始终位于变更语句的**最后**——排在 `WHERE` 和 `LIMIT` 之后、`UPSERT` 大括号闭合之后、`ENSURE PROPOSITION` 元组之后——并且可以重复声明，每个平面限守卫一条。
 
 ---
 
-### 4. META — 接地、校验与自省
+### 4. META — 实体接地、验证与自省
 
 ```text
-DESCRIBE PRIMER [MODE "compact" | "full" | :mode]   // 获取标识、Space、模式映射、支持能力及安全不变式
-DESCRIBE PROTOCOL | EXECUTION CONTEXT | CAPABILITIES | PROJECTION CAPABILITY   // CAPABILITIES：系统支持的能力 vs 当前调用者可用的能力
+DESCRIBE PRIMER [MODE "compact" | "full" | :mode]   // 身份、空间、执行上下文、模式映射、能力集与安全不变式
+DESCRIBE PROTOCOL | CAPABILITIES                      // CAPABILITIES: 支持能力 vs 可用能力 (针对当前调用者)，包含投影能力
 DESCRIBE SPACE ["space-id" | :space_id]
-DESCRIBE SCHEMA ENVIRONMENT [AS OF SEQ :s | AS OF TX :tx | AS OF TIME :t]
-DESCRIBE SNAPSHOT [AS OF SEQ :s | AS OF TX :tx | AS OF TIME :t]
+DESCRIBE SCHEMA ENVIRONMENT [AS OF SEQ :s]
+DESCRIBE SNAPSHOT [AS OF SEQ :s | AT TIME :t]         // 快照坐标；AT TIME 可将时间戳解析为 seq
 DESCRIBE TYPE :t | PREDICATE :p | FACET :f | STRUCTURAL FIELD :sf | PACKAGE :pkg | COMPATIBILITY FROM :pkg_a TO :pkg_b
 DESCRIBE ERROR :code | CAPSULE :artifact | EPISTEMIC POLICY [:id] | TRUST [:scope] | ACCESS [WITH {operation: "...", resource: :r}]
 DESCRIBE TRANSACTION :tx_id | DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :key
 LIST SPACES | TYPES | PREDICATES | FACETS | STRUCTURAL FIELDS | EPISTEMIC POLICIES [LIMIT :n] [CURSOR :c]
 LIST SCHEMA PACKAGES [STATUS "active" | :status] [LIMIT :n] [CURSOR :c]
-LIST DEPENDENTS :id [DEPTH :n] [LIMIT :n] [CURSOR :c]   // 某元素派生出的下游认知，沿 Activity inputs→outputs（及派生字段）遍历
-HISTORY ELEMENT :id [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]   // 查看状态迁移时间线
+LIST DEPENDENTS :id [DEPTH :n] [LIMIT :n] [CURSOR :c]   // 遍历 Activity inputs→outputs (+派生字段) 枚举从某一元素派生出的认知
+HISTORY ELEMENT :id [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]   // 状态变迁编年史
 HISTORY SPACE [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]
-CHANGES SINCE :cursor [LIMIT :n] | CHANGES AFTER SEQ :seq [LIMIT :n]   // 事务级变更流
-SNAPSHOT [AS OF SEQ :s | AS OF TX :tx | AS OF TIME :t]
+CHANGES SINCE :cursor [LIMIT :n] | CHANGES AFTER SEQ :seq [LIMIT :n]   // 事务粒度变更流
 VERIFY CAPSULE | SCHEMA PACKAGE | RECEIPT | BLOB | CHECKPOINT :artifact
 VALIDATE KQL | KML | CAPSULE | SCHEMA PACKAGE | IMPORT PLAN :input [WITH {...}]
 PREVIEW KML :cmd | PREVIEW IMPORT CAPSULE :capsule INTO :space
-EXPORT CAPSULE ?roots WHERE {...}                                      // ?roots 由 WHERE 绑定，或用 :id / "id" 指定单个根
+EXPORT CAPSULE ?roots WHERE {...}                                      // ?roots 由 WHERE 绑定，或使用 :id / "id" 指定单个根
   [WITH {closure: "referential", provenance_depth: 2, include_schema: true, include_blobs: false, proof_profile: "..."}]
-  [AS OF SEQ :s | AS OF TX :tx | AS OF TIME :t]
+  [AS OF SEQ :s]
 ```
 
 ```text
@@ -369,7 +382,7 @@ SEARCH <KIND> :term
 KIND = CONCEPT | PROPOSITION | ASSERTION | EVIDENCE | ACTIVITY | COGNITION
 ```
 
-所有 SEARCH 修饰子句都必须按上述顺序书写。`WITH TYPE` / `WITH PREDICATE` 仅在对当前 kind 有意义时使用；具体适用性由运行时语义校验。`AS OF SEQ` 需要已公告的 `historical_search` 能力。
+SEARCH 的所有修饰子句必须严格遵循上述顺序。`WITH TYPE` / `WITH PREDICATE` 仅在对所选类型有意义时使用；由运行时语义校验决定其适用性。`AS OF SEQ` 要求运行时声明具备 `historical_search` 能力。
 
 ```kip
 SEARCH CONCEPT :term
@@ -379,15 +392,15 @@ THRESHOLD :threshold
 LIMIT :limit
 ```
 
-SEARCH 仅用于检索接地：检索得分 ≠ 置信度 ≠ 确信事实；未命中 ≠ 现实不存在；检索结果会声明索引版本 `index_seq`。标准流程为：**SEARCH 检索 → 锁定精确 id → BELIEF/FIND 精确查询**。
+SEARCH 仅用于关联接地：得分 (score) ≠ 置信度 ≠ 信念；未搜到 ≠ 不存在；结果必须披露 `index_seq` 索引新鲜度。推荐工作流黄金路径：**SEARCH → 获取精确 ID → 执行 BELIEF/FIND**。
 
-五层校验原则：`DESCRIBE/SEARCH`（定位） ≠ `VERIFY`（完整性） ≠ `VALIDATE`（合法性） ≠ `PREVIEW`（模拟执行效果） ≠ **Receipt**（实际提交生效的内容）。
+五层安全纪律：`DESCRIBE/SEARCH`（定位发现）≠ `VERIFY`（完整性校验）≠ `VALIDATE`（语法与规则合法性）≠ `PREVIEW`（影响模拟）≠ **Receipt**（实际持久化提交）。
 
 ---
 
-### 5. 运行时请求封包
+### 5. 运行时信封（Runtime Envelope）
 
-以下是一个完整的**常用路径请求**，而非全部 wire grammar：
+以下是一个完整的**常用请求示例**，非完整协议线上传输语法的全部穷举：
 
 ```json
 {
@@ -402,7 +415,7 @@ SEARCH 仅用于检索接地：检索得分 ≠ 置信度 ≠ 确信事实；未
       "payload": "I prefer dark mode.",
       "media_type": "text/plain",
       "observed_at": "2026-08-16T01:00:00Z",
-      "source_actor": "alice",
+      "source_actor": {"id": "concept-alice"},
       "client_key": "message:123"
     }]
   },
@@ -418,70 +431,70 @@ SEARCH 仅用于检索接地：检索得分 ≠ 置信度 ≠ 确信事实；未
 }
 ```
 
-#### 5.1. 接入、执行与恢复
+#### 5.1. 摄取、执行与故障恢复
 
-- **执行模式（操作数 > 1 时必填）**：`independent`（相互隔离、并发执行） | `sequence`（有序执行、独立提交、先前步骤不回滚） | `atomic`（单一事务、单一快照、读己所写、全成功或全回滚）。
-- **第 5.1 节 接入注入**：每个 `ingest.evidence[].key` 会绑定为运行时直接生成的 Evidence 参数——观测载荷绝不需要经由模型生成的指令文本中转。每个条目必须且只能提供 `payload` / `payload_artifact` 其中之一。
-- **三重标识体系**：`request_id`（单次网络请求） ≠ `idempotency_key`（单次逻辑写入意图） ≠ `tx_id`（已提交的事实记录）。对于相同的逻辑写入，重试时必须保持 `idempotency_key` **完全一致**。
-- **响应结构**：顶层状态包含 `succeeded|failed|partial|outcome_unknown`；逐操作状态包含 `succeeded|failed|skipped|rolled_back|no_effect`；提交回执携带 `tx_id`、`space_seq` 及数据摘要。
-- **超时 ≠ 中止**：网络丢包或响应丢失时，使用 `DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :key` 查询或使用原请求/原幂等键重试。绝不能直接重新生成一份新记忆写入。
+- **执行模式（Execution modes）**（包含 1 个以上操作时必填）：`independent`（相互隔离并发执行；每个结果独立返回其 `snapshot_seq`）| `sequence`（按序逐个提交，前面的提交不回滚；`on_error` 默认为 `stop`）| `atomic`（单一事务，单一致快照，read-your-writes，全有或全无）。在 `sequence`/`independent` 下每个写入操作的回执位于 `results[].receipt`；只有 `atomic` 具有顶层 `receipt`。`execution.idempotency_key` 将在响应中原样回显。
+- **§5.1 摄取（Ingestion）**：每个 `ingest.evidence[].key` 都会成为绑定到运行时铸造的 Evidence 的参数——观测到的原始载荷无需穿透智能体生成的文本。每个条目必须且仅能提供 `payload` 或 `payload_artifact` 之一，并可携带 `facets`（例如 `outcome` 上的 `OutcomeRecord`）。写入 `outcome` 证据必须持有 `record_outcome` 权限；结果证据仅能通过 `inputs` 包含 `action_gate` 的 `outcome_observation` 活动来为特定决策打分。
+- **三组身份标识**：`request_id`（网络层单次重试）≠ `idempotency_key`（单次逻辑写入意图）≠ `tx_id`（已提交事实）。重试同一逻辑写入时，必须使用**完全相同**的 idempotency key。
+- **响应状态**：顶层状态包含 `succeeded|failed|partial|outcome_unknown`；逐操作状态包含 `succeeded|failed|skipped|rolled_back|no_effect`；提交成功的回执包含 `tx_id`、`space_seq` 及摘要信息。
+- **超时 ≠ 中止**：网络丢失响应时，使用 `DESCRIBE TRANSACTION BY IDEMPOTENCY KEY :key` 确认状态，或使用完全相同的请求与幂等键重试。绝不能重新构建全新的认知。
 
-#### 5.2. 完整 wire 表面
+#### 5.2. 完整网络传输层规范
 
-完整请求 Schema 还定义了 `compatibility_profile`、`read.snapshot_token`、`preconditions`、请求级 `parameters`、`context`、`requires`、`options`、带命名空间的 `extensions`、操作级 `ast | command` 以及操作级幂等键/options。严禁臆造封包字段：请求使用 [`kip-request.schema.json`](./schemas/kip-request.schema.json) 校验，响应使用 [`kip-response.schema.json`](./schemas/kip-response.schema.json) 校验。
+完整的请求 Schema 还定义了 `compatibility_profile`、`read.snapshot_token`、`preconditions`、请求级 `parameters`、`context`、`requires`、`options`、命名空间化 `extensions`、操作级 `ast | command` 以及操作级幂等性/选项。绝不要自行发明信封字段：请依据 [`kip-request.schema.json`](./schemas/kip-request.schema.json) 进行校验；依据 [`kip-response.schema.json`](./schemas/kip-response.schema.json) 校验响应。
 
 #### 5.3. 智能体加载与生成契约
 
-加载本手册只能学会语言，不会获得当前部署的标识或 Schema。生产环境智能体需要同时获得四类输入：
+阅读本速查手册仅掌握语言本身，而非具体部署环境的实体或 Schema。生产环境智能体必须同时获取这四项输入：
 
 ```text
-1. 本语法速查手册                         静态语言/常用路径规则
-2. execute_kip 工具/请求 JSON Schema    精确 wire 形状与参数绑定
-3. DESCRIBE PRIMER + 定向 DESCRIBE     当前 Space、self、Schema 引用、能力与限制
-4. VALIDATE/PREVIEW + 结构化错误         重要写入前的合法性校验与修正闭环
+1. 本语法速查卡                              静态语言规则与常用路径
+2. execute_kip 工具 / 请求 JSON Schema       精确的传输层结构与参数绑定
+3. DESCRIBE PRIMER + 针对性的 DESCRIBE        当前 Space、self 标识、Schema 引用、能力与配额
+4. VALIDATE/PREVIEW + 结构化错误反馈          在实际写入前执行合法性检查与自愈修正循环
 ```
 
-启动时或收到 `requires_refresh` 后，执行 `DESCRIBE PRIMER`；生成写入前，先接地具体 Type、Predicate、Facet、Structural Field 与 id。动态拼装或高影响命令优先执行 `VALIDATE KQL :command` / `VALIDATE KML :command`（或等价本地 parser）。解析/VALIDATE 成功仍不代表已提交；只有成功 Receipt 才证明变更已持久化。
+系统启动时或遇到 `requires_refresh` 错误后，调用 `DESCRIBE PRIMER`；在生成写入命令前必须对具体的类型、谓词、切面、结构字段和 id 进行接地。动态拼接或高风险命令应优先使用 `VALIDATE KQL :command` / `VALIDATE KML :command`（或等价的本地解析器）。解析通过和 VALIDATE 成功依然不是 commit；只有返回成功的 Receipt 回执才证明数据已被持久化。
 
 ---
 
-### 6. 认知记忆 Profile（速查）
+### 6. 认知记忆 Profile（速查参考）
 
-核心类型：`Person`、`Event`（发生了什么）、`Experience`（目标导向轨迹；必须包含 `goal`、`outcome_status`）、`ExperienceStep`（`step_kind`: context|observation|decision|action|feedback|belief_update；`summary`；顺序由 has_step 边索引决定）、`Preference`（总结性产物——主张本身仍为 Proposition+Assertion）、`Insight`、`Commitment`（`status`: pending|fulfilled|cancelled|expired|blocked；`due_at` 与 retention 过期时间不同）、`Watch`（布防的注意力；`watch_class`: delta|silence；`condition`；`status`: armed|fired|expired|disarmed；触发不授予权限）、`Skill`（`skill_class`、必填 `task_family`——评定其效果的结果流、`summary`、`procedure`、`status`: proposed|trialed|adopted|revoked；状态迁移仅能通过针对已评定结果的确定性 `lifecycle_verdict`）、`SleepTask`（`task_class`: consolidate|review_conflict|review_skill|resolve_identity|review_retention|review_derived|refresh_self_model|inspect_quarantine；`summary`；`status`: pending|running|completed|cancelled|blocked|failed）、`SelfModel`、`WorkingState`（当前工作上下文与未决事项；必须包含 `basis_seq`；派生视图，绝非 Evidence）。
+概念类型（Types）：`Person` `Event`（客观发生的事）`Experience`（目标导向的经历轨迹；必填 `goal`, `outcome_status`）`ExperienceStep`（`step_kind`: context|observation|decision|action|feedback|belief_update; `summary`; 顺序由 has_step 边索引确定）`Preference`（偏好摘要工件——主张本身仍为 Proposition+Assertion）`Insight`（洞察；可选的 `task_family` 可将其订阅至后果流）`Commitment`（承诺；`status`: pending|fulfilled|cancelled|expired|blocked; `due_at` ≠ retention 过期）`Watch`（关注警戒；`watch_class`: delta|silence; `condition` = `{element | slot: {subject, predicate} | type, ops, touched, text}` over Change Envelope entries, `text` alone is Brain-evaluated; `status`: armed|fired|expired|disarmed; firing is a guarded UPDATE + `watch_fire` Activity keyed `watch_fire:<id>:<seq>` so it never double-fires; a silence Watch is decided only after the stream is consumed through `due_at`, never on the clock alone; firing grants nothing）`Skill`（技能；`skill_class`, required `task_family` — the stream its baseline comes from, `summary`, `procedure`, `status`: proposed|trialed|adopted|revoked; transitions only by deterministic `lifecycle_verdict` over outcomes linked to decisions that applied it）`SleepTask`（睡眠任务；`task_class`: consolidate|review_conflict|review_skill|resolve_identity|review_retention|review_derived|refresh_self_model|inspect_quarantine; `summary`; `status`: pending|running|completed|cancelled|blocked|failed）`SelfModel`（自我模型）`WorkingState`（当前工作记忆摘要；必填 `basis_seq`；派生视图，绝不能作为 Evidence 引用）
 
-核心谓词：`prefers`（Person→Concept）、`caused_by`（Step→Step，结果→起因，基于证据）、`same_as`（同一性主张 → 触发审核）。
+谓词（Predicates）：`prefers` (Person→Concept) `caused_by` (Step→Step, 结果→原因, 证据支撑) `same_as` (同一性主张 → 人工/规则复审)
 
-核心 Facet：`MnemonicState {memory_strength, salience, utility, last_metabolized_at}`、`SkillUtility {utility, success_count, failure_count, graded_count, last_verdict_at}`、`DerivationState {basis_seq, status: current|stale|under_review, reviewed_at}`、`OutcomeRecord {task_family, outcome_status: success|partial|failure|aborted|unknown, magnitude}`（附着于 `outcome` 证据；由仪器写入，绝非被评定的行动者）——比率字段取值为 `[0,1]`，计数字段为非负整数，时间戳字段可为 null；均不代表真假，且 `stale` 是复审标记而非撤回。
+切面（Facets）：`MnemonicState {memory_strength, salience, utility, last_metabolized_at}`（Skill 也包含：`utility` 是准入下注）`GradingState {success_count, failure_count, graded_count, last_verdict_at}`（Skill / 订阅流的 Insight；仅统计指向应用该认知的决策的结果）`TrialState {opened_at, basis_seq, baseline_graded_count, baseline_success_count, baseline_failure_count, quota, rule_id}`（由开启试用的裁决写入）`DerivationState {basis_seq, status: current|stale|under_review, reviewed_at}` `DecisionRecord {decision: act|ask|defer|silence, rationale}`（挂在 `action_gate` 活动上，其 `inputs` 指明所应用的 Skill 与记忆）`OutcomeRecord {task_family, outcome_status: success|partial|failure|aborted|unknown, magnitude}`（挂在 `outcome` Evidence 上；由仪器写入，绝非被评估的行动者自身）—— 比例值为 `[0,1]`，计数为非负整数，时间戳可为空；它们都不是真值，`stale` 是复审标记而非撤回，`task_family` 寻找基线但绝不直接用于归因。
 
-结构引用字段：`has_step`（有序）、`experienced_by`、`involves`、`mentions`、`about`、`derived_from`、`consolidated_to`、`compiled_from`、`compiled_by`、`committed_to`、`owed_to`、`assigned_to`、`watches`；内置底层记录字段：`evidence`、`source`、`generated_by`、`inputs`、`outputs`、`associated_actors`。
+结构字段：`has_step`（有序）`experienced_by` `involves` `mentions` `about` `derived_from` `consolidated_to` `compiled_from` `compiled_by` `committed_to` `owed_to` `assigned_to` `watches`；记录类内置字段：`evidence` `source` `generated_by` `inputs` `outputs` `associated_actors`。
 
-核心不变式：失败的 Experience 是头等记忆；单次成功 ≠ 已采纳的 Skill；已采纳的 Skill ≠ 执行权限；自身对行动结果的陈述是 `agent_statement`，永远不是 `outcome` 证据；SelfModel ≠ Governance 权限策略；触发的 Watch 是注意力而非执行权限——门控决策须以 `action_gate` Activity 记录（act|ask|defer|silence），主动静默亦同；WorkingState 对外必须披露其 `basis_seq` 且绝不能作为 Evidence 引用；导入的记忆保持 `mode: "imported"`，绝不会伪造成本地亲历传记（导入的 Skill 以 `proposed` 重新进入）。
+核心不变量：失败的经历也是一等公民记忆；单次成功 ≠ 采纳技能；采纳技能 ≠ 具备执行权限；自身关于行动结果的叙述属于 `agent_statement`，绝非 `outcome` Evidence；SelfModel ≠ 治理权限；触发的 Watch 仅代表引起注意，绝非执行许可 —— 记录网关决策（`action_gate` 活动 + `DecisionRecord`: act|ask|defer|silence, inputs = 所应用的技能与记忆），包括刻意的沉默；结果证据仅能通过 `outcome_observation` 指向决策活动来为 Skill 打分，绝不能仅凭同属 `task_family` 计分；WorkingState 必须携带 `basis_seq` 且绝不能被引为 Evidence；导入的记忆保留 `mode: "imported"` 且绝不能变成具备本地权威的自传（导入的 Skill 重置为 `proposed` 重新受评）。
 
 ---
 
-### 7. 错误体系（据此自主纠错）
+### 7. 错误代码与自愈指南
 
-错误分类：`syntax`、`protocol`、`schema`、`data`、`epistemic`、`governance`、`transaction`、`history`、`search`、`artifact`、`resource`、`transport`、`system`。每个错误均包含 `code`、`hint` 与 `retry.class`：
+错误大类：`syntax protocol schema data epistemic governance transaction history search artifact resource transport system`。每个错误均包含 `code`、`hint` 与 `retry.class`：
 
 ```text
 safe_same_request | requires_refresh | requires_different_input | requires_authority
 | requires_new_snapshot | requires_reacquire_artifact | outcome_lookup_required | non_retryable
 ```
 
-高频错误与修复方案：`SchemaSymbolAmbiguous`（改用精确的 `kip://pkg@ver/symbol`） · `SchemaSymbolNotFound`（先执行 DESCRIBE 了解结构，严禁臆造 schema） · `EpistemicRevisionRequired`（试图直接 UPDATE 信念历史 → 改用新 Assertion + SUPERSEDING） · `EvidenceCorrectionRequired`（→ 改用 CORRECT ... BY） · `VersionConflict`（重新读取、重新应用、携带最新 EXPECT VERSION 重试） · `IdempotencyConflict`（相同幂等键对应不同请求内容 → 更换新键） · `OutcomeUnknown`（→ 通过幂等键查询事务结果） · `NotFoundOrNotVisible`（目标可能存在于权限范围之外——绝不能得出“事实不存在”的结论） · `ReadonlyViolation` / `LanguageMismatch`（由实际解析出的语义规则裁定）。
+高频错误自愈对策：`SchemaSymbolAmbiguous`（使用全限定 URI `kip://pkg@ver/symbol`）· `SchemaSymbolNotFound`（先执行 DESCRIBE，严禁臆造 Schema 符号）· `EpistemicRevisionRequired`（试图 UPDATE 信念历史 → 新建 Assertion + SUPERSEDING）· `EvidenceCorrectionRequired`（→ CORRECT ... BY）· `VersionConflict`（重新读取最新版本，重新计算，以最新 EXPECT VERSION 重试）· `IdempotencyConflict`（同一 idempotency key 尝试发送不同请求内容 → 更换新 key）· `OutcomeUnknown`（→ 按幂等键查询事务状态）· `NotFoundOrNotVisible`（对象可能存在但超出调用者可见权限 —— 绝不能判定其不存在）· `ReadonlyViolation` / `LanguageMismatch`（以解析出的实际语义规则为准）。
 
 ---
 
-### 8. 最佳实践指南
+### 8. 黄金守则
 
-1. **写入前先接地**：使用 `SEARCH` + `DESCRIBE` 确定精确 id 与 schema 引用。持久化时使用确切版本号，严禁使用 `@latest`。
-2. **高频路径 = `ASSERT` + 数据接入注入**：单条语句完成带归属的主张记录；证据由运行时直接生成并通过 `:key` 引用——绝不在生成的指令文本中复述观测载荷。
-3. **涉真提问使用 `BELIEF`/`BELIEF SLOT`**：原始 `FIND` 仅用于审计、历史分析与冲突排查。对 `insufficient` 明确解释为“依据不足”，绝不能断言为“否”。
-4. **更正标准规范**：新证据到达 → `ASSERT ... SUPERSEDING :old`（重大修订补充 `belief_revision` Activity）。不同主体间的分歧并存记录即可。
-5. **单次认知状态跃迁 = 单个原子 MUTATE/事务**：Evidence+Assertion、Experience+Steps+Activity、更正+废弃替代均应打包，严禁残留不一致的半成品。
-6. **记忆代谢仅触及 Facet**：衰减 `memory_strength`、调整 `salience`、更新 `SkillUtility`——绝不原地编辑 Assertion 置信度；重大认识变化必须创建新 Assertion，必要时废弃替代旧 Assertion。
-7. **数据移除阶梯**：archive（归档） → tombstone（墓碑） → purge（物理清除，需策略与二次确认）。合并操作是非破坏性的；疑似同一实体使用 `same_as` 主张加审核流处理。
-8. **严格遵循幂等重试规范**：相同意图使用相同的 `idempotency_key`；不同物理现实的观测使用不同的 `client_key`。重试操作不等于生成新的 Experience。
-9. **明确时间双轴**：`FOR TIME` 表示“现实世界的适用时效”，`AS OF` 表示“大脑当时所认知的内容”；只有同时指定认知历史时间与现实生效时间时才组合两者。
-10. **你是调用主体而非语义行动者**：`by:` 指明当前立场归属于谁；你记录该立场的权限源自 Governance，你的任何记忆写入操作都无法自行扩大自身的系统权限、信任度或模式定义。
-11. **校验生成的命令**：parser-valid ≠ Schema-valid ≠ 已授权 ≠ 已提交。非平凡或高影响命令使用 `VALIDATE`/`PREVIEW`，依据结构化错误修正，并且只把 Receipt 视为持久化事实。
+1. **写前接地**：`SEARCH` + `DESCRIBE` → 获取精确 ID 与 Schema 引用。持久化时使用精确版本，绝不使用 `@latest`。
+2. **高频路径 = `ASSERT` + 摄取**：单条语句完成归属陈述；证据由运行时自动生成并以 `:key` 引用 —— 严禁手动重新键入观测到的载荷。
+3. **涉真问题必须使用 `BELIEF`/`BELIEF SLOT`**；原始 `FIND` 仅用于审计、历史分析与冲突排查。对 `insufficient` 应如实告知“依据不足”，绝不能判定为“假/否”。
+4. **更正规范**：出现新证据 → `ASSERT ... SUPERSEDING :old`（重大变更补充记录 `belief_revision` 活动）。不同主体间的观点分歧应保持共存。
+5. **单次认知变迁 = 单一原子 MUTATE / 事务**：证据+断言；经历+步骤+活动；更正+废弃。绝不能留下残缺状态。
+6. **代谢仅触碰 Facet**：衰减 `memory_strength`、调节 `salience`、依据关联结果累加 `GradingState` —— 断言置信度绝不能原位修改；产生认识论层面的新认知应创建新断言，并可选择废弃旧断言。
+7. **移除操作梯度分级**：归档（archive）→ 逻辑删除（tombstone）→ 物理抹除（purge，受策略控制，需显式确认）。合并是非破坏性的；发现同一性疑点 = 声明 `same_as` 主张并提交复审。
+8. **重试遵循规范写入路径**：相同意图 = 相同的 `idempotency_key`；现实世界中不同独立观测 = 不同的 `client_key`。重试不等于产生了新经历。
+9. **严格区分双时间轴**：`FOR TIME` 表达“现实世界在何时有效”，`AS OF` 表达“大脑在当时认知状态下相信什么”；仅在两者均明确指定时才同时使用。
+10. **你是调用主体（Principal），而非行动者本身**：`by:` 标明立场属于谁；记录该立场的权限来自 Governance，智能体写下的任何认知内容都不能自动扩张其自身的权限、信任或模式。
+11. **验证生成的命令**：解析合法 (parser-valid) ≠ Schema 合法 (Schema-valid) ≠ 具备执行授权 ≠ 实际提交持久化。针对复杂或关键命令，优先使用 `VALIDATE`/`PREVIEW`，依据结构化错误反馈自愈，并以 Receipt 回执作为持久化确认的唯一事实。

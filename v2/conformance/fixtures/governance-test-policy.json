@@ -1,0 +1,162 @@
+{
+  "format": "KIP-Conformance-Governance-Policy",
+  "format_version": "2.0-draft",
+  "policy_id": "governance-test-policy",
+  "version": 1,
+  "description": "The canonical test Principals of KIP-2.0-Conformance-Tests.md §10 as one default-deny Governance policy. Vectors that need a different policy say so in their prose; everything else runs under this one.",
+  "default": "deny",
+  "classification_labels": [
+    "public",
+    "internal",
+    "secret"
+  ],
+  "principals": {
+    "owner": {
+      "description": "Broad authority over the Space, incl. identity merge, retention, removal, export/import, audit and history.",
+      "permissions": [
+        "discover",
+        "read",
+        "search",
+        "project",
+        "create",
+        "update",
+        "derive",
+        "assert",
+        "record_attributed_assertion",
+        "assert_as_actor",
+        "retract_own",
+        "supersede_own",
+        "merge_identity",
+        "maintain",
+        "manage_retention",
+        "manage_legal_hold",
+        "share",
+        "export",
+        "import",
+        "archive",
+        "tombstone",
+        "purge",
+        "elevate_authority",
+        "read_audit",
+        "read_history",
+        "read_raw_origin"
+      ],
+      "assert_as_actor": [
+        "self_agent"
+      ],
+      "classification_ceiling": null
+    },
+    "alice_writer": {
+      "description": "Bound to Alice: may write and represent her, retract and supersede her own claims.",
+      "permissions": [
+        "discover",
+        "read",
+        "search",
+        "project",
+        "create",
+        "update",
+        "assert",
+        "record_attributed_assertion",
+        "assert_as_actor",
+        "retract_own",
+        "supersede_own"
+      ],
+      "assert_as_actor": [
+        "alice"
+      ],
+      "classification_ceiling": "internal"
+    },
+    "recorder": {
+      "description": "Records what others said; may not represent Alice.",
+      "permissions": [
+        "discover",
+        "read",
+        "search",
+        "project",
+        "create",
+        "record_attributed_assertion"
+      ],
+      "classification_ceiling": "internal"
+    },
+    "reader_full": {
+      "permissions": [
+        "discover",
+        "read",
+        "search",
+        "project"
+      ],
+      "classification_ceiling": null
+    },
+    "reader_no_project": {
+      "permissions": [
+        "discover",
+        "read",
+        "search"
+      ],
+      "classification_ceiling": null
+    },
+    "reader_no_search": {
+      "permissions": [
+        "discover",
+        "read",
+        "project"
+      ],
+      "classification_ceiling": null
+    },
+    "reader_hidden": {
+      "description": "Cannot discover secret fixture resources.",
+      "permissions": [
+        "discover",
+        "read",
+        "search",
+        "project"
+      ],
+      "classification_ceiling": "internal"
+    },
+    "maintenance": {
+      "description": "Sweeps bounded mutable Facets and retention; no actor representation, no trust/schema/authority management.",
+      "permissions": [
+        "discover",
+        "read",
+        "search",
+        "project",
+        "maintain",
+        "manage_retention",
+        "archive"
+      ],
+      "facet_scope": [
+        "MnemonicState"
+      ],
+      "classification_ceiling": "internal"
+    },
+    "importer": {
+      "permissions": [
+        "discover",
+        "read",
+        "import"
+      ],
+      "classification_ceiling": "internal"
+    },
+    "instrument": {
+      "description": "Instrumentation Principal for the consequence channel (GOV-026): records outcomes, never acts as the agent.",
+      "permissions": [
+        "discover",
+        "read",
+        "create",
+        "record_outcome"
+      ],
+      "classification_ceiling": "internal"
+    }
+  },
+  "reserved_actors": {
+    "self_agent": [
+      "owner"
+    ]
+  },
+  "authority": {
+    "default_class": "descriptive",
+    "elevate_by": [
+      "owner"
+    ]
+  }
+}
