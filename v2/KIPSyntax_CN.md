@@ -365,7 +365,7 @@ LIST DEPENDENTS :id [DEPTH :n] [LIMIT :n] [CURSOR :c]   // 遍历 Activity input
 HISTORY ELEMENT :id [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]   // 状态变迁编年史
 HISTORY SPACE [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]
 CHANGES SINCE :cursor [LIMIT :n] | CHANGES AFTER SEQ :seq [LIMIT :n]   // 事务粒度变更流
-VERIFY CAPSULE | SCHEMA PACKAGE | RECEIPT | BLOB | CHECKPOINT :artifact
+VERIFY CAPSULE | SCHEMA PACKAGE | RECEIPT :artifact
 VALIDATE KQL | KML | CAPSULE | SCHEMA PACKAGE | IMPORT PLAN :input [WITH {...}]
 PREVIEW KML :cmd | PREVIEW IMPORT CAPSULE :capsule INTO :space
 EXPORT CAPSULE ?roots WHERE {...}                                      // ?roots 由 WHERE 绑定，或使用 :id / "id" 指定单个根

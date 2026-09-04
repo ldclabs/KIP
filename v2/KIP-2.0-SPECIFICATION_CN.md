@@ -31,7 +31,7 @@
 - `profiles/cognitive-memory-2.0.0.schema.json` 与 `profiles/CognitiveMemoryProfile-2.0.md` —— 标准认知记忆 Profile 包
 - `conformance/KIP-2.0-Conformance-Tests.md`、`conformance/conformance-test-vector.schema.json`、`conformance/conformance-report.schema.json`、`conformance/conformance-state-fixture.schema.json`、`conformance/conformance-governance-policy.schema.json` 与 `conformance/fixtures/` —— 一致性测试套件
 - `KIP-2.0-Capsule-Specification_CN.md` —— 本规范的 §37–§41 与 §95，即认知胶囊（Cognitive Capsule），以相同的章节编号独立成伴随规范维护
-- `KIP-2.0-Optional-Profiles-and-Migration_CN.md` —— 本规范的 §100、§101、§103 及附录 I：可选的历史一致性与高保障一致性 Profile，以及 KIP 1.x 迁移指南
+- `KIP-2.0-Optional-Profiles-and-Migration_CN.md` —— 本规范的 §100、§101、§103 及附录 I：历史读取、高保证加固与 KIP 1.x 迁移 —— 每一项均为一项能力（§67.4），而非 Profile
 - `KIP-2.0-Invariants_CN.md` —— 不变量统一注册表：涵盖 §102 的 38 条 Core 核心不变量（Part A）与认知记忆 Profile 的 35 条不变量（Part B）
 
 `KIPSyntax_CN.md` 是面向 LLM 的参考性语法速查卡，不属于规范性工件。
@@ -708,17 +708,15 @@ experience:turn:100
 
 ## 9.1 逻辑形态 (Logical shape)
 
-规范字面量在概念上可表示为：
+字面量以原始 JSON 标量书写 —— 字符串、数字、布尔值或 `null` (§9.5) —— 其 `datatype` 即为书写它时采用的 JSON 类型：
 
 ```json
-{
-  "value": "...",
-  "datatype": "string",
-  "language": null
-}
+"+08:00"
+42
+true
 ```
 
-**可以**支持原始 JSON 标量简写形式。
+概念上字面量是 `{value, datatype}` 二元组 (§9.6)，但该二元组在传输介质上永不显式拼写：位于字面量位置的对象不是字面量，而值需要更多结构的谓词则声明 `format` (§20.15) 或模式定义的值对象 (§9.2)。因此运行时永远不必判定一个对象究竟是字面量还是值。
 
 ---
 
@@ -751,9 +749,9 @@ Infinity
 
 ---
 
-## 9.4 语言标签 (Language tag)
+## 9.4 不含语言标签 (No language tag)
 
-语言标签一旦存在，即参与字面量的身份识别与等价性判断。
+基线字面量不携带语言标签；字面量上出现 `language` 成员必须被拒绝 (`TypeMismatch`)。多语言文本应在其标识明确的地方进行建模：例如建模为不同的命题（`"name_en"`、`"name_zh"`）、显示字符串字典中的本地化变体，或显式的 Concept。
 
 ---
 
@@ -2418,7 +2416,7 @@ Authority (权限提升)
 Audit (审计追踪)
 ```
 
-推荐的权限项至少包含：
+核心权限 —— 每个 KIP-Governance 实现 (§93) 都必须注册的名称，因为本规范中的门控均会对每一项进行检查：
 
 ```text
 discover (发现存在性)
@@ -2428,7 +2426,6 @@ project (认识论投影)
 
 create (创建)
 update (更新)
-derive (衍生)
 
 assert (断言)
 record_attributed_assertion (记录归属断言)
@@ -2440,8 +2437,8 @@ merge_identity (合并身份)
 
 maintain (维护状态)
 manage_retention (管理留存)
+manage_legal_hold (管理法律保全)
 
-share (共享)
 export (导出)
 import (导入)
 
@@ -2453,14 +2450,24 @@ manage_schema (管理模式)
 manage_policy (管理策略)
 manage_grants (管理授权)
 manage_delegation (管理委托)
-manage_trust (管理信任)
 manage_actor_binding (管理主体绑定)
+quarantine (检疫隔离)
+declassify (降级解密)
+approve (审批放行)
 
 elevate_authority (权限提升)
 
 read_audit (读取审计)
 read_history (读取历史)
 read_raw_origin (读取原始来源)
+```
+
+扩展权限仅当公布了对其进行门控的能力时才存在 (§67.4)。未公布该能力的运行时必须在 Grant 指名该权限时予以拒绝，而非接受永远不会被检查的授权 (§29.6)：
+
+```text
+derive (衍生)               derive_permission
+record_outcome (记录后果)    record_outcome_permission
+manage_trust (管理信任)      weighted_projection
 ```
 
 系统实现**可以**细化权限名称与作用域，但在声称完全符合治理合规性时，**必须**保留等价的语义区分。
@@ -4684,10 +4691,11 @@ limits (配额限制)
 
 ## 67.4 能力注册表 (Capability registry)
 
-`DESCRIBE CAPABILITIES` 会通告、且请求中的 `requires`（§71）可声明本注册表中的条目。运行时**可以**添加命名空间化的条目；**严禁**重命名以下标准能力：
+`DESCRIBE CAPABILITIES` 会通告、且请求中的 `requires`（§71）可声明本注册表中的条目。运行时**可以**添加自身特有的条目 —— 引擎本地名称，由 `DESCRIBE CAPABILITIES` 与这些标准条目并列通告，其他引擎对此将响应 `UnsupportedCapability`（§67.1）—— 但**严禁**重命名或重新定义以下标准能力：
 
 ```text
 serializable_isolation      §32.2
+atomic_batch                §75.3   单一事务中的多个操作
 idempotency_retention       §34.5   取值：留存窗口时长，例如 {"seconds": 86400}
 historical_reads            §48, §100
 historical_search           §66.1
@@ -4711,9 +4719,10 @@ capsule_import              §39
 capsule_signatures          §37.8
 derive_permission           §29.6
 record_outcome_permission   §29.8
+kip1_migration              §103    KIP 1.x 兼容性与 `DESCRIBE COMPATIBILITY`
 ```
 
-请求的 `requires` 中若声明了未注册的能力，将报错 `UnsupportedCapability`，处理方式与声明了运行时不支持的能力相同。
+请求的 `requires` 中若声明了运行时无法识别的能力（既非此注册表中的条目，亦非其自身的能力），将报错 `UnsupportedCapability`，处理方式与声明了运行时不支持的能力相同。
 
 ---
 
@@ -4760,7 +4769,7 @@ KQL AS OF
 ## 69.1 验证 `VERIFY` (VERIFY)
 
 ```text
-VERIFY CAPSULE | SCHEMA PACKAGE | RECEIPT | BLOB | CHECKPOINT <artifact>
+VERIFY CAPSULE | SCHEMA PACKAGE | RECEIPT <artifact>
 ```
 
 检查：
@@ -4771,6 +4780,8 @@ VERIFY CAPSULE | SCHEMA PACKAGE | RECEIPT | BLOB | CHECKPOINT <artifact>
 签名 / 证明 (signature/proof)
 运行时认证一致性 (runtime attestation consistency)
 ```
+
+`VERIFY RECEIPT` 重新计算 `receipt_digest`（§33.2），并在该 Receipt 指名本运行时所提交的事务时，将其与 Commit Record（§33.1）进行比对。`VERIFY SCHEMA PACKAGE` 重新计算工件摘要（§20.11），并与相同引用下已安装的工件（若存在）进行比对。签名与证明检查仅当通告了 `signed_receipts` 或 `capsule_signatures`（§67.4）时方适用。
 
 VERIFY 不负责建立信任度或证明真实性。
 
@@ -5057,6 +5068,8 @@ continue (遇错继续)
 单一 tx_id
 单一状态变更 space_seq
 ```
+
+`atomic` 即为 `atomic_batch` 能力（§67.4）。未通告该能力的运行时**必须**拒绝要求该模式的请求（报错 `UnsupportedCapability`），而严禁将其作为 `sequence` 执行：§75.4 正是静默降级所会破坏的语义承诺。单个 `MUTATE` 块（§53）本身已经是一个事务，因此大多数多重写入需求无需该能力即可满足；`atomic` 所增加的是批处理内部的读取能够看到该批处理自身先前的写入（§32.6）。
 
 ---
 
@@ -5690,17 +5703,13 @@ KIP-Schema (模式合规)
 KIP-Epistemic (认识模型合规)
 KIP-Governance (治理合规)
 KIP-Transactions (事务合规)
-KIP-Capsule (胶囊合规)
 KIP-KQL (查询语言合规)
 KIP-KML (变更语言合规)
 KIP-META (自省元语言合规)
 KIP-Runtime (运行时合规)
-KIP-Historical (历史记录合规)
-KIP-High-Assurance (高保证合规)
-KIP-1-Migration (1.x迁移合规)
 ```
 
-`KIP-1-Migration` 仅适用于声称支持 KIP 1.x 迁移或兼容的系统实现 (§103)；其他情况下非必需。
+Profile 是对语言和运行时的一组打包要求。引擎可以逐项选择省略的内容是能力 (Capability)，而非 Profile：胶囊支持 (§95)、历史读取 (§100)、高保证加固 (§101) 以及 KIP 1.x 迁移 (§103) 均通过 §67.4 注册表公布 —— `capsule_export` / `capsule_import`、`historical_reads`、`signed_receipts` / `capsule_signatures`、`kip1_migration` —— 并且仅在公布了对应能力时，才对照定义它们的章节进行衡量。
 
 ---
 
@@ -5800,11 +5809,13 @@ preconditions (前置条件检查)
 Change Envelope (变更外壳)
 ```
 
+事务是 §32.1 定义的单元：单条语句或单个 `MUTATE` 块（§53）。单个事务内的多个操作属于 `atomic_batch` 能力（§75.3），本 Profile 不作强制要求。
+
 ---
 
-# 95. KIP-Capsule 胶囊合规性 (KIP-Capsule Conformance)
+# 95. 胶囊能力要求 (Capsule Capability Requirements)
 
-参见胶囊伴随规范 [KIP-2.0-Capsule-Specification_CN.md](./KIP-2.0-Capsule-Specification_CN.md) §95：要求列表与其所测试的章节一并维护。不支持胶囊的实现不声明 KIP-Capsule 合规性，亦不通告导出/导入能力（§67）。
+参见胶囊伴随规范 [KIP-2.0-Capsule-Specification_CN.md](./KIP-2.0-Capsule-Specification_CN.md) §95：要求列表与其所测试的章节一并维护。胶囊支持通过 `capsule_export` 与 `capsule_import` 公布（§67.4），不再作为 Profile 声明（§89）；未公布这两项能力的实现不对其进行衡量。
 
 ---
 
@@ -5941,15 +5952,15 @@ transaction lookup (事务状态查找)
 
 ---
 
-# 100. 历史记录合规性 (Historical Conformance)
+# 100. 历史读取 (Historical Reads)
 
-参见 [KIP-2.0-Optional-Profiles-and-Migration_CN.md](./KIP-2.0-Optional-Profiles-and-Migration_CN.md) §100。
+参见 [KIP-2.0-Optional-Profiles-and-Migration_CN.md](./KIP-2.0-Optional-Profiles-and-Migration_CN.md) §100。历史读取即 `historical_reads` 能力（§67.4）：公布了超出当前顶端留存的实现将对照其进行衡量，未公布的则不予衡量。
 
 ---
 
-# 101. 高保证合规性 (High-Assurance Conformance)
+# 101. 高保证加固 (High-Assurance Hardening)
 
-参见同一伴随规范 §101。其各项要求是在合规的核心协议实现之上的加固要求。
+参见同一伴随规范 §101。其要求是对合规实现的附加加固，绝非核心规范的放宽；客户端可信赖的加固项均作为能力公布（`signed_receipts`, `capsule_signatures`, `serializable_isolation`, §67.4）。
 
 ---
 
@@ -5963,7 +5974,7 @@ transaction lookup (事务状态查找)
 
 # 103. KIP 1.x 迁移指南 (KIP 1.x Migration)
 
-参见伴随规范 [KIP-2.0-Optional-Profiles-and-Migration_CN.md](./KIP-2.0-Optional-Profiles-and-Migration_CN.md) §103。操作层面的详细指南请参阅 [migration/KIP-2.0-Migration-from-1.x_CN.md](./migration/KIP-2.0-Migration-from-1.x_CN.md)。
+参见伴随规范 [KIP-2.0-Optional-Profiles-and-Migration_CN.md](./KIP-2.0-Optional-Profiles-and-Migration_CN.md) §103，以及操作指南 [migration/KIP-2.0-Migration-from-1.x_CN.md](./migration/KIP-2.0-Migration-from-1.x_CN.md)。KIP 1.x 仅作为兼容与迁移的数据来源，并不构成 KIP 2.0 语义的定义。迁移支持即 `kip1_migration` 能力（§67.4）；仅在公布了该能力的实现上，`DESCRIBE COMPATIBILITY`（§63.3）方可得到响应。
 
 ---
 

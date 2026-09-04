@@ -6,9 +6,9 @@
 
 **[KIP-2.0-SPECIFICATION_CN.md](./KIP-2.0-SPECIFICATION_CN.md) 的规范性伴随文档，版本 2.0-draft**
 
-本文档承载 KIP 2.0 规范的 §37–§41 和 §95：认知胶囊（Cognitive Capsule）工件、其身份模型、导入模式、闭包与外部引用、导出/导入流水线以及 KIP-Capsule 一致性 Profile。章节编号与主规范保持一致，因此在核心规范、认知记忆 Profile 或一致性测试套件中对 §37.7 或 §41.4 等引用的解析保持不变。未指明文档名称的章节引用均指向核心规范，其中保留了胶囊所依赖的各项基础设施：元素模型（§6–§16）、模式包（§20）、治理面（§28–§31）、事务（§32–§36）以及流水线语句 `VERIFY CAPSULE` / `VALIDATE CAPSULE` / `PREVIEW IMPORT` / `EXPORT CAPSULE`（§64, §69）。
+本文档承载 KIP 2.0 规范的 §37–§41 和 §95：认知胶囊（Cognitive Capsule）工件、其身份模型、导入模式、闭包与外部引用、导出/导入流水线以及胶囊能力要求。章节编号与主规范保持一致，因此在核心规范、认知记忆 Profile 或一致性测试套件中对 §37.7 或 §41.4 等引用的解析保持不变。未指明文档名称的章节引用均指向核心规范，其中保留了胶囊所依赖的各项基础设施：元素模型（§6–§16）、模式包（§20）、治理面（§28–§31）、事务（§32–§36）以及流水线语句 `VERIFY CAPSULE` / `VALIDATE CAPSULE` / `PREVIEW IMPORT` / `EXPORT CAPSULE`（§64, §69）。
 
-不支持胶囊的实现可忽略本文档，不声明 KIP-Capsule 一致性（§89），也不在 `DESCRIBE CAPABILITIES`（§67）中通告导出/导入能力。声明支持胶囊的实现则受本文档的严格约束，如同受核心规范约束一样。
+不支持胶囊的实现可忽略本文档，且既不通告 `capsule_export` 也不通告 `capsule_import`（§67.4）；胶囊支持是一项能力，而非 Profile（§89）。支持胶囊的实现则受本文档的严格约束，如同受核心规范约束一样。
 
 ---
 
@@ -347,9 +347,9 @@ VERIFY (签名与完整性核验)
 
 ---
 
-# 95. KIP-Capsule 一致性要求
+# 95. 胶囊能力要求 (Capsule Capability Requirements)
 
-要求具备：
+通告 `capsule_export` 或 `capsule_import`（§67.4）要求具备：
 
 ```text
 规范化工件序列化

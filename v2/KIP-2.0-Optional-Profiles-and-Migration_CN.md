@@ -12,9 +12,9 @@
 
 ---
 
-# 100. 历史一致性要求 (Historical Conformance)
+# 100. 历史读取 (Historical Reads)
 
-在系统通告的历史留存范围内，要求支持：
+`historical_reads` 能力（§67.4）在系统通告的历史留存范围内，要求支持：
 
 ```text
 AS OF SEQ                (按序列号的时间旅行读取)
@@ -27,9 +27,9 @@ transaction chronology        (事务时间序列编年史)
 
 ---
 
-# 101. 高保障一致性要求 (High-Assurance Conformance)
+# 101. 高保证加固 (High-Assurance Hardening)
 
-可能要求满足：
+可能要求满足（当客户端需要依赖时，每一项均作为能力通告，§67.4）：
 
 ```text
 serializable transactions    (严格可串行化事务)
