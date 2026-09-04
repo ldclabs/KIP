@@ -366,7 +366,7 @@ LIST DEPENDENTS :id [DEPTH :n] [LIMIT :n] [CURSOR :c]   // cognition derived fro
 HISTORY ELEMENT :id [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]   // transition chronology
 HISTORY SPACE [FROM SEQ :a] [TO SEQ :b] [LIMIT :n] [CURSOR :c]
 CHANGES SINCE :cursor [LIMIT :n] | CHANGES AFTER SEQ :seq [LIMIT :n]   // transaction-grained stream
-VERIFY CAPSULE | SCHEMA PACKAGE | RECEIPT | BLOB | CHECKPOINT :artifact
+VERIFY CAPSULE | SCHEMA PACKAGE | RECEIPT :artifact
 VALIDATE KQL | KML | CAPSULE | SCHEMA PACKAGE | IMPORT PLAN :input [WITH {...}]
 PREVIEW KML :cmd | PREVIEW IMPORT CAPSULE :capsule INTO :space
 EXPORT CAPSULE ?roots WHERE {...}                                      // ?roots bound by WHERE, or :id / "id" for one root

@@ -6,9 +6,9 @@
 
 **Normative companion to [KIP-2.0-SPECIFICATION.md](./KIP-2.0-SPECIFICATION.md), version 2.0-draft**
 
-This document carries §37–§41 and §95 of the KIP 2.0 Specification: the Cognitive Capsule artifact, its identity model, its import modes, closure and external references, the export/import pipeline, and the KIP-Capsule conformance profile. The section numbers are the Specification's own, so a reference such as §37.7 or §41.4 written in the Core, the Cognitive Memory Profile or the conformance suite resolves here unchanged. Section references without a document name point into the Core Specification, which keeps everything a Capsule depends on: the element model (§6–§16), Schema Packages (§20), Governance (§28–§31), Transactions (§32–§36), and the pipeline statements `VERIFY CAPSULE` / `VALIDATE CAPSULE` / `PREVIEW IMPORT` / `EXPORT CAPSULE` (§64, §69).
+This document carries §37–§41 and §95 of the KIP 2.0 Specification: the Cognitive Capsule artifact, its identity model, its import modes, closure and external references, the export/import pipeline, and the Capsule capability requirements. The section numbers are the Specification's own, so a reference such as §37.7 or §41.4 written in the Core, the Cognitive Memory Profile or the conformance suite resolves here unchanged. Section references without a document name point into the Core Specification, which keeps everything a Capsule depends on: the element model (§6–§16), Schema Packages (§20), Governance (§28–§31), Transactions (§32–§36), and the pipeline statements `VERIFY CAPSULE` / `VALIDATE CAPSULE` / `PREVIEW IMPORT` / `EXPORT CAPSULE` (§64, §69).
 
-An implementation that does not support Capsules ignores this document, claims no KIP-Capsule conformance (§89) and advertises no export/import capability (§67). One that does is bound by it exactly as by the Core.
+An implementation that does not support Capsules ignores this document and advertises neither `capsule_export` nor `capsule_import` (§67.4); Capsule support is a capability, not a profile (§89). One that does is bound by it exactly as by the Core.
 
 ---
 
@@ -349,9 +349,9 @@ Import assigns fresh local `_system.origin` (§41.2) and records the import in `
 
 ---
 
-# 95. KIP-Capsule Conformance
+# 95. Capsule Capability Requirements
 
-Requires:
+Advertising `capsule_export` or `capsule_import` (§67.4) requires:
 
 ```text
 canonical artifact

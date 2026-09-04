@@ -2235,14 +2235,6 @@ class Parser {
         this.expectSecondWord(TokenType.Receipt, verify)
         target = 'RECEIPT'
         break
-      case TokenType.Blob:
-        this.expectSecondWord(TokenType.Blob, verify)
-        target = 'BLOB'
-        break
-      case TokenType.Checkpoint:
-        this.expectSecondWord(TokenType.Checkpoint, verify)
-        target = 'CHECKPOINT'
-        break
       default:
         this.error(`Unknown VERIFY target '${tok.value}'`, tok)
         throw new ParseAbort()

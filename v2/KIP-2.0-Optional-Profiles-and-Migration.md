@@ -12,9 +12,9 @@ An implementation claims the Historical or High-Assurance profile through `DESCR
 
 ---
 
-# 100. Historical Conformance
+# 100. Historical Reads
 
-Requires, within advertised retention:
+The `historical_reads` capability (§67.4) requires, within advertised retention:
 
 ```text
 AS OF SEQ
@@ -27,9 +27,9 @@ transaction chronology
 
 ---
 
-# 101. High-Assurance Conformance
+# 101. High-Assurance Hardening
 
-May require:
+May require, each advertised as a capability (§67.4) where a client is to rely on it:
 
 ```text
 serializable transactions

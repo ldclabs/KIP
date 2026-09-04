@@ -297,9 +297,7 @@ verify_statement = "VERIFY", verify_target, meta_value ;
 
 verify_target    = "CAPSULE"
                  | "SCHEMA", "PACKAGE"
-                 | "RECEIPT"
-                 | "BLOB"
-                 | "CHECKPOINT" ;
+                 | "RECEIPT" ;
 
 (* ------------------------------------------------------------------------- *)
 (* VALIDATE                                                                  *)

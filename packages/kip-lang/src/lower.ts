@@ -1770,9 +1770,7 @@ function lowerMeta(stmt: Statement): MetaCommand {
 const VERIFY_TARGETS: Record<VerifyStatement['target'], VerifyTarget> = {
   CAPSULE: 'Capsule',
   SCHEMA_PACKAGE: 'SchemaPackage',
-  RECEIPT: 'Receipt',
-  BLOB: 'Blob',
-  CHECKPOINT: 'Checkpoint'
+  RECEIPT: 'Receipt'
 }
 
 const VALIDATE_TARGETS: Record<ValidateStatement['target'], ValidateTarget> = {

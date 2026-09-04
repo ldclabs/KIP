@@ -83,17 +83,16 @@ Before execution, the implementation MUST declare its claimed profiles:
     "KIP-Epistemic",
     "KIP-Governance",
     "KIP-Transactions",
-    "KIP-Capsule",
     "KIP-KQL",
     "KIP-KML",
     "KIP-META",
-    "KIP-Runtime",
-    "KIP-Historical",
-    "KIP-High-Assurance",
-    "KIP-1-Migration"
+    "KIP-Runtime"
   ],
-
   "optional_capabilities": {
+    "atomic_batch": false,
+    "capsule_export": true,
+    "capsule_import": false,
+    "kip1_migration": false,
     "belief_slot": true,
     "historical_reads": true,
     "semantic_search": true,
@@ -108,7 +107,7 @@ Before execution, the implementation MUST declare its claimed profiles:
 }
 ```
 
-`KIP-1-Migration` (Spec §89) is claimed only by implementations that support KIP 1.x migration/compatibility; the §25 suite is `NOT_APPLICABLE` otherwise. An advertised `optional_capabilities` entry turns every OPTIONAL vector naming that capability into an obligation (§35).
+Capsule, historical, high-assurance and KIP 1.x migration vectors are gated by the capability that advertises them (Spec §89, §67.4), not by a profile: where `capsule_import`, `historical_reads`, `signed_receipts` or `kip1_migration` is not advertised, the vectors that need it — the whole §25 suite, for `kip1_migration` — are `NOT_APPLICABLE`, and so is every vector that needs `execution.mode = atomic` where `atomic_batch` is false. An advertised `optional_capabilities` entry turns every OPTIONAL vector naming that capability into an obligation (§35).
 
 The runner SHOULD compare this declaration with `DESCRIBE PROTOCOL` and `DESCRIBE CAPABILITIES`.
 
@@ -151,27 +150,30 @@ Harness hooks are not part of KIP and MUST NOT be required in production.
 
 # 5. Conformance Harness Contract
 
-A test harness SHOULD expose out-of-band equivalents of:
+A vector is a KIP request and the response it expects. The harness therefore needs only what a request cannot carry:
 
 ```text
-reset_fixture(name)
-seed_fixture(name)
-resolve_binding(symbol)
-invoke(principal, endpoint, request)
-set_governance_fixture(name)
-set_epistemic_policy(name)
-advance_test_clock(time)
-pause_transaction(request_or_tx, phase)
-resume_transaction(request_or_tx)
-drop_response_after_commit(request)
-force_search_index_checkpoint(seq)
-expire_cursor(cursor)
-expire_artifact(handle)
+reset()                            an empty Space with the canonical Schema (§8) installed
+seed(name)                         the named state fixture, replayed as ordinary KML — one commit per fixture commit
+set_governance(name)               the canonical Principals, Grants, Delegations and ActorBindings (§10)
+invoke(principal, endpoint, req)   one request, as one canonical Principal, on the general or the readonly endpoint (§76)
 ```
 
-Fixture loading SHOULD NOT use the same feature being tested. For example, KML tests SHOULD be seeded by an out-of-band fixture loader rather than by KML itself.
+Everything else a vector once asked of a harness hook is a request option or a capability:
 
-The named state fixtures ship as declarative seed files, `fixtures/states/<name>.json`, described by [`conformance-state-fixture.schema.json`](./conformance-state-fixture.schema.json): each file lists commits, and each commit its created elements (by fixture-local handle) and declarative changes, so `seed_fixture(name)` replays it out of band, one commit per `space_seq`, and every commit label (`S1`, `S2`, …) is a coordinate a vector can name. A fixture MAY `extend` another; `core-basic` is the shared baseline. The canonical Principals (§10) ship as [`fixtures/governance-test-policy.json`](./fixtures/governance-test-policy.json), described by [`conformance-governance-policy.schema.json`](./conformance-governance-policy.schema.json), and `set_governance_fixture` installs it; the canonical bindings (§9) are each fixture's `bindings` map.
+```text
+epistemic policy       WITH EPISTEMIC {policy: ...} (§49); the canonical policy is §11
+the clock              a vector states valid times explicitly and reads with FOR TIME / AS OF SEQ (§48)
+a paused transaction   §4.2 vectors are `orchestrated`; a runtime without the barrier reports NOT_APPLICABLE
+a lost response        §4.3 vectors replay by idempotency_key (§34.3) and are judged on the replay
+an expired cursor      the runtime's own cursor retention; one that never expires a cursor reports NOT_APPLICABLE
+search index lag       `search_index_freshness` (§67.4); a synchronous index reports NOT_APPLICABLE
+Artifact handles       `artifacts` (§67.4)
+```
+
+Seeding through KML is deliberate: a state the runtime cannot reach through its own write path is not a state the runtime can be in, and a seed loader that bypasses KML tests the loader. Two engines that load the same seed and answer the same requests the same way are conformant to each other as well as to this document, which is what makes the vectors portable.
+
+The named state fixtures ship as declarative seed files, `fixtures/states/<name>.json`, described by [`conformance-state-fixture.schema.json`](./conformance-state-fixture.schema.json): each file lists commits, and each commit its created elements (by fixture-local handle) and declarative changes, so `seed(name)` replays it through the runtime's own KML path, one commit per `space_seq`, and every commit label (`S1`, `S2`, …) is a coordinate a vector can name. A fixture MAY `extend` another; `core-basic` is the shared baseline. The canonical Principals (§10) ship as [`fixtures/governance-test-policy.json`](./fixtures/governance-test-policy.json), described by [`conformance-governance-policy.schema.json`](./conformance-governance-policy.schema.json), and `set_governance(name)` installs it; the canonical bindings (§9) are each fixture's `bindings` map.
 
 ---
 
@@ -1922,7 +1924,7 @@ Primary profile: `KIP-Transactions`
 
 # 18. Capsule Suite
 
-Primary profile: `KIP-Capsule`
+Primary capability: `capsule_export` / `capsule_import` (Spec §95)
 
 ## KIP2-CAP-001 — Snapshot Capsule binds one source snapshot
 
@@ -3444,7 +3446,7 @@ Primary profile: `KIP-Runtime`
 
 # 23. Historical Suite
 
-Primary profile: `KIP-Historical`
+Primary capability: `historical_reads` (Spec §100)
 
 ## KIP2-HIST-001 — Historical mutable Concept reconstruction
 
@@ -3547,7 +3549,7 @@ Primary profile: `KIP-Historical`
 
 # 24. High-Assurance Suite
 
-Primary profile: `KIP-High-Assurance`
+Primary capability: `signed_receipts` and the §101 hardening
 
 ## KIP2-HA-001 — Serializable outcome suite passes
 
@@ -3636,7 +3638,7 @@ Primary profile: `KIP-High-Assurance`
 
 # 25. KIP 1.x Migration Suite
 
-Primary profile: `KIP-1-Migration`
+Primary capability: `kip1_migration` (Spec §103)
 
 ## KIP2-MIG-001 — Legacy Concept becomes v2 Concept
 

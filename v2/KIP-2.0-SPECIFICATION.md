@@ -31,7 +31,7 @@ The following artifacts are normative companions to this Specification:
 - `profiles/cognitive-memory-2.0.0.schema.json` and `profiles/CognitiveMemoryProfile-2.0.md` — the standard Profile package
 - `conformance/KIP-2.0-Conformance-Tests.md`, `conformance/conformance-test-vector.schema.json`, `conformance/conformance-report.schema.json`, `conformance/conformance-state-fixture.schema.json`, `conformance/conformance-governance-policy.schema.json` and `conformance/fixtures/` — the conformance suite
 - `KIP-2.0-Capsule-Specification.md` — §37–§41 and §95 of this Specification, the Cognitive Capsule, carried in a companion under the same numbering
-- `KIP-2.0-Optional-Profiles-and-Migration.md` — §100, §101, §103 and Appendix I of this Specification: the optional Historical and High-Assurance profiles, and KIP 1.x migration
+- `KIP-2.0-Optional-Profiles-and-Migration.md` — §100, §101, §103 and Appendix I of this Specification: historical reads, high-assurance hardening, and KIP 1.x migration — each a capability (§67.4), not a profile
 - `KIP-2.0-Invariants.md` — the invariant registry: §102's 38 Core invariants (Part A) and the Cognitive Memory Profile's 35 (Part B), one list
 
 `KIPSyntax.md` is an informative LLM-facing syntax card, not a normative artifact.
@@ -708,16 +708,15 @@ A Proposition subject MUST NOT be a Literal.
 
 ## 9.1 Logical shape
 
-A canonical Literal may be represented conceptually as:
+A Literal is written as a primitive JSON scalar — a string, a number, a boolean, or `null` (§9.5) — and its `datatype` is the JSON type it was written in:
 
 ```json
-{
-  "value": "...",
-  "datatype": "string"
-}
+"+08:00"
+42
+true
 ```
 
-Primitive JSON scalar shorthand MAY be supported.
+Conceptually a Literal is the pair `{value, datatype}` (§9.6), but that pair is never spelled on the wire: an object in a Literal position is not a Literal, and a Predicate whose value needs more structure declares a `format` (§20.15) or a schema-defined value object (§9.2). A runtime therefore never has to decide whether an object is a Literal or a value.
 
 ---
 
@@ -754,7 +753,7 @@ MUST be rejected.
 
 ## 9.4 No language tag
 
-The baseline Literal carries no language tag; a `language` member on a Literal MUST be rejected (`TypeMismatch`). Multilingual text is modelled where its identity rules can be stated: a Concept with per-language attributes, or a schema-defined value object (§9.2) whose package declares how two tagged strings compare.
+The baseline Literal carries no language tag, and §9.1 leaves it nowhere to put one: a string Literal is the string alone. Multilingual text is modelled where its identity rules can be stated: a Concept with per-language attributes, or a schema-defined value object (§9.2) whose package declares how two tagged strings compare.
 
 ---
 
@@ -2477,7 +2476,7 @@ Authority
 Audit
 ```
 
-Recommended permissions include at least:
+The Core permissions — the names every KIP-Governance implementation (§93) registers, because a gate in this Specification asks for each:
 
 ```text
 discover
@@ -2487,14 +2486,12 @@ project
 
 create
 update
-derive
 
 assert
 record_attributed_assertion
 assert_as_actor
 retract_own
 supersede_own
-record_outcome
 
 merge_identity
 
@@ -2502,7 +2499,6 @@ maintain
 manage_retention
 manage_legal_hold
 
-share
 export
 import
 
@@ -2514,7 +2510,6 @@ manage_schema
 manage_policy
 manage_grants
 manage_delegation
-manage_trust
 manage_actor_binding
 quarantine
 declassify
@@ -2525,6 +2520,14 @@ elevate_authority
 read_audit
 read_history
 read_raw_origin
+```
+
+The Extended permissions exist only where the capability that gates them is advertised (§67.4). A runtime that does not advertise the capability MUST reject the name where a Grant names it, rather than accept authority that nothing will ever ask for (§29.6):
+
+```text
+derive            derive_permission
+record_outcome    record_outcome_permission
+manage_trust      weighted_projection
 ```
 
 Implementations MAY refine names/scopes but MUST preserve equivalent semantic distinctions when claiming full Governance conformance.
@@ -4796,10 +4799,11 @@ Enumeration itself is governed.
 
 ## 67.4 Capability registry
 
-`DESCRIBE CAPABILITIES` reports, and a request's `requires` (§71) names, entries of this registry. A runtime MAY add namespaced entries; it MUST NOT rename these:
+`DESCRIBE CAPABILITIES` reports, and a request's `requires` (§71) names, entries of this registry. A runtime MAY add entries of its own — engine-local names, reported by `DESCRIBE CAPABILITIES` beside these, that another engine answers `UnsupportedCapability` to (§67.1) — but it MUST NOT rename or redefine these:
 
 ```text
 serializable_isolation      §32.2
+atomic_batch                §75.3   several operations in one Transaction
 idempotency_retention       §34.5   value: the retention window, e.g. {"seconds": 86400}
 historical_reads            §48, §100
 historical_search           §66.1
@@ -4823,9 +4827,10 @@ capsule_import              §39
 capsule_signatures          §37.8
 derive_permission           §29.6
 record_outcome_permission   §29.8
+kip1_migration              §103    KIP 1.x compatibility and `DESCRIBE COMPATIBILITY`
 ```
 
-A `requires` entry that names an unregistered capability fails `UnsupportedCapability`, exactly as one the runtime does not support.
+A `requires` entry that names a capability the runtime does not recognize — neither this registry nor one of its own — fails `UnsupportedCapability`, exactly as one the runtime does not support.
 
 ---
 
@@ -4874,7 +4879,7 @@ These terms have distinct normative meanings.
 ## 69.1 VERIFY
 
 ```text
-VERIFY CAPSULE | SCHEMA PACKAGE | RECEIPT | BLOB | CHECKPOINT <artifact>
+VERIFY CAPSULE | SCHEMA PACKAGE | RECEIPT <artifact>
 ```
 
 Checks:
@@ -4885,6 +4890,8 @@ digest
 signature/proof
 runtime attestation consistency
 ```
+
+`VERIFY RECEIPT` recomputes `receipt_digest` (§33.2) and, where the Receipt names a transaction this runtime committed, compares it with the Commit Record (§33.1). `VERIFY SCHEMA PACKAGE` recomputes the artifact digest (§20.11) and compares it with the artifact installed under the same reference, where one is. Signature and proof checks apply only where `signed_receipts` or `capsule_signatures` (§67.4) is advertised.
 
 VERIFY does not establish trust or truth.
 
@@ -5182,6 +5189,8 @@ all-or-none commit
 one tx_id
 one state-changing space_seq
 ```
+
+`atomic` is the `atomic_batch` capability (§67.4). A runtime that does not advertise it MUST reject a request that asks for it (`UnsupportedCapability`) rather than run the operations as a `sequence`: §75.4 is exactly the promise a silent downgrade would break. A single `MUTATE` block (§53) is already one Transaction, so most multi-write needs are met without it; what `atomic` adds is a read inside the batch that sees the batch's own earlier writes (§32.6).
 
 ---
 
@@ -5823,17 +5832,13 @@ KIP-Schema
 KIP-Epistemic
 KIP-Governance
 KIP-Transactions
-KIP-Capsule
 KIP-KQL
 KIP-KML
 KIP-META
 KIP-Runtime
-KIP-Historical
-KIP-High-Assurance
-KIP-1-Migration
 ```
 
-`KIP-1-Migration` applies only to implementations that claim KIP 1.x migration or compatibility support (§103); it is otherwise not required.
+A profile is a bundle of requirements over the language and the runtime. What an engine may leave out one at a time is a capability, not a profile: Capsule support (§95), historical reads (§100), high-assurance hardening (§101) and KIP 1.x migration (§103) are each advertised through the §67.4 registry — `capsule_export` / `capsule_import`, `historical_reads`, `signed_receipts` / `capsule_signatures`, `kip1_migration` — and measured against the section that defines them only where advertised.
 
 ---
 
@@ -5934,11 +5939,13 @@ preconditions
 Change Envelope
 ```
 
+The transaction is the unit §32.1 defines: one statement, or one `MUTATE` block (§53). Several operations in one Transaction is the `atomic_batch` capability (§75.3) and is not required by this profile.
+
 ---
 
-# 95. KIP-Capsule Conformance
+# 95. Capsule Capability Requirements
 
-See the Capsule companion, §95: the requirement list lives with the sections it tests. An implementation that does not support Capsules claims no KIP-Capsule conformance and advertises no export/import capability (§67).
+See the Capsule companion, §95: the requirement list lives with the sections it tests. Capsule support is advertised through `capsule_export` and `capsule_import` (§67.4), not claimed as a profile (§89); an implementation that advertises neither is not measured against it.
 
 ---
 
@@ -6074,15 +6081,15 @@ transaction lookup
 
 ---
 
-# 100. Historical Conformance
+# 100. Historical Reads
 
-See [KIP-2.0-Optional-Profiles-and-Migration.md](./KIP-2.0-Optional-Profiles-and-Migration.md), §100. Historical conformance is optional: an implementation that advertises retention beyond the current head (`DESCRIBE CAPABILITIES`, §67) is measured against it, and one that does not is not.
+See [KIP-2.0-Optional-Profiles-and-Migration.md](./KIP-2.0-Optional-Profiles-and-Migration.md), §100. Historical reads are the `historical_reads` capability (§67.4): an implementation that advertises retention beyond the current head is measured against it, and one that does not is not.
 
 ---
 
-# 101. High-Assurance Conformance
+# 101. High-Assurance Hardening
 
-See the same companion, §101. Its requirements are additive hardening over a conforming implementation, never a relaxation of the Core.
+See the same companion, §101. Its requirements are additive hardening over a conforming implementation, never a relaxation of the Core; the ones a client can rely on are advertised as capabilities (`signed_receipts`, `capsule_signatures`, `serializable_isolation`, §67.4).
 
 ---
 
@@ -6094,7 +6101,7 @@ A conforming native KIP 2.0 implementation MUST preserve the 38 cross-cutting in
 
 # 103. KIP 1.x Migration
 
-See [KIP-2.0-Optional-Profiles-and-Migration.md](./KIP-2.0-Optional-Profiles-and-Migration.md), §103, together with the operational guide [migration/KIP-2.0-Migration-from-1.x.md](./migration/KIP-2.0-Migration-from-1.x.md). KIP 1.x is a compatibility and migration source, not a definition of KIP 2.0 semantics.
+See [KIP-2.0-Optional-Profiles-and-Migration.md](./KIP-2.0-Optional-Profiles-and-Migration.md), §103, together with the operational guide [migration/KIP-2.0-Migration-from-1.x.md](./migration/KIP-2.0-Migration-from-1.x.md). KIP 1.x is a compatibility and migration source, not a definition of KIP 2.0 semantics. Migration support is the `kip1_migration` capability (§67.4); `DESCRIBE COMPATIBILITY` (§63.3) is answerable only where it is advertised.
 
 ---
 

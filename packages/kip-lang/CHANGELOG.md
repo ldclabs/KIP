@@ -2,6 +2,18 @@
 
 All notable changes to `@ldclabs/kip-lang` are documented here.
 
+## 2.3.0
+
+Tracks the 2.0-draft simplification: `VERIFY` takes `CAPSULE`, `SCHEMA
+PACKAGE` or `RECEIPT` (Spec §69.1). `BLOB` and `CHECKPOINT` were never defined
+beyond the grammar line that named them.
+
+### Changed (breaking)
+
+- `VERIFY BLOB` and `VERIFY CHECKPOINT` no longer parse; `VerifyTargetKind`
+  loses both members and the exec AST's `Verify.target` no longer takes
+  `Blob` / `Checkpoint`.
+
 ## 2.2.0
 
 Tracks the 2.0-draft syntax convergence (Spec §35, §48.1, §51.2, §52.8,

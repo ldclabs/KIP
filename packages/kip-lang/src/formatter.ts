@@ -1000,9 +1000,7 @@ class Formatter {
     const words: Record<VerifyStatement['target'], string> = {
       CAPSULE: 'CAPSULE',
       SCHEMA_PACKAGE: 'SCHEMA PACKAGE',
-      RECEIPT: 'RECEIPT',
-      BLOB: 'BLOB',
-      CHECKPOINT: 'CHECKPOINT'
+      RECEIPT: 'RECEIPT'
     }
     this.writeIndent()
     this.write(`VERIFY ${words[stmt.target]} ${this.scalar(stmt.value)}`)

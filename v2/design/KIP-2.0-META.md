@@ -3081,8 +3081,6 @@ Recommended:
 VERIFY CAPSULE
 VERIFY SCHEMA PACKAGE
 VERIFY RECEIPT
-VERIFY BLOB
-VERIFY CHECKPOINT
 ```
 
 depending on advertised capabilities.
@@ -5601,8 +5599,6 @@ verify_target :=
       "CAPSULE"
     | "SCHEMA PACKAGE"
     | "RECEIPT"
-    | "BLOB"
-    | "CHECKPOINT"
 
 validate_statement :=
     "VALIDATE" validate_target validation_input

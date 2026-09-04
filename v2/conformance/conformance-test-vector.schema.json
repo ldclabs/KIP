@@ -171,14 +171,10 @@
         "KIP-Epistemic",
         "KIP-Governance",
         "KIP-Transactions",
-        "KIP-Capsule",
         "KIP-KQL",
         "KIP-KML",
         "KIP-META",
-        "KIP-Runtime",
-        "KIP-Historical",
-        "KIP-High-Assurance",
-        "KIP-1-Migration"
+        "KIP-Runtime"
       ]
     },
     "FixtureRef": {

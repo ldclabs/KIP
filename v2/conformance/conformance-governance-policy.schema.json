@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://kip.ldclabs.org/schemas/2.0/conformance-governance-policy.schema.json",
   "title": "KIP 2.0 Conformance Governance Policy",
-  "description": "Harness-level description of the canonical test Principals (KIP-2.0-Conformance-Tests.md §10) as a Governance policy: default deny, an effective permission set per Principal, actor representation, classification ceilings, and who may elevate authority. Governance policy formats are implementation-defined (Spec §30); this file is the portable input the harness maps through set_governance_fixture (§5).",
+  "description": "Harness-level description of the canonical test Principals (KIP-2.0-Conformance-Tests.md §10) as a Governance policy: default deny, an effective permission set per Principal, actor representation, classification ceilings, and who may elevate authority. Governance policy formats are implementation-defined (Spec §30); this file is the portable input the harness maps through set_governance (§5).",
   "type": "object",
   "required": [
     "format",

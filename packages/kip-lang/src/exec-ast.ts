@@ -574,8 +574,6 @@ export type VerifyTarget =
   | 'Capsule'
   | 'SchemaPackage'
   | 'Receipt'
-  | 'Blob'
-  | 'Checkpoint'
 
 export interface ValidateCommand {
   target: ValidateTarget

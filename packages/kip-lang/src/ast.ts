@@ -729,8 +729,6 @@ export type VerifyTargetKind =
   | 'CAPSULE'
   | 'SCHEMA_PACKAGE'
   | 'RECEIPT'
-  | 'BLOB'
-  | 'CHECKPOINT'
 
 export interface VerifyStatement extends BaseNode {
   kind: 'VerifyStatement'
