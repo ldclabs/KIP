@@ -1697,11 +1697,11 @@
   "canonicalization": {
     "profile": "kip-draft-canonical-json-v1",
     "status": "draft",
-    "description": "UTF-8 JSON, recursively sorted object keys, compact separators (\",\" and \":\"), finite JSON numbers; integrity is excluded from its own digest. Draft deterministic encoding for freezing this Profile artifact; not yet the final KIP-wide canonicalization standard."
+    "description": "UTF-8 JSON, recursively sorted object keys, compact separators (\",\" and \":\"), finite JSON numbers written as RFC 8785 (JCS) writes them, so 1.0 is 1; integrity is excluded from its own digest. Draft deterministic encoding for freezing this Profile artifact; not yet the final KIP-wide canonicalization standard."
   },
   "integrity": {
     "digest_profile": "kip-draft-canonical-json-v1",
-    "content_digest": "sha256:c851d4e3638f1996c4caa3bb573b9dd33cd2a6b59945a0cc70b42f44a310840a",
+    "content_digest": "sha256:7f32a27a78d9bf95e34410326f85e16d38ae3d1933ef5064c17bc3292dc1a7d1",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }
