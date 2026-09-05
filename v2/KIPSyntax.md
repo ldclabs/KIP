@@ -408,7 +408,7 @@ This is a complete **common-path request**, not the full wire grammar:
   "kip": "2.0",
   "request_id": "req-42",
   "space": {"id": "space-1"},
-  "execution": {"mode": "atomic", "idempotency_key": "formation:42"},
+  "execution": {"mode": "sequence", "idempotency_key": "formation:42"},
   "ingest": {
     "evidence": [{
       "key": "msg",
@@ -434,7 +434,7 @@ This is a complete **common-path request**, not the full wire grammar:
 
 #### 5.1. Ingestion, execution, and recovery
 
-- **Execution modes** (required when >1 operation): `independent` (isolated, concurrent; each result states its `snapshot_seq`) | `sequence` (ordered, separate commits, no rollback of earlier; `on_error` defaults to `stop`) | `atomic` (one transaction, one snapshot, read-your-writes, all-or-none). In `sequence`/`independent` each write's Receipt is in `results[].receipt`; only `atomic` has the top-level `receipt`. `execution.idempotency_key` is echoed back.
+- **Execution modes** (required when >1 operation): `independent` (isolated, concurrent; each result states its `snapshot_seq`) | `sequence` (ordered, separate commits, no rollback of earlier; `on_error` defaults to `stop`) | `atomic` (one transaction, one snapshot, read-your-writes, all-or-none). `atomic` is the `atomic_batch` capability (§67.4, §75.3): an engine that does not advertise it refuses the request rather than running it as a sequence, and a single `MUTATE` block is already one transaction. In `sequence`/`independent` each write's Receipt is in `results[].receipt`; only `atomic` has the top-level `receipt`. `execution.idempotency_key` is echoed back.
 - **§5.1 Ingestion**: each `ingest.evidence[].key` becomes a parameter bound to runtime-minted Evidence — observed payloads never pass through your generated text. Each entry supplies exactly one of `payload` or `payload_artifact`, and may carry `facets` (e.g. `OutcomeRecord` on an `outcome`). Writing `outcome` Evidence needs `record_outcome`; an outcome grades a decision only through an `outcome_observation` Activity that names the `action_gate` among its inputs.
 - **Identity trio**: `request_id` (one network attempt) ≠ `idempotency_key` (one logical write intent) ≠ `tx_id` (committed fact). Retry the same logical write with the **same** idempotency key.
 - **Response**: top status `succeeded|failed|partial|outcome_unknown`; per-op `succeeded|failed|skipped|rolled_back|no_effect`; committed receipt carries `tx_id`, `space_seq`, digests.

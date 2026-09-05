@@ -407,7 +407,7 @@ SEARCH 仅用于关联接地：得分 (score) ≠ 置信度 ≠ 信念；未搜�
   "kip": "2.0",
   "request_id": "req-42",
   "space": {"id": "space-1"},
-  "execution": {"mode": "atomic", "idempotency_key": "formation:42"},
+  "execution": {"mode": "sequence", "idempotency_key": "formation:42"},
   "ingest": {
     "evidence": [{
       "key": "msg",
@@ -433,7 +433,7 @@ SEARCH 仅用于关联接地：得分 (score) ≠ 置信度 ≠ 信念；未搜�
 
 #### 5.1. 摄取、执行与故障恢复
 
-- **执行模式（Execution modes）**（包含 1 个以上操作时必填）：`independent`（相互隔离并发执行；每个结果独立返回其 `snapshot_seq`）| `sequence`（按序逐个提交，前面的提交不回滚；`on_error` 默认为 `stop`）| `atomic`（单一事务，单一致快照，read-your-writes，全有或全无）。在 `sequence`/`independent` 下每个写入操作的回执位于 `results[].receipt`；只有 `atomic` 具有顶层 `receipt`。`execution.idempotency_key` 将在响应中原样回显。
+- **执行模式（Execution modes）**（包含 1 个以上操作时必填）：`independent`（相互隔离并发执行；每个结果独立返回其 `snapshot_seq`）| `sequence`（按序逐个提交，前面的提交不回滚；`on_error` 默认为 `stop`）| `atomic`（单一事务，单一致快照，read-your-writes，全有或全无）。`atomic` 是 `atomic_batch` 能力（§67.4、§75.3）：未声明该能力的引擎会拒绝请求，而不是降级成 sequence 执行；单个 `MUTATE` 块本身已是一个事务。在 `sequence`/`independent` 下每个写入操作的回执位于 `results[].receipt`；只有 `atomic` 具有顶层 `receipt`。`execution.idempotency_key` 将在响应中原样回显。
 - **§5.1 摄取（Ingestion）**：每个 `ingest.evidence[].key` 都会成为绑定到运行时铸造的 Evidence 的参数——观测到的原始载荷无需穿透智能体生成的文本。每个条目必须且仅能提供 `payload` 或 `payload_artifact` 之一，并可携带 `facets`（例如 `outcome` 上的 `OutcomeRecord`）。写入 `outcome` 证据必须持有 `record_outcome` 权限；结果证据仅能通过 `inputs` 包含 `action_gate` 的 `outcome_observation` 活动来为特定决策打分。
 - **三组身份标识**：`request_id`（网络层单次重试）≠ `idempotency_key`（单次逻辑写入意图）≠ `tx_id`（已提交事实）。重试同一逻辑写入时，必须使用**完全相同**的 idempotency key。
 - **响应状态**：顶层状态包含 `succeeded|failed|partial|outcome_unknown`；逐操作状态包含 `succeeded|failed|skipped|rolled_back|no_effect`；提交成功的回执包含 `tx_id`、`space_seq` 及摘要信息。
