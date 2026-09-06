@@ -1,0 +1,685 @@
+{
+  "format": "KIP-Cognitive-Contract-Cases",
+  "basis": {
+    "space_id": "S",
+    "snapshot_seq": 10,
+    "schema_environment_version": 2,
+    "identity_version": 1,
+    "policy": {
+      "id": "test-deterministic",
+      "version": "1"
+    },
+    "trust_version": "1",
+    "authorization_view": "view-1",
+    "context_refs": [],
+    "purpose": "answer_user",
+    "risk": "low",
+    "valid_at": "2026-09-06T12:00:00Z",
+    "next_invalid_at": null
+  },
+  "projection": [
+    {
+      "id": "MEM-001a",
+      "name": "grounded candidate cannot hide functional conflict",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": true,
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": false,
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-06T12:00:00Z"
+      },
+      "expected": {
+        "slot_status": "contested",
+        "accepted_values": [],
+        "candidate_statuses": [
+          "contested",
+          "contested"
+        ]
+      }
+    },
+    {
+      "id": "MEM-001b",
+      "name": "non-functional multiple preferences remain accepted",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "dark",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "red",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": false,
+        "context_refs": [],
+        "valid_at": "2026-09-06T12:00:00Z"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "dark",
+          "red"
+        ],
+        "candidate_statuses": [
+          "accepted",
+          "accepted"
+        ]
+      }
+    },
+    {
+      "id": "MEM-007a",
+      "name": "scope-free query excludes context-specific preference",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "work",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "context_refs": [
+                "work"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "travel",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "context_refs": [
+                "travel"
+              ]
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-06T12:00:00Z"
+      },
+      "expected": {
+        "slot_status": "insufficient",
+        "accepted_values": [],
+        "candidate_statuses": [
+          "insufficient",
+          "insufficient"
+        ]
+      }
+    },
+    {
+      "id": "MEM-007b",
+      "name": "explicit context selects matching scope",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "work",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "context_refs": [
+                "work"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "travel",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "context_refs": [
+                "travel"
+              ]
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [
+          "work"
+        ],
+        "valid_at": "2026-09-06T12:00:00Z"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "work"
+        ],
+        "candidate_statuses": [
+          "accepted",
+          "insufficient"
+        ]
+      }
+    },
+    {
+      "id": "MEM-007c",
+      "name": "half-open boundary has exactly the new value",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "old",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "until": "2026-09-06T12:00:00Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "new",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "from": "2026-09-06T12:00:00Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-06T12:00:00Z"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "new"
+        ],
+        "candidate_statuses": [
+          "insufficient",
+          "accepted"
+        ]
+      }
+    },
+    {
+      "id": "MEM-006a",
+      "name": "revised prerequisite prevents accepted derived belief",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "derived",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true
+            }
+          ],
+          "dependency_validity": "needs_review"
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-06T12:00:00Z"
+      },
+      "expected": {
+        "slot_status": "uncertain",
+        "accepted_values": [],
+        "candidate_statuses": [
+          "uncertain"
+        ]
+      }
+    },
+    {
+      "id": "MEM-001c",
+      "name": "an unrelated accepted preference can coexist with a directly contested one",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "dark",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true
+            },
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "reject",
+              "trusted": true
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "red",
+          "assertions": [
+            {
+              "root": "E3",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": false,
+        "context_refs": [],
+        "valid_at": "2026-09-06T12:00:00Z"
+      },
+      "expected": {
+        "slot_status": "contested",
+        "accepted_values": [
+          "red"
+        ],
+        "candidate_statuses": [
+          "contested",
+          "accepted"
+        ]
+      }
+    }
+  ],
+  "records": {
+    "SkillRevision": {
+      "task_family": "deploy",
+      "procedure": [
+        "check",
+        "deploy"
+      ],
+      "behavior_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "DependencyBasis": {
+      "basis_seq": 10,
+      "groups": [
+        {
+          "role": "all_of",
+          "pins": [
+            {
+              "id": "E1",
+              "version": 1
+            }
+          ]
+        }
+      ],
+      "policy_basis": {
+        "space_id": "S",
+        "snapshot_seq": 10,
+        "schema_environment_version": 2,
+        "identity_version": 1,
+        "policy": {
+          "id": "test-deterministic",
+          "version": "1"
+        },
+        "trust_version": "1",
+        "authorization_view": "view-1",
+        "context_refs": [],
+        "purpose": "answer_user",
+        "risk": "low",
+        "valid_at": "2026-09-06T12:00:00Z",
+        "next_invalid_at": null
+      }
+    },
+    "DecisionRecord": {
+      "decision": "act",
+      "retrieved_refs": [
+        "M1",
+        "M2"
+      ],
+      "used_refs": [
+        "M1"
+      ],
+      "applied_revisions": [
+        "R1"
+      ],
+      "basis": {
+        "space_id": "S",
+        "snapshot_seq": 10,
+        "schema_environment_version": 2,
+        "identity_version": 1,
+        "policy": {
+          "id": "test-deterministic",
+          "version": "1"
+        },
+        "trust_version": "1",
+        "authorization_view": "view-1",
+        "context_refs": [],
+        "purpose": "answer_user",
+        "risk": "low",
+        "valid_at": "2026-09-06T12:00:00Z",
+        "next_invalid_at": null
+      }
+    },
+    "AttemptRecord": {
+      "attempt_id": "A1",
+      "decision_ref": "G1",
+      "applied_revisions": [
+        "R1"
+      ],
+      "trial_ref": "T1",
+      "context": {
+        "difficulty": "easy"
+      },
+      "environment_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "tool_versions": {
+        "deploy": "1"
+      },
+      "selection_policy": {
+        "artifact_ref": "artifact:fixture-rule",
+        "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "preconditions_satisfied": "yes",
+      "started_at": "2026-09-06T12:00:00Z"
+    },
+    "OutcomeRecord": {
+      "task_family": "deploy",
+      "attempt_ref": "A1",
+      "metric": "health",
+      "window": "1h",
+      "terminal": true,
+      "observation_key": "probe:1",
+      "observer_config_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "outcome_status": "success"
+    },
+    "TrialRecord": {
+      "revision_refs": [
+        "R1"
+      ],
+      "basis": {
+        "space_id": "S",
+        "snapshot_seq": 10,
+        "schema_environment_version": 2,
+        "identity_version": 1,
+        "policy": {
+          "id": "test-deterministic",
+          "version": "1"
+        },
+        "trust_version": "1",
+        "authorization_view": "view-1",
+        "context_refs": [],
+        "purpose": "answer_user",
+        "risk": "low",
+        "valid_at": "2026-09-06T12:00:00Z",
+        "next_invalid_at": null
+      },
+      "rule": {
+        "artifact_ref": "artifact:fixture-rule",
+        "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "parameters": {
+        "artifact_ref": "artifact:fixture-rule",
+        "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "baseline_attempt_refs": [
+        "B1",
+        "B2"
+      ],
+      "baseline_outcome_refs": [
+        "EB1",
+        "EB2"
+      ],
+      "comparability": {
+        "method": "stratified",
+        "environment_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "strata_weights": {
+          "easy": 0.5,
+          "hard": 0.5
+        },
+        "metric": "health",
+        "minimum_effect": 0.05,
+        "uncertainty_rule": "fixture-only",
+        "missingness_policy": "account-for-all",
+        "observer_control_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sampling_unit": "attempt",
+        "correlation_policy": "cluster-dependent-attempts"
+      },
+      "quota": 2,
+      "observation_window": "1h",
+      "replay_artifact": {
+        "artifact_ref": "artifact:fixture-rule",
+        "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "evaluation_policy": {
+        "id": "policy:test-evaluation",
+        "version": "1",
+        "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "EvaluationRecord": {
+      "trial_ref": "T1",
+      "revision_refs": [
+        "R1"
+      ],
+      "from_status": "trialed",
+      "to_status": "adopted",
+      "rule_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "parameters_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "cutoff": "2026-09-06T12:00:00Z",
+      "attempt_refs": [
+        "A1",
+        "A2"
+      ],
+      "outcome_refs": [
+        "E1",
+        "E2"
+      ],
+      "excluded_samples": [],
+      "missing_attempt_refs": [],
+      "comparison": {
+        "status": "improved",
+        "effect": 0.1,
+        "uncertainty": {
+          "fixture": true
+        }
+      },
+      "replay_artifact": {
+        "artifact_ref": "artifact:fixture-rule",
+        "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "WatchState": {
+      "arm_generation": 2,
+      "armed_seq": 10,
+      "condition_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "authorization_view": "view-1",
+      "consumed_seq": 20,
+      "matched": false
+    },
+    "LeaseState": {
+      "owner": "worker",
+      "fencing_token": 2,
+      "expires_at": "2026-09-06T12:00:00Z",
+      "attempt_count": 2
+    },
+    "CompressionRecord": {
+      "source_refs": [
+        "E1"
+      ],
+      "extractor_version": "1",
+      "schema_version": "1",
+      "preserved_fields": [
+        "preference"
+      ],
+      "known_omissions": [
+        "small-talk"
+      ],
+      "reencoding_eligible": true
+    },
+    "RecallCoverage": {
+      "basis": {
+        "space_id": "S",
+        "snapshot_seq": 10,
+        "schema_environment_version": 2,
+        "identity_version": 1,
+        "policy": {
+          "id": "test-deterministic",
+          "version": "1"
+        },
+        "trust_version": "1",
+        "authorization_view": "view-1",
+        "context_refs": [],
+        "purpose": "answer_user",
+        "risk": "low",
+        "valid_at": "2026-09-06T12:00:00Z",
+        "next_invalid_at": null
+      },
+      "channels": {
+        "constraints": {
+          "completed": true,
+          "truncated": false
+        },
+        "commitments": {
+          "completed": true,
+          "truncated": false
+        },
+        "dependencies": {
+          "completed": true,
+          "truncated": false
+        },
+        "failures": {
+          "completed": true,
+          "truncated": false
+        },
+        "experiences": {
+          "completed": true,
+          "truncated": false
+        },
+        "skills": {
+          "completed": true,
+          "truncated": false
+        },
+        "evidence": {
+          "completed": true,
+          "truncated": false
+        }
+      },
+      "unverified_preconditions": [],
+      "action_eligible": true
+    },
+    "ErasurePlan": {
+      "scope": "semantic_forgetting",
+      "basis_seq": 10,
+      "source_event_refs": [
+        "event-1"
+      ],
+      "targets": [
+        {
+          "ref": "E1",
+          "surface": "payload",
+          "state": "erased"
+        },
+        {
+          "ref": "S1",
+          "surface": "summary",
+          "state": "pending"
+        }
+      ],
+      "external_exports": [],
+      "status": "partial",
+      "receipts": [
+        "TX1"
+      ]
+    }
+  },
+  "comparison": {
+    "baseline": {
+      "easy": {
+        "success": 9,
+        "total": 10
+      },
+      "hard": {
+        "success": 36,
+        "total": 90
+      }
+    },
+    "treatment": {
+      "easy": {
+        "success": 72,
+        "total": 90
+      },
+      "hard": {
+        "success": 3,
+        "total": 10
+      }
+    },
+    "weights": {
+      "easy": 0.5,
+      "hard": 0.5
+    },
+    "comparable": true,
+    "uncertainty_passed": true
+  }
+}

@@ -2,9 +2,11 @@
 
 ## Status
 
-**Normative Test Design / Pre-Executable Test Suite**
+**Normative Test Vectors with Executable Contract Oracles**
 
 Target: `KIP-2.0-SPECIFICATION.md` (`2.0-draft`)
+
+The additional [Cognitive Consistency vectors](./KIP-2.0-Cognitive-Tests.md) are normative companions. Their executable contract oracles, artifact fixtures and model checks do not stand in for running a Nexus adapter. Engine results must identify the engine and capability; model results must identify themselves as models.
 
 This document defines the canonical conformance-testing model for KIP 2.0.
 
@@ -1007,7 +1009,7 @@ Primary profile: `KIP-Schema`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Under the canonical test Package and deterministic policy: `timezone` (`functional`, `temporal_conflict: overlapping_valid_time`) with two trusted accepted values whose intervals overlap reports the slot `contested`, and with disjoint intervals reports each value `accepted` for its own `FOR TIME`; `prefers` (`functional: false`) with two supported objects reports both `accepted`; `is_vegetarian` (`functional`, `boolean_completeness: false`) with trusted support for both the `true` and the `false` object reports `BELIEF (alice, "is_vegetarian", true)` as `accepted` — the `false` object is a distinct claim, not opposition — while the slot is `contested` because the Predicate is functional; every Predicate is `open_world: true`, so an empty slot is `insufficient` (§20.15, §24, §25).
+**Expected semantic behavior:** Under the canonical test Package and deterministic policy: `timezone` (`functional`, `temporal_conflict: overlapping_valid_time`) with two trusted accepted values whose intervals overlap reports the slot `contested`, and with disjoint intervals reports each value `accepted` for its own `FOR TIME`; `prefers` (`functional: false`) with two supported objects reports both `accepted`; `is_vegetarian` (`functional`, `boolean_completeness: false`) with trusted support for both the `true` and the `false` object reports `candidate_status: accepted` but final `BELIEF (alice, "is_vegetarian", true).status: contested`, and the slot is `contested`, because the Predicate is functional. The false object remains a distinct stored claim; the conflict is a functional constraint, not a fabricated reject Assertion; every Predicate is `open_world: true`, so an empty slot is `insufficient` (§20.15, §24, §25).
 
 **Forbidden outcome:** a closed-world reading of an `open_world` Predicate; the `false` object treated as rejection where `boolean_completeness` is false; a non-functional slot reported `contested` for holding two values.
 
@@ -1293,9 +1295,9 @@ Primary profile: `KIP-Epistemic`
 
 **Expected semantic behavior:** Given an Insight, a Preference summary, a compiled Skill and a SelfModel each derived through recorded Activity lineage from one root Assertion and its Evidence, a `TRANSITION` of that root to `superseded`, `retracted` or `corrected` each changes what Projection reports and change nothing else: every derived element stays `active`, recallable, and identical in content and lifecycle (§57.5). Marking a derivation for review — for example `DerivationState.status = "stale"` in the Cognitive Memory Profile — is an explicit write by the reviewing actor, never a runtime side effect of the revision. Where `LIST DEPENDENTS` is supported, the derived elements remain discoverable from the revised root (META-025), so review is possible without being automatic.
 
-**Postconditions:** the lifecycle status, version and content of each derived element are unchanged across the revision transaction; the revision's Change Envelope touches only the revised root and what the caller explicitly wrote; a recall of each derived element after the revision still returns it.
+**Postconditions:** the lifecycle status, version and content of each derived element are unchanged across the revision transaction; the revision's Change Envelope touches only the revised root and what the caller explicitly wrote; a raw recall of each derived element after the revision still returns it. Ordinary Profile Recall computes dependency_validity immediately and cannot recommend an invalid derivation for automatic application, even before the reviewer writes stale (Cognitive Consistency §3; MEM-006).
 
-**Forbidden outcome:** cascading retraction, archival or tombstoning of derived artifacts; silent rewrite of a derived summary to match the new belief; hiding a derived element from recall because one of its roots moved; a runtime-set review flag presented as the reviewing actor's own judgment.
+**Forbidden outcome:** cascading retraction, archival or tombstoning of derived artifacts; silent rewrite of a derived summary to match the new belief; removing a derived element from raw recall because one of its roots moved; a runtime-set review flag presented as the reviewing actor's own judgment.
 
 ---
 
@@ -4026,11 +4028,24 @@ no representation authority inferred
 
 **Level:** MUST
 
-**Expected semantic behavior:** Two Skills S1 and S2 (Cognitive Memory Profile) share `task_family = "deploy/rollback"`; S1 is `trialed` with a `TrialState` whose `basis_seq` precedes everything below. An `action_gate` Activity G1 carries `DecisionRecord {decision: "act"}` and names S1 and a memory M1 among its `inputs`. An instrumentation Principal holding `record_outcome` writes Outcome Evidence O1 (`OutcomeRecord {task_family: "deploy/rollback", outcome_status: "failure"}`) with an `outcome_observation` Activity `{inputs: G1, outputs: O1}`, and Outcome Evidence O2 in the same family with no decision link. A deterministic `lifecycle_verdict` for S1 then lists O1 — and only O1 — among its `inputs`, updates S1's `GradingState` by exactly one graded failure, and may revise `MnemonicState.utility` of M1 by following G1's `inputs`; O2 is baseline for the trial and grades nothing; S2's `GradingState`, lifecycle and `MnemonicState` are unchanged by O1 and O2 (Spec §15.7, Invariant 37; Profile §8.1, §14 rule 7).
+**Expected semantic behavior:** S1 and S2 have distinct immutable revisions R1/R2
+whose task_family is deploy/rollback. T1 was opened for R1 before attempt A1;
+TrialState points to T1/R1, and immutable TrialRecord fixes its explicit baseline.
+G1's DecisionRecord pins R1 and actual used memory M1; AttemptRecord A1 binds G1,
+R1 and T1 before dispatch. The instrument writes terminal O1 for A1 and unlinked
+family outcome O2. A validated EvaluationRecord selects O1, aggregates one failed
+attempt and updates S1's revision/evaluation-bound GradingState. O2 is not treatment
+or automatically baseline. S2 is unchanged. Utility calibration of M1 additionally
+records its attribution method; merely retrieved memories are not reinforced.
 
-**Postconditions:** S1 `graded_count` +1, `failure_count` +1; S2 `GradingState` unchanged (or absent); the verdict Activity's `inputs` contain O1 and not O2; S1's `TrialState` is present before the verdict and its `rule_id` equals the rule the verdict pinned.
+**Postconditions:** S1 gains exactly one graded failed attempt; S2's cache is
+unchanged; the evaluation links the exact trial, revision and O1, with retained
+replay inputs. TrialState remains only a pointer. A new control selection must
+satisfy the recorded trial's comparability policy.
 
-**Forbidden outcome:** O1 counted toward S2 because of the shared family; O2 counted toward any Skill; a verdict on a Skill with no `TrialState`; any `GradingState` tally changed by an outcome that reaches the Skill through `task_family` alone.
+**Forbidden outcome:** family-only attribution, observation fan-out counted as
+multiple attempts, O2 silently assigned as a control, old TrialState used as the
+historical basis, or a verdict without a validated immutable EvaluationRecord.
 
 ---
 
@@ -4048,7 +4063,7 @@ no representation authority inferred
 
 **Level:** MUST
 
-**Expected semantic behavior:** A1 — Alice, `timezone`, `+08:00`, `valid_time {from: T0}` open-ended — is active. Alice moved at T1. One transaction writes A1' (`+08:00`, `valid_time {from: T0, until: T1}`) `SUPERSEDING` A1, A2 (`+01:00`, `valid_time {from: T1}`), and a `belief_revision` Activity (Specification §14.2, F.2). Under the deterministic policy: `BELIEF SLOT (alice, "timezone") FOR TIME T1 - 1 day` reports `accepted` `+08:00` from A1'; `FOR TIME T1 + 1 day` reports `accepted` `+01:00`; `AS OF` the sequence before the transaction with `FOR TIME` now reports `+08:00` (A1 was open-ended then, Appendix G.3/G.4); no time reports `contested`. By contrast the correction of F.2 (`+08:00` was wrong, `+07:00` is right) leaves `FOR TIME T1 - 1 day` reporting `+07:00`, because a superseded claim is dropped for every time.
+**Expected semantic behavior:** A1 — Alice, `timezone`, `+08:00`, `valid_time {from: T0}` open-ended — is active. Alice moved at T1. One transaction writes A1' (`+08:00`, `valid_time {from: T0, until: T1}`) `SUPERSEDING` A1, A2 (`+01:00`, `valid_time {from: T1}`), and a `belief_revision` Activity (Specification §14.2, F.2). Under the deterministic policy: `BELIEF SLOT (alice, "timezone") FOR TIME T1 - 1 day` reports `accepted` `+08:00` from A1'; `FOR TIME T1` and `FOR TIME T1 + 1 day` report `accepted` `+01:00`; `AS OF` the sequence before the transaction with `FOR TIME` now reports `+08:00` (A1 was open-ended then, Appendix G.3/G.4); no time reports `contested`. By contrast the correction of F.2 (`+08:00` was wrong, `+07:00` is right) leaves `FOR TIME T1 - 1 day` reporting `+07:00`, because a superseded claim is dropped for every time.
 
 **Postconditions:** A1 `superseded`; A1' and A2 `active`; the two active intervals do not overlap.
 
@@ -4060,7 +4075,7 @@ no representation authority inferred
 
 **Level:** MUST
 
-**Expected semantic behavior:** An armed delta Watch W matches the entry for element E in envelope N. Two maintenance workers each attempt the firing transition described in Profile §5.11 — a `MUTATE` creating a `watch_fire` Activity with `CLIENT KEY "watch_fire:<W>:<N>"`, a SleepTask, and `UPDATE :W SET ATTRIBUTES {status: "fired", fired_at: :t} EXPECT VERSION :v OF ATTRIBUTES` — concurrently. Exactly one transaction commits; the other fails `VersionConflict` (or replays as `no_effect` when it retries with the same keys), and afterwards there is one `watch_fire` Activity, one SleepTask, and W at `fired` with its version incremented once. The silence variant keys the Activity `watch_fire:<W>:silence:<due_at>` and behaves the same, and it is decided only after the evaluator has consumed the stream through the `space_seq` current at `due_at`: with a matching envelope committed before `due_at` that a worker has not yet fetched, that worker does not fire the silence Watch (Profile §5.11).
+**Expected semantic behavior:** An armed delta Watch W matches the entry for element E in envelope N. Two maintenance workers each attempt the firing transition described in Profile §5.11 — a `MUTATE` creating a `watch_fire` Activity with `CLIENT KEY "watch_fire:<W>:<generation>:<N>"`, a SleepTask, and `UPDATE :W SET ATTRIBUTES {status: "fired", fired_at: :t} EXPECT VERSION :v OF ATTRIBUTES` — concurrently. Exactly one transaction commits; the other fails `VersionConflict` (or replays as `no_effect` when it retries with the same keys), and afterwards there is one `watch_fire` Activity, one SleepTask, and W at `fired` with its version incremented once. The silence variant keys the Activity `watch_fire:<W>:<generation>:silence:<due_at>` and behaves the same, and it is decided only after the evaluator has consumed the stream through the `space_seq` current at `due_at`: with a matching envelope committed before `due_at` that a worker has not yet fetched, that worker does not fire the silence Watch (Profile §5.11).
 
 **Forbidden outcome:** two `watch_fire` Activities or two SleepTasks for one envelope or one deadline; W's version incremented twice; a firing without the guarded `UPDATE`; a silence firing on the clock alone while a matching change before `due_at` is still unread.
 
@@ -4068,7 +4083,7 @@ no representation authority inferred
 
 # 27. Required Invariant Coverage Matrix
 
-The Specification requires 38 cross-cutting invariants (§102), registered as Part A of [KIP-2.0-Invariants.md](../KIP-2.0-Invariants.md) under the same numbering; this matrix is the authoritative vector coverage for them. The Profile invariants (registry Part B) are pinned by the vectors the registry names.
+The Specification requires 43 cross-cutting invariants (§102), registered as Part A of [KIP-2.0-Invariants.md](../KIP-2.0-Invariants.md) under the same numbering; this matrix is the authoritative vector coverage for them. The Profile invariants (registry Part B) are pinned by the vectors the registry names.
 
 | Invariant | Required vectors |
 |---|---|
@@ -4110,6 +4125,11 @@ The Specification requires 38 cross-cutting invariants (§102), registered as Pa
 | 36. Self-report is never Outcome Evidence | X-017, GOV-026, CAP-023 |
 | 37. Task family finds; only the decision link attributes | X-016 |
 | 38. Schema symbol identity is lineage | SCHEMA-017, SCHEMA-018, SCHEMA-019 |
+| 39. Final BELIEF includes relevant slot conflicts; query shape cannot hide them. | MEM-001 |
+| 40. ProjectionBasis binds context, trust, policy, authorization and time; world intervals are half-open. | MEM-007 |
+| 41. Portable numbers and canonical artifacts reject silent numeric loss and ambiguous JSON. | MEM-011 |
+| 42. Identity decisions preserve input bindings; supported repair retains raw history and exposes unresolved attribution. | MEM-008 |
+| 43. Governed control changes invalidate dependent computation bases; incomplete stream coverage is not silence. | MEM-007, MEM-009 |
 
 ---
 
@@ -4552,9 +4572,11 @@ Published with this Specification release:
 Still outstanding:
 
 ```text
-10. canonical fixture state
-11. golden Capsule artifacts
-12. reference conformance runner
+10. complete engine adapters for all parent-suite vectors
+
+Shipped for the consistency revision: canonical state fixtures, a golden snapshot
+Capsule, typed result/artifact schemas, 25 memory adapter vectors and a bounded
+adapter runner (`run.mjs`). The subset runner never claims full-profile coverage.
 ```
 
 ---

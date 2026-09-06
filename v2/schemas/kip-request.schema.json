@@ -227,12 +227,14 @@
         "space_seq": {
           "type": "integer",
           "minimum": 0,
-          "description": "Optional Space commit-sequence precondition."
+          "description": "Optional Space commit-sequence precondition.",
+          "maximum": 9007199254740991
         },
         "schema_environment_version": {
           "type": "integer",
           "minimum": 0,
-          "description": "Optional exact Schema Environment version precondition."
+          "description": "Optional exact Schema Environment version precondition.",
+          "maximum": 9007199254740991
         },
         "extensions": {
           "$ref": "#/$defs/Extensions"
@@ -422,7 +424,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 1024,
-          "description": "Concept Type, local name or exact reference; resolves through the symbol lineage (§20.14)."
+          "description": "Concept Type, local name or exact reference; resolves through the symbol lineage (\u00a720.14)."
         },
         "key": {
           "type": "string",
@@ -453,7 +455,7 @@
           }
         }
       ],
-      "description": "A same-Space element reference: by exact id, or by Concept Type lineage plus key. Names are never references (§7.2)."
+      "description": "A same-Space element reference: by exact id, or by Concept Type lineage plus key. Names are never references (\u00a77.2)."
     },
     "IngestContext": {
       "type": "object",

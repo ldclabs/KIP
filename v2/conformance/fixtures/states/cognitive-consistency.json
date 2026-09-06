@@ -1,0 +1,20 @@
+{
+  "format": "KIP-Conformance-State-Fixture",
+  "format_version": "2.0-draft",
+  "fixture": "cognitive-consistency",
+  "description": "Core baseline plus the normative memory package and pinned validation schemas. Use exact package references because the test domain and memory package intentionally share local names. Each MEM scenario creates its additional records through the engine.",
+  "extends": "core-basic",
+  "schema_environment": {
+    "id": "schema_env:memory-v2",
+    "packages": [
+      "kip://test/core-domain@1.0.0",
+      "kip://profiles/cognitive-memory@2.1.0"
+    ],
+    "version": 18
+  },
+  "clock": "2026-09-06T12:00:00Z",
+  "epistemic_policy": "test-deterministic",
+  "governance_policy": "governance-test-policy",
+  "bindings": {},
+  "commits": []
+}

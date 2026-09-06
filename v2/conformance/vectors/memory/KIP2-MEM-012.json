@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-012",
+  "title": "Typed results, artifacts and honest result classification",
+  "description": "Validate canonical elements, projections, package dependencies, record Facets and\nsnapshot Capsules against the shipped schemas, then enforce semantic closure and\nruntime constraints. A Proposition carrying confidence is invalid. Profile activation\ncannot ignore unsupported value_schema or mismatched validation-schema digests.\nLoad only the manifest's verified schema pins in a fresh validator and compile\nevery root, including Capsule's Change Envelope dependency; no preloaded or network\nresource may hide a missing transitive pin.\nModel results identify themselves; an adapter error or unsupported required feature\nis not PASS. Coverage counts and IDs are verified independently of implementation\nclaims. Full Profile claims require every applicable parent and companion vector.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Core"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-012"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/invalid_shape_accepted",
+      "operator": "equals",
+      "expected": false
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/unsupported_schema_ignored",
+      "operator": "equals",
+      "expected": false
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/schema_lock_closed",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/mismatched_package_activated",
+      "operator": "equals",
+      "expected": false
+    }
+  ]
+}

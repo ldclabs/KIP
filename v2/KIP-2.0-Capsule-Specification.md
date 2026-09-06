@@ -85,23 +85,25 @@ integrity
 
 ## 37.7 Canonical representation
 
-Native Capsule format SHOULD have deterministic canonical serialization suitable for hashing/signing.
+The required canonicalization profile is `kip-jcs-safe-v1`: RFC 8785 (JCS)
+**in full**, narrowed to the portable numeric domain of Core §9.3. Encode UTF-8
+without a BOM; sort object names by UTF-16 code units; use ECMAScript escaping
+and number serialization; no whitespace, duplicate decoded keys, invalid Unicode
+or non-finite values. Normalize negative zero to zero. Artifact strings are NOT
+NFC-normalized; semantic Literal construction applies NFC before persistence.
 
-The baseline canonicalization profile is `kip-draft-canonical-json-v1`, the profile the shipped Schema Package artifacts already carry in `integrity.digest_profile`:
+Digest `sha256` over every top-level field except `integrity`, as canonical bytes,
+and spell it `sha256:<lowercase hex>`. Absence omits a field; null stays a value.
+Other algorithms/profiles require explicit negotiation. Previous
+`kip-draft-canonical-json-v1` digests are a different, nonportable draft format:
+a runtime MUST reject them unless it advertises an explicit compatibility verifier;
+it MUST NOT reinterpret their bytes under the new name.
 
-```text
-encoding        UTF-8, no byte-order mark
-objects         keys sorted by Unicode code point, recursively; no duplicate keys
-separators      "," and ":" with no whitespace
-strings         JSON escaping of control characters and '"' '\' only; other characters emitted raw
-numbers         finite only; integers without exponent or fraction; other values in shortest
-                round-trip form (§9.6 canonical value) — never NaN, Infinity, -0
-absent fields   omitted, never null (null is a value, §9.5)
-digest          sha256 over the canonical bytes of every top-level field except integrity,
-                written as "sha256:<lowercase hex>"
-```
-
-`sha256` is the required digest algorithm; a runtime MAY register further algorithms and signature suites under namespaced names, and MUST reject an artifact whose `digest_profile` or algorithm it does not know rather than verify it loosely.
+`schemas/kip-capsule.schema.json` and `schemas/kip-element.schema.json` fix the
+baseline portable shapes. Snapshot records use capsule-local IDs, references
+resolve through that namespace, and source identities remain separately recorded.
+Closure, semantic validation and Governance are checked in addition to JSON Schema.
+The reference canonicalizer and golden vectors are shipped with `packages/kip-lang`.
 
 ---
 
@@ -134,7 +136,7 @@ source element reference
 destination local element ID
 ```
 
-A source element ID MUST NOT automatically become the destination local primary ID.
+A source element ID MUST NOT automatically become the destination local primary ID. Space-local keys have no automatic cross-owner identity meaning.
 
 ---
 
@@ -146,7 +148,7 @@ Recommended conservative order:
 1. prior verified import mapping
 2. trusted canonical_id
 3. explicitly approved mapping
-4. schema-defined portable identity (symbol lineage + key, §20.14)
+4. explicitly declared portable identity (lineage + verified issuer_namespace + key_scope + normalized key, Cognitive Consistency §4)
 5. create new Concept
 ```
 

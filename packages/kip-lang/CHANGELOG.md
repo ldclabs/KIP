@@ -2,6 +2,33 @@
 
 All notable changes to `@ldclabs/kip-lang` are documented here.
 
+## 2.3.1
+
+Tracks the cognitive-consistency revision of the 2.0 draft: executable values
+and signed/hashed JSON artifacts now share one portable numeric domain, and
+JSON binding fails before ambiguous input can acquire meaning.
+
+### Added
+
+- `parseCanonicalJson(text)` rejects duplicate decoded keys, invalid Unicode,
+  trailing content, numeric loss, overflow and nonzero underflow before an
+  artifact is bound or hashed.
+- `canonicalize(value)` emits RFC 8785/JCS serialization under the same
+  `kip-jcs-safe-v1` numeric restriction and rejects values JSON would silently
+  erase or replace.
+
+### Fixed
+
+- Lowering rejects integer-valued numbers outside the portable exact range
+  (including exponent and fraction spellings), non-finite numbers and nonzero
+  underflow instead of silently changing their value. This tightens the prior
+  draft's i64/u64 acceptance; larger exact values must use a Schema-defined
+  string/value object.
+- JSON object lowering preserves `__proto__` as an ordinary own data property.
+- Cognitive mutations cannot write the engine-maintained `merged_into` identity
+  repair pointer.
+
+
 ## 2.3.0
 
 Tracks the 2.0-draft simplification: `VERIFY` takes `CAPSULE`, `SCHEMA

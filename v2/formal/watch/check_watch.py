@@ -3,12 +3,13 @@
 
 Formalizes CognitiveMemoryProfile-2.0.md §5.11 (Watch: delta and silence
 classes, firing as one atomic transition — a `watch_fire` Activity keyed
-`watch_fire:<watch>:<seq>` / `watch_fire:<watch>:silence:<due_at>` plus a
+`watch_fire:<watch>:<generation>:<seq>` / `watch_fire:<watch>:<generation>:silence:<due_at>` plus a
 guarded `UPDATE ... EXPECT VERSION` of the Watch's status) against
 KIP-2.0-SPECIFICATION.md §32.8 (no_effect), §34 / §52.1 (client_key retry
 identity), §35.1 (EXPECT VERSION), §36.3 (at-least-once delivery).
 
-Two maintenance workers consume the same Change Stream at their own pace,
+This bounded suite fixes arm_generation=1; re-arm/lease/recovery checks are
+in the consistency contract suite. Two maintenance workers consume the same Change Stream at their own pace,
 with redelivery, and both try to fire the same Watch. The model explores
 every interleaving and checks:
 
@@ -84,18 +85,18 @@ def successors(state, wclass, envelopes, due_seq):
             if cursor < n:
                 seq = cursor + 1
                 if wclass == "delta" and envelopes[cursor]:
-                    nxt.append(("fetch", (watch, fires, tasks, with_worker(("eval", cursor + 1, redelivered, None, None, f"watch_fire:W:{seq}")), clock)))
+                    nxt.append(("fetch", (watch, fires, tasks, with_worker(("eval", cursor + 1, redelivered, None, None, f"watch_fire:W:1:{seq}")), clock)))
                 else:
                     nxt.append(("fetch", (watch, fires, tasks, with_worker(("fetch", cursor + 1, redelivered, None, None, None)), clock)))
             if cursor > 0 and not redelivered and wclass == "delta" and envelopes[cursor - 1]:
-                nxt.append(("redeliver", (watch, fires, tasks, with_worker(("eval", cursor, True, None, None, f"watch_fire:W:{cursor}")), clock)))
+                nxt.append(("redeliver", (watch, fires, tasks, with_worker(("eval", cursor, True, None, None, f"watch_fire:W:1:{cursor}")), clock)))
             # silence: decide once the clock passed
             if wclass == "silence" and clock:
                 consumed = cursor >= due_seq
                 if consumed or MODE["premature_silence"]:
                     seen_match = any(envelopes[i] for i in range(min(cursor, due_seq)))
                     if not seen_match:
-                        nxt.append(("silence_eval", (watch, fires, tasks, with_worker(("eval", cursor, redelivered, None, None, f"watch_fire:W:silence:{due_seq}")), clock)))
+                        nxt.append(("silence_eval", (watch, fires, tasks, with_worker(("eval", cursor, redelivered, None, None, f"watch_fire:W:1:silence:{due_seq}")), clock)))
         elif pc == "eval":
             # read the Watch (snapshot) and decide
             status, version = watch

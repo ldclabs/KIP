@@ -116,9 +116,11 @@ action_gate Activity + DecisionRecord（来自结构化轨迹：智能体决策�
 
 不产生任何写入（空写入）也是完全合法的处理结果。
 
-当仪器化系统上报客观后果时 —— 遥测数据、验证器、测试框架、人工审查 —— 通过摄入上下文的 `facets` 创建携带 `OutcomeRecord`（`task_family`，`outcome_status`）的 Outcome 证据，保持其传输层原生类型（规范不变量 33），并通过一条 `outcome_observation` Activity 将其链接至被评估的决策（inputs: `action_gate` Activity；outputs: 该 outcome）。未建立链接的结果将归入该数据流的基线，不评估任何具体技能（规范第 15.7 节，Profile 第 8.1 节）；写入两者均需持有 `record_outcome` 权限。严禁从智能体对其自身行动结果的陈述中提取 `outcome` 证据：该陈述属于 `agent_statement`，对仪器输出进行摘要则产生 `derived_result` 而非 `outcome`（规范第 15.7 节）。
+当仪器化系统上报客观后果时 —— 遥测数据、验证器、测试框架、人工审查 —— 通过摄入上下文的 `facets` 创建携带 `OutcomeRecord`（`task_family`，`outcome_status`）的 Outcome 证据，保持其传输层原生类型（规范不变量 33），并通过一条 `outcome_observation` Activity 将其链接至被评估的决策（inputs: `action_gate` Activity；outputs: 该 outcome）。未建立链接的结果将保留为数据流原始素材，不评估任何具体技能；基线需要显式的可比选择（规范第 15.7 节，Profile 第 8.1 节）；写入两者均需持有 `record_outcome` 权限。严禁从智能体对其自身行动结果的陈述中提取 `outcome` 证据：该陈述属于 `agent_statement`，对仪器输出进行摘要则产生 `derived_result` 而非 `outcome`（规范第 15.7 节）。
 
-当结构化轨迹显示智能体做出决策时 —— 应用了哪项技能、简报提供了哪些记忆、网关裁定了什么 —— 创建带有 `DecisionRecord` 的 `action_gate` Activity，并在 `inputs` 中列出所应用的记忆与技能。若缺少该记录，后果通道将没有任何可供打分的对象。
+仪器化系统附带 attempt_ref、指标/窗口、终端标志 (terminal flag)、observation_key 以及 observer_config_digest。尝试 (attempt) 必须在分发前固定其试验 (trial) 和确切应用的修订版本。对同一次尝试的多次观察不会增加独立样本。
+
+当结构化轨迹显示智能体做出决策时 —— 应用了哪项技能、简报提供了哪些记忆、网关裁定了什么 —— 创建带有 `DecisionRecord` 的 `action_gate` Activity，并在 `inputs` 中列出所应用的记忆与技能。DecisionRecord 区分 retrieved_refs、used_refs 与 applied_revisions 并固定其完整基线。若缺少该记录以及实际的 AttemptRecord，后果通道将不存在可归因的处理尝试 (treatment attempt)。
 
 # 6. 执行上下文就绪
 
@@ -184,6 +186,7 @@ MUTATE {
   }
   CREATE ACTIVITY ?formation {
     SET FIELDS {activity_class: "extraction", status: "completed"}
+    SET FACET "DependencyBasis" {basis_seq: :basis_seq, groups: :dependency_groups, policy_basis: :basis}
     SET STRUCTURAL {
       ("inputs", :msg)
       ("outputs", ?event)
@@ -258,5 +261,7 @@ CREATE CONCEPT ?task {
 ```
 
 在语义上将任务指派给维护主体不赋予其任何特权；其权限来自 Governance 治理策略对其认证主体的明确授权。
+
+新行为应创建 `SkillRevision`；绝不能直接修改已采纳 Skill 的 procedure 或 task_family。选定修订版本将以原子操作重置当前资格地位以及 trial/grade 指针，而不会篡改旧有的不可变评估。
 
 

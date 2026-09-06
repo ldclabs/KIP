@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-002",
+  "title": "Behavior revision cannot inherit standing",
+  "description": "Create a Skill/current SkillRevision, open a trial, adopt through a valid evaluation,\nthen try UPDATE/UPSERT of procedure on the Skill or revision. ImmutableField or\nSchema validation fails with no mutation. Create and select a new revision in a\nguarded transaction: current standing becomes proposed, current grades/trial clear,\nold evaluation remains. Annotation/MnemonicState edits do not reset the revision.\nOld revision authority is not usable for the new digest.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-002"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/behavior_write_rejected",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/current_status",
+      "operator": "equals",
+      "expected": "proposed"
+    },
+    {
+      "source": "state",
+      "path": "/old_verdict_unchanged",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "state",
+      "path": "/authority_transferred",
+      "operator": "equals",
+      "expected": false
+    }
+  ]
+}

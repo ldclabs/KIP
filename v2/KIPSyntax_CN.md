@@ -99,7 +99,7 @@ predicate  带引号的精确 Schema 符号或 :parameter（绑定变量属于�
 object     本地 Element 引用，或 Predicate Schema 允许的标量 Literal
 ```
 
-基线 Core Literal 仅包括有限 JSON `string | number | boolean | null`。数组与任意对象可以作为赋值/封包值，但**不是**基线 Proposition Literal；结构化语义值应建模为类型化 Concept 或 Schema 定义的值对象。`null` 仅在 Predicate Schema 允许时合法。term 中的 `{type: ...}` 是内联 Concept 匹配，而不是任意对象 Literal。
+基线 Core Literal 仅包括 JSON `string | number | boolean | null`（数值：有限 binary64，整数值结果限制在 ±9007199254740991 范围内，杜绝非零下溢为零）。数组与任意对象可以作为赋值/封包值，但**不是**基线 Proposition Literal；结构化语义值应建模为类型化 Concept 或 Schema 定义的值对象。`null` 仅在 Predicate Schema 允许时合法。term 中的 `{type: ...}` 是内联 Concept 匹配，而不是任意对象 Literal。
 
 ---
 
@@ -460,11 +460,11 @@ SEARCH 仅用于关联接地：得分 (score) ≠ 置信度 ≠ 信念；未搜�
 
 ### 6. 认知记忆 Profile（速查参考）
 
-概念类型（Types）：`Person` `Event`（客观发生的事）`Experience`（目标导向的经历轨迹；必填 `goal`, `outcome_status`）`ExperienceStep`（`step_kind`: context|observation|decision|action|feedback|belief_update; `summary`; 顺序由 has_step 边索引确定）`Preference`（偏好摘要工件——主张本身仍为 Proposition+Assertion）`Insight`（洞察；可选的 `task_family` 可将其订阅至后果流）`Commitment`（承诺；`status`: pending|fulfilled|cancelled|expired|blocked; `due_at` ≠ retention 过期）`Watch`（关注警戒；`watch_class`: delta|silence; `condition` = `{element | slot: {subject, predicate} | type, ops, touched, text}` over Change Envelope entries, `text` alone is Brain-evaluated; `status`: armed|fired|expired|disarmed; firing is a guarded UPDATE + `watch_fire` Activity keyed `watch_fire:<id>:<seq>` so it never double-fires; a silence Watch is decided only after the stream is consumed through `due_at`, never on the clock alone; firing grants nothing）`Skill`（技能；`skill_class`, required `task_family` — the stream its baseline comes from, `summary`, `procedure`, `status`: proposed|trialed|adopted|revoked; transitions only by deterministic `lifecycle_verdict` over outcomes linked to decisions that applied it）`SleepTask`（睡眠任务；`task_class`: consolidate|review_conflict|review_skill|resolve_identity|review_retention|review_derived|refresh_self_model|inspect_quarantine; `summary`; `status`: pending|running|completed|cancelled|blocked|failed）`SelfModel`（自我模型）`WorkingState`（当前工作记忆摘要；必填 `basis_seq`；派生视图，绝不能作为 Evidence 引用）
+概念类型（Types）：`Person`, `Event`, `Experience`, `ExperienceStep`, `Preference`, `Insight`, `Commitment`, `Watch`, `SleepTask`, `SelfModel`, `WorkingState`, `Skill`, `SkillRevision`。Skill 是稳定身份；必填的 `current_revision` 指向不可变行为表现（`task_family`、`procedure`、可选的 `applicability`/`preconditions`/`success_criteria`/`recovery`、`behavior_digest`）。评分成绩与授权严格绑定该修订版本。选择新行为会将当前地位重置为 `proposed`；普通的 UPDATE 绝不能改写行为。Watch 触发键包含 `arm_generation` 且要求完备的截止期覆盖。详见规范性认知记忆 Profile 与认知一致性伴随文档。
 
 谓词（Predicates）：`prefers` (Person→Concept) `caused_by` (Step→Step, 结果→原因, 证据支撑) `same_as` (同一性主张 → 人工/规则复审)
 
-切面（Facets）：`MnemonicState {memory_strength, salience, utility, last_metabolized_at}`（Skill 也包含：`utility` 是准入下注）`GradingState {success_count, failure_count, graded_count, last_verdict_at}`（Skill / 订阅流的 Insight；仅统计指向应用该认知的决策的结果）`TrialState {opened_at, basis_seq, baseline_graded_count, baseline_success_count, baseline_failure_count, quota, rule_id}`（由开启试用的裁决写入）`DerivationState {basis_seq, status: current|stale|under_review, reviewed_at}` `DecisionRecord {decision: act|ask|defer|silence, rationale}`（挂在 `action_gate` 活动上，其 `inputs` 指明所应用的 Skill 与记忆）`OutcomeRecord {task_family, outcome_status: success|partial|failure|aborted|unknown, magnitude}`（挂在 `outcome` Evidence 上；由仪器写入，绝非被评估的行动者自身）—— 比例值为 `[0,1]`，计数为非负整数，时间戳可为空；它们都不是真值，`stale` 是复审标记而非撤回，`task_family` 寻找基线但绝不直接用于归因。
+切面（Facets）：`MnemonicState`（可访问性/显著性/效用），`GradingState`（`revision_ref` + `evaluation_ref` + 独立尝试计数），`TrialState`（`trial_ref` + `revision_ref`），`DerivationState`（复审状态）。不可变 Activity 切面：`DependencyBasis`、`DecisionRecord`（检索/使用/应用的修订版本 + 基线）、`AttemptRecord`、`TrialRecord`、`EvaluationRecord`、`CompressionRecord`、`RecallCoverage`。不可变 Evidence 切面：`OutcomeRecord`（尝试/指标/窗口/终结/观测身份与仪器配置）。受守卫的操作切面：`WatchState`、`LeaseState`。字段结构定义于 `schemas/kip-cognitive-records.schema.json`；规则摘要或原始结果计数不是试用。必需依赖项在使用前通过虚拟 `_system.dependency_validity` 进行校验，且不改写历史。
 
 结构字段：`has_step`（有序）`experienced_by` `involves` `mentions` `about` `derived_from` `consolidated_to` `compiled_from` `compiled_by` `committed_to` `owed_to` `assigned_to` `watches`；记录类内置字段：`evidence` `source` `generated_by` `inputs` `outputs` `associated_actors`。
 

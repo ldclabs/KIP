@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://kip.ldclabs.org/schemas/2.0/kip-change-envelope.schema.json",
   "title": "KIP 2.0 Change Envelope",
-  "description": "One state-changing commit yields one Change Envelope (KIP-2.0-SPECIFICATION.md §36). Entries carry names and versions, never payload values; existence protection applies per entry.",
+  "description": "One state-changing commit yields one Change Envelope (KIP-2.0-SPECIFICATION.md \u00a736). Entries carry names and versions, never payload values; existence protection applies per entry.",
   "type": "object",
   "required": [
     "space_id",
@@ -24,7 +24,8 @@
     },
     "space_seq": {
       "type": "integer",
-      "minimum": 1
+      "minimum": 1,
+      "maximum": 9007199254740991
     },
     "tx_id": {
       "type": "string",
@@ -42,7 +43,8 @@
     },
     "schema_environment_version": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 0,
+      "maximum": 9007199254740991
     },
     "changes": {
       "type": "array",
@@ -52,6 +54,56 @@
     },
     "extensions": {
       "$ref": "#/$defs/Extensions"
+    },
+    "control_changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "trust",
+              "policy",
+              "schema",
+              "identity",
+              "authorization"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "kind",
+          "version"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "through_seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "authorization_view": {
+          "type": "string",
+          "minLength": 1
+        },
+        "complete": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "through_seq",
+        "authorization_view",
+        "complete"
+      ],
+      "additionalProperties": false
     }
   },
   "$defs": {
@@ -101,11 +153,13 @@
         "old_version": {
           "type": "integer",
           "minimum": 1,
-          "description": "Present when the element existed before this commit."
+          "description": "Present when the element existed before this commit.",
+          "maximum": 9007199254740991
         },
         "new_version": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 9007199254740991
         },
         "state": {
           "type": "object",
@@ -165,7 +219,7 @@
             "minLength": 1,
             "maxLength": 512
           },
-          "description": "Paths changed by this entry — attribute, Facet, Structural Field, or retention names — carrying names only, never values."
+          "description": "Paths changed by this entry \u2014 attribute, Facet, Structural Field, or retention names \u2014 carrying names only, never values."
         },
         "extensions": {
           "$ref": "#/$defs/Extensions"
@@ -176,25 +230,29 @@
           "properties": {
             "attributes": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 0,
+              "maximum": 9007199254740991
             },
             "structural": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 0,
+              "maximum": 9007199254740991
             },
             "retention": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 0,
+              "maximum": 9007199254740991
             },
             "facets": {
               "type": "object",
               "additionalProperties": {
                 "type": "integer",
-                "minimum": 0
+                "minimum": 0,
+                "maximum": 9007199254740991
               }
             }
           },
-          "description": "Plane counters (Spec §6.3) after this commit, for each version plane the entry touched."
+          "description": "Plane counters (Spec \u00a76.3) after this commit, for each version plane the entry touched."
         }
       },
       "allOf": [

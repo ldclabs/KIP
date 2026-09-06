@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-014",
+  "title": "Orthogonal signals and deliberate silence",
+  "description": "Update salience/utility/memory_strength under ordinary permission: trust, Assertion\nconfidence and authority remain unchanged. Record a gate decision silence with its\nbasis and inputs; no external act occurs and no permission is conferred. Replay\nand read do not reinforce any signal. Utility changes require recorded actual-use\nattribution, not just appearance in retrieved_refs.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-014"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/silence_recorded",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/epistemic_or_authority_change",
+      "operator": "equals",
+      "expected": false
+    },
+    {
+      "source": "state",
+      "path": "/read_reinforcement",
+      "operator": "equals",
+      "expected": false
+    }
+  ]
+}

@@ -50,6 +50,7 @@ import type {
   NumberLiteral
 } from './ast.js'
 import { invalidSyntax } from './errors.js'
+import { portableNumber } from './canonical.js'
 import type {
   AggregationFunction,
   Assignments,
@@ -161,7 +162,8 @@ const PROTECTED_FIELDS = new Set([
   '_system',
   'governance',
   'space_id',
-  'space_seq'
+  'space_seq',
+  'merged_into'
 ])
 
 /**
@@ -1657,7 +1659,7 @@ function lowerUpdateExpr(
 
     case 'UnaryExpression':
       if (expr.operator === '-' && expr.operand.kind === 'NumberLiteral') {
-        return { Number: -numberValue(expr.operand) }
+        return { Number: portableNumber(-numberValue(expr.operand)) }
       }
       throw invalidSyntax(
         `expected a number, a parameter, the target's own field or a registered function, found ${describeExpression(expr)}`,
@@ -1987,56 +1989,13 @@ function lowerElementRef(ref: TargetRef): ElementRef {
 // Numeric literals
 // ---------------------------------------------------------------------------
 
-/** `i64::MIN` — the most negative integer a KIP number literal may spell. */
-const INT_MIN = -(2n ** 63n)
-/** `u64::MAX` — the largest. */
-const INT_MAX = 2n ** 64n - 1n
-
-/** An integer literal: no fraction, no exponent, so it is read as an integer. */
-const INTEGER_FORM = /^-?\d+$/
-
-/**
- * The value of a number literal, refusing the ones that cannot survive being
- * one.
- *
- * A JavaScript number is a double, so `18446744073709551617` silently becomes
- * `18446744073709551616` on the way in. Accepting that would be the worst
- * possible outcome: the command does not fail, it *executes with a different
- * number than it says*, and no engine downstream can detect it — by the time
- * an executable AST exists the digits are gone. So the check happens here,
- * against the raw text, which is the only place the original is still around.
- *
- * The bounds are the reference grammar's: an integer literal is read as an
- * `i64` or a `u64` and must fit one of them, and any other form must parse to a
- * finite double. `18446744073709551616.0` is therefore accepted where
- * `18446744073709551616` is not — the float form is claiming an approximation,
- * and the integer form is claiming an exact value it cannot deliver.
- *
- * Integers above 2^53 still lose precision in this implementation's `value`
- * even though they are accepted, because a double cannot hold them. That is a
- * property of the host, not a disagreement about the language: both engines
- * agree the command is legal, and a runtime that needs the exact digits has
- * `raw`.
- */
+/** Never discard exact integer digits or silently turn a nonzero value into zero. */
 function numberValue(node: NumberLiteral): number {
-  if (INTEGER_FORM.test(node.raw)) {
-    const exact = BigInt(node.raw)
-    if (exact < INT_MIN || exact > INT_MAX) {
-      throw invalidSyntax(
-        `${node.raw} is outside the range a KIP integer literal can represent ` +
-          `(${INT_MIN} to ${INT_MAX})`,
-        node.range
-      )
-    }
-    return node.value
+  try {
+    return portableNumber(node.value, node.raw)
+  } catch (error) {
+    throw invalidSyntax(`${(error as Error).message}: ${node.raw}`, node.range)
   }
-  if (!Number.isFinite(node.value)) {
-    throw invalidSyntax(
-      `only finite numbers are valid KIP literals, found ${node.raw}`,
-      node.range
-    )
-  }
-  return node.value
 }
 
 function lowerKipValue(expr: Expression): KipValue {
@@ -2055,11 +2014,10 @@ function lowerKipValue(expr: Expression): KipValue {
     case 'ObjectPattern': {
       const entries =
         expr.kind === 'ObjectLiteral' ? expr.entries : expr.members
-      const out: Record<string, KipValue> = {}
-      for (const entry of entries) {
-        out[entry.key] = lowerKipValue(entry.value)
-      }
-      return { Object: out }
+      // Create data properties even for names such as __proto__.
+      return { Object: Object.fromEntries(entries.map(entry =>
+        [entry.key, lowerKipValue(entry.value)]
+      )) }
     }
     case 'UnaryExpression':
       if (expr.operator === '-' && expr.operand.kind === 'NumberLiteral') {
@@ -2082,11 +2040,9 @@ function lowerKipValue(expr: Expression): KipValue {
  * lets a parameter stand anywhere inside them.
  */
 function lowerBoundObject(object: ObjectLiteral): Record<string, BoundValue> {
-  const out: Record<string, BoundValue> = {}
-  for (const entry of object.entries) {
-    out[entry.key] = lowerBoundValue(entry.value, null)
-  }
-  return out
+  return Object.fromEntries(object.entries.map(entry =>
+    [entry.key, lowerBoundValue(entry.value, null)]
+  ))
 }
 
 /** Strips the `?` sigil; the executable form carries bare names. */

@@ -26,13 +26,16 @@
 
 以下工件是本规范的规范性伴随文档与配套件：
 
+- `KIP-2.0-Cognitive-Consistency_CN.md` —— 完备冲突信念、计算基线、依赖健全性、实体识别修复与可靠学习/工作节点契约
+- `schemas/kip-projection.schema.json`、`schemas/kip-cognitive-records.schema.json`、`schemas/kip-element.schema.json`、`schemas/kip-capsule.schema.json`、`schemas/kip-schema-package.schema.json` —— 规范性结果与工件形态
+- `conformance/KIP-2.0-Cognitive-Tests.md` —— 横跨 Core/Profile 的验收向量
 - `grammar/KIP-2.0-KQL.ebnf`、`grammar/KIP-2.0-KML.ebnf`、`grammar/KIP-2.0-META.ebnf` —— 规范性语法定义
 - `schemas/kip-request.schema.json`、`schemas/kip-response.schema.json`、`schemas/kip-change-envelope.schema.json` —— 规范性传输层信封结构
-- `profiles/cognitive-memory-2.0.0.schema.json` 与 `profiles/CognitiveMemoryProfile-2.0.md` —— 标准认知记忆 Profile 包
+- `profiles/cognitive-memory-2.1.0.schema.json` 与 `profiles/CognitiveMemoryProfile-2.0_CN.md` —— 标准认知记忆 Profile 包
 - `conformance/KIP-2.0-Conformance-Tests.md`、`conformance/conformance-test-vector.schema.json`、`conformance/conformance-report.schema.json`、`conformance/conformance-state-fixture.schema.json`、`conformance/conformance-governance-policy.schema.json` 与 `conformance/fixtures/` —— 一致性测试套件
 - `KIP-2.0-Capsule-Specification_CN.md` —— 本规范的 §37–§41 与 §95，即认知胶囊（Cognitive Capsule），以相同的章节编号独立成伴随规范维护
 - `KIP-2.0-Optional-Profiles-and-Migration_CN.md` —— 本规范的 §100、§101、§103 及附录 I：历史读取、高保证加固与 KIP 1.x 迁移 —— 每一项均为一项能力（§67.4），而非 Profile
-- `KIP-2.0-Invariants_CN.md` —— 不变量统一注册表：涵盖 §102 的 38 条 Core 核心不变量（Part A）与认知记忆 Profile 的 35 条不变量（Part B）
+- `KIP-2.0-Invariants_CN.md` —— 不变量统一注册表：涵盖 §102 的 43 条 Core 核心不变量（Part A）与认知记忆 Profile 的 46 条不变量（Part B）
 
 `KIPSyntax_CN.md` 是面向 LLM 的参考性语法速查卡，不属于规范性工件。
 
@@ -737,15 +740,9 @@ null (空值)
 
 ## 9.3 数值规则 (Numeric rules)
 
-仅有限数值有效。
+可移植 JSON 数值使用有限的 IEEE 754 binary64。整数值在命令文本、绑定参数、网络计数器和工件中均**必须**处于 `[-9007199254740991, 9007199254740991]` 范围内。该约束同等地适用于整数、小数与指数写法；改变记数法无法绕过该约束。非零下溢至零、非有限值以及超出范围的整数，**必须**在其源数字丢失之前被拒绝。小数值采用 binary64 舍入。对于更大的精确整数或十进制数，使用 Schema 定义的 string/value 对象。
 
-**必须**拒绝：
-
-```text
-NaN
-Infinity
--Infinity
-```
+解码器在绑定或脱糖之前**必须**校验源数值词元。将不同的精确整数隐式舍入为同一数值属于不合规行为。规范化工件 Profile 为 `kip-jcs-safe-v1`（§37.7）；先前草案中不支持的数值契约需要显式迁移，而非隐式重新解释。
 
 ---
 
@@ -760,6 +757,20 @@ Infinity
 仅当谓词 Schema 明确允许时，`null` 方可作为语义字面量使用。
 
 对于未知状态，通常**应当**通过缺省/不确定性来表达，而非凭空捏造一个 `null` 事实。
+
+---
+
+## 9.6 规范化形式 (Canonical form)
+
+字面量身份（§12.3）比对规范化形式，运行时在写入时**必须**对字面量进行规范化：
+
+```text
+string      NFC 规范化后的 Unicode 标量值；不进行裁剪 (trim)，不进行大小写折叠
+number      经过校验的 binary64 数值 (§9.3)：1、1.0 与 1e0 为同一 Literal；
+            -0 规范化为 0；数值相等的有效整数与浮点数相等
+boolean     按值比较
+null        按值比较，仅限谓词允许的场合 (§9.5)
+```
 
 ---
 
@@ -870,7 +881,7 @@ A.merged_into = B
 
 ## 11.3 新写入操作 (New writes)
 
-普通的新写入操作**应当**将已合并的引用规范化指向 `B`。
+普通的新写入操作通过 `B` 解析实体身份，而引擎审计**必须**保留实际传入的端点以及所使用的解析决策/版本。解析为既有规范命题的 ASSERT 或创建操作，仍保留其自身的输入引用绑定；仅凭规范元组无法恢复该原始意图。有关实体识别修复，请参阅认知一致性伴随文档 §4。
 
 ---
 
@@ -884,6 +895,12 @@ A.merged_into = B
 原始溯源信息 (raw provenance)
 历史可查询性 (historical queryability)
 ```
+
+---
+
+## 11.5 实体识别修复 (Identity repair)
+
+对外声明支持 `identity_repair` 的运行时**必须**实现 [认知一致性 §4](./KIP-2.0-Cognitive-Consistency_CN.md#4-可修复的身份标识与可移植键-repairable-identity-and-portable-keys) 中规定的受保护解析撤回与受影响写入复审契约。它绝不重写旧元组、绝不凭空捏造丢失的归属，也绝不通过 `same_as` 自动获取权限。
 
 ---
 
@@ -1041,6 +1058,8 @@ _system.origin.principal_id
 
 后者用于标识经过身份认证的执行调用主体。
 
+`context_refs` 是可选的（OPTIONAL）：指向限定断言适用范围的 Concept 引用 —— 即该立场成立的情境、目的或领域（§25.3）。它在创建时通过 `SET FIELDS` 设置，属于不可变载荷的一部分（§13.7）；上下文匹配**必须**遵循[认知一致性 §2](./KIP-2.0-Cognitive-Consistency_CN.md#2-投影基线上下文与挂钟时钟-projectionbasis-context-and-clocks)中的集合包含基线；显式版本化的策略可以添加声明的继承规则。限定了上下文的断言对于未提供上下文的请求是不适格的（`context_mismatch`）。
+
 ---
 
 ## 13.4 立场 (Stance)
@@ -1150,9 +1169,9 @@ expired (已过期)
 
 ## 14.3 已过期 (Expired)
 
-过期表明根据其生命周期模型，该断言不再具备当前有效性/资格。
+`expired` 是一种**计算得出**的状态，绝不是存储状态：凡是 `valid_time.until` 处于投影的 `valid_at`（`FOR TIME`）当天或之前的断言，对于该投影而言即为 `expired`。没有任何 KML 语句能直接产生该状态，变更信封（Change Envelope）绝不携带它，存储的生命周期状态仍然为 `active`、`retracted` 或 `superseded`。`HISTORY` 不会显示向 `expired` 的状态流转，因为该状态从未被提交。
 
-它与存储留存期以及现实世界的有效时间各不相同。
+该状态是根据现实世界有效时间计算得出的，并与存储留存期严格区分。时间区间为左闭右开 `[from, until)`；相等的有限边界是非法的（[认知一致性 §2](./KIP-2.0-Cognitive-Consistency_CN.md#2-投影基线上下文与挂钟时钟-projectionbasis-context-and-clocks)）。
 
 ---
 
@@ -1258,7 +1277,7 @@ context (背景上下文)
 
 每项结果证据**应当**携带一个**任务族 (task family)**：即其所属的带命名空间的可比后果流（例如 `"deploy/rollback"`、`"outreach/reply"`）。被评定的认知通过携带相同的任务族名称来订阅对应的数据流，因此仪器无需预先知晓哪些模式规则会消费其写入的数据。认知记忆 Profile（Cognitive Memory Profile）定义了标准的 `OutcomeRecord` 切面（任务族、结果状态、影响幅度）以及消费该通道的技能生命周期机制。
 
-任务族用于寻找可比后果；它**绝不直接归因**后果。一项用于对具体决策 —— 应用的某项技能、做出的网关裁决 —— 进行打分的结果，**必须**在溯源上显式链接到该决策：记录该观测的活动（Profile 中的 `outcome_observation`）将其决策活动列入 `inputs`，并将结果证据列入 `outputs`。打分消费者仅能通过该链接将结果计入技能评分。未建立决策链接的结果仅归属于数据流自身，因而仅作为该流的对比基线，不归属于其他任何实体。正是这一点使得比较性裁决完全可复算：处理集是关联的结果，对比基线则是该任务族的其余结果。
+任务族用于定位候选的比对素材；它绝不直接归因后果，也绝不自动定义基线。结果通过仪器化写入的 `outcome_observation` Activity 对决策进行评分，该 Activity 将实际的尝试（Attempt）、决策与结果证据（Outcome Evidence）建立溯源链接。标准 Profile 在执行前将尝试绑定到确切的技能修订版本（SkillRevision）与试用。对同一次尝试的多次观察，在每个度量指标/时间窗口内保持为一个抽样单元。未链接的结果保留在数据流素材中，直至显式的可比基线选择准入它们。[认知一致性 §5–§6](./KIP-2.0-Cognitive-Consistency_CN.md) 定义了独立尝试、可比性与保留的回放输入；仅凭共享的任务族或规则摘要无法证明上述任何一项。
 
 写入 `outcome` 类的证据及链接它的观测活动，需要持有 `record_outcome` 权限（§29.8）。
 
@@ -1349,7 +1368,7 @@ cancelled (已取消)
 
 活动的骨干溯源拓扑**应当**保持不可变。
 
-后续纠错应当通过创建另一条活动/审计记录来表示。
+后续纠错应当通过创建另一条活动/审计记录来表示。进入终态的 Activity 在提交时捕获由引擎维护的 `_system.input_versions` 与 `_system.output_versions`，包括最终输出版本。对于派生写入，输入版本对照显式的 DependencyBasis 读取钉固值进行校验，而不是根据提交时的当前状态盲目猜测。输出版本标识实际提交的输出。未钉固的审计 Activity 可以报告事务快照版本，但**绝不能**声称这些版本证明行动者实际消费了它们。这些映射不由作者直接写入，且不能替代保留的回放工件。
 
 ---
 
@@ -1454,7 +1473,7 @@ UNSET STRUCTURAL { (field, target) }              移除该条引用
 ```json
 {
   "facets": {
-    "kip://profiles/cognitive-memory@2.0.0/MnemonicState": {
+    "kip://profiles/cognitive-memory@2.1.0/MnemonicState": {
       "memory_strength": 0.8,
       "salience": 0.9
     }
@@ -1598,7 +1617,7 @@ kip://<package-path>@<exact-version>[/<symbol>]
 ```text
 kip://core@2.0.0
 kip://core@2.0.0/Assertion
-kip://profiles/cognitive-memory@2.0.0/Experience
+kip://profiles/cognitive-memory@2.1.0/Experience
 kip://ldclabs/organization@1.3.0/works_for
 ```
 
@@ -1643,6 +1662,10 @@ aliases (别名)
 migration descriptors (迁移描述符)
 model hints (模型提示)
 ```
+
+模式包字段或切面（Facet）定义**可以**携带 `value_schema`，即 JSON Schema 2020-12 约束。合规的加载器**必须**解析其钉固的 Schema 依赖项，并在字段可变性与引用约束之外对其进行校验；不支持的契约将导致激活失败，绝不能被静默忽略。标准 Profile 在其 `validation_schemas` 清单中按摘要钉固了伴随 Schema。切面的 `attachment` 约束（`activity_classes` / `terminal_only`）与 `applicable_to` 一道具有强制约束力；终态记录字段绝不能通过修改 Activity 类别、UPDATE 或 UNSET 来绕过。
+
+验证 Schema 锁定**必须**包含 `$ref` 与 `$dynamicRef` 的可传递 Schema 资源闭包，以实际的 Schema `$id` 为键，包括使用 HTTPS 而非 URN 标识的依赖项。所有锁定的 Schema 必须仅使用这些经校验的资源以及验证器的 JSON Schema 元模式完成编译。任何未解析或未钉固的资源均会导致激活失败；先前缓存的或通过网络拉取的 Schema 绝不能暗中提供支持。
 
 ---
 
@@ -1902,7 +1925,9 @@ insufficient (证据不足 / 未知)
 
 语义定义：
 
-> 在投影策略规则下，合格的支持依据充足，且未决的反对意见低于策略阈值。
+> 在投影策略规则下，合格的支持依据充足，依赖有效，且未决的直接反对或槽位约束冲突低于策略阈值。
+
+这是最终结果，不仅是候选者的局部支持。[认知一致性 §1](./KIP-2.0-Cognitive-Consistency_CN.md#1-冲突完备信念-conflict-complete-belief) 要求单命题 BELIEF 与槽位 BELIEF SLOT 在最终接受上达成一致。
 
 ---
 
@@ -1946,21 +1971,7 @@ insufficient (证据不足 / 未知)
 
 ## 21.9 物化投影视图 (Materialized Projection)
 
-认识论投影在本质上保持为视图 (§21.2)，但系统实现**可以**缓存/物化投影结果，以便以字典查找的低成本快速召回稳定信念。
-
-物化投影**必须**至少由以下要素唯一标识：
-
-```text
-Projection Policy identity + version (投影策略标识与版本)
-snapshot_seq basis (快照序列号依据)
-valid-time basis (有效时间依据)
-```
-
-规范要求：
-
-- 提供物化结果时**必须**通过结果上下文 (§50) 披露其策略标识与快照依据；将其伪装成在当前快照下全新计算的结果属于非合规行为。
-- 物化结果在作为当前结果提供之前，**必须**使其失效，或对照 `space_seq` / 变更外壳重新验证其有效性。
-- 物化投影仍然属于视图：**严禁**将其回写为证据或断言，且**严禁**用于佐证其自身的输入来源 (§23.5, §26.6)。
+投影保持为只读视图。运行时**仅可**在[认知一致性 §2](./KIP-2.0-Cognitive-Consistency_CN.md#2-投影基线上下文与挂钟时钟-projectionbasis-context-and-clocks)定义的完备 ProjectionBasis 下缓存投影结果：包括空间快照、模式与实体识别版本、策略/信任版本、当前授权视图、上下文、目的/风险以及现实有效时间。投影结果必须披露该基线以及下一个失效时刻。复用要求对所有计算依赖项进行有效性验证；即使未发生新断言，仅策略或仅时间的变更也算作基线失效。陈旧的结果可以作为历史数据显式提供，但绝不能作为当前结果提供。缓存绝不会变成证据或自我佐证的断言。
 
 ---
 
@@ -2037,6 +2048,8 @@ verifiability (可验证性)
 provenance completeness (溯源完备性)
 ```
 
+经过纠错的证据记录在结构化基线下无法提供无保留的当前支持。其历史载荷依然可被查询；替代主张必须显式引用纠错后的证据。仅执行载荷清除保留了证据事件与根源身份（§60.6）。
+
 ---
 
 ## 22.5 信任状态 (Trust State)
@@ -2061,7 +2074,7 @@ policy identity  id + version
 
 修改信任状态需要 `manage_trust` 权限。
 
-信任变更**必须**具备可审计性，且**应当**作为控制平面状态跃迁记录在变更/审计流中。
+信任变更**必须**具备可审计性，推进其受保护的版本，并作为控制平面状态跃迁记录在变更/审计流中。它们会使依赖的 ProjectionBasis 视图失效（[认知一致性 §2](./KIP-2.0-Cognitive-Consistency_CN.md#2-投影基线上下文与挂钟时钟-projectionbasis-context-and-clocks)）。
 
 记忆大脑**可以**实现结果驱动的信任校准 —— 由预测误差和结果证据来提升或降低上下文信任度。校准算法属于大脑策略，但每次修订**应当**记录溯源信息（例如引用结果证据的信任修订活动），以便大脑日后能够回答**为何信任某个来源**。
 
@@ -2252,6 +2265,8 @@ include hypothetical (是否包含假设)
 explanation level (解释详细程度)
 ```
 
+`context_refs` 是一个已排序的精确上下文引用集合（[一致性 §2](./KIP-2.0-Cognitive-Consistency_CN.md#2-投影基线上下文与挂钟时钟-projectionbasis-context-and-clocks)）。所有已解析的坐标均作为 `basis` 返回；`schemas/kip-projection.schema.json` 定义了网络传输契约。
+
 ---
 
 ## 27.2 投影输出 (Projection output)
@@ -2261,6 +2276,10 @@ explanation level (解释详细程度)
 ```json
 {
   "status": "accepted",
+  "candidate_status": "accepted",
+  "slot_status": "accepted",
+  "conflict_refs": [],
+  "conflict_reasons": [],
   "leading": "support",
 
   "support": {
@@ -2295,6 +2314,10 @@ explanation level (解释详细程度)
   "explanation": {}
 }
 ```
+
+上述概念示例为节省篇幅省略了 `basis`；实际结果**必须**包含完整的 ProjectionBasis。`candidate_status` 属于诊断信息；消费者应使用最终的 `status`。即使对于单个接地的候选命题，也必须包含功能性冲突（[一致性 §1](./KIP-2.0-Cognitive-Consistency_CN.md#1-冲突完备信念-conflict-complete-belief)）。
+
+`leading` 指明如果策略被迫做出抉择时所倾向的一方：在 `accepted` 下为 `support`，在 `rejected` 下为 `opposition`，而在 `contested` 下则为拥有更多合格独立受信根源的一方，采用策略所声明的决胜规则（§27.1）；完全平局、`uncertain` 以及 `insufficient` 报告 `none`。`leading` 是面向必须采取行动的消费者的信息披露（Brain Recall 会同时呈现双方并标出权重更大的一方）；它绝不改变 `status`。
 
 ---
 
@@ -2674,6 +2697,8 @@ behavioral (行为指导性)
 executable (可执行性)
 ```
 
+该字段受到治理平面的受控保护：普通 KML 严禁写入该字段；通过元素的 `governance` 视图读取（`?x.governance.authority_class`，受调用者在 §30 下的可见性约束），且 `DESCRIBE ACCESS` 报告调用者可提权到的等级；该等级绝不由认知内容自行推断得出（§28.1）。未显式携带该字段的元素默认拥有 `descriptive` 权限。Profile 可以将生命周期资格与权限等级关联 —— 例如处于 `proposed` 状态的技能最高仅可为 `advisory`，而认知记忆 Profile §14 下的采纳（adoption）状态是治理策略接受授予 `behavioral` 权限的依据 —— 但该等级由治理面指定并强制执行，绝非由 Profile 自身的字段自行赋予。对于程序性影响，授权/提权绑定确切的 SkillRevision 与 `behavior_digest`；选择其他修订版本绝不转移这些权限。
+
 ---
 
 ## 31.4 导入技能 (Imported Skills)
@@ -3028,7 +3053,7 @@ schema_environment_version
       "op": "update",
       "kind": "concept",
       "id": "C-7",
-      "schema_ref": "kip://profiles/cognitive-memory@2.0.0/Commitment",
+      "schema_ref": "kip://profiles/cognitive-memory@2.1.0/Commitment",
       "old_version": 4,
       "new_version": 5,
       "touched": ["attributes.status", "facets.MnemonicState"],
@@ -3041,6 +3066,10 @@ schema_environment_version
 每个条目**必须**携带 `op`（`create | update | lifecycle | retention | merge | purge | payload_purge`）、`kind`、`id` 与 `new_version`；元素已存在时携带 `old_version`；`lifecycle` 操作携带 `state {from, to}`；Concept 携带 `schema_ref`；Assertion 条目携带 `refs.proposition`，Proposition 条目携带 `refs.subject` 与 `refs.predicate_ref`；`planes` 记录提交后该条目所触碰的每个平面的计数器（§6.3）；`touched` 记录发生变更的路径列表（属性、切面、结构字段或留存名称）——仅记录名称，绝不携带值。这是 Watch（认知记忆 Profile）在无需载荷的情况下判断某个槽位、元素或类型是否发生变化所需的最小信息。
 
 存在性保护（§30.4）按条目独立生效：消费方无权 discover 发现的元素将从其收到的信封中被剔除。超出条目元数据的载荷数据（新旧值）不属于信封的一部分；消费方需凭自身权限按需读取。
+
+---
+
+控制平面提交携带受治理的 `control_changes` 条目（`trust`、`policy`、`schema`、`identity`、`authorization`），并具有不透明的版本标识；它们分配空间序列号（Space sequence）并使相关的计算基线失效。它们绝不伪装成认知元素或证据。完整/过滤流消费者接收受治理的覆盖范围水位线与授权视图绑定；仅凭缺失条目或序列号间隙无法证明为静默无事（[认知一致性 §7](./KIP-2.0-Cognitive-Consistency_CN.md#7-持久化注意力工作与外部行动-durable-attention-work-and-external-actions)）。
 
 ---
 
@@ -3470,7 +3499,7 @@ KQL 分页游标**必须**为该次遍历保留单一规范认知快照。
 
 主语和谓词在执行投影前**必须**是可接地的或已绑定的。
 
-无界限的全局大脑投影**应当**被拒绝。
+无界限的全局大脑投影**应当**被拒绝。有界的候选命题在最终接受前仍需评估相关的槽位竞争对手；LIMIT 仅对返回的行数设定上限，绝不对纳入考量的证据设定上限。资源耗尽将产生显式的不完整/不确定（incomplete/uncertain）结果或错误，绝不能因反对意见被隐式截断而判定为接受。
 
 ---
 
@@ -3606,6 +3635,7 @@ WITH EPISTEMIC {
   purpose: "answer_user",
   risk: "low",
   policy: "optional-policy-id",
+  context_refs: [],
   include_historical: false,
   include_hypothetical: false,
   explanation: "summary"
@@ -3636,7 +3666,7 @@ ledger (完整账本)
 
 # 50. KQL 结果上下文 (KQL Result Context)
 
-KQL 响应**应当**标识：
+KQL 响应**必须**标识其所在空间（Space）与快照；投影结果还**必须**额外暴露完整的 ProjectionBasis（[一致性 §2](./KIP-2.0-Cognitive-Consistency_CN.md#2-投影基线上下文与挂钟时钟-projectionbasis-context-and-clocks)），包括：
 
 ```text
 space_id (空间ID)
@@ -4120,7 +4150,7 @@ SUPERSEDE ASSERTION :old BY ?new
 
 运行时**严禁**仅因某个溯源根节点被修订，就自动撤回、自动归档或自动改写下游派生认知。派生元素是否随根节点变动而失效，属于认知层面的复审决策，而非协议层的硬性规则。
 
-运行时**应当**为这类复审提供完备的机制支持。在支持 `LIST DEPENDENTS`（§63.5）的环境中，被修订根节点的下游派生认知可通过单次操作完整发现；在发生实质性修订后，Brain **应当**对这些依赖项发起复审。认知记忆 Profile 提供了 `DerivationState` Facet 与 `review_derived` 维护任务类别，用于跟踪并记录复审结果。
+运行时**必须**使必需的派生依赖具备可复审性。`LIST DEPENDENTS` 提供分页遍历；标准 Profile 还要求在召回（Recall）前执行虚拟依赖有效性验证（[认知一致性 §3](./KIP-2.0-Cognitive-Consistency_CN.md#3-不重写历史的依赖健全性-dependency-validity-without-rewriting-history)）。根节点的变更使存储工件保持完整，而其计算得出的有效性可能立即变为 `needs_review`。这既不是作者手动编写的陈旧标志，也不是自动撤回。推理得出的断言同样受到检查。维护流程记录 `DerivationState`，并通过显式的覆盖水位线完成有界复审。
 
 ---
 
@@ -4162,6 +4192,7 @@ SET FACET "MnemonicState" {salience: 0.9}
 
 ```text
 命题元组 (Proposition tuple)
+Concept merged_into / 受保护的实体识别解析状态
 断言历史认识载荷 (Assertion historical epistemic payload)
 证据载荷 (Evidence payload)
 已完成活动的溯源拓扑 (completed Activity provenance topology)
@@ -4358,16 +4389,25 @@ KML **严禁**暗示对现实世界外部行动具备原子级回滚能力。
 
 ```text
 事务 1 (Transaction 1)
-    决策 + 行动意图 (Decision + ActionIntent)
+    决策记录：一条 Activity（Profile 中的 action_gate），其 inputs 指名所应用的认知
+    —— 确切的技能修订版本（Skill revisions）、简报提取的记忆、触发因素 —— 其 Facet 记录该决策
+    + action_attempt Activity / AttemptRecord 以及持久化分派意图
 
 外部运行时 (external runtime)
-    执行具体行动 (performs action)
+    重新校验权限、修订版本、依赖基线与租约围栏
+    使用相同的 attempt_id 执行/对齐行动
 
 事务 2 (Transaction 2)
-    结果证据 + 活动 + 经验 (Outcome Evidence + Activity + Experience)
+    结果证据 (Outcome Evidence)
+    + outcome_observation Activity {inputs: 决策与尝试, outputs: 结果}
+    + 可选的经验更新 (optional Experience update)
 ```
 
 该交互模式对应的返回闭环即后果通道：外部结果以结果证据（§15.7）的形式返回，由仪器化组件写入，绝不由其行动正被评定的当事主体写入。
+
+---
+
+对外声明 `durable_brain_runtime` 的运行时**必须**遵循[认知一致性 §7](./KIP-2.0-Cognitive-Consistency_CN.md#7-持久化注意力工作与外部行动-durable-attention-work-and-external-actions)关于发件箱持久化、尝试标识（attempt identity）、带围栏接管与 `outcome_unknown` 恢复的规定。对于不具备幂等性/状态查询能力的外部系统，绝不能从 KIP 获得精确一次（exactly-once）的虚假保证。
 
 ---
 
@@ -4714,6 +4754,9 @@ filtered_delivery           §36.3
 watch_evaluation            运行时求值的 Watch 条件（认知记忆 Profile §5.11）
 list_dependents             §63.5
 payload_purge               §60.6
+identity_repair             认知一致性 §4
+dependency_validity         认知一致性 §3（标准记忆 Profile 强制要求）
+durable_brain_runtime       认知一致性 §7
 capsule_export              §63.4
 capsule_import              §39
 capsule_signatures          §37.8
@@ -4851,7 +4894,7 @@ JSON 是基线的逻辑请求/响应格式。
 
 JSON 文本**必须**采用 UTF-8 编码。
 
-**应当**拒绝包含重复 JSON 键的对象。
+解码后的重复 JSON 对象键以及未成对的 Unicode 代理对（surrogates）**必须**被拒绝。源数值词元在绑定前**必须**按照 §9.3 进行校验。语言工具包中的 `parseCanonicalJson` 是参考的严格解码器；UTF-8 解码也**必须**拒绝无效字节。
 
 ---
 
@@ -5707,6 +5750,7 @@ KIP-KQL (查询语言合规)
 KIP-KML (变更语言合规)
 KIP-META (自省元语言合规)
 KIP-Runtime (运行时合规)
+KIP-CognitiveMemory (认知记忆合规：标准包加认知一致性契约)
 ```
 
 Profile 是对语言和运行时的一组打包要求。引擎可以逐项选择省略的内容是能力 (Capability)，而非 Profile：胶囊支持 (§95)、历史读取 (§100)、高保证加固 (§101) 以及 KIP 1.x 迁移 (§103) 均通过 §67.4 注册表公布 —— `capsule_export` / `capsule_import`、`historical_reads`、`signed_receipts` / `capsule_signatures`、`kip1_migration` —— 并且仅在公布了对应能力时，才对照定义它们的章节进行衡量。
@@ -5966,9 +6010,9 @@ transaction lookup (事务状态查找)
 
 # 102. 核心合规不变式列表 (Required Conformance Invariants)
 
-合规的原生 KIP 2.0 系统实现**必须**严格遵守 38 条跨领域不变量。
+合规的原生 KIP 2.0 系统实现**必须**严格遵守 43 条跨领域不变量。
 
-全部清单完整收录于公共注册表 [KIP-2.0-Invariants_CN.md](./KIP-2.0-Invariants_CN.md) 的 Part A 中，每条不变量标明确立章节与钉住向量；同一注册表的 Part B 承载认知记忆 Profile 的 35 条不变量。
+全部清单完整收录于公共注册表 [KIP-2.0-Invariants_CN.md](./KIP-2.0-Invariants_CN.md) 的 Part A 中，每条不变量标明确立章节与钉住向量；同一注册表的 Part B 承载认知记忆 Profile 的 46 条不变量。
 
 ---
 
@@ -6652,16 +6696,18 @@ source Evidence (源证据)
 ## F.6 结果评定与生命周期裁决 (Outcome grading and a lifecycle verdict)
 
 ```text
-决策 (action_gate 活动: inputs 指明所应用的技能)
+决策 (action_gate 活动: DecisionRecord 与 inputs 指明所应用的修订版本)
+    ↓
+action_attempt 活动 (AttemptRecord 在分派前固定尝试、修订版本与试用)
     ↓
 外部行动 / 试用运行
     ↓
 仪器化组件（绝不是行动模型自身）
     ↓
-结果证据 Outcome Evidence {task_family, outcome_status}
-    + outcome_observation 活动 {inputs: 决策活动, outputs: 结果证据}
+结果证据 Outcome Evidence {OutcomeRecord: attempt_ref, task_family, outcome_status, metric, window, ...}
+    + outcome_observation 活动 {inputs: 尝试与决策, outputs: 结果证据}
     ↓
-确定性裁决代码依据 TrialState 基线读取关联的结果证据
+确定性裁决代码对照不可变的 TrialRecord 基线聚合独立的尝试
     ↓
 lifecycle_verdict 活动 + 一条受保护的 UPDATE
 ```
@@ -6675,6 +6721,7 @@ CREATE ACTIVITY ?obs {
     status: "completed"
   }
   SET STRUCTURAL {
+    ("inputs", :attempt)
     ("inputs", :decision)
     ("outputs", :outcome)
     ("associated_actors", :verifier)
@@ -6682,7 +6729,7 @@ CREATE ACTIVITY ?obs {
 }
 ```
 
-当试用期关联结果达到配额时执行的裁决：
+当试用期独立合格尝试达到配额且比对成功时执行的裁决。`:evaluation_record` 锚定不可变的试用、修订版本、选定的尝试/结果以及保留的回放输入：
 
 ```prolog
 MUTATE {
@@ -6690,9 +6737,19 @@ MUTATE {
     SET FIELDS {
       activity_class: "lifecycle_verdict",
       status: "completed",
-      parameters_digest: :rule_digest
+      parameters_digest: :parameters_digest
+    }
+    SET FACET "EvaluationRecord" {
+      trial_ref: :trial, revision_refs: [:revision],
+      from_status: "trialed", to_status: "adopted",
+      rule_digest: :rule_digest, parameters_digest: :parameters_digest,
+      cutoff: :now, attempt_refs: [:attempt_a, :attempt_b],
+      outcome_refs: [:outcome_a, :outcome_b], excluded_samples: [],
+      missing_attempt_refs: [], comparison: :comparison, replay_artifact: :replay_artifact
     }
     SET STRUCTURAL {
+      ("inputs", :trial)
+      ("inputs", :revision)
       ("inputs", :outcome_a)
       ("inputs", :outcome_b)
       ("outputs", :skill)
@@ -6702,17 +6759,20 @@ MUTATE {
   UPDATE :skill
   SET ATTRIBUTES {status: "adopted"}
   SET FACET "GradingState" {
-    success_count: 9,
-    failure_count: 2,
-    graded_count: 12,
+    revision_ref: :revision, evaluation_ref: ?verdict,
+    success_count: 2,
+    failure_count: 0,
+    graded_count: 2,
     last_verdict_at: :now
   }
   SET FACET "MnemonicState" {utility: 0.78}
   EXPECT VERSION :version OF ATTRIBUTES
+  EXPECT VERSION :grade_version OF FACET "GradingState"
+  EXPECT VERSION :mnemonic_version OF FACET "MnemonicState"
 }
 ```
 
-晋升操作在一条受保护的语句中执行：`EXPECT VERSION ... OF ATTRIBUTES` 确保其并发安全性，且不会被并发的 `MnemonicState` 衰减扫描所破坏（§35.1），裁决 Activity 锚定评估规则（`parameters_digest`）与所评定的结果证据（`inputs`），且 Skill 上的 `TrialState` 忠实承载了试用开启时的对比基线，使整个状态迁移过程对审计员完全可独立复算。仅有关联至应用了该技能之决策的结果才会进入 `inputs`；该任务族的其余结果则构成开启试用时的对比基线。
+该事务在更新当前状态之前，先校验不可变的 TrialRecord/EvaluationRecord 与确切修订版本、独立聚合的尝试、比对要求以及回放工件。写入的每一个可变平面均受到版本防护；并发的助记写入将引发刷新而非被盲目覆盖。GradingState 是该评估结果的缓存。任何未链接的结果绝不会自动成为基线，仅凭规则名称无法构成可回放的裁决（[认知一致性 §5–§6](./KIP-2.0-Cognitive-Consistency_CN.md)）。
 
 ---
 

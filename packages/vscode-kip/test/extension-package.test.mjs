@@ -167,6 +167,7 @@ describe('VS Code extension package', () => {
       'FIND(?x.name == "Alice") WHERE { ?x {type: "Person"} }',
       'ASSERT ("Alice", "prefers", :dark) {by: :alice, mode: "stated"}',
       'CREATE CONCEPT ?c { SET FIELDS {_system: 1} }',
+      'UPDATE :c SET FIELDS {merged_into: :target}',
       'UPDATE ?a SET FIELDS {confidence: 0.2} WHERE { ?a ASSERTION {id: "A-1"} }'
     ]
     for (const source of invalid) {
@@ -174,6 +175,22 @@ describe('VS Code extension package', () => {
         diagnose(source).some((diagnostic) => diagnostic.severity === 'error'),
         source
       )
+    }
+  })
+
+  test('editor diagnostics reject numbers that cannot survive lowering', () => {
+    for (const source of [
+      'ENSURE PROPOSITION (:s, "counter", 9007199254740993)',
+      'ENSURE PROPOSITION (:s, "counter", 9007199254740993.0)',
+      'ENSURE PROPOSITION (:s, "counter", 9.007199254740993e15)',
+      'ENSURE PROPOSITION (:s, "value", 1e309)',
+      'ENSURE PROPOSITION (:s, "value", 1e-400)'
+    ]) {
+      const errors = diagnose(source).filter(
+        (diagnostic) => diagnostic.severity === 'error'
+      )
+      assert.equal(errors.length, 1, source)
+      assert.equal(errors[0].code, 'KIP_1001', source)
     }
   })
 })

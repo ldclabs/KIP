@@ -147,7 +147,7 @@ BELIEF is virtual and read-only.
 Read the projection honestly:
 
 ```text
-accepted      believe it
+accepted      final candidate + slot + dependency checks passed at the disclosed basis
 rejected      believe its negation
 contested     actors disagree — surface both sides; `leading` names the heavier side, not a verdict
 uncertain     support too weak to commit
@@ -187,9 +187,11 @@ Step order is not proof of causality: a causal link exists only where an explici
 
 # 16. Procedural Recall
 
-Rank Skills by goal/task relevance, applicability, preconditions, current environment, lifecycle standing, graded utility, verdict recency, and authority/status. Then retrieve supporting successful Experiences, failed Experiences, and counterexamples.
+Resolve current_revision. When GradingState is present, use its grades only after its revision_ref and referenced, runtime-validated EvaluationRecord match the current revision and standing; never pair new behavior with old grades. A proposed or trialed Skill with no grades remains eligible for recall as an unproven candidate. Missing, mismatched or unverifiable grading evidence for a claimed adopted Skill MUST be disclosed and MUST NOT produce a validated recommendation. Recall does not repair these records or change standing.
 
-Lifecycle standing orders the shortlist: `adopted` leads, `trialed` and `proposed` surface flagged as unproven, and `revoked` appears only as a warning or counterexample — never as a recommendation. Graded standing outranks self-reported success stories at every tier.
+Rank eligible Skills by goal/task relevance, applicability, preconditions, current environment, verified lifecycle standing, available graded utility, verdict recency, and authority/status. Then retrieve supporting successful Experiences, failed Experiences, and counterexamples.
+
+Lifecycle standing orders the shortlist: verified `adopted` leads, `trialed` and `proposed` surface flagged as unproven, and `revoked` appears only as a warning or counterexample — never as a recommendation. Missing grades confer no inherited standing or execution authority. Graded standing outranks self-reported success stories at every tier.
 
 Semantic similarity alone is insufficient.
 
@@ -212,6 +214,8 @@ Recommended shape:
   "open_commitments": [],
   "constraints": [],
   "unverified_preconditions": [],
+  "coverage": {},
+  "basis": {},
   "warnings": []
 }
 ```
@@ -219,6 +223,8 @@ Recommended shape:
 Each Skill entry should distinguish lifecycle standing (`proposed | trialed | adopted | revoked`), graded utility, provenance, and Governance influence/authority. Skill presence never implies tool execution permission.
 
 For wake/resume — "what is my situation?" — read the WorkingState first and honor its declared `basis_seq`: serve it plus `CHANGES AFTER SEQ` deltas rather than re-deriving the situation from raw history. A WorkingState is a derived recall surface (Spec §66.7): disclose its basis, never cite it as Evidence.
+
+The empty objects above are shape placeholders: actual basis and coverage conform to the companion schemas. A complete wake briefing consumes every delta page through a declared watermark and validates context/trust/authorization/time dependencies, not just WorkingState.basis_seq.
 
 # 19. Commitment Recall
 
@@ -254,9 +260,9 @@ If Projection is authorized but raw Evidence is not, return safe redacted Projec
 
 # 26. Profile Ranking
 
-Memory ranking may use task relevance, semantic similarity, memory_strength, salience, utility, validity/currentness, Experience outcome, graded outcome standing, and counterexample relevance. Where the context budget forces a cut, graded standing is the tiebreaker: what the world has actually vindicated serializes before what merely resembles the task. Final factual belief still comes from Epistemic Projection, not rank.
+Memory ranking may use task relevance, semantic similarity, memory_strength, salience, utility, validity/currentness, Experience outcome, graded outcome standing, and counterexample relevance. Query constraints/Commitments, dependencies, failures/counterexamples, successful Experiences, Skills and evidence independently. Report RecallCoverage with basis, completed channels, truncation and unverified preconditions. Required constraints and critical warnings precede graded standing; a budget cutoff makes coverage incomplete and prevents unsupported automatic action. Final factual belief still comes from Epistemic Projection, not rank.
 
-Surface, do not hide, a `DerivationState.status = stale` flag on a derived artifact: it means a provenance root changed after the artifact was built and review is pending — the artifact is still recallable, but the reader deserves the caveat.
+Surface, do not hide, a `DerivationState.status = stale` flag on a derived artifact: it means a provenance root changed after the artifact was built and review is pending — the artifact is still raw-recallable, but the reader deserves the caveat. Also inspect computed `_system.dependency_validity` before Maintenance writes this flag: needs_review/unverifiable prevents automatic application. A stored current flag cannot override an invalid basis.
 
 # 27. Iterative Deepening
 

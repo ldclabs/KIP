@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-011",
+  "title": "Exact numeric identity and canonical bytes",
+  "description": "Reject 9007199254740992 and 9007199254740993 (both outside the portable range),\nincluding fraction/exponent spellings, before lowering/binding discards digits.\nAccept \u00b19007199254740991 exactly; reject nonzero underflow and non-finite values.\nReject duplicate decoded object names, invalid Unicode and BOM in canonical JSON.\nAll shipped artifacts use kip-jcs-safe-v1 and reproduce their digest with one\ncanonicalizer. Test UTF-16 property ordering, 1/1.0, exponent boundaries and -0.\nArtifact strings stay unchanged by NFC; semantic Literal normalization is separate.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Core"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-011"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/lossy_number_accepted",
+      "operator": "equals",
+      "expected": false
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/digest_agreement",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/ambiguous_json_accepted",
+      "operator": "equals",
+      "expected": false
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/bad_write_mutations",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

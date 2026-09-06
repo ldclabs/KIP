@@ -11,9 +11,10 @@ const repoRoot = path.resolve(
   '../../..'
 )
 
+const englishOnly = process.env.KIP_DOC_LANG === 'en'
 const docFiles = [
   'v2/KIPSyntax.md',
-  'v2/KIPSyntax_CN.md'
+  ...(englishOnly ? [] : ['v2/KIPSyntax_CN.md'])
 ]
 
 const grammarCoverage = [
@@ -179,7 +180,7 @@ describe('LLM-facing syntax references', () => {
     })
   }
 
-  test('English and Chinese cards keep executable examples in lockstep', async () => {
+  test('English and Chinese cards keep executable examples in lockstep', { skip: englishOnly }, async () => {
     const [english, chinese] = await Promise.all(
       docFiles.map((relativePath) => readFile(path.join(repoRoot, relativePath), 'utf8'))
     )

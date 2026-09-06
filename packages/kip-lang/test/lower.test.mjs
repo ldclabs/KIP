@@ -686,49 +686,39 @@ describe('lower: META', () => {
 })
 
 describe('lower: what a literal can promise', () => {
-  test('an integer literal must fit the range an engine can store', () => {
-    // The bounds are i64::MIN and u64::MAX, which is what the reference
-    // grammar reads an integer literal as.
-    lowerOne('CREATE CONCEPT ?c { TYPE "T" SET ATTRIBUTES { n: 18446744073709551615 } }')
-    lowerOne('CREATE CONCEPT ?c { TYPE "T" SET ATTRIBUTES { n: -9223372036854775808 } }')
-
-    // Past them the value cannot survive being a JavaScript number, and
-    // accepting it would be the worst outcome available: not a failure, but a
-    // command that executes with a different number than it says. No engine
-    // downstream can detect that — by the time an executable AST exists the
-    // digits are gone.
-    const over = lowerThrows(
-      'CREATE CONCEPT ?c { TYPE "T" SET ATTRIBUTES { n: 18446744073709551616 } }'
-    )
-    assert.match(over.message, /outside the range/)
-    assert.match(
-      lowerThrows(
-        'CREATE CONCEPT ?c { TYPE "T" SET ATTRIBUTES { n: -9223372036854775809 } }'
-      ).message,
-      /outside the range/
-    )
+  test('identity repair cannot be forged by writing the engine merge pointer', () => {
+    assert.match(lowerThrows('UPDATE :c SET FIELDS {merged_into: :target}').message,/engine-maintained/)
+  })
+  test('JSON property names survive lowering as own data fields', () => {
+    const cmd=lowerOne('CREATE CONCEPT ?c {TYPE "T" SET ATTRIBUTES {data: {"__proto__": {x: 1}}}}')
+    const value=cmd.Kml.clauses[0].CreateConcept.set_attributes[0][1].Value.Object
+    assert.ok(Object.hasOwn(value,'__proto__'))
+    assert.equal(value.__proto__.Object.x.Number,1)
+    assert.equal(Object.getPrototypeOf(value),Object.prototype)
+  })
+  test('portable integer boundaries remain exact in the execution AST', () => {
+    for (const n of ['9007199254740991', '-9007199254740991']) {
+      const cmd = lowerOne(`ENSURE PROPOSITION (:s, "counter", ${n})`)
+      assert.equal(cmd.Kml.clauses[0].EnsureProposition.object.Literal.Number, Number(n))
+    }
+    for (const n of ['9007199254740992', '9007199254740993', '-9007199254740992',
+                     '18446744073709551615', '-9223372036854775808',
+                     '9007199254740993.0', '9.007199254740993e15']) {
+      assert.match(lowerThrows(`ENSURE PROPOSITION (:s, "counter", ${n})`).message, /outside the range/)
+    }
   })
 
-  test('the float form is an approximation and says so', () => {
-    // `18446744073709551616.0` claims an approximation and is legal;
-    // `18446744073709551616` claims an exact value it cannot deliver.
-    const cmd = lowerOne(
-      'CREATE CONCEPT ?c { TYPE "T" SET ATTRIBUTES { n: 18446744073709551616.0 } }'
-    )
-    assert.equal(
-      cmd.Kml.clauses[0].CreateConcept.set_attributes[0][1].Value.Number,
-      18446744073709551616
-    )
+  test('finite fractional values keep binary64 semantics and normalize negative zero', () => {
+    for (const [n, expected] of [['0.125', 0.125], ['1e-7', 1e-7], ['-0', 0]]) {
+      const cmd = lowerOne(`ENSURE PROPOSITION (:s, "value", ${n})`)
+      assert.equal(cmd.Kml.clauses[0].EnsureProposition.object.Literal.Number, expected)
+    }
   })
 
-  test('a number with no finite value is not a literal', () => {
-    assert.match(
-      lowerThrows('CREATE CONCEPT ?c { TYPE "T" SET ATTRIBUTES { n: 1e309 } }')
-        .message,
-      /finite/
-    )
-    // Underflow is a real value, not an overflow.
-    lowerOne('CREATE CONCEPT ?c { TYPE "T" SET ATTRIBUTES { n: 1e-400 } }')
+  test('overflow and nonzero underflow fail without fabricating a value', () => {
+    assert.match(lowerThrows('ENSURE PROPOSITION (:s, "value", 1e309)').message, /finite/)
+    assert.match(lowerThrows('ENSURE PROPOSITION (:s, "value", 1e-400)').message, /underflows/)
+    lowerOne('ENSURE PROPOSITION (:s, "value", 0e-400)')
   })
 
   test('the range applies to update expressions too', () => {

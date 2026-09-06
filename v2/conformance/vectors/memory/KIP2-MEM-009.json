@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-009",
+  "title": "Durable generation, coverage, leases and dispatch recovery",
+  "description": "Under durable_brain_runtime, restart a Watch evaluator with an unread pre-deadline\nmatch: no silence fire. Re-arm/change condition and replay an old worker: its old\ngeneration cannot fire. Incomplete filtered watermark, stream truncation or changed\nauthorization scope requires resynchronization. Expire a running worker lease,\nreclaim with a larger fence, reject old completion/dispatch. Crash before dispatch,\nafter external effect and before Outcome commit; recover the same attempt ID.\nIf external lookup/idempotency is unavailable, return outcome_unknown without\nblind redispatch. A live authorized replacement can resume unfinished work.",
+  "level": "OPTIONAL",
+  "class": "fault_injection",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-009"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/false_silence_fires",
+      "operator": "equals",
+      "expected": 0
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/stale_fence_accepted",
+      "operator": "equals",
+      "expected": false
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/blind_redispatches",
+      "operator": "equals",
+      "expected": 0
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/replacement_can_resume",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "capabilities": [
+    "durable_brain_runtime"
+  ]
+}

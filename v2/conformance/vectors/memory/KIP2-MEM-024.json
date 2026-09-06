@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-024",
+  "title": "Privacy reaches retained evaluation and backup inputs",
+  "description": "A replay artifact contains a fact selected for semantic forgetting. Include it and\ncontrolled backup copies in ErasurePlan. Until both are erased/otherwise removed\nunder the declared policy, status cannot be completed. Afterwards historical replay\nreports unavailable honestly while permitted non-content verdict audit survives.\nRe-export and cache reads cannot resurrect the in-scope fact.",
+  "level": "MUST",
+  "class": "fault_injection",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-024"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/early_erasure_status",
+      "operator": "equals",
+      "expected": "partial"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/erased_replay",
+      "operator": "equals",
+      "expected": "unavailable"
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/resurrected_copies",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-004",
+  "title": "Comparable baselines and missingness",
+  "description": "Use the 90\u219280 / 40\u219230, aggregate 45\u219275 example in the machine-readable fixture.\nA fixed-weight stratified rule returns not_improved, never adopted. Missing strata,\nmissing observer assurance, failed comparability or uncertainty criteria produce\ninsufficient. Unlinked family outcomes are not automatically controls. Account for\nall enrolled attempts and declared missingness before computing success rates.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-004"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/comparison",
+      "operator": "equals",
+      "expected": "not_improved"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/missing_stratum",
+      "operator": "equals",
+      "expected": "insufficient"
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/adopted",
+      "operator": "equals",
+      "expected": false
+    }
+  ]
+}

@@ -1,5 +1,8 @@
 # KIP 2.0 — Cognitive Core Instructions ($self)
 
+
+The normative [Cognitive Consistency contract](./KIP-2.0-Cognitive-Consistency.md) binds final belief, immutable Skill revisions, independent attempts, replayable trials/evaluations, dependency validity, identity repair and durable workers. Lifecycle counters aggregate attempts; unlinked family outcomes are never automatically controls. Stored summaries are used only with a validated computation basis.
+
 **[English](./SelfInstructions.md) | [中文](./SelfInstructions_CN.md)**
 
 ## Status

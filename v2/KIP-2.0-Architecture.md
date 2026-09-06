@@ -1,5 +1,8 @@
 # KIP 2.0 Architecture — A Cognitive State Protocol for Agent Memory Brains
 
+
+The normative [Cognitive Consistency contract](./KIP-2.0-Cognitive-Consistency.md) binds final belief, immutable Skill revisions, independent attempts, replayable trials/evaluations, dependency validity, identity repair and durable workers. Lifecycle counters aggregate attempts; unlinked family outcomes are never automatically controls. Stored summaries are used only with a validated computation basis.
+
 **[English](./KIP-2.0-Architecture.md) | [中文](./KIP-2.0-Architecture_CN.md)**
 
 ## Status
@@ -906,7 +909,7 @@ Repeated failure can increase the *learning value* of an Experience while decrea
 
 Beyond Skills, the Cognitive Memory Profile carries `utility` as a general mnemonic signal: the admission bet — expected future decision value — recorded when a memory is stored and calibrated against outcomes afterwards. Without that signal a memory system cannot tell which of its admissions earn their keep, and admission policy never learns.
 
-The calibration has a typed source. A signal in this system can be held three ways: set by whoever asserted it (confidence on an Assertion), metabolized by use and disuse (memory_strength), or earned — changed because a recorded consequence graded it. The consequence channel (Specification §15.7) is the third way made concrete: Outcome Evidence written by instrumentation, never by the actor it grades, found by task family and attributed by the decision record — the `action_gate` Activity whose inputs name the Skills and memories a decision applied, which the instrument's observation names in turn. The family supplies the baseline; only the link attributes. Watching the world was never the hard part; the channel is what lets the world vote back, and the decision record is what tells it whom to vote on.
+The calibration has a typed source. A signal in this system can be held three ways: set by whoever asserted it (confidence on an Assertion), metabolized by use and disuse (memory_strength), or earned — changed because a recorded consequence graded it. The consequence channel (Specification §15.7) is the third way made concrete: instrumented Outcome Evidence links to the actual attempt and its `action_gate` decision. DecisionRecord distinguishes retrieval, actual use and applied revisions; linked observations aggregate by independent attempt. The task family finds candidate consequences, while TrialRecord explicitly selects comparable baseline attempts and outcomes. Utility calibration records its attribution method and uncertainty; neither family membership nor retrieval establishes credit.
 
 ## 9.7 Forgetting Has Multiple Meanings
 
@@ -1419,7 +1422,7 @@ Example logical identifiers:
 
 ```text
 kip://core@2.0.0
-kip://profiles/cognitive-memory@2.0.0
+kip://profiles/cognitive-memory@2.1.0
 kip://ldclabs/organization@1.0.0
 ```
 
@@ -2492,7 +2495,7 @@ Local Skill S1
   authority: advisory
 ```
 
-After a trial in which the outcomes linked to S1's own `action_gate` decisions were measured against the `deploy/service` baseline recorded in its `TrialState`, and a deterministic verdict recorded as a `lifecycle_verdict` Activity:
+After a trial in which independent attempts applying S1's exact revision were compared against the explicitly selected `deploy/service` baseline frozen in TrialRecord, and a deterministic verdict retained as an EvaluationRecord on a `lifecycle_verdict` Activity (TrialState only points to that trial):
 
 ```text
 S1
@@ -2622,7 +2625,7 @@ The Profile is separate from Core because KIP permits other cognitive taxonomies
 A machine-readable Package should be published independently, for example:
 
 ```text
-kip://profiles/cognitive-memory@2.0.0
+kip://profiles/cognitive-memory@2.1.0
 ```
 
 The Profile defines portable structures and invariants. It does not mandate formation frequency, ranking formulas, forgetting thresholds, Skill compilation algorithms, or reflection schedules. Those are Brain policy.
@@ -2759,7 +2762,7 @@ KIP/
 │   └── KIP-2.0-Migration-from-1.x.md
 ├── profiles/
 │   ├── CognitiveMemoryProfile-2.0.md
-│   └── cognitive-memory-2.0.0.schema.json
+│   └── cognitive-memory-2.1.0.schema.json
 ├── brain/
 │   ├── ExperienceLearningArchitecture.md
 │   ├── BrainFormation.md

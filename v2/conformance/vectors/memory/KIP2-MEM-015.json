@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-015",
+  "title": "Failed experiences and causal restraint",
+  "description": "Store a failed Experience with ordered steps and a counterexample. It remains\nretrievable and eligible for review independent of low success/recall frequency.\nStep adjacency creates no caused_by Assertion. A suspected causal relation is a\nseparately attributed claim with evidence; failure does not justify deletion.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-015"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/failed_experience_recallable",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/implicit_causal_assertions",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

@@ -8,12 +8,16 @@ on:
     branches: [main]
     paths:
       - "packages/**"
+      - "v2/**"
+      - "CONTEXT.md"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/ci.yml"
   pull_request:
     paths:
       - "packages/**"
+      - "v2/**"
+      - "CONTEXT.md"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/ci.yml"
@@ -49,6 +53,30 @@ jobs:
       # `pretest` compiles TypeScript to dist/ before the node:test suite runs.
       - name: Test @ldclabs/kip-lang
         run: pnpm --filter @ldclabs/kip-lang test
+
+      - name: Verify canonical artifact digests
+        run: node v2/conformance/update-digests.mjs
+
+  memory-models:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Check finite memory models and injected regressions
+        run: |
+          python3 v2/formal/governance/check_governance.py
+          python3 v2/formal/grammar/check_ebnf.py
+          for mode in '' --self-graded --family-join --skip-trialstate --count-imported --no-gate --observation-count --reuse-trial --edit-revision; do
+            python3 v2/formal/lifecycle/check_lifecycle.py $mode
+          done
+          python3 v2/formal/watch/check_watch.py
+          python3 v2/formal/watch/check_watch.py --premature-silence
+          python3 v2/formal/purge/check_purge.py
+          python3 v2/formal/purge/check_purge.py --hold-after-policy
+          python3 v2/formal/purge/check_purge.py --no-stub
+          python3 v2/formal/purge/check_purge.py --payload-drops-citations
 
   vscode-kip:
     runs-on: ubuntu-latest

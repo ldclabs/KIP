@@ -58,6 +58,11 @@
 | 36 | 行动者自身关于自身行动结果的报告绝不能作为结果证据（Outcome Evidence）。 | §15.7 | X-017, GOV-026, CAP-023 |
 | 37 | 任务族用于寻找可比后果流；只有从决策到结果的溯源链才能归因后果，评分统计仅通过该溯源链变更。 | §15.7, §29.8 | X-016 |
 | 38 | 模式符号身份属于符号谱系：不同版本模式包下写入的元素在匹配、键及命题身份上保持为同一群体，同时各自按其精确版本进行校验。 | §20.14 | SCHEMA-017, SCHEMA-018, SCHEMA-019 |
+| 39 | 最终 BELIEF 包含相关槽位冲突；查询形状绝不能隐藏冲突。 | 一致性 §1 | MEM-001 |
+| 40 | 投影基准（ProjectionBasis）绑定上下文、信任、策略、授权与时间；世界时间区间左闭右开。 | 一致性 §2 | MEM-007 |
+| 41 | 可移植数值与规范工件拒绝隐式精度损失和有歧义的 JSON。 | §9.3, Capsule §37.7 | MEM-011 |
+| 42 | 实体识别决策必须保留输入绑定；支持的修复保留原始历史并暴露未解决的归属问题。 | 一致性 §4 | MEM-008 |
+| 43 | 受治理的控制变更使依赖计算基准失效；不完全的事件流覆盖绝不是沉默。 | §36.1, 一致性 §2, §7 | MEM-007, MEM-009 |
 
 ---
 
@@ -67,41 +72,52 @@
 
 | # | 不变量 (Invariant) | 确立章节 | 钉住向量 |
 |---|---|---|---|
-| P1 | Experience 与 Skill 是 Profile 层的概念，不是 Core 核心类型。 | Profile §0, §3 | — |
+| P1 | Experience 与 Skill 是 Profile 层的概念，不是 Core 核心类型。 | Profile §0, §3 | MEM-013 |
 | P2 | 结构引用（Structural References）不会自动变成命题（Propositions）。 | Profile §7 | CORE-016 |
 | P3 | 记忆强度 `memory_strength` 不是断言置信度（Assertion confidence）。 | Profile §6.1 | CORE-018, X-011 |
-| P4 | 显著性 `salience` 不是来源信任度（source trust）。 | Profile §6.1 | — |
-| P5 | 效用 `utility` 不是执行权限（execution authority）。 | Profile §6.1, §14 | — |
+| P4 | 显著性 `salience` 不是来源信任度（source trust）。 | Profile §6.1 | MEM-014 |
+| P5 | 效用 `utility` 不是执行权限（execution authority）。 | Profile §6.1, §14 | MEM-014, MEM-019 |
 | P6 | 人物（Person）不是调用主体（Principal）。 | Profile §5.1 | GOV-002 |
 | P7 | 自我模型（SelfModel）不是治理面（Governance）。 | Profile §5.10 | GOV-018 |
-| P8 | SleepTask 任务分派不代表授予操作权限。 | Profile §5.9 | — |
-| P9 | 失败的经历轨迹也是有效的宝贵记忆。 | Profile §11 | — |
-| P10 | 单次成功不能证明具备通用技能。 | Profile §13, §14 | — |
+| P8 | SleepTask 任务分派不代表授予操作权限。 | Profile §5.9 | MEM-016 |
+| P9 | 失败的经历轨迹也是有效的宝贵记忆。 | Profile §11 | MEM-015 |
+| P10 | 单次成功不能证明具备通用技能。 | Profile §13, §14 | MEM-003, MEM-018 |
 | P11 | 派生摘要不能创建独立的证据源头。 | Profile §8, §8.2 | EPI-015 |
-| P12 | 客观事件（Event）与主观经历（Experience）不可互换。 | Profile §5.2, §5.3 | — |
-| P13 | 时间先后顺序不蕴含因果关系。 | Profile §7 | — |
-| P14 | 隐式思维链（Hidden CoT）不是必需的持久化记忆工件。 | Profile §0 | — |
+| P12 | 客观事件（Event）与主观经历（Experience）不可互换。 | Profile §5.2, §5.3 | MEM-013 |
+| P13 | 时间先后顺序不蕴含因果关系。 | Profile §7 | MEM-015 |
+| P14 | 隐式思维链（Hidden CoT）不是必需的持久化记忆工件。 | Profile §0 | MEM-013 |
 | P15 | 显式更正必须保留历史记录。 | Profile §3 | X-001 |
 | P16 | 导入的技能在默认状态下保持不可执行/非权威。 | Profile §21 | GOV-021, CAP-012, X-006 |
-| P17 | 承诺截止时间（Commitment expiry）与留存过期（retention expiry）严格区分。 | Profile §5.7, §19 | — |
+| P17 | 承诺截止时间（Commitment expiry）与留存过期（retention expiry）严格区分。 | Profile §5.7, §19 | MEM-016 |
 | P18 | 读取频率不是必需的助记记忆信号。 | Profile §18 | EPI-009 |
 | P19 | Profile 切面（Facets）不能覆盖核心系统字段。 | Profile §6 | CORE-017 |
-| P20 | Brain 内部认知算法处于 Profile 一致性校验范围之外。 | Profile §22 | — |
+| P20 | Brain 内部认知算法处于 Profile 一致性校验范围之外。 | Profile §22 | MEM-019 |
 | P21 | 触发的 Watch 不赋予任何权限；它只产生注意，不产生行动。 | Profile §5.11 | X-019 |
-| P22 | 行动网关深思熟虑后的克制与沉默是可记录的结果。 | Profile §6.6, §9 | — |
+| P22 | 行动网关深思熟虑后的克制与沉默是可记录的结果。 | Profile §6.6, §9 | MEM-014 |
 | P23 | DerivationState 是复审状态；标记为 stale（陈旧）并不代表已撤回。 | Profile §6.3, §8.2 | EPI-028 |
-| P24 | WorkingState 是派生视图；它绝不是 Evidence，且绝不能为其输入认知提供佐证。 | Profile §5.12, §8.2 | — |
-| P25 | utility 是准入下注，依据客观后果进行修正；它不是真值、显著性或执行许可。 | Profile §6.1, §8.1 | — |
+| P24 | WorkingState 是派生视图；它绝不是 Evidence，且绝不能为其输入认知提供佐证。 | Profile §5.12, §8.2 | MEM-017 |
+| P25 | utility 是准入下注，依据客观后果进行修正；它不是真值、显著性或执行许可。 | Profile §6.1, §8.1 | MEM-014 |
 | P26 | 执行行动的模型绝不能自行编写用于评估自身行动的结果证据（Outcome Evidence）。 | Profile §8.1 | GOV-026, X-017 |
-| P27 | 技能必须携带 task_family 才能进入试用期；不可被证伪的模式不属于程序性记忆。 | Profile §14 | — |
+| P27 | 技能必须携带 task_family 才能进入试用期；不可被证伪的模式不属于程序性记忆。 | Profile §14 | MEM-018 |
 | P28 | 生命周期流转是基于关联打分结果的确定性裁决，必须被完整记录且可被独立复算。 | Profile §9, §14 | X-016 |
-| P29 | 废弃技能的操作绝不能比采纳技能更困难。 | Profile §14 | — |
-| P30 | 采纳是临时性有条件的；被采纳的技能仍需持续接受后果流的评估。 | Profile §14 | — |
+| P29 | 废弃技能的操作绝不能比采纳技能更困难。 | Profile §14 | MEM-018 |
+| P30 | 采纳是临时性有条件的；被采纳的技能仍需持续接受后果流的评估。 | Profile §14 | MEM-018 |
 | P31 | 技能的生命周期资格不随导入而转移；导入的技能必须重置为 proposed 状态。 | Profile §14, §21 | GOV-021, CAP-023 |
 | P32 | 任务族用于寻找可比后果；它绝不直接归因后果。 | Profile §8.1 | X-016 |
 | P33 | 计分统计、生命周期裁决或效用校准，仅能通过指向应用了该认知的决策的结果进行变更。 | Profile §8.1 | X-016, GOV-026 |
-| P34 | 试用基线必须在将任何结果计入评分前记录于 TrialState 中。 | Profile §6.5, §14 | — |
-| P35 | DecisionRecord 记录网关做出的决策；它绝不是执行行动的授权许可。 | Profile §6.6 | — |
+| P34 | 试验不可变的 TrialRecord 基线在入选前已固化；TrialState 仅负责选择它。 | Profile §6.5, §14 | MEM-005, MEM-018 |
+| P35 | DecisionRecord 记录网关做出的决策；它绝不是执行行动的授权许可。 | Profile §6.6 | MEM-014 |
+| P36 | 行为、生命周期资格与执行权限绑定不可变的 SkillRevision。 | 一致性 §5 | MEM-002 |
+| P37 | 独立的尝试（Attempt）而非观察计数，是学习的抽样单元。 | 一致性 §5 | MEM-003 |
+| P38 | 在声称学习收益前，基线成员资格、可比性、覆盖范围与不确定性必须显式说明。 | 一致性 §6 | MEM-004 |
+| P39 | 每次试验与裁决均保留不可变的、受治理的回放输入；重新试验拥有全新身份。 | 一致性 §5 | MEM-005 |
+| P40 | 依赖有效性在召回前计算，独立于存储的审阅者标志。 | 一致性 §3 | MEM-006 |
+| P41 | 声明的持久工作节点强制执行臂世代（arm generations）、水位线、租约与围栏恢复。 | 一致性 §7 | MEM-009 |
+| P42 | 有损编码与未达标的必需召回覆盖范围在自动使用前必须披露。 | 一致性 §8 | MEM-010, MEM-023 |
+| P43 | 语义擦除在仍保留范围内的受控副本时不能判定为完成。 | 一致性 §8 | MEM-010, MEM-024 |
+| P44 | 具型过程记录与其 Activity 类、拓扑结构和不可变终止状态相匹配。 | Profile §6.7, 一致性 §5 | MEM-021 |
+| P45 | 擦除后的回放输入使历史回放不可用，绝不重构或伪造。 | 一致性 §8 | MEM-024 |
+| P46 | 一致性模型与运行时检查不能替代已测量的行为学习成效。 | 一致性 §9 | MEM-012, MEM-025 |
 
 ---
 

@@ -6,9 +6,9 @@
 
 **Normative companion to [KIP-2.0-SPECIFICATION.md](./KIP-2.0-SPECIFICATION.md), version 2.0-draft**
 
-This document carries four parts of the KIP 2.0 Specification that a Core implementation may never need: §100 Historical Conformance and §101 High-Assurance Conformance — the two optional conformance profiles — and §103 KIP 1.x Migration with its Appendix I Compatibility Summary. The numbering is the Specification's own, so references resolve here unchanged, and section references without a document name point into the Core. The operational migration guide is [migration/KIP-2.0-Migration-from-1.x.md](./migration/KIP-2.0-Migration-from-1.x.md); where that guide and §103 disagree, §103 wins.
+This document carries four parts of the KIP 2.0 Specification that a Core implementation may never need: §100 Historical Conformance and §101 High-Assurance Conformance — the historical and hardening capabilities — and §103 KIP 1.x Migration with its Appendix I Compatibility Summary. The numbering is the Specification's own, so references resolve here unchanged, and section references without a document name point into the Core. The operational migration guide is [migration/KIP-2.0-Migration-from-1.x.md](./migration/KIP-2.0-Migration-from-1.x.md); where that guide and §103 disagree, §103 wins.
 
-An implementation claims the Historical or High-Assurance profile through `DESCRIBE CAPABILITIES` (§67) and is then bound by the corresponding section; an implementation that claims neither, and has no KIP 1.x data, is bound by nothing in this document.
+An implementation advertises the individual historical/hardening capabilities through `DESCRIBE CAPABILITIES` (§67) and is bound by their corresponding requirements. They are not separately named Profile claims.
 
 ---
 
@@ -20,6 +20,7 @@ The `historical_reads` capability (§67.4) requires, within advertised retention
 AS OF SEQ
 lifecycle reconstruction
 historical Schema Environment
+historical identity, trust and Projection Policy versions (Consistency §2)
 historical cognitive read
 current authorization
 transaction chronology
@@ -35,7 +36,6 @@ May require, each advertised as a capability (§67.4) where a client is to rely 
 serializable transactions
 signed Receipts
 canonical request/plan digests
-strict duplicate-JSON-key rejection
 exact historical Schema
 tamper-evident checkpoints
 strict existence-neutral behavior

@@ -5,7 +5,8 @@ state protocol between an agent and a persistent Cognitive Nexus.
 
 Provides a full-featured **lexer → parser → AST → formatter / diagnostics**
 pipeline for `.kip` files, plus **`lower`**, which turns a syntax tree into the
-executable AST a KIP engine runs.
+executable AST a KIP engine runs, and strict JSON decoding/canonicalization for
+KIP artifacts.
 
 This package targets the normative **KIP 2.0 draft** command-text surface. It
 implements the KQL, KML, and META syntax surfaces, but it does not claim a
@@ -162,6 +163,29 @@ in a runtime that shares one stack across requests, that takes down more than
 the one request. The budgets match `anda_kip`'s, so a command one KIP engine
 refuses on size is refused by every other engine too.
 
+### Decode and canonicalize JSON artifacts
+
+```ts
+import { canonicalize, parseCanonicalJson } from '@ldclabs/kip-lang'
+
+const artifact = parseCanonicalJson('{"b":2,"a":1}')
+const canonical = canonicalize(artifact) // {"a":1,"b":2}
+```
+
+The consistency revision restricts integer-valued numbers to
+±9007199254740991 in all spellings. Lowering and strict JSON decoding reject
+larger integer values, non-finite numbers and nonzero underflow instead of
+silently losing source digits. Use a Schema-defined string/value object for
+larger exact values. This tightens the previous draft's i64/u64 acceptance;
+existing out-of-range commands need migration.
+
+`parseCanonicalJson(text)` also rejects duplicate decoded keys and invalid
+Unicode before binding. `canonicalize(value)` implements RFC 8785
+serialization with the same KIP numeric restriction (`kip-jcs-safe-v1`). It
+leaves artifact strings unchanged by NFC; semantic Literal normalization
+remains an engine responsibility. These functions do not grant trust or
+verify signatures.
+
 ## API Reference
 
 | Export                             | Description                                              |
@@ -172,6 +196,8 @@ refuses on size is refused by every other engine too.
 | `diagnose(source)`                 | Return syntax, static-semantic, and executable diagnostics |
 | `validateExecutable(program)`      | Check every parsed statement can lower to executable AST |
 | `analyzeSemantics(program)`        | Spec SHOULD/MUST checks decidable without a live schema  |
+| `parseCanonicalJson(source)`       | Strictly decode portable JSON before binding or hashing  |
+| `canonicalize(value)`              | Serialize portable JSON in RFC 8785/JCS form             |
 | `lower(program)`                   | Lower one command to the executable `Command` AST        |
 | `lowerAll(program)`                | Lower every command in a multi-statement program         |
 | `lowerStatement(statement)`        | Lower a single statement                                 |

@@ -1,5 +1,10 @@
 # KIP 2.0 Formal Verification Report
 
+**Historical report for the pre-consistency draft.** The lifecycle model was
+replaced on 2026-09-06 and the contracts expanded. Results below are retained as
+history, not claimed as a fresh proof of the new revision. Current scope and
+results are in [CONSISTENCY-REPORT.md](./CONSISTENCY-REPORT.md).
+
 **[English](./REPORT.md) | [中文](./REPORT_CN.md)**
 
 **Date**: 2026-08-15; addendum 2026-09-02 (suites 5–7); last full run of all seven suites 2026-09-02 (§12)

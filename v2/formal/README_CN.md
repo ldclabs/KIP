@@ -10,9 +10,11 @@ KIP 2.0 规范的机器检查模型。验证结果、发现与范围限制详见
 | [`tla/KipTransactions.tla`](./tla/KipTransactions.tla) | TLA+ / TLC | 事务：原子提交、`EXPECT VERSION`、幂等性（包括与 `no_effect` 的交互）、`space_seq` / 提交记录 (Commit Record) (§32–§36) |
 | [`governance/check_governance.py`](./governance/check_governance.py) | Python (穷举) | §30 治理策略评估：拒绝优先 (deny-overrides)、不变式至高性 (invariant supremacy)、顺序无关性 (order-independence) |
 | [`grammar/check_ebnf.py`](./grammar/check_ebnf.py) | Python (静态) | KQL/KML/META EBNF：格式良构性、可达性、跨文法漂移检查 |
-| [`lifecycle/check_lifecycle.py`](./lifecycle/check_lifecycle.py) | Python (显式状态穷举) | 后果通道与技能生命周期：依据决策链接归因 vs 任务族对比、计票前校验 TrialState、仅限裁决流转状态、可复算性、导入重置、自评自赞可见性 (规范 §15.7, §29.8, §41.6; Profile §6.2–§6.6, §14, §21) |
+| [`lifecycle/check_lifecycle.py`](./lifecycle/check_lifecycle.py) | Python (有界输入枚举与状态流转场景) | 独立尝试聚合、不可变试验/评估重放、修订版本重置、重新试验、合法晋升、同状态监控、迟延结果、纠错与来源排除 |
 | [`watch/check_watch.py`](./watch/check_watch.py) | Python (显式状态穷举) | 两个并发求值者加重新投递下的 Watch 触发：恰好一次触发、仅匹配触发、静默健全性 (Profile §5.11; 规范 §34, §35.1, §36.3) |
 | [`purge/check_purge.py`](./purge/check_purge.py) | Python (显式状态穷举) | 擦除操作：引用处理策略、策略前及级联中的法律保全、哈希摘要存根、载荷清除 (规范 §19.1, §60.3, §60.6, 不变量 34) |
+
+当前的一致性修订版本单独报告于 [CONSISTENCY-REPORT_CN.md](./CONSISTENCY-REPORT_CN.md)。其 Node 契约套件补充了世代/防护、基线/上下文、数值及类型化制品检查；在运行前须在安装工作区依赖后构建 packages/kip-lang。这些验证预言机 (oracles) 不是 Nexus 引擎的运行结果。
 
 运行全部验证（已对预期结果进行断言，包括在注入错误配置中预期的反例）。Python 套件无需 Java；若缺少 JAR 包，Java 套件会被跳过并以退出码 3 结束：
 
@@ -23,3 +25,7 @@ export TLA_JAR=/path/to/tla2tools.jar
 ```
 
 这些工件在有界范围内验证了**协议层**。它们没有 —— 也无法 —— 验证认知层的主张（记忆影响、学习）；根据设计，这些属于 Brain 级别的实证基准测试 (Architecture §21.3)。
+
+## 历史全量运行（上一版草案）
+
+2026-09-02，全部 7 个套件，设置 `ALLOY_JAR` / `TLA_JAR` 运行 `run.sh`（Java 17, Alloy 6.2.0, TLC 2.19）：**全部通过**，耗时 4 分 33 秒；每种故障注入模式均正确产生了预期反例。详见 [REPORT_CN.md §12](./REPORT_CN.md)。在 `java` 不在 `PATH` 上的机器上，运行前请指定 `JAVA=` 指向 JRE 二进制文件。

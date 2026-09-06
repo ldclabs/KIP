@@ -6,9 +6,9 @@
 
 **[KIP-2.0-SPECIFICATION_CN.md](./KIP-2.0-SPECIFICATION_CN.md) 的规范性伴随文档，版本 2.0-draft**
 
-本文档承载 KIP 2.0 规范中核心实现可能不需要的四个部分：§100 历史一致性（Historical Conformance）与 §101 高保障一致性（High-Assurance Conformance）—— 两个可选的一致性 Profile —— 以及 §103 KIP 1.x 迁移（KIP 1.x Migration）及其附录 I 兼容性概要（Compatibility Summary）。章节编号采用规范自身的编号，因此外部引用保持不变，未指定文档名称的章节引用均指向核心规范。操作层面的迁移指南请参阅 [migration/KIP-2.0-Migration-from-1.x_CN.md](./migration/KIP-2.0-Migration-from-1.x_CN.md)；若该指南与 §103 发生分歧，以 §103 为准。
+本文档承载 KIP 2.0 规范中核心实现可能不需要的四个部分：§100 历史一致性（Historical Conformance）与 §101 高保障一致性（High-Assurance Conformance）—— 历史与加固能力 —— 以及 §103 KIP 1.x 迁移（KIP 1.x Migration）及其附录 I 兼容性概要（Compatibility Summary）。章节编号采用规范自身的编号，因此外部引用保持不变，未指定文档名称的章节引用均指向核心规范。操作层面的迁移指南请参阅 [migration/KIP-2.0-Migration-from-1.x_CN.md](./migration/KIP-2.0-Migration-from-1.x_CN.md)；若该指南与 §103 发生分歧，以 §103 为准。
 
-实现通过 `DESCRIBE CAPABILITIES`（§67）声明支持历史或高保障 Profile，并受对应章节约束；未声明这两个 Profile 且无 KIP 1.x 遗留数据的系统，不受本文档任何条款约束。
+实现通过 `DESCRIBE CAPABILITIES`（§67）通告各项历史/加固能力，并受其对应要求的约束。它们不是单独命名的 Profile 声明。
 
 ---
 
@@ -20,6 +20,7 @@
 AS OF SEQ                (按序列号的时间旅行读取)
 lifecycle reconstruction (生命周期状态历史重构)
 historical Schema Environment (历史生效模式环境解析)
+historical identity, trust and Projection Policy versions (Consistency §2) (历史身份、信任与投影策略版本，一致性 §2)
 historical cognitive read     (历史认知状态一致性读取)
 current authorization         (基于当前权限的访问控制)
 transaction chronology        (事务时间序列编年史)
@@ -35,7 +36,6 @@ transaction chronology        (事务时间序列编年史)
 serializable transactions    (严格可串行化事务)
 signed Receipts              (带数字签名的提交回执)
 canonical request/plan digests (规范化请求/计划摘要)
-strict duplicate-JSON-key rejection (严格拒绝重复 JSON 键)
 exact historical Schema      (精确历史模式追溯)
 tamper-evident checkpoints   (防篡改检查点)
 strict existence-neutral behavior (严格的存在性中立行为)

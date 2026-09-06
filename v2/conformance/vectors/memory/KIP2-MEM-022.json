@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-022",
+  "title": "Observer control and imported evidence",
+  "description": "Same-Principal self-grading remains visibly attributable in an open Core deployment,\nbut cannot become validated local learning under the Profile. Check the observer's\npinned code/configuration and control policy; a new Principal name with the acting\nagent still controlling the verifier does not establish independence. Imported\noutcomes remain readable and excluded from local treatment/baseline grading.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-022"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/self_grade_visible",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/independent_control_checked",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/imported_or_self_graded_local_samples",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

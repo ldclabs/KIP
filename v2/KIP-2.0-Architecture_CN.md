@@ -1,5 +1,7 @@
 # KIP 2.0 架构设计 —— 面向智能体记忆大脑的认知状态协议 (A Cognitive State Protocol for Agent Memory Brains)
 
+规范性[认知一致性契约](./KIP-2.0-Cognitive-Consistency_CN.md)约束最终信念、不可变的技能修订版本（SkillRevision）、独立的尝试（Attempt）、可回放的试验/评估、依赖有效性、实体识别修复与持久化工作节点。生命周期计数器对尝试进行聚合；未链接的任务族结果绝不会自动充当对照组。存储的摘要仅在具有经校验的计算基线时方可使用。
+
 **[English](./KIP-2.0-Architecture.md) | [中文](./KIP-2.0-Architecture_CN.md)**
 
 ## 文档状态 (Status)
@@ -905,7 +907,7 @@ memory_strength = 0.20
 
 在 Skill 之外，认知记忆 Profile 还将 `utility` 作为通用的记忆代谢信号：它代表记忆准入时的预期效用（即对未来决策价值的预先评估），在存入时记录，并在事后根据实际调用产出进行校准。若缺少该信号，记忆系统便无法度量哪些准入内容真正具备持久价值，准入策略也无从持续优化与自适应学习。
 
-这种校准拥有明确的类型化来源。系统中的信号有三种持有方式：由断言者显式声明（Assertion 上的置信度）、随使用与闲置发生代谢衰减（`memory_strength`）、或通过现实检验被动挣得（因一条被记录的客观后果对其完成评定而发生改变）。后果通道（规范 §15.7）将第三种方式具象化为类型化机制：由仪器化组件写入、绝不由被评定的行动者自身写入的结果证据，通过任务族与被评定的认知建立联结。观察世界从来不是难点；后果通道才真正让现实世界得以反向投票。
+这种校准拥有明确的类型化来源。系统中的信号有三种持有方式：由断言者显式声明（Assertion 上的置信度）、随使用与闲置发生代谢衰减（`memory_strength`）、或通过现实检验被动挣得（因一条被记录的客观后果对其完成评定而发生改变）。后果通道（规范 §15.7）将第三种方式具象化为类型化机制：仪器化写入的结果证据（Outcome Evidence）链接至实际尝试及其 `action_gate` 决策。DecisionRecord 严格区分检索、实际使用与所应用的修订版本；链接的观察基于独立尝试进行聚合。任务族用于发现候选后果，而 TrialRecord 显式选择可比的基线尝试与结果。效用校准记录其归因方法与不确定性；任务族成员资格或检索均不确立功劳归属。
 
 ## 9.7 遗忘的多重含义 (Forgetting Has Multiple Meanings)
 
@@ -1415,7 +1417,7 @@ compatibility range (兼容范围)
 
 ```text
 kip://core@2.0.0
-kip://profiles/cognitive-memory@2.0.0
+kip://profiles/cognitive-memory@2.1.0
 kip://ldclabs/organization@1.0.0
 ```
 
@@ -2485,7 +2487,7 @@ Local Skill S1
   authority: advisory
 ```
 
-经 `deploy/service` 结果流评定的试用、并由一条 `lifecycle_verdict` Activity 记录确定性裁决之后：
+在独立的尝试中应用 S1 的精确修订版本并与 TrialRecord 中冻结的显式选定 `deploy/service` 基线进行比对、且一条 `lifecycle_verdict` Activity 将确定性裁决保留为 EvaluationRecord 之后（TrialState 仅指向该试验）：
 
 ```text
 S1
@@ -2614,7 +2616,7 @@ Profile 与核心层相互分离，因为 KIP 允许存在其他认知分类体�
 应当独立发布机器可读的模式包，例如：
 
 ```text
-kip://profiles/cognitive-memory@2.0.0
+kip://profiles/cognitive-memory@2.1.0
 ```
 
 Profile 定义了可移植的结构与不变式。它不强制规定形成频率、排序公式、遗忘阈值、技能编译算法或反思调度。那些属于记忆大脑策略。
@@ -2745,7 +2747,7 @@ KIP/
 │   └── KIP-2.0-Migration-from-1.x.md
 ├── profiles/
 │   ├── CognitiveMemoryProfile-2.0.md
-│   └── cognitive-memory-2.0.0.schema.json
+│   └── cognitive-memory-2.1.0.schema.json
 ├── brain/
 │   ├── ExperienceLearningArchitecture.md
 │   ├── BrainFormation.md

@@ -47,3 +47,19 @@ _Avoid_: Confidence, salience
 **Salience**:
 The encoding and consolidation priority of an Event or Experience, influenced by goal relevance, novelty, prediction error, outcome magnitude, emotion, and reusability.
 _Avoid_: Confidence, memory strength
+
+**SkillRevision**:
+The immutable behavior of a stable Skill: task family, procedure, applicability,
+preconditions, success criteria and recovery, bound by a behavior digest. Decisions,
+trials, grades and procedural authority refer to a revision, never just a mutable Skill ID.
+_Avoid_: Current summary, display revision
+
+**Attempt**:
+One actual application of a decision under recorded conditions, enrolled into a trial
+before its outcome is observed. Multiple observations of one attempt are not multiple trials.
+_Avoid_: Outcome, observation, retry
+
+**TrialRecord / EvaluationRecord**:
+Immutable comparison basis and immutable verdict with retained rule, parameter and
+input artifacts. TrialState and GradingState are current caches of these records.
+_Avoid_: Mutable counters as historical evidence

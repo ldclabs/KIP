@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-021",
+  "title": "Record topology and facet attachment enforcement",
+  "description": "DecisionRecord attaches only to terminal action_gate, AttemptRecord to action_attempt,\nTrialRecord to completed trial_open and EvaluationRecord to terminal lifecycle_verdict.\nReferences match the corresponding inputs/outputs and current revision selection.\nA terminal record cannot change its Facet values or topology through UPDATE/UNSET;\nchanging class or moving immutable content to a mutable Facet is not a bypass.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-021"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/bad_attachment_rejected",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/immutable_record_update_rejected",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/topology_mismatch_committed",
+      "operator": "equals",
+      "expected": false
+    }
+  ]
+}

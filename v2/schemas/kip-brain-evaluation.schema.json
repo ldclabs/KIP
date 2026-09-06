@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:kip:2.0:schema:brain-evaluation",
+  "type": "object",
+  "properties": {
+    "status": {
+      "enum": [
+        "not_run",
+        "completed",
+        "failed"
+      ]
+    },
+    "model_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tool_environment": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dataset_digests": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+    },
+    "seeds": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "maximum": 9007199254740991
+      }
+    },
+    "conditions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "total_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "tool_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "max_latency_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "total_tokens",
+        "tool_calls",
+        "max_latency_ms"
+      ],
+      "additionalProperties": false
+    },
+    "completed_runs": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "metrics": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "estimate": {
+                "type": "number"
+              },
+              "lower": {
+                "type": "number"
+              },
+              "upper": {
+                "type": "number"
+              },
+              "unit": {
+                "type": "string",
+                "minLength": 1
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "name",
+              "estimate",
+              "lower",
+              "upper",
+              "unit",
+              "attempts"
+            ],
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    "learning_gate": {
+      "enum": [
+        "not_evaluated",
+        "passed",
+        "failed",
+        "insufficient"
+      ]
+    },
+    "criterion_artifact": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "trace_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "required": [
+    "status",
+    "model_version",
+    "tool_environment",
+    "dataset_digests",
+    "seeds",
+    "conditions",
+    "budget",
+    "completed_runs",
+    "metrics",
+    "learning_gate",
+    "criterion_artifact",
+    "trace_artifacts"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "not_run"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "completed_runs": {
+            "const": 0
+          },
+          "metrics": {
+            "type": "null"
+          },
+          "learning_gate": {
+            "const": "not_evaluated"
+          },
+          "trace_artifacts": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "completed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "completed_runs": {
+            "minimum": 1
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "estimate": {
+                  "type": "number"
+                },
+                "lower": {
+                  "type": "number"
+                },
+                "upper": {
+                  "type": "number"
+                },
+                "unit": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "attempts": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "name",
+                "estimate",
+                "lower",
+                "upper",
+                "unit",
+                "attempts"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1
+          },
+          "seeds": {
+            "minItems": 1
+          },
+          "conditions": {
+            "minItems": 2
+          },
+          "dataset_digests": {
+            "minItems": 1
+          },
+          "criterion_artifact": {
+            "type": "string",
+            "minLength": 1
+          },
+          "trace_artifacts": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "learning_gate": {
+            "const": "passed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "completed"
+          }
+        }
+      }
+    }
+  ]
+}

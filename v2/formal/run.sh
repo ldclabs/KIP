@@ -122,6 +122,11 @@ run_py "$HERE/lifecycle/check_lifecycle.py" "bug: family join"        --family-j
 run_py "$HERE/lifecycle/check_lifecycle.py" "bug: no TrialState"      --skip-trialstate
 run_py "$HERE/lifecycle/check_lifecycle.py" "bug: imported counted"   --count-imported
 run_py "$HERE/lifecycle/check_lifecycle.py" "bug: no gate, no flag"   --no-gate
+run_py "$HERE/lifecycle/check_lifecycle.py" "bug: observation fan-out" --observation-count
+run_py "$HERE/lifecycle/check_lifecycle.py" "bug: late outcome reused" --reuse-trial
+run_py "$HERE/lifecycle/check_lifecycle.py" "bug: edited behavior inherits standing" --edit-revision
+run_py "$HERE/lifecycle/check_lifecycle.py" "bug: direct promotion bypasses trial" --direct-promotion
+run_py "$HERE/lifecycle/check_lifecycle.py" "bug: monitoring inherits promotion quota" --monitor-as-promotion
 
 echo "==================== 6. Watch firing under concurrency ===================="
 run_py "$HERE/watch/check_watch.py" "spec"
@@ -136,11 +141,20 @@ run_py "$HERE/purge/check_purge.py" "bug: hold after policy"        --hold-after
 run_py "$HERE/purge/check_purge.py" "bug: no stub"                  --no-stub
 run_py "$HERE/purge/check_purge.py" "bug: payload purge drops citations" --payload-drops-citations
 
+echo "==================== 8. Cognitive consistency and artifact contracts ===================="
+if command -v node >/dev/null 2>&1 && [ -f "$HERE/../../packages/kip-lang/dist/index.js" ]; then
+  node "$HERE/../conformance/update-digests.mjs" || fail=1
+  node --test "$HERE/../../packages/kip-lang/test/canonical.test.mjs" \
+    "$HERE/../../packages/kip-lang/test/contracts.test.mjs" || fail=1
+else
+  echo "SKIPPED — install workspace dependencies and build packages/kip-lang"; skipped=1
+fi
+
 echo
 if [ "$fail" != 0 ]; then
   echo "VERIFICATION FAILURES PRESENT"; exit 1
 elif [ "$skipped" != 0 ]; then
-  echo "PYTHON SUITES PASS — JAVA SUITES SKIPPED (set ALLOY_JAR / TLA_JAR for the full argument)"; exit 3
+  echo "AVAILABLE SUITES PASS — SOME SUITES SKIPPED (see prerequisites above)"; exit 3
 else
   echo "ALL VERIFICATION SUITES PASS"; exit 0
 fi

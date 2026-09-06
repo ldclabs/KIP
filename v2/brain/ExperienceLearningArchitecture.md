@@ -1,5 +1,8 @@
 # Experience Learning Architecture for a KIP 2.0 Brain
 
+
+The normative [Cognitive Consistency contract](../KIP-2.0-Cognitive-Consistency.md) binds final belief, immutable Skill revisions, independent attempts, replayable trials/evaluations, dependency validity, identity repair and durable workers. Lifecycle counters aggregate attempts; unlinked family outcomes are never automatically controls. Stored summaries are used only with a validated computation basis.
+
 **[English](./ExperienceLearningArchitecture.md) | [中文](./ExperienceLearningArchitecture_CN.md)**
 
 ## Status
@@ -223,13 +226,13 @@ Reference cognitive lifecycle:
 proposed → trialed → adopted → revoked
 ```
 
-Transitions execute only as deterministic verdicts over graded Outcome Evidence under the Skill's `task_family` (Spec §15.7, Profile §14) — never the acting model's judgment, and revocation is never harder than adoption. This is descriptive cognition. Governance influence/authority is separate: descriptive, advisory, behavioral, executable.
+Lifecycle changes and grading refreshes commit with immutable, runtime-validated EvaluationRecord (Spec §15.7, Profile §14). Only trialed → adopted promotes through a comparative trial; revoked re-entry first opens a new trial. Same-state monitoring follows the authorized policy and preserves prior adoption evidence without inventing new improvement. Policy withdrawal may have zero outcomes, and revocation is never harder than adoption. This is descriptive cognition. Governance influence/authority is separate: descriptive, advisory, behavioral, executable.
 
 # 19. Skill Grading
 
 After Skill use, capture context, whether preconditions held, selected procedure, outcome, feedback, and unexpected observations.
 
-Classify success under matching conditions, failure under matching conditions, failure under non-matching conditions, and unknown outcome. Matching-condition failure is a strong negative signal and may narrow the Skill or, through a verdict, demote it to re-trial. The grades that count are Outcome Evidence written by instrumentation and linked, through an `outcome_observation` Activity, to the `action_gate` decision that applied the Skill — the agent's own account of how it went is `agent_statement`, never a grade, and an outcome that merely shares the task family is baseline, never a grade either.
+Classify success under matching conditions, failure under matching conditions, failure under non-matching conditions, and unknown outcome. Matching-condition failure is a strong negative signal and may narrow the Skill or, through a verdict, demote it to re-trial. Grading aggregates independent attempts assigned to the exact revision/trial before execution. Instrumented Outcome Evidence links through an `outcome_observation` Activity to the attempt and its `action_gate` decision; the agent's own account is `agent_statement`, never a grade. Sharing a task family establishes neither treatment attribution nor control membership: comparable baseline attempts/outcomes are explicitly selected and frozen in TrialRecord.
 
 # 20. Action Recall
 

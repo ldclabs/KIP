@@ -243,7 +243,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 1024,
-          "description": "Echo of the request's idempotency key when one was given, so an outcome_unknown response can be recovered by key (§80.4)."
+          "description": "Echo of the request's idempotency key when one was given, so an outcome_unknown response can be recovered by key (\u00a780.4)."
         },
         "extensions": {
           "$ref": "#/$defs/Extensions"
@@ -285,7 +285,7 @@
         },
         "receipt": {
           "$ref": "#/$defs/Receipt",
-          "description": "The operation's own transaction Receipt in sequence and independent modes (§75); absent in atomic mode, where the top-level receipt is the transaction's."
+          "description": "The operation's own transaction Receipt in sequence and independent modes (\u00a775); absent in atomic mode, where the top-level receipt is the transaction's."
         },
         "extensions": {
           "$ref": "#/$defs/Extensions"
@@ -344,7 +344,8 @@
         },
         "schema_environment_version": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "compatibility_profile_used": {
           "type": "string",
@@ -367,11 +368,13 @@
         },
         "snapshot_seq": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "schema_environment_version": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "epistemic_policy": {
           "$ref": "#/$defs/PolicyIdentity"
@@ -391,6 +394,9 @@
         },
         "extensions": {
           "$ref": "#/$defs/Extensions"
+        },
+        "basis": {
+          "$ref": "urn:kip:2.0:schema:projection#/$defs/ProjectionBasis"
         }
       }
     },
@@ -412,7 +418,8 @@
             },
             {
               "type": "integer",
-              "minimum": 0
+              "minimum": 0,
+              "maximum": 9007199254740991
             }
           ]
         }
@@ -425,11 +432,13 @@
       "properties": {
         "index_seq": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "current_space_seq": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "consistency": {
           "type": "string",
@@ -468,7 +477,8 @@
         },
         "snapshot_seq": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "snapshot_token": {
           "type": "string",
@@ -477,7 +487,8 @@
         },
         "schema_environment_version": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "extensions": {
           "$ref": "#/$defs/Extensions"
@@ -503,11 +514,13 @@
         },
         "snapshot_seq": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "space_seq": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "committed_at": {
           "type": "string",
@@ -542,7 +555,8 @@
         },
         "schema_environment_version": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "change_summary": {
           "type": "object",
@@ -560,7 +574,7 @@
         },
         "receipt_digest": {
           "$ref": "#/$defs/Digest",
-          "description": "Canonical digest of the Receipt without receipt_digest and proofs (Spec §33.2); a signed Receipt signs it."
+          "description": "Canonical digest of the Receipt without receipt_digest and proofs (Spec \u00a733.2); a signed Receipt signs it."
         },
         "origin": {
           "type": "object",
@@ -592,7 +606,7 @@
               ]
             }
           },
-          "description": "The Principal the commit was attributed to, the ActorBinding exercised, and the delegation chain digest (Spec §33.2)."
+          "description": "The Principal the commit was attributed to, the ActorBinding exercised, and the delegation chain digest (Spec \u00a733.2)."
         }
       },
       "allOf": [
@@ -638,7 +652,7 @@
           }
         },
         {
-          "$comment": "A no_effect transaction allocates no space_seq (§32.8); the field is omitted, never null.",
+          "$comment": "A no_effect transaction allocates no space_seq (\u00a732.8); the field is omitted, never null.",
           "if": {
             "properties": {
               "status": {
@@ -750,7 +764,8 @@
         },
         "after_ms": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "extensions": {
           "$ref": "#/$defs/Extensions"

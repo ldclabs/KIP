@@ -85,23 +85,11 @@ integrity (完整性)
 
 ## 37.7 规范化表示 (Canonical representation)
 
-原生胶囊格式**应当**具备确定性的规范化序列化形式，以适用于哈希计算与签名验签。
+强制要求的规范化 Profile 为 `kip-jcs-safe-v1`：**完整实现** RFC 8785 (JCS)，并收敛到 Core §9.3 的可移植数值域。以不带 BOM 的 UTF-8 编码；对象键按 UTF-16 码元排序；采用 ECMAScript 转义与数值序列化规则；无多余空白字符、无解码后的重复键、无无效 Unicode 或非有限数值。将负零（-0）规范化为零（0）。工件字符串**不进行** NFC 规范化；语义字面量（Literal）构造在持久化前应用 NFC。
 
-基线规范化 Profile 为 `kip-draft-canonical-json-v1`，现已包含在发布的模式包工件的 `integrity.digest_profile` 字段中：
+对除 `integrity` 以外的所有顶层字段计算 `sha256` 规范化字节摘要，格式化为 `sha256:<小写十六进制串>`。字段缺省则直接省略；null 保持为有效值。其他算法/Profile 需要显式协商。先前的 `kip-draft-canonical-json-v1` 摘要属于不同的、不可移植的草案格式：运行时**必须**显式拒绝它们，除非对外声明了显式的兼容性验证器；运行时**绝不能**在新名称下重新解释旧版字节。
 
-```text
-编码 (encoding)         UTF-8，无字节顺序标记 (BOM)
-对象 (objects)          键递归按 Unicode 码点升序排序；严禁重复键
-分隔符 (separators)     "," 与 ":" 之后无任何空白字符
-字符串 (strings)        仅转义控制字符以及 '"' 与 ''；其余字符直接输出原生 UTF-8
-数值 (numbers)          仅限有限数值；整数不带指数或小数部分；其他数值采用最短往返表达
-                        (§9.6 规范化值) —— 严禁 NaN、Infinity、-0
-缺省字段 (absent)       直接省略，绝不输出为 null (null 本身是有语义的值，§9.5)
-摘要 (digest)           对除 integrity 以外的所有顶层字段的规范化字节进行 sha256 计算，
-                        格式化为 "sha256:<小写十六进制串>"
-```
-
-`sha256` 为强制要求的摘要算法；运行时**可以**在命名空间下注册其他算法与签名套件，且**必须**显式拒绝其无法识别其 `digest_profile` 或摘要算法的工件，严禁宽松放行。
+`schemas/kip-capsule.schema.json` 与 `schemas/kip-element.schema.json` 确定了基线可移植形态。快照记录使用胶囊局部 ID，引用通过该命名空间解析，源身份保持独立记录。除 JSON Schema 外，还需检查闭包（Closure）、语义校验与治理策略（Governance）。参考规范化器与金样测试向量随 `packages/kip-lang` 一同发布。
 
 ---
 
@@ -134,7 +122,7 @@ integrity (完整性)
 目标系统局部元素 ID (destination local element ID)
 ```
 
-源系统的元素 ID **绝不能**自动成为目标系统的本地主 ID。
+源系统的元素 ID **绝不能**自动成为目标系统的本地主 ID。Space 局部键不具备自动跨所有者的实体识别语义。
 
 ---
 
@@ -146,7 +134,7 @@ integrity (完整性)
 1. 既有已验证的导入映射 (prior verified import mapping)
 2. 受信的 canonical_id
 3. 经显式审批确认的映射 (explicitly approved mapping)
-4. 模式定义的可移植标识 (符号谱系 + key，§20.14)
+4. 显式声明的可移植标识 (谱系 + 经校验的 issuer_namespace + key_scope + 规范化 key，认知一致性 §4)
 5. 创建新 Concept
 ```
 

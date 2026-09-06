@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-017",
+  "title": "WorkingState is a validated view",
+  "description": "Refresh WorkingState from exact inputs with DependencyBasis and a declared computation\nbasis. It is not Evidence and cannot independently corroborate its inputs. A wake\nreads its basis plus every delta page through a declared watermark; missing coverage\nor invalid dependencies are disclosed before automatic use. A current-looking\nsummary cannot override current Governance or a newer explicit correction.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-017"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/incomplete_wake_disclosed",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/working_state_evidence",
+      "operator": "equals",
+      "expected": false
+    }
+  ]
+}

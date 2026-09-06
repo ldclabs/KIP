@@ -2,6 +2,25 @@
 
 All notable changes to the **KIP Language** extension are documented here.
 
+## 2.3.1
+
+Bundles `@ldclabs/kip-lang` 2.3.1, including the 2.3.0 `VERIFY` target
+simplification and the cognitive-consistency revision's portable numeric
+contract.
+
+### Changed
+
+- `VERIFY` accepts `CAPSULE`, `SCHEMA PACKAGE` or `RECEIPT`; the undefined
+  `BLOB` and `CHECKPOINT` targets now report diagnostics.
+
+### Fixed
+
+- Diagnostics reject integer-valued numbers outside ±9007199254740991 in every
+  spelling, non-finite values and nonzero underflow before they can be rounded
+  or collapsed by the executable AST.
+- Diagnostics reject writes to the engine-maintained `merged_into` identity
+  repair pointer.
+
 ## 2.2.0
 
 Bundles `@ldclabs/kip-lang` 2.2.0, the 2.0-draft syntax convergence: the

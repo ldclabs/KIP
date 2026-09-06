@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-010",
+  "title": "Compression, recall coverage and semantic erasure",
+  "description": "Encode a source with a known omitted detail and retained raw bytes. CompressionRecord\npreserves omission/extractor/schema information; re-encoding can recover the detail\nonly while bytes remain. Recall with constrained budget reports each required\nchannel's completion and never drops an applicable hard constraint to fit a Skill.\nThen erase the source payload while a summary or backup remains: semantic forgetting\nis partial, not completed. Held targets are blocked. Completed requires verified\nclosure over all controlled in-scope copies; external exports remain explicitly\noutside the local completion claim. Erased source-event retries cannot reintroduce\ncontent under the same suppression policy.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-010"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/forgetting_status",
+      "operator": "equals",
+      "expected": "partial"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/coverage_disclosed",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/retained_summary_exists",
+      "operator": "equals",
+      "expected": true
+    }
+  ]
+}

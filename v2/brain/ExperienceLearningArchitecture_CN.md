@@ -1,5 +1,8 @@
 # KIP 2.0 大脑经验学习架构 (Experience Learning Architecture)
 
+
+规范的[认知一致性契约](../KIP-2.0-Cognitive-Consistency_CN.md)约束了终态信念、不可变技能修订版本、独立尝试、可重放试验/评估、依赖有效性、同一性修复以及持久工作者。生命周期计数器聚合尝试计数；未关联的家族结果绝不会自动作为对照组。仅在计算基线通过验证时才允许使用存储的摘要。
+
 **[English](./ExperienceLearningArchitecture.md) | [中文](./ExperienceLearningArchitecture_CN.md)**
 
 ## 规范状态
@@ -219,13 +222,13 @@ Experiences / Evidence
 proposed（提议） → trialed（试用） → adopted（采纳） → revoked（撤销）
 ```
 
-状态迁移仅能通过对该 Skill `task_family` 之下已评定结果证据的确定性裁决来执行（规范 §15.7、Profile §14）——绝非行动模型的主观判断，且撤销门槛绝不高于采纳门槛。以上属于描述性认知状态。治理层面的授权（Governance authority）严格独立：分为描述性（descriptive）、建议性（advisory）、行为引导（behavioral）以及可执行（executable）。
+生命周期变迁与评分刷新通过不可变的、在运行时经过验证的 EvaluationRecord 提交（规范 §15.7、Profile §14）。仅有 trialed → adopted 是通过对比试验晋升；撤销后再进入将首先开启新的试验。同状态监控遵循经授权策略并在不捏造新改进的前提下保留在先采纳证据。策略退回 (policy withdrawal) 可以包含零个结果，且撤销门槛绝不高于采纳门槛。以上属于描述性认知状态。治理层面的授权（Governance authority）严格独立：分为描述性（descriptive）、建议性（advisory）、行为引导（behavioral）以及可执行（executable）。
 
 # 19. 技能评定 (Skill Grading)
 
 每次调用 Skill 后，捕获上下文环境、先决条件是否满足、所选具体流程、执行结果、反馈及意外观测。
 
-细分四种情况：符合条件下的成功、符合条件下的失败、不符合条件下的失败、结果未知。符合条件下的执行失败属于强烈的负向信号，应据此收窄 Skill 适用范围，或经确定性裁决将其降级重试。参与评定的有效成绩均是由仪器化组件写入、且经由 `outcome_observation` Activity 关联至应用了该技能之 `action_gate` 决策的结果证据 —— 智能体对自身表现的主观陈述仅为 `agent_statement`，绝不能充当评定成绩，而仅仅共享任务族的无关结果仅作为对比基线，绝不能充当评定成绩。
+细分四种情况：符合条件下的成功、符合条件下的失败、不符合条件下的失败、结果未知。符合条件下的执行失败属于强烈的负向信号，应据此收窄 Skill 适用范围，或经确定性裁决将其降级重试。评分聚合在执行前指派给确切修订版本/试验的独立尝试 (attempt)。由仪器化系统写入的 Outcome 证据经由 `outcome_observation` Activity 关联至尝试及其 `action_gate` 决策；智能体自身的自述仅为 `agent_statement`，绝不能充当评分。共享任务族既不能建立处理归因，也不能确立对照组成员资格：可比基线尝试/结果是在 TrialRecord 中显式选定并冻结的。
 
 # 20. 行动导向召回 (Action Recall)
 

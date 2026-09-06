@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-018",
+  "title": "Trial prerequisites and reversible standing",
+  "description": "A revision with no task_family, a trial without immutable basis/rule/coverage or an\nadoption without at least two independent attempts is refused. Demonstrate reachable\nadoption with a valid comparison and demotion with no greater evidence burden,\nincluding policy withdrawal before trial. Post-adoption monitoring creates new\nverdicts, never rewrites old ones; imported standing cannot bypass local trial.\nReject proposed/revoked → adopted even when the supplied comparison is improved\nand has enough samples. Revoked → trialed selects a new trial before any promotion.\nPermit adopted → adopted monitoring with insufficient evidence and zero eligible\nnew attempts when the authorized policy retains standing; retain the original\nadoption basis, record no new improvement and still apply required demotion rules.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-018"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/bad_trial_rejected",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/adoption_reachable",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/demotion_reachable",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/direct_promotion_rejected",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/same_state_monitoring_recorded",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/old_verdict_rewritten",
+      "operator": "equals",
+      "expected": false
+    },
+    {
+      "source": "state",
+      "path": "/prior_adoption_basis_retained",
+      "operator": "equals",
+      "expected": true
+    }
+  ]
+}

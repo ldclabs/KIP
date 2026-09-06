@@ -4,12 +4,14 @@
 
 ## Status
 
-**Standard Profile Candidate / Informative until separately published as a normative Profile Package**
+**Normative Standard Profile Draft**
 
-Candidate Profile identity:
+This document and its package bind implementations claiming the standard Cognitive Memory Profile. [Cognitive Consistency](../KIP-2.0-Cognitive-Consistency.md) supplies the mandatory cross-cutting contracts. Draft status does not downgrade MUST requirements; Brain policy examples remain informative.
+
+Current draft package identity (2.1.0; the prior 2.0.0 artifact is retained unchanged for migration):
 
 ```text
-kip://profiles/cognitive-memory@2.0.0
+kip://profiles/cognitive-memory@2.1.0
 ```
 
 This document defines standard portable memory structures for KIP 2.0 Brains. It builds on KIP Core and does not redefine Core semantics. If it conflicts with `KIP-2.0-SPECIFICATION.md`, the Specification takes precedence.
@@ -115,8 +117,8 @@ A machine-readable publication SHOULD use an immutable Schema Package:
 
 ```text
 package_id  = kip://profiles/cognitive-memory
-version     = 2.0.0
-package_ref = kip://profiles/cognitive-memory@2.0.0
+version     = 2.1.0
+package_ref = kip://profiles/cognitive-memory@2.1.0
 ```
 
 Persist exact Profile refs. Local aliases remain model-facing conveniences.
@@ -265,51 +267,26 @@ A Commitment is cognition, not automatic external execution.
 
 ## 5.8 Skill
 
-**A Skill is reusable procedural cognition compiled from Experience, Evidence, or validated instruction.**
+**Skill is stable procedural identity; SkillRevision is the immutable behavior
+that was actually executed and evaluated.** A Skill holds `skill_class`, `summary`,
+annotations and current lifecycle/cache state. Required `current_revision` points
+to a SkillRevision; the revision's `revision_of` points back to this Skill. Creation
+of the pair is atomic, including forward references.
 
-Recommended fields:
+A SkillRevision contains required `task_family`, `procedure`, `behavior_digest`,
+and optional applicability, preconditions, success_criteria and recovery.
+Its behavior_digest is sha256 of the canonical behavior fields excluding the digest.
+All behavior fields are immutable, and may not be shadowed by mutable Skill fields.
+The task family is a stream-selection handle, never sufficient baseline membership.
+Ungradable declarative lessons remain Insights.
 
-```text
-skill_class
-task_family
-summary
-applicability
-preconditions
-procedure
-success_criteria
-failure_modes
-counterexamples
-recovery
-status
-created_at
-```
-
-Suggested classes:
-
-```text
-heuristic
-workflow
-checklist
-tool_policy
-communication_strategy
-diagnostic
-recovery
-prompt_pattern
-code_pattern
-subagent_pattern
-```
-
-`task_family` is the Skill's **scoring handle**: the Outcome Evidence stream (Specification §15.7) that can prove it wrong. It is required — a pattern that names no stream that could grade it is not procedural memory; store it as an Insight instead. The family is where the Skill's baseline comes from; it is not how outcomes reach the Skill. An outcome counts toward this Skill only when it is provenance-linked to a decision that applied it (§8.1): the `action_gate` Activity names the Skill among its `inputs`, and the instrument's `outcome_observation` Activity names that decision among its own. Changing `task_family` is an ordinary audited mutation, and a verdict binds to the family and the linked outcomes it actually graded, so re-labeling never inherits grades.
-
-Cognitive lifecycle:
-
-```text
-proposed → trialed → adopted → revoked
-```
-
-Every promotion or demotion is a deterministic verdict over graded Outcome Evidence (§14) — never author assertion, never decay, never the acting model's judgment. The graded record lives in `GradingState` (§6.2), the open trial in `TrialState` (§6.5), and the expected usefulness — the admission bet — in `MnemonicState.utility` (§6.1), exactly as for any other memory.
-
-**An adopted Skill ≠ executable authority.** Authority remains Governance state. Imported Skills enter `proposed`/inactive with no transferred lifecycle standing (Specification §31.4) until locally trialed and reviewed.
+Lifecycle remains `proposed → trialed → adopted → revoked`, but standing is bound
+to the exact revision. Selecting new behavior resets current standing to proposed
+and clears current grade/trial pointers in one guarded transaction, without changing
+old verdicts. This is revision selection, not a promotion. Annotations and mnemonic
+signals may change without resetting standing. Trials, decisions, outcomes and
+Governance authority bind exact revision/behavior digest (Consistency §5–§6).
+Imported revisions earn local standing from new local trials.
 
 ## 5.9 SleepTask
 
@@ -368,7 +345,7 @@ armed → fired | expired | disarmed
 
 `element`, `slot`, and `type` select what is watched (at least one; `slot` matches Assertion entries whose `refs.proposition` belongs to the subject–predicate slot, and `type` resolves through the symbol lineage); `ops` and `touched` narrow which entries count, and default to any. `text` is the fallback a maintenance process interprets when the structured members cannot express the condition; a Watch that carries only `text` is Brain-evaluated, not runtime-evaluated.
 
-Evaluation is a differential loop: the runtime or Brain compares committed Change Envelopes against the armed Watch set; a silence Watch fires when `due_at` passes without a match. An evaluator MUST have consumed the Change Stream through the `space_seq` current at `due_at` before it may conclude silence: the clock alone proves nothing, because a matching change committed before the deadline may still be in flight to this evaluator, and firing on the clock first is a false alarm the model in `formal/watch` reproduces. Firing is one atomic transition — a `watch_fire` Activity (inputs: the Watch and, where representable, the changed element or observation Evidence; outputs: the SleepTask or notification artifact it produced) plus the Watch's `status` change through a guarded `UPDATE ... EXPECT VERSION` — and it MUST be idempotent under concurrent evaluators: the `watch_fire` Activity's `client_key` is `watch_fire:<watch id>:<space_seq of the matching envelope>` for a delta Watch and `watch_fire:<watch id>:silence:<due_at>` for a silence Watch, so a second evaluator that saw the same envelope, or the same passed deadline, replays the firing instead of firing twice.
+Evaluation is a differential loop: the runtime or Brain compares committed Change Envelopes against the armed Watch set; a silence Watch fires when `due_at` passes without a match. An evaluator MUST have consumed the Change Stream through the `space_seq` current at `due_at` before it may conclude silence: the clock alone proves nothing, because a matching change committed before the deadline may still be in flight to this evaluator, and firing on the clock first is a false alarm the model in `formal/watch` reproduces. Firing is one atomic transition — a `watch_fire` Activity (inputs: the Watch and, where representable, the changed element or observation Evidence; outputs: the SleepTask or notification artifact it produced) plus the Watch's `status` change through a guarded `UPDATE ... EXPECT VERSION` — and it MUST be idempotent under concurrent evaluators: the `watch_fire` Activity's `client_key` is `watch_fire:<watch id>:<arm_generation>:<space_seq of the matching envelope>` for a delta Watch and `watch_fire:<watch id>:<arm_generation>:silence:<due_at>` for a silence Watch, so a second evaluator that saw the same envelope, or the same passed deadline, replays the firing instead of firing twice.
 
 **A fired Watch grants nothing.** It creates attention — typically a SleepTask or a wake signal — never an external action. Whatever the Brain does next passes the action gate (§9) and Governance like any other act.
 
@@ -405,7 +382,7 @@ WorkingState never corroborates its own inputs
 WorkingState answers "what is my situation"; SelfModel answers "who am I"
 ```
 
-A Space SHOULD keep at most one active WorkingState per actor scope, under a stable `key`.
+A Space SHOULD keep at most one active WorkingState per actor scope, under a stable `key`. Its producing Activity pins DependencyBasis and the full ProjectionBasis; consumers validate the basis and all delta pages before claiming a current situation (Consistency §2–§3).
 
 # 6. Standard Facets
 
@@ -438,6 +415,8 @@ Skills carry the Facet too. A Skill's expected usefulness is `MnemonicState.util
 
 ```json
 {
+  "revision_ref": "R-1",
+  "evaluation_ref": "EV-1",
   "success_count": 8,
   "failure_count": 2,
   "graded_count": 11,
@@ -445,12 +424,16 @@ Skills carry the Facet too. A Skill's expected usefulness is `MnemonicState.util
 }
 ```
 
-GradingState is the graded record of an artifact that carries a `task_family` — a Skill, or an Insight that subscribes to a stream. The counts are tallies of Outcome Evidence **linked to a decision that applied the artifact** (§8.1), maintained by verdict and grading Activities — never by the acting model's own report, and never by an outcome that merely shares the family. `graded_count` counts every linked graded outcome including `partial`, `aborted`, and `unknown`, so the two named tallies never have to pretend to be exhaustive.
-
-```text
-GradingState ≠ utility      the record of what happened, not the bet on what will
-GradingState ≠ authority    a perfect record still grants no permission
-```
+This is a mutable cache of one immutable EvaluationRecord for a Skill revision.
+Counts are **independent attempts** aggregated per metric/window, including partial,
+aborted and unknown outcomes under the trial's missingness policy. Multiple Evidence
+observations of one attempt never add samples. A cache update references its evaluation
+and commits with the verdict; an empty new Skill has no GradingState. It is neither
+truth probability nor execution authority. Insights have no Skill lifecycle/cache.
+The absence of GradingState does not exclude proposed/trialed Skills from recall;
+they remain unproven candidates. Present grades must match current_revision and a
+validated EvaluationRecord. Claimed adopted standing without matching, verifiable
+evidence cannot be served as a validated recommendation (BrainRecall §16).
 
 ## 6.3 DerivationState
 
@@ -481,66 +464,80 @@ Maintenance sets `stale` after finding the artifact through `LIST DEPENDENTS` on
 
 ## 6.4 OutcomeRecord
 
-```json
-{
-  "task_family": "deploy/rollback",
-  "outcome_status": "failure",
-  "magnitude": 0.3
-}
-```
-
-OutcomeRecord attaches to Outcome Evidence (Specification §15.7) and makes the consequence queryable: `task_family` names the stream of comparable consequences, `outcome_status` uses the Experience vocabulary (`success | partial | failure | aborted | unknown`), and optional `magnitude` carries a deployment-defined size on `[0,1]`. The raw instrument output stays untouched in the Evidence payload; the Facet is the graded index over it.
+OutcomeRecord is the immutable instrument-written index over Outcome Evidence:
 
 ```text
-OutcomeRecord ≠ the actor's opinion of how it went
-task_family   = the stream key; it finds comparable consequences and never attributes one
-attribution   = the outcome_observation Activity that names the decision (§9)
+task_family, attempt_ref (nullable for stream-only observations)
+metric, window, terminal, observation_key, observer_config_digest
+outcome_status: success | partial | failure | aborted | unknown
+magnitude (optional)
 ```
+
+The canonical value shape is `kip-cognitive-records.schema.json#/$defs/OutcomeRecord`.
+The actual attempt and its pre-existing decision are linked by the observation
+Activity. A null attempt leaves the outcome ungraded, never automatically a control.
+Independent samples are aggregated attempts, not observations (Consistency §5).
 
 ## 6.5 TrialState
 
 ```json
-{
-  "opened_at": "2026-08-20T00:00:00Z",
-  "basis_seq": 1480,
-  "baseline_graded_count": 40,
-  "baseline_success_count": 22,
-  "baseline_failure_count": 15,
-  "quota": 12,
-  "rule_id": "adopt-if-better-v1"
-}
+{"trial_ref": "TR-1", "revision_ref": "R-1"}
 ```
 
-TrialState is the recorded comparison basis of an open trial (§14). It is written by the `lifecycle_verdict` that opens the trial and rewritten only by a later verdict: `basis_seq` is the `space_seq` at which the trial opened; the `baseline_*` tallies are the family's outcomes, not linked to this artifact, that the rule counted up to that basis; `quota` is how many linked graded outcomes the rule needs before it will decide; `rule_id` names the deterministic rule, and matches the verdict Activity's `parameters_digest`. With the basis recorded on the artifact and the treatment set recorded as the verdict's `inputs`, an auditor can recompute the verdict from state alone.
-
-```text
-TrialState ≠ the verdict     it is what the verdict was measured against
-TrialState ≠ standing         an open trial is not adoption
-```
+TrialState points to the immutable trial_open Activity carrying TrialRecord. It is
+only the current cache. Re-entry selects a new trial with a new id; old verdicts
+replay from the old TrialRecord/replay artifact, never this pointer. TrialRecord
+pins baseline attempts/outcomes, comparison inputs, rule and parameters, strata,
+quota in independent attempts, missingness and observation-window policy. The full
+contract is Cognitive Consistency §5–§6.
 
 ## 6.6 DecisionRecord
 
-```json
-{
-  "decision": "act",
-  "rationale": "authorized, reversible, and the Watch condition matched"
-}
-```
-
-DecisionRecord attaches to an `action_gate` Activity (§9) and records what the gate decided:
+DecisionRecord is immutable on a terminal action_gate Activity:
 
 ```text
-act       acted without asking — authorized, reversible, worth it
-ask       escalated to a person
-defer     scheduled for later attention
-silence   deliberately did nothing
+decision: act | ask | defer | silence
+rationale (optional concise account)
+retrieved_refs: candidates supplied to the agent
+used_refs: memories actually used
+applied_revisions: exact SkillRevision ids, also in Activity.inputs
+basis: complete ProjectionBasis
 ```
 
-The Activity's `inputs` carry the cognition the decision applied — the trigger, the Skills, the memories the briefing drew on — and its `associated_actors` name who decided. That is the decision half of the consequence channel: an outcome grades a decision by naming this Activity (§8.1), and a memory's `utility` is calibrated by following the link back to the `inputs` that were drawn on. `rationale` is a concise, reusable account, never hidden chain-of-thought.
+Retrieval alone earns no outcome credit. Joint revisions form a treatment bundle
+unless the evaluation's attribution method separates them. DecisionRecord records
+a decision, never permission. An action_attempt Activity with AttemptRecord fixes
+which decision/revisions/trial/environment an actual attempt belongs to before
+any outcome is observed (Consistency §5).
 
-```text
-DecisionRecord ≠ authorization    recording that the gate said act is not permission to act
-```
+## 6.7 Immutable process records and operational caches
+
+The normative field shapes in `../schemas/kip-cognitive-records.schema.json` are
+also bound by the package's `value_schema` definitions:
+
+| Facet | Attachment | Purpose |
+| --- | --- | --- |
+| DependencyBasis | producing or dependency_validation Activity | immutable groups of pinned prerequisites and computation basis |
+| AttemptRecord | action_attempt Activity | distinct actual attempt, preassigned trial and exact revisions |
+| TrialRecord | completed trial_open Activity | immutable comparison contract and baseline replay inputs |
+| EvaluationRecord | completed lifecycle_verdict Activity | immutable verdict, samples and replay artifact |
+| WatchState | Watch | guarded arm generation, condition and coverage watermark |
+| LeaseState | SleepTask | guarded authenticated owner, fencing token and expiry |
+| CompressionRecord | encoding/formation Activity | retained fields, omissions, source refs and re-encoding eligibility |
+| RecallCoverage | explicitly recorded recall_coverage Activity | completed channels, truncation and action eligibility |
+
+DependencyBasis is immutable on the process record, not a backdoor to rewrite an
+Assertion's premises. Revalidating unchanged premises produces a new validation
+Activity; substituting new premises creates a new Assertion. All ordinary derived
+Recall computes `_system.dependency_validity` before using the artifact, independently
+of the reviewer-maintained DerivationState. Missing/incomplete basis is unverifiable.
+
+WatchState and LeaseState are operational state with runtime validation, not author
+claims that confer authority. Their complete enforcement is required when
+`durable_brain_runtime` is advertised (Consistency §7).
+
+A semantic forgetting workflow validates an ErasurePlan against the companion schema;
+payload-only purge is a narrower scope and cannot claim semantic forgetting (§8).
 
 # 7. Standard Structural Fields
 
@@ -552,8 +549,10 @@ has_step        Experience → ExperienceStep (ordered)
 involves        Event/Experience → relevant Person/Concept
 mentions        Event/Experience/Insight → Concept
 derived_from    Profile artifact → source cognition
-compiled_from   Skill → Experience
-compiled_by     Skill → Activity
+current_revision Skill → SkillRevision (required, single)
+revision_of      SkillRevision → Skill (required, single)
+compiled_from   Skill/SkillRevision → Experience
+compiled_by     Skill/SkillRevision → Activity
 consolidated_to Event/Experience → derived memory artifact
 committed_to    Commitment → Person
 owed_to         Commitment → Person
@@ -564,7 +563,7 @@ about           Profile artifact → topical Concept
 
 `involves`, `mentions`, and `about` should not be used to fake stronger domain relations.
 
-The Profile also defines two standard **semantic Predicates** (truth-sensitive; used through Proposition + Assertion + Evidence):
+The Profile also defines three standard **semantic Predicates** (truth-sensitive; used through Proposition + Assertion + Evidence):
 
 ```text
 prefers    Person → Concept                     stable preference claim
@@ -600,7 +599,7 @@ The channel has two joins, and they do different jobs:
 
 ```text
 stream        OutcomeRecord.task_family
-              finds the comparable consequences: the baseline a trial is measured against
+              finds candidate consequences; TrialRecord explicitly selects a comparable baseline
 
 attribution   outcome_observation Activity {inputs: the decision, outputs: the outcome}
               names the one decision an outcome grades; the decision's inputs name
@@ -610,7 +609,7 @@ attribution   outcome_observation Activity {inputs: the decision, outputs: the o
 The channel feeds four consumers, all under the same discipline:
 
 ```text
-Skill lifecycle verdicts        §14   linked outcomes vs. the TrialState baseline
+Skill lifecycle verdicts        §14   independent attempt aggregates vs. the immutable TrialRecord baseline
 GradingState tallies            §6.2  linked outcomes only
 MnemonicState.utility           §6.1  the admission bet, vindicated or wasted, via the decision's inputs
 trust calibration               Specification §22.6
@@ -619,17 +618,17 @@ trust calibration               Specification §22.6
 Discipline:
 
 - The acting model MUST NOT write the outcomes that grade its own action; its account is `agent_statement`, citable as context only.
-- An outcome that grades a decision MUST be linked to it: the instrument's `outcome_observation` Activity names the decision Activity among its `inputs` and the outcome among its `outputs`. A tally, a verdict, or a utility calibration changes only through that link. An outcome with no decision link belongs to the stream — and therefore to the baseline — and to nothing else.
+- An outcome that grades a decision MUST be linked to it: the instrument's `outcome_observation` Activity names the decision Activity among its `inputs` and the outcome among its `outputs`. A tally or verdict changes only through that link, aggregated by independent attempt and assigned trial/revision. Utility calibration additionally records its attribution method and uncertainty; retrieved-only inputs receive no automatic credit. An outcome with no attempt/decision link stays stream material; its absence of attribution proves neither treatment nor control. It never enters a baseline automatically.
 - A decision that is to be graded MUST exist as an `action_gate` Activity with a `DecisionRecord` (§6.6) whose `inputs` name the cognition applied. Ungated actions leave nothing for an outcome to grade.
 - Task family vocabulary is deployment policy; family names SHOULD be stable, namespaced, and few enough to accumulate graded history.
 - A consumer verifies the origin chain of the outcomes it grades and refuses those whose origin fails its policy — the channel is auditable, not unforgeable. A deployment where the acting Principal also holds `record_outcome` is self-graded by construction and MUST be visible as such from `_system.origin`.
 
 ## 8.2 Derived artifacts
 
-Insight, Preference, Skill, SelfModel and WorkingState are **derived artifacts**: cognition compiled from other cognition rather than observed. They stay five types — their fields, recall views and lifecycles differ, and one `DerivedArtifact` type would only move that difference into an untyped `kind` attribute — but they share one contract:
+Insight, Preference, Skill, SkillRevision, SelfModel and WorkingState are **derived artifacts**: cognition compiled from other cognition rather than observed. Their types remain distinct — their fields, recall views and lifecycles differ, and one `DerivedArtifact` type would only move that difference into an untyped `kind` attribute — but they share one contract:
 
 1. **Lineage is recorded, not implied.** A derived artifact reaches its sources through `derived_from` (all of them), `compiled_from` / `compiled_by` (Skill) or `consolidated_to` from the source side (§7), and the Activity that produced it names those sources among its `inputs` (§9). An artifact with no recorded lineage is an unsupported claim about the Brain's own history.
-2. **DerivationState travels with it.** Every derived artifact carries `DerivationState` (§6.3) with the `basis_seq` of its last validation; `stale` is a review flag, never an epistemic verdict.
+2. **DerivationState travels with it.** Derived artifacts may carry reviewer-maintained `DerivationState` (§6.3). Their producing/validation Activities MUST carry DependencyBasis; ordinary Recall checks computed dependency_validity even before a reviewer writes stale.
 3. **Roots revise; artifacts do not follow automatically.** Retracting, superseding or correcting a root changes Projection and nothing else (Specification §57.5). Maintenance finds the affected artifacts through `LIST DEPENDENTS` (Specification §63.5), marks them `stale`, and resolves each by review: revalidate, replace through a new artifact with its own lineage, or take an ordinary lifecycle action.
 4. **Layers are not corroboration.** However many transformations separate an artifact from its Evidence, its support is the root set (§8); consumers count roots, not layers.
 5. **Only consequences promote.** Skill is the one derived artifact graded by the consequence channel (§8.1, §14). Insight, Preference and SelfModel are believed through their Evidence roots and reviewed on schedule (§18); no outcome tally exists for them, so nothing promotes them.
@@ -660,9 +659,13 @@ Activity records provenance; Activity is not Transaction.
 
 An `action_gate` Activity is the decision record: it records the decision a state change was put through before anything outward happened. Its `DecisionRecord` Facet (§6.6) holds the outcome — `act`, `ask`, `defer`, or `silence` — its `inputs` name the cognition applied (the trigger, the Skills, the memories the briefing drew on), and its `associated_actors` name who decided. Recording `defer` and `silence` is what makes restraint accountable: "why didn't you tell me" is answered from the same provenance as "why did you". The gate threshold — which changes get an evaluation at all — is Brain policy; low-value noise needs no gate record, but an action that is to be graded by the consequence channel does.
 
-An `outcome_observation` Activity is the ingesting instrument's record of writing Outcome Evidence and of what it grades — inputs: the `action_gate` Activity of the decision observed; outputs: the Outcome Evidence. The input is REQUIRED when the outcome is to count toward any Skill, tally, or calibration; an observation with no decision input records a consequence in the stream only. Its associated actor is the instrumentation Principal, never the actor whose action is being graded, and writing it requires `record_outcome` (Specification §29.8).
+An `outcome_observation` Activity is the ingesting instrument's record of writing Outcome Evidence and of what it grades — inputs: the `action_gate` Activity of the decision observed; outputs: the Outcome Evidence. The input is REQUIRED when the outcome is to count toward any Skill, tally, or calibration; an observation with no decision input records a consequence in the stream only. Its associated actor is the instrumentation's semantic Concept; its authenticated Principal is recorded in engine origin, never in a Concept-reference slot. It does not impersonate the actor being graded, and writing it requires `record_outcome` (Specification §29.8).
 
-A `lifecycle_verdict` Activity records one deterministic evaluation of the consequence stream — inputs: the linked Outcome Evidence it graded; outputs: the Skill whose lifecycle it moved; `parameters_digest` pins the rule identity, and the Skill's `TrialState` (§6.5) holds the basis the comparison was made against, so the verdict is recomputable by an auditor from state alone. A verdict is executed code reading recorded outcomes. It is not model judgment, and a transition without a verdict Activity is not a lifecycle transition — it is an unexplained edit.
+A `lifecycle_verdict` Activity records one deterministic evaluation of the consequence stream — its immutable EvaluationRecord names exact revisions, trial, selected independent
+attempts/outcomes and a retained replay artifact. TrialRecord freezes the comparison
+basis; TrialState only selects the current trial. Both runtime validation and recorded
+rule execution are required. An author-created Activity with that class name alone
+cannot promote a Skill. See Cognitive Consistency §5–§6.
 
 # 10. Event Formation
 
@@ -708,18 +711,18 @@ successful Experiences
 + failed Experiences
 + counterexamples
 → contrast
-→ proposed Skill (with task_family)
+→ proposed Skill + immutable SkillRevision (with task_family)
 → trial (§14)
 ```
 
 One successful Experience normally does not establish general procedural reliability.
 
-Consolidation MUST attach the `task_family` at proposal time and MUST refuse to emit a Skill without one: a pattern that names no stream that could grade it has no way to be wrong, and belongs in an Insight, not in procedural memory.
+Consolidation MUST attach the `task_family` to the immutable revision at proposal time and MUST refuse to emit a Skill without one: a pattern that names no stream that could grade it has no way to be wrong, and belongs in an Insight, not in procedural memory.
 
 # 14. Skill Lifecycle
 
 ```text
-proposed   compiled, carries its task_family; ungraded
+proposed   compiled, current revision carries its task_family; ungraded
 trialed    the outcome stream is grading it against a recorded baseline
 adopted    promoted by verdict; provisional — the stream keeps grading
 revoked    demoted by verdict, counterexample, or policy; the record survives
@@ -728,8 +731,8 @@ revoked    demoted by verdict, counterexample, or policy; the record survives
 Allowed transitions, every one executed as a `lifecycle_verdict` Activity plus one guarded UPDATE (Specification F.6):
 
 ```text
-proposed → trialed    trial opens; requires task_family; the opening verdict writes TrialState (§6.5)
-trialed  → adopted    comparative verdict over linked outcomes vs. the TrialState baseline; no single success suffices
+proposed → trialed    trial opens; requires task_family; the opening record freezes TrialRecord and selects it through TrialState (§6.5)
+trialed  → adopted    comparative verdict over independent attempt aggregates vs. the immutable TrialRecord baseline; no single success suffices
 trialed  → revoked    verdict, counterexample, or policy
 proposed → revoked    withdrawn before trial
 adopted  → trialed    degradation verdict; re-trial, not amnesty
@@ -737,15 +740,24 @@ adopted  → revoked    verdict; one high-severity matching-condition failure MA
 revoked  → trialed    re-entry starts a new trial; nothing resurrects silently
 ```
 
+Only `trialed → adopted` is promotion; `proposed → adopted` and `revoked → adopted`
+are invalid. An EvaluationRecord may keep `from_status == to_status`, for example
+to refresh GradingState during post-adoption monitoring. Such an evaluation follows
+the authorized monitoring/demotion policy and may record insufficient evidence or
+no improvement without claiming a new promotion. Keeping adopted standing retains
+the prior validated adoption basis in the replay artifact; it never waives a
+required demotion. Selecting a new revision resets standing as specified in §5.8,
+outside this verdict transition table.
+
 Rules:
 
 1. **Deterministic transitions.** Promotion and demotion MUST be executed by deterministic code reading graded Outcome Evidence — not author assertion, not decay, not the acting model's judgment. The Brain proposes, compiles, and narrates; it never promotes.
-2. **Comparative, recomputable adoption.** A trial verdict answers *did things go better than they were going*, not *did things go well*. How the comparison is constructed is Brain policy; that its basis is recorded is Profile discipline: the opening verdict MUST write `TrialState` (basis sequence, baseline tallies, quota, rule identity), the deciding verdict MUST list the linked outcomes it graded as its `inputs` and pin the rule in `parameters_digest`, and the verdict SHOULD also be expressible as a Proposition + Assertion about the Skill so it enters the auditable claim graph.
+2. **Comparative, recomputable adoption.** A trial verdict answers *did things go better than they were going*, not *did things go well*. How the comparison is constructed is Brain policy; that its basis is recorded is Profile discipline: trial opening MUST retain an immutable TrialRecord and select it through TrialState; the deciding verdict MUST retain EvaluationRecord and complete replay inputs, aggregate independent attempts and pin exact revisions, rule and parameters, and the verdict SHOULD also be expressible as a Proposition + Assertion about the Skill so it enters the auditable claim graph.
 3. **Revocation is never harder than adoption.** The demotion bar MUST NOT exceed the promotion bar. A lifecycle that can only acquire cannot tell a habit from a superstition.
 4. **Adoption is provisional.** An adopted Skill stays subscribed to its stream. A deployment SHOULD define a re-verdict trigger — an outcome count, a time window, or a Watch on the family — so adoption ages with the world instead of outliving it.
 5. **Grading vocabulary.** Distinguish success under matching conditions, failure under matching conditions, failure under non-matching conditions, and unknown outcome. Matching-condition failure lowers utility, adds failure modes and counterexamples, narrows applicability, or demotes; non-matching failure narrows applicability without penalizing the procedure.
 6. **Orthogonal review states.** DerivationState (§6.3) still applies: a Skill whose provenance root was revised goes `stale`/`under_review` regardless of lifecycle standing, and that review may open a re-trial.
-7. **Attribution before counting.** The treatment set of a trial is the outcomes linked to a decision that applied the Skill (§8.1); the baseline is the rest of the family. An outcome that merely shares the `task_family` MUST NOT change the Skill's `GradingState` or move its lifecycle; two Skills in one family are graded by their own decisions, not by each other's.
+7. **Attribution before counting.** The treatment set consists of independently aggregated attempts assigned to that trial and revision before execution; the baseline is explicitly selected comparable attempts frozen in TrialRecord (Consistency §5–§6). An outcome that merely shares the `task_family` MUST NOT change the Skill's `GradingState` or move its lifecycle; two Skills in one family are graded by their own decisions, not by each other's.
 
 No lifecycle state grants execution authority. Adoption is standing, not permission.
 
@@ -816,7 +828,7 @@ The Profile supports:
 ```text
 Episodic Recall   = Event + selected Evidence
 Experience Recall = Experience + ordered Steps + Outcome
-Procedural Recall = Skill + applicability + GradingState + utility + positive/negative Experience
+Procedural Recall = Skill + applicability + available revision-matched grades + utility + positive/negative Experience
 Action Briefing   = accepted knowledge + contested assumptions + Skills + successes + failures + Commitments + constraints + warnings
 Wake Briefing     = WorkingState + CHANGES AFTER its basis_seq
 ```
@@ -829,6 +841,8 @@ A Cognitive Capsule carrying Profile cognition SHOULD preserve exact Profile Pac
 
 Destination import MUST NOT automatically transfer source self identity, source trust, Skill authority, tool permission, or Governance policy. Remote autobiographical memory remains remote autobiography under ordinary merge import.
 
+Imported SkillRevisions keep behavior and provenance but receive no local standing or trial assignment. Source replay artifacts may remain readable, never local grades.
+
 A source's Watches and WorkingState are that Brain's attention and situation: under ordinary merge import they arrive disarmed and non-current. A destination re-arms its own attention and rebuilds its own working picture.
 
 Lifecycle standing does not transfer either: an imported Skill enters `proposed` with empty `GradingState` and no `TrialState`, whatever its source status said. Its capsule may carry the source's outcome history as evidence worth reading — it is not local grading, it arrives with the destination's origin rather than the instrument's, and it never counts toward a local verdict.
@@ -839,7 +853,7 @@ Profile conformance SHOULD test Experience/Step structural validity, failed Expe
 
 # 23. Profile Invariants
 
-The Profile's 35 invariants are Part B of the shared registry [KIP-2.0-Invariants.md](../KIP-2.0-Invariants.md), numbered `P1`–`P35` in the order this section gave them; each row names the Profile section that establishes it and the conformance vectors that pin it. Part A of the same registry is the Specification's §102 list, which every runtime the Profile runs on must already preserve.
+The Profile's 46 invariants are Part B of the shared registry [KIP-2.0-Invariants.md](../KIP-2.0-Invariants.md), numbered `P1`–`P46` in the order this section gave them; each row names the Profile section that establishes it and the conformance vectors that pin it. Part A of the same registry is the Specification's §102 list, which every runtime the Profile runs on must already preserve.
 
 
 # 24. Minimal Profile Primer
@@ -852,18 +866,18 @@ Experience: goal-directed state/action/observation trajectory
 ExperienceStep: ordered observable step; no hidden chain-of-thought
 caused_by: explicit effect→cause claim between steps; edge order alone is not causality
 Insight: declarative lesson derived from memory
-Skill: reusable procedure with a task_family; proposed|trialed|adopted|revoked; never execution authority
+Skill: stable identity with current_revision; SkillRevision: immutable behavior/task_family/digest; standing never grants authority
 Commitment: prospective memory
 Watch: armed attention — a delta or a silence worth waking for; firing grants nothing
 SelfModel: derived cognition about self; not Governance
 WorkingState: what matters now, stamped with its basis_seq; never Evidence
 MnemonicState: memory_strength + salience + utility; not confidence; Skills carry it too
 GradingState: tallies of outcomes linked to decisions that applied the artifact; not authority
-TrialState: the recorded basis an open trial is measured against; not standing
+TrialState: current trial_ref/revision_ref pointer; TrialRecord freezes basis; EvaluationRecord freezes verdict/replay
 DerivationState: basis_seq + current|stale|under_review; review state, not belief
 DecisionRecord: act|ask|defer|silence on an action_gate Activity whose inputs name what was applied; not authorization
 OutcomeRecord: task_family + outcome_status on Outcome Evidence; written by instruments, never the actor it grades
-task_family finds the baseline; only the outcome_observation link attributes an outcome to a decision
+task_family finds candidate consequences; TrialRecord explicitly selects comparable baseline attempts; outcome_observation links an outcome to its attempt and decision
 lifecycle_verdict: deterministic, recorded, recomputable; the only path between Skill lifecycle states
 
 Truth-sensitive claims use Proposition + Assertion + Evidence.

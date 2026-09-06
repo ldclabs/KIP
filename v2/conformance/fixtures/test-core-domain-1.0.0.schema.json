@@ -330,22 +330,22 @@
             "type": "number",
             "required": false,
             "mutable": true,
-            "minimum": 0.0,
-            "maximum": 1.0
+            "minimum": 0,
+            "maximum": 1
           },
           "salience": {
             "type": "number",
             "required": false,
             "mutable": true,
-            "minimum": 0.0,
-            "maximum": 1.0
+            "minimum": 0,
+            "maximum": 1
           },
           "utility": {
             "type": "number",
             "required": false,
             "mutable": true,
-            "minimum": 0.0,
-            "maximum": 1.0
+            "minimum": 0,
+            "maximum": 1
           },
           "last_metabolized_at": {
             "type": [
@@ -516,13 +516,13 @@
     "core_builtins": "Core structural fields (evidence, source, generated_by, inputs, outputs, associated_actors) are reserved built-ins defined by KIP-2.0-SPECIFICATION.md §20.13 and are not redefined by this test package."
   },
   "canonicalization": {
-    "fixture_profile": "kip-draft-canonical-json-v1",
-    "production_status": "test-only",
-    "description": "UTF-8 JSON, recursively sorted object keys, compact separators, finite JSON numbers; integrity is excluded from its own digest. Test-only fixture usage of the shared draft canonicalization profile."
+    "profile": "kip-jcs-safe-v1",
+    "status": "normative-draft",
+    "description": "RFC 8785 JCS, narrowed to KIP portable safe integral values; no nonzero underflow; strict decoded-key/Unicode validation; integrity excluded from its own digest."
   },
   "integrity": {
-    "digest_profile": "kip-draft-canonical-json-v1",
-    "content_digest": "sha256:12db8974005fe70c2937c3a300c786de10474af089bdaebc5e9cd0576fb8d277",
+    "digest_profile": "kip-jcs-safe-v1",
+    "content_digest": "sha256:6cf168a2350e32889b7fcea272083c058576bebae7a581e5c16169b06aa094f8",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

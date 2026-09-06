@@ -1,0 +1,24 @@
+{
+  "status": "not_run",
+  "model_version": "not_selected",
+  "tool_environment": "not_selected",
+  "dataset_digests": [],
+  "seeds": [],
+  "conditions": [
+    "no_memory",
+    "semantic",
+    "experience",
+    "skill",
+    "relevant_memory_ablated"
+  ],
+  "budget": {
+    "total_tokens": 0,
+    "tool_calls": 0,
+    "max_latency_ms": 0
+  },
+  "completed_runs": 0,
+  "metrics": null,
+  "learning_gate": "not_evaluated",
+  "criterion_artifact": null,
+  "trace_artifacts": []
+}

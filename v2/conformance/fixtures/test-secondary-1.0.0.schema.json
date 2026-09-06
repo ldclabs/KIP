@@ -74,13 +74,13 @@
     ]
   },
   "canonicalization": {
-    "fixture_profile": "kip-draft-canonical-json-v1",
-    "production_status": "test-only",
-    "description": "UTF-8 JSON, recursively sorted object keys, compact separators, finite JSON numbers; integrity is excluded from its own digest. Test-only fixture usage of the shared draft canonicalization profile."
+    "profile": "kip-jcs-safe-v1",
+    "status": "normative-draft",
+    "description": "RFC 8785 JCS, narrowed to KIP portable safe integral values; no nonzero underflow; strict decoded-key/Unicode validation; integrity excluded from its own digest."
   },
   "integrity": {
-    "digest_profile": "kip-draft-canonical-json-v1",
-    "content_digest": "sha256:e6ae7e336a3c621b0ae416e50f455d0d9d93e5f48a2423752f69170859db03e2",
+    "digest_profile": "kip-jcs-safe-v1",
+    "content_digest": "sha256:34eb9ac489ab1450bda46c9d7c22ff05fbd92a56695d41ef1026e2c58eeb39c8",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

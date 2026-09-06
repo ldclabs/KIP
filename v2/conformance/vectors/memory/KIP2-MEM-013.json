@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-013",
+  "title": "Profile kinds and ephemeral cognition",
+  "description": "Event, Experience, Skill and SelfModel are schema-typed Concepts, not new Core kinds.\nExperience steps are required only when the trajectory is valuable. Evidence-only\nor empty formation is valid when grounded structure is unresolved or unnecessary;\nno invented actor/type or hidden chain-of-thought is required.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-013"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/profile_objects_are_concepts",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/evidence_only_valid",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/fabricated_actor_or_cot",
+      "operator": "equals",
+      "expected": false
+    }
+  ]
+}

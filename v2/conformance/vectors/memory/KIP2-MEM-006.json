@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-006",
+  "title": "Immediate virtual dependency validity",
+  "description": "An inferred Assertion, SkillRevision, Insight and WorkingState have pinned necessary\nroots in their producing Activities' DependencyBasis. Correct a root, then recall\nbefore Maintenance. Raw records remain identical, but computed validity prevents\nautomatic use and inferred acceptance. Any_of with an unchanged independent valid\nsupport may remain usable; missing or hidden uncheckable sources are unverifiable.\nDo not disclose hidden IDs/counts or invent a reviewer-written stale flag. A paged\nreview cannot finish while any depth/page/coverage watermark is incomplete.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-006"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/dependency_status",
+      "operator": "equals",
+      "expected": "needs_review"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/action_eligible",
+      "operator": "equals",
+      "expected": false
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/derived_payload_unchanged",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "state",
+      "path": "/review_flag_unchanged",
+      "operator": "equals",
+      "expected": true
+    }
+  ]
+}

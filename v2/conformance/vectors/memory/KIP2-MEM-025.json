@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-025",
+  "title": "Empirical learning is a separate release gate",
+  "description": "A model/engine conformance report has no measured task improvement by itself.\nA Brain evaluation report states budgets, model/tool versions, seeds, holdout and\nablations, outcome uncertainty, cost and negative transfer. Without real runs,\nstatus is not_run, never pass or a fabricated score. Different benchmark tasks\nmeasure recall, application, reliability and learning separately.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-025"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/unrun_benchmark_status",
+      "operator": "equals",
+      "expected": "not_run"
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/fabricated_behavior_score",
+      "operator": "equals",
+      "expected": false
+    }
+  ]
+}

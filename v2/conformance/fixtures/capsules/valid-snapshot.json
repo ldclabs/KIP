@@ -1,0 +1,50 @@
+{
+  "format": "KIP-Cognitive-Capsule",
+  "format_version": "2.0-draft",
+  "payload": {
+    "manifest": {
+      "kind": "snapshot",
+      "closure": "closed",
+      "roots": [
+        "C1"
+      ]
+    },
+    "source": {
+      "space_id": "S",
+      "snapshot_seq": 1
+    },
+    "schema_dependencies": [
+      {
+        "package_ref": "kip://profiles/cognitive-memory@2.1.0",
+        "content_digest": "sha256:ff398b411ed4b324072ca299b33797fcc6df87c4ec52271dc25321dcc673483a"
+      }
+    ],
+    "records": [
+      {
+        "id": "C1",
+        "kind": "concept",
+        "space_id": "S",
+        "schema_ref": "kip://profiles/cognitive-memory@2.1.0/Person",
+        "name": "Alice",
+        "attributes": {},
+        "_system": {
+          "version": 1,
+          "state": "active",
+          "origin": {
+            "principal_id": "owner",
+            "channel": "fixture",
+            "import_id": null
+          }
+        }
+      }
+    ],
+    "external_refs": [],
+    "blobs": {},
+    "handling": {}
+  },
+  "integrity": {
+    "digest_profile": "kip-jcs-safe-v1",
+    "content_digest": "sha256:b1eda8e91a518013655f06eef8967410c1709557cbc5c05be49e8070638f67ce",
+    "signatures": []
+  }
+}

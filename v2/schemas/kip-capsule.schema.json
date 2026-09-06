@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:kip:2.0:schema:capsule",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "KIP-Cognitive-Capsule"
+    },
+    "format_version": {
+      "const": "2.0-draft"
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "manifest": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "snapshot",
+                "delta"
+              ]
+            },
+            "closure": {
+              "type": "string",
+              "enum": [
+                "closed",
+                "referential",
+                "selective"
+              ]
+            },
+            "roots": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "base_seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "target_seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "kind",
+            "closure",
+            "roots"
+          ],
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "delta"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "base_seq",
+                  "target_seq"
+                ]
+              }
+            }
+          ]
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "space_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "snapshot_seq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "space_id",
+            "snapshot_seq"
+          ],
+          "additionalProperties": false
+        },
+        "schema_dependencies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "package_ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "content_digest": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            },
+            "required": [
+              "package_ref"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "package_ref": {
+                      "not": {
+                        "const": "kip://core@2.0.0"
+                      }
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "content_digest"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "records": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:kip:2.0:schema:element"
+          }
+        },
+        "external_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "source_element",
+                  "canonical_identity",
+                  "semantic_locator",
+                  "external_artifact",
+                  "redacted",
+                  "unavailable"
+                ]
+              },
+              "locator": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "id",
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "blobs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "handling": {
+          "type": "object"
+        },
+        "changes": {
+          "type": "array",
+          "items": {
+            "$ref": "https://kip.ldclabs.org/schemas/2.0/kip-change-envelope.schema.json"
+          }
+        }
+      },
+      "required": [
+        "manifest",
+        "source",
+        "schema_dependencies",
+        "records",
+        "external_refs",
+        "blobs",
+        "handling"
+      ],
+      "additionalProperties": false
+    },
+    "integrity": {
+      "type": "object",
+      "properties": {
+        "digest_profile": {
+          "const": "kip-jcs-safe-v1"
+        },
+        "content_digest": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "covers": {
+          "type": "string",
+          "minLength": 1
+        },
+        "signatures": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "required": [
+        "digest_profile",
+        "content_digest"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "format",
+    "format_version",
+    "payload",
+    "integrity"
+  ],
+  "additionalProperties": false
+}

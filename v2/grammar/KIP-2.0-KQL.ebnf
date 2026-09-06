@@ -1,3 +1,6 @@
+(* Numeric lexical forms are validated under Core §9.3: finite binary64,
+   safe integral values in every spelling, and no nonzero underflow. *)
+
 (* ========================================================================= *)
 (* KIP 2.0 KQL Formal EBNF                                                   *)
 (* ========================================================================= *)

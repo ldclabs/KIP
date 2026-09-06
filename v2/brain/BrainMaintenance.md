@@ -150,13 +150,14 @@ SleepTask is cognitive work description. Verify current Principal authority befo
 Claim a task before working it, so a concurrent cycle cannot double-process it:
 
 ```prolog
-UPSERT CONCEPT ?task {
-  MATCH {type: "SleepTask", key: :task_key}
-  SET ATTRIBUTES {status: "running", started_at: :now}
-} EXPECT VERSION :version OF ATTRIBUTES
+UPDATE :task_id
+SET ATTRIBUTES {status: "running", started_at: :now}
+SET FACET "LeaseState" {owner: :principal, fencing_token: :next_fence, expires_at: :lease_until, attempt_count: :attempt_count}
+EXPECT VERSION :version OF ATTRIBUTES
+EXPECT VERSION :lease_version OF FACET "LeaseState"
 ```
 
-`VersionConflict` means another worker took it — re-read and move to the next task. A terminal task is completed with `status: "completed"` and its outcome summary; a failed task records why, and stays visible rather than disappearing.
+`VersionConflict` means another worker took it — re-read and move to the next task. The runtime validates the authenticated owner, expiry and monotonic fence. Renew or take over expired leases with compare-and-set; completion/dispatch from an expired or replaced fence fails. A CLIENT KEY is not a Concept key, so claim the exact id returned by the task query. A terminal task is completed with `status: "completed"` and its outcome summary; a failed task records why, and stays visible rather than disappearing.
 
 # 9. Semantic Consolidation
 
@@ -188,7 +189,7 @@ MUTATE {
       ("about", :deployment_topic)
     }
   }
-  ASSERT (:failure_step, "caused_by", :migration_step) {
+  ASSERT ?causal (:failure_step, "caused_by", :migration_step) {
     by: :self,
     mode: "inferred",
     confidence: 0.7,
@@ -196,10 +197,12 @@ MUTATE {
   }
   CREATE ACTIVITY ?consolidation {
     SET FIELDS {activity_class: "semantic_consolidation", status: "completed"}
+    SET FACET "DependencyBasis" {basis_seq: :basis_seq, groups: :dependency_groups, policy_basis: :basis}
     SET STRUCTURAL {
       ("inputs", :source_experience)
       ("inputs", :step_evidence)
       ("outputs", ?insight)
+      ("outputs", ?causal)
     }
   }
 }
@@ -221,7 +224,7 @@ success + counterexample
 same procedure across different contexts
 ```
 
-Compile applicability, preconditions, procedure, success criteria, failure modes, and counterexamples into a `proposed` Skill + its admission bet in `MnemonicState.utility` + procedural Activity. Attach the required `task_family` — the Outcome Evidence stream the Skill's baseline comes from — and refuse to compile a pattern no stream could prove wrong (store it as an Insight instead). `GradingState` stays empty until outcomes linked to decisions that applied the Skill arrive. Do not grant executable authority.
+Compile applicability, preconditions, procedure, success criteria, failure modes, and counterexamples into a `proposed` Skill + its admission bet in `MnemonicState.utility` + procedural Activity. Attach the required `task_family` to the immutable revision: it selects candidate consequences, while TrialRecord explicitly freezes comparable baseline attempts/outcomes. Refuse to compile a pattern no stream could prove wrong (store it as an Insight instead). `GradingState` is absent until the first validated EvaluationRecord; ungraded proposed/trialed Skills remain recallable as unproven candidates. Do not grant executable authority.
 
 ```prolog
 MUTATE {
@@ -229,25 +232,27 @@ MUTATE {
     TYPE "Skill"
     CLIENT KEY :skill_key
     NAME "Deploy with pre-flight migration check"
-    SET ATTRIBUTES {
-      skill_class: "workflow",
-      task_family: "deploy/pre-flight",
-      summary: :summary,
-      procedure: :procedure,
-      status: "proposed"
-    }
-    SET FACET "MnemonicState" {utility: 0.5}
+    SET ATTRIBUTES {skill_class: "workflow", summary: :summary, status: "proposed"}
+    SET STRUCTURAL { ("current_revision", ?revision) }
+  }
+  CREATE CONCEPT ?revision {
+    TYPE "SkillRevision"
+    CLIENT KEY :revision_key
+    SET ATTRIBUTES {task_family: "deploy/pre-flight", procedure: :procedure, behavior_digest: :behavior_digest}
     SET STRUCTURAL {
+      ("revision_of", ?skill)
       ("compiled_from", :experience_a)
       ("compiled_from", :experience_b)
     }
   }
   CREATE ACTIVITY ?compilation {
     SET FIELDS {activity_class: "skill_compilation", status: "completed"}
+    SET FACET "DependencyBasis" {basis_seq: :basis_seq, groups: :dependency_groups, policy_basis: :basis}
     SET STRUCTURAL {
       ("inputs", :experience_a)
       ("inputs", :experience_b)
       ("outputs", ?skill)
+      ("outputs", ?revision)
     }
   }
 }
@@ -259,9 +264,9 @@ Contrast before compiling: compare successful against failed Experiences to find
 
 The lifecycle `proposed → trialed → adopted → revoked` moves only by deterministic verdict over graded Outcome Evidence under the Skill's `task_family` (Profile §14, Spec §15.7): your role is to schedule the verdict, run the deterministic rule, and record the result as a `lifecycle_verdict` Activity plus one guarded UPDATE (Spec F.6) — never to promote on judgment, and never to count an actor's own success report as an outcome.
 
-Verdict discipline: the treatment set is the outcomes linked, through an `outcome_observation` Activity, to an `action_gate` decision that applied the Skill; the baseline is the rest of the family as recorded in `TrialState` when the trial opened — an outcome that merely shares the `task_family` never counts. Adoption is comparative (better than it was going, against that basis) and provisional (the stream keeps grading; demote to re-trial on degradation); revocation is never harder than adoption, and one high-severity matching-condition failure may suffice; re-entry after revocation starts a new trial and writes a fresh `TrialState`.
+Verdict discipline: the treatment set is the outcomes linked, through an `outcome_observation` Activity, to an `action_gate` decision that applied the Skill; the baseline is the explicit comparable attempt set frozen in immutable TrialRecord, selected by TrialState — an outcome that merely shares the `task_family` never counts. Adoption is comparative (better than it was going, against that basis) and provisional (the stream keeps grading; demote to re-trial on degradation); revocation is never harder than adoption, and one high-severity matching-condition failure may suffice; re-entry after revocation starts a new trial identity and selects its immutable TrialRecord through TrialState. Outcomes retain their preassigned attempt/trial/revision even when they arrive late. Count independent attempts, not Evidence observations; verify metric, window, missingness and comparability before adoption (Consistency §5–§6).
 
-Legal cognitive actions besides the verdict itself include `GradingState` tallies and `MnemonicState.utility` revisions, a revised Skill artifact, failure-mode addition, counterexample linkage, and narrowed applicability. Authority changes require Governance.
+Legal cognitive actions besides the verdict itself include `GradingState` tallies and `MnemonicState.utility` revisions, a revised Skill artifact, failure-mode annotations and counterexample linkage. Narrowed applicability or changed recovery/procedure creates a new SkillRevision; it is not an in-place behavior edit. Authority changes require Governance.
 
 # 13. Mnemonic Metabolism
 
@@ -273,7 +278,7 @@ Example policy formula:
 new_strength = clamp(old_strength × decay + salience protection + explicit reinforcement)
 ```
 
-`MnemonicState.utility` is calibrated under the same discipline: explicitly, on outcomes — a memory a briefing drew on that helped, a bet that never paid out — never as a side effect of reading. The data path is the decision record: follow an outcome's `outcome_observation` link back to the `action_gate` Activity, and the memories named in its `inputs` are the ones the outcome vindicates or wastes. It is the mnemonic twin of outcome-driven trust calibration (Spec §22.6).
+`MnemonicState.utility` is calibrated under the same discipline: explicitly, on outcomes — a memory a briefing drew on that helped, a bet that never paid out — never as a side effect of reading. Follow the outcome to its attempt and decision; only actual used_refs are candidates for utility calibration. Record the attribution method and uncertainty. A retrieved memory or co-applied revision does not automatically inherit the entire outcome's causal credit. It is the mnemonic twin of outcome-driven trust calibration (Spec §22.6).
 
 Apply it with `UPDATE ... SET FACET "MnemonicState" { ... }` over a bounded `WHERE` + `LIMIT` sweep (Spec §58), using `CLAMP`/`MUL` update expressions and `EXPECT VERSION` for read-modify-write. Stamp `MnemonicState.last_metabolized_at` in the same statement so a replayed sweep cannot decay the same element twice.
 
@@ -386,7 +391,7 @@ ORDER BY ?watch.attributes.due_at ASC
 LIMIT 100
 ```
 
-Evaluate armed Watches against committed changes (`CHANGES AFTER SEQ`): a delta Watch fires on a matching change — match its structured `condition` (element, slot, type, ops, touched) against the envelope entries — and a silence Watch fires when its `due_at` passes without one — decided only after this cycle has consumed the stream through the `space_seq` current at `due_at`, never on the clock alone. Fire atomically — `watch_fire` Activity plus the Watch's `fired` transition through `UPDATE ... EXPECT VERSION` plus the SleepTask or wake signal it produces — and key the Activity `watch_fire:<watch id>:<envelope seq>` (silence: `watch_fire:<watch id>:silence:<due_at>`) so a concurrent cycle replays instead of firing twice. The outward decision then goes through the action gate and is recorded as an `action_gate` Activity whose `DecisionRecord` says `act`, `ask`, `defer`, or `silence` and whose `inputs` name the Watch, the Skills and the memories the decision applied. A fired Watch authorizes nothing.
+Evaluate armed Watches against committed changes (`CHANGES AFTER SEQ`): a delta Watch fires on a matching change — match its structured `condition` (element, slot, type, ops, touched) against the envelope entries — and a silence Watch fires when its `due_at` passes without one — decided only after this cycle has consumed the stream through the `space_seq` current at `due_at`, never on the clock alone. Fire atomically — `watch_fire` Activity plus the Watch's `fired` transition through `UPDATE ... EXPECT VERSION` plus the SleepTask or wake signal it produces — and key the Activity `watch_fire:<watch id>:<arm_generation>:<envelope seq>` (silence: `watch_fire:<watch id>:<arm_generation>:silence:<due_at>`) so a concurrent cycle replays instead of firing twice. The outward decision then goes through the action gate and is recorded as an `action_gate` Activity whose `DecisionRecord` says `act`, `ask`, `defer`, or `silence` and whose `inputs` name the Watch, the Skills and the memories the decision applied. A fired Watch authorizes nothing.
 
 # 18. SelfModel and WorkingState Refresh
 
@@ -408,6 +413,7 @@ MUTATE {
   }
   CREATE ACTIVITY ?refresh {
     SET FIELDS {activity_class: "working_state_refresh", status: "completed"}
+    SET FACET "DependencyBasis" {basis_seq: :current_seq, groups: :dependency_groups, policy_basis: :basis}
     SET STRUCTURAL {
       ("inputs", :open_commitment)
       ("inputs", :armed_watch)
@@ -474,6 +480,8 @@ Evidence purge is especially sensitive: removing counter-Evidence may silently s
 
 Payload purge (`PURGE PAYLOAD`, Spec §60.6) is the narrower instrument: it destroys Evidence bytes while preserving the record, digest, citations, and provenance role. Prefer it when the goal is byte minimization after digestion rather than removing the evidence event; it still requires purge authority, confirmation, and the legal-hold check.
 
+Semantic forgetting uses the ErasurePlan contract (Consistency §8), covering semantic copies, compiled summaries, replay inputs and controlled indexes/backups. Payload purge alone cannot satisfy "forget this fact"; incomplete/held coverage is partial/blocked.
+
 # 24. Cleanup Candidates
 
 Maintenance may identify purge candidates without permission to purge. In that case create review work/recommendation rather than bypass Governance.
@@ -513,7 +521,7 @@ UPDATE :insight_id
 SET FACET "DerivationState" {status: "stale"}
 ```
 
-A ghost that outlives its source is how memory lies; a revised root's derivations are never left undiscovered.
+Read `_system.dependency_validity` before using derived cognition; the engine computes it immediately, even when this review has not run. Page and traverse the complete affected closure, checkpointing the watermark; DEPTH 2 / LIMIT 100 is a first page, never completion. Revalidation records a new DependencyBasis on a dependency_validation Activity with the exact output version. New epistemic premises require a new Assertion.
 
 # 29. Transaction Discipline
 

@@ -1,5 +1,8 @@
 # KIP 2.0 Brain — Autonomous Experience & Graph Memory for AI Agents
 
+
+The normative [Cognitive Consistency contract](../KIP-2.0-Cognitive-Consistency.md) binds final belief, immutable Skill revisions, independent attempts, replayable trials/evaluations, dependency validity, identity repair and durable workers. Lifecycle counters aggregate attempts; unlinked family outcomes are never automatically controls. Stored summaries are used only with a validated computation basis.
+
 **[English](./README.md) | [中文](./README_CN.md)**
 
 ## Status
@@ -146,7 +149,7 @@ It also:
 - walks `LIST DEPENDENTS` after a material revision and flags derived artifacts `stale` for review, so a revised root cannot leave ghosts in its derivations;
 - evaluates armed Watches against the change stream — delta and silence triggers alike — recording each firing as a `watch_fire` Activity and each outward decision as an `action_gate` Activity whose `DecisionRecord` says act / ask / defer / silence and whose inputs name what was applied;
 - compares successful and failed experiences to identify discriminating actions or conditions;
-- runs the Skill lifecycle (`proposed → trialed → adopted → revoked`) as deterministic verdicts over Outcome Evidence linked to the decisions that applied each Skill, measured against the `TrialState` baseline drawn from its `task_family` — recorded as `lifecycle_verdict` Activities, with tallies in `GradingState`, never promoted on the acting model's own report and never on an outcome that merely shares the family;
+- runs the Skill lifecycle through validated immutable EvaluationRecord: promotion is trialed → adopted over independent attempts and an explicitly selected comparable baseline frozen in TrialRecord; TrialState only selects the current trial. Same-state monitoring preserves prior adoption evidence under authorized policy, withdrawal may have zero outcomes, and revoked re-entry opens a new trial. GradingState caches the evaluation; family membership and self-report never confer standing;
 - reviews identity suspicions (`same_as`) before any non-destructive `MERGE CONCEPT`;
 - refreshes `$self`'s SelfModel from evidence rather than from the latest conversation;
 - rebuilds the WorkingState digest — stamped with its `basis_seq` — that the next waking session resumes from;
@@ -202,7 +205,7 @@ KIP 2.0 keeps these orthogonal, and each lives in a different place:
 
 **Do not decay epistemic `confidence` merely because a fact has not been recalled recently.** Disuse reduces `memory_strength`. A stable fact may remain highly credible after a long period without retrieval, and a vivid memory may be false.
 
-For Skills, the graded record is tracked in `GradingState` separately from truth confidence, and it counts only outcomes linked through an `outcome_observation` Activity to an `action_gate` decision that applied the Skill — the `task_family` supplies the baseline, never the attribution. Repeating a failed procedure three times is not three votes that the procedure is correct.
+For Skills, the graded record is tracked in `GradingState` separately from truth confidence, and it counts only outcomes linked through an `outcome_observation` Activity to an `action_gate` decision that applied the Skill — the `task_family` locates comparison candidates; TrialRecord selects the baseline, and attempt/decision links provide attribution. Repeating a failed procedure three times is not three votes that the procedure is correct.
 
 ## Memory Quality Principles
 

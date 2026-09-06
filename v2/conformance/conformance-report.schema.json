@@ -108,12 +108,13 @@
         "KIP-KQL",
         "KIP-KML",
         "KIP-META",
-        "KIP-Runtime"
+        "KIP-Runtime",
+        "KIP-CognitiveMemory"
       ]
     },
     "TestId": {
       "type": "string",
-      "pattern": "^KIP2-(CORE|SCHEMA|EPI|GOV|TX|CAP|KQL|KML|META|RT|HIST|HA|MIG|X)-[0-9]{3}$"
+      "pattern": "^KIP2-(CORE|SCHEMA|EPI|GOV|TX|CAP|KQL|KML|META|RT|HIST|HA|MIG|X|MEM)-[0-9]{3}$"
     },
     "TestLevel": {
       "type": "string",

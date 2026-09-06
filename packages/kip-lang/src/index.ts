@@ -1,4 +1,5 @@
 export { tokenize } from './lexer.js'
+export { canonicalize, parseCanonicalJson } from './canonical.js'
 export { parse } from './parser.js'
 export type { ParseResult } from './parser.js'
 export { format } from './formatter.js'

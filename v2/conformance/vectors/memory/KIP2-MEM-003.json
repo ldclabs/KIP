@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-003",
+  "title": "Independent attempts, not observation fan-out",
+  "description": "One predeclared attempt produces two distinct successful instrument observations\nfor the same metric/window. Aggregate them to one sample; quota=2 is not satisfied.\nRepeat delivery with the same observation key adds no Evidence event. Two distinct\neligible attempts may satisfy the quota. Conflicting terminal observations remain\nunknown until a pinned adjudicator resolves them. Intermediate/imported/self-graded\noutcomes do not become eligible independent local success samples.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-003"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/independent_samples",
+      "operator": "equals",
+      "expected": 1
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/adopted",
+      "operator": "equals",
+      "expected": false
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/duplicate_replay_added_evidence",
+      "operator": "equals",
+      "expected": false
+    }
+  ]
+}

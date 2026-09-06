@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-001",
+  "title": "Single-candidate and slot conflict agreement",
+  "description": "Given two materially supported values of the same functional slot at one context/time,\nquery each grounded BELIEF, BELIEF-by-id and the slot. Each involved final status\nis contested, candidate_status may be accepted, and accepted_values is empty.\nNon-functional independent preferences remain accepted; a direct dispute over one\nnon-functional value does not make every other value contested. Raw false remains\nseparate from a reject Assertion. No cognitive state changes.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Epistemic"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-001"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/candidate_statuses",
+      "operator": "equals",
+      "expected": [
+        "contested",
+        "contested"
+      ]
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/slot_status",
+      "operator": "equals",
+      "expected": "contested"
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/unchanged",
+      "operator": "equals",
+      "expected": true
+    }
+  ]
+}

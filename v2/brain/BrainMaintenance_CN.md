@@ -136,14 +136,14 @@ SleepTask 是认知工作描述对象。在执行前必须验证当前认证 Pri
 在着手处理任务前先认领该任务，以防并发周期发生重复处理：
 
 ```prolog
-UPSERT CONCEPT ?task {
-  MATCH {type: "SleepTask", key: :task_key}
-  SET ATTRIBUTES {status: "running", started_at: :now}
-}
+UPDATE :task_id
+SET ATTRIBUTES {status: "running", started_at: :now}
+SET FACET "LeaseState" {owner: :principal, fencing_token: :next_fence, expires_at: :lease_until, attempt_count: :attempt_count}
 EXPECT VERSION :version OF ATTRIBUTES
+EXPECT VERSION :lease_version OF FACET "LeaseState"
 ```
 
-若返回 `VersionConflict` 则表明已被另一工作进程认领 —— 重新读取并进入下一任务。已完结的任务更新为 `status: "completed"` 及其结果摘要；失败的任务记录失败原因并保持可见，而非隐性消失。
+若返回 `VersionConflict` 则表明已被另一工作进程认领 —— 重新读取并进入下一任务。运行时校验经过认证的拥有者、过期时间及单调递增的防护令牌 (fence)。使用比较并交换 (compare-and-set) 续订或接管已过期的租约；从已过期或已被取代的防护令牌执行完成/派发将会失败。CLIENT KEY 不是 Concept 的唯一键，因此必须认领由任务查询返回的确切 id。已完结的任务更新为 `status: "completed"` 及其结果摘要；失败的任务记录失败原因并保持可见，而非隐性消失。
 
 # 9. 语义巩固规范 (Semantic Consolidation)
 
@@ -175,7 +175,7 @@ MUTATE {
       ("about", :deployment_topic)
     }
   }
-  ASSERT (:failure_step, "caused_by", :migration_step) {
+  ASSERT ?causal (:failure_step, "caused_by", :migration_step) {
     by: :self,
     mode: "inferred",
     confidence: 0.7,
@@ -183,10 +183,12 @@ MUTATE {
   }
   CREATE ACTIVITY ?consolidation {
     SET FIELDS {activity_class: "semantic_consolidation", status: "completed"}
+    SET FACET "DependencyBasis" {basis_seq: :basis_seq, groups: :dependency_groups, policy_basis: :basis}
     SET STRUCTURAL {
       ("inputs", :source_experience)
       ("inputs", :step_evidence)
       ("outputs", ?insight)
+      ("outputs", ?causal)
     }
   }
 }
@@ -209,7 +211,7 @@ MUTATE {
 不同上下文中的同一程序
 ```
 
-将适用范围、前置条件、执行步骤、成功标准、失败模式与反例编译为 `proposed` 状态的 Skill + 其在 `MnemonicState.utility` 中的准入下注 + 程序性编译 Activity。附加必需的 `task_family` —— 即为该技能提供对比基线的结果证据流 —— 并拒绝编译任何没有任何数据流能够证伪的模式（对此类模式应存储为 Insight）。在与应用该技能之决策关联的结果到来之前，`GradingState` 保持为空。严禁自动授予可执行权限。
+将适用范围、前置条件、执行步骤、成功标准、失败模式与反例编译为 `proposed` 状态的 Skill + 其在 `MnemonicState.utility` 中的准入下注 + 程序性编译 Activity。将必需的 `task_family` 附加到不可变修订版本上：由它选定候选后果，而 TrialRecord 显式冻结可比基线尝试/结果。拒绝编译任何没有任何数据流能够证伪的模式（对此类模式应存储为 Insight）。在首个经过验证的 EvaluationRecord 出现之前，`GradingState` 不存在；未评分的 proposed/trialed 技能仍可作为未经证实的候选被回忆。严禁自动授予可执行权限。
 
 ```prolog
 MUTATE {
@@ -217,25 +219,27 @@ MUTATE {
     TYPE "Skill"
     CLIENT KEY :skill_key
     NAME "Deploy with pre-flight migration check"
-    SET ATTRIBUTES {
-      skill_class: "workflow",
-      task_family: "deploy/pre-flight",
-      summary: :summary,
-      procedure: :procedure,
-      status: "proposed"
-    }
-    SET FACET "MnemonicState" {utility: 0.5}
+    SET ATTRIBUTES {skill_class: "workflow", summary: :summary, status: "proposed"}
+    SET STRUCTURAL { ("current_revision", ?revision) }
+  }
+  CREATE CONCEPT ?revision {
+    TYPE "SkillRevision"
+    CLIENT KEY :revision_key
+    SET ATTRIBUTES {task_family: "deploy/pre-flight", procedure: :procedure, behavior_digest: :behavior_digest}
     SET STRUCTURAL {
+      ("revision_of", ?skill)
       ("compiled_from", :experience_a)
       ("compiled_from", :experience_b)
     }
   }
   CREATE ACTIVITY ?compilation {
     SET FIELDS {activity_class: "skill_compilation", status: "completed"}
+    SET FACET "DependencyBasis" {basis_seq: :basis_seq, groups: :dependency_groups, policy_basis: :basis}
     SET STRUCTURAL {
       ("inputs", :experience_a)
       ("inputs", :experience_b)
       ("outputs", ?skill)
+      ("outputs", ?revision)
     }
   }
 }
@@ -247,9 +251,9 @@ MUTATE {
 
 生命周期状态流转 `proposed → trialed → adopted → revoked` 仅能通过对 Skill 所属 `task_family` 之下已评定的客观结果证据进行确定性裁决来推动（Profile §14，规范 §15.7）：你的职责是安排裁决时机、执行确定性规则，并将裁决结果记录为一条 `lifecycle_verdict` Activity 外加一条受保护的 UPDATE（规范附录 F.6）—— 绝不能凭主观判断晋升，绝不能将行动者自身的成功报告计为结果。
 
-裁决纪律：处理集是经由 `outcome_observation` Activity 关联至应用了该技能之 `action_gate` 决策的客观结果；对比基线则是试用开启时记录在 `TrialState` 中的该任务族其余结果 —— 仅碰巧共享相同 `task_family` 的无关结果绝不能计入处理集。采纳属于相对比较（对照记录的基线，表现优于以往）且属于临时地位（数据流会持续打分；一旦成效退化则降级回重新试用）；撤销绝不能比采纳更困难，且一次严重符合条件的失败即可足以触发撤销；撤销后的重新准入将开启全新的试用并写入崭新的 `TrialState`。
+裁决纪律：处理集是经由 `outcome_observation` Activity 关联至应用了该技能之 `action_gate` 决策的客观结果；对比基线则是冻结在不可变 TrialRecord 中、由 TrialState 所选定的显式可比尝试集 —— 仅碰巧共享相同 `task_family` 的无关结果绝不能计入处理集。采纳属于相对比较（对照记录的基线，表现优于以往）且属于临时地位（数据流会持续打分；一旦成效退化则降级回重新试用）；撤销绝不能比采纳更困难，且一次严重符合条件的失败即可足以触发撤销；撤销后的重新准入将开启全新的试验标识并经由 TrialState 选定其不可变 TrialRecord。即使结果迟延到达，仍保留其预先指派的尝试/试验/修订版本。统计独立尝试次数，而非 Evidence 观测次数；在采纳前必须验证指标、窗口、缺失性及可比性（一致性规范 §5–§6）。
 
-除裁决本身外，合法的认知操作还包括：`GradingState` 计票更新与 `MnemonicState.utility` 修订、更新技能构件、补充失败模式、链接反例，以及收窄适用范围。权限的变更必须交由 Governance 处理。
+除裁决本身外，合法的认知操作还包括：`GradingState` 计票更新与 `MnemonicState.utility` 修订、更新技能构件、补充失败模式标注以及链接反例。收窄适用范围或变更恢复/执行程序均需创建新的 SkillRevision；绝不是原地修改行为。权限的变更必须交由 Governance 处理。
 
 # 13. 记忆状态代谢 (Mnemonic Metabolism)
 
@@ -261,7 +265,7 @@ MUTATE {
 new_strength = clamp(old_strength × decay + salience protection + explicit reinforcement)
 ```
 
-`MnemonicState.utility` 遵循相同的校准纪律：显式地依据结果进行校准 —— 一段简报所使用并产生了助益的记忆、或一次未曾获得回报的下注 —— 绝不能作为读取的副作用随意提高。其数据路径是决策记录：沿着结果的 `outcome_observation` 链接追踪回 `action_gate` Activity，其 `inputs` 中指明的记忆即为该结果所证实或浪费的认知。它是结果驱动之信任校准（规范 §22.6）在记忆领域的镜像。
+`MnemonicState.utility` 遵循相同的校准纪律：显式地依据结果进行校准 —— 一段简报所使用并产生了助益的记忆、或一次未曾获得回报的下注 —— 绝不能作为读取的副作用随意提高。沿着结果追踪至其尝试与决策；仅实际的 used_refs 是效用校准的候选对象。记录归因方法与不确定性。检索到的记忆或共同应用的修订版本绝不会自动继承整个结果的全部因果信用。它是结果驱动之信任校准（规范 §22.6）在记忆领域的镜像。
 
 通过 `UPDATE ... SET FACET "MnemonicState" { ... }` 结合有界的 `WHERE` + `LIMIT` 扫描执行（规范 §58），使用 `CLAMP`/`MUL` 更新表达式，并结合 `EXPECT VERSION` 保证读-改-写安全。在同一语句中为 `MnemonicState.last_metabolized_at` 打上时间戳，防止重放扫描对同一元素重复衰减。
 
@@ -371,7 +375,7 @@ ORDER BY ?watch.attributes.due_at ASC
 LIMIT 100
 ```
 
-依据已提交的变更（`CHANGES AFTER SEQ`）对已设防的 Watch 进行求值：delta Watch 在匹配变更时触发 —— 将其结构化的 `condition`（元素、槽位、类型、操作、触碰字段）与信封条目进行匹配；静默 Watch 在其 `due_at` 到期且无匹配变更时触发 —— 且仅在该周期已将变更流消费到 `due_at` 时的当前 `space_seq` 之后才做裁定，绝不能仅凭本地挂钟。触发必须保持原子性 —— `watch_fire` Activity 外加通过 `UPDATE ... EXPECT VERSION` 将 Watch 迁移至 `fired` 状态，外加其生成的 SleepTask 或唤醒信号 —— 且将 Activity 键命名为 `watch_fire:<watch id>:<envelope seq>`（静默类为：`watch_fire:<watch id>:silence:<due_at>`），使并发周期发生重放而非重复触发。向外的决策随后经过动作网关，并记录为 `action_gate` Activity（其 `DecisionRecord` 记录 `act`、`ask`、`defer` 或 `silence`，其 `inputs` 指明所响应的 Watch、应用的技能和记忆）。触发的 Watch 不赋予任何行动特权。
+依据已提交的变更（`CHANGES AFTER SEQ`）对已设防的 Watch 进行求值：delta Watch 在匹配变更时触发 —— 将其结构化的 `condition`（元素、槽位、类型、操作、触碰字段）与信封条目进行匹配；静默 Watch 在其 `due_at` 到期且无匹配变更时触发 —— 且仅在该周期已将变更流消费到 `due_at` 时的当前 `space_seq` 之后才做裁定，绝不能仅凭本地挂钟。触发必须保持原子性 —— `watch_fire` Activity 外加通过 `UPDATE ... EXPECT VERSION` 将 Watch 迁移至 `fired` 状态，外加其生成的 SleepTask 或唤醒信号 —— 且将 Activity 键命名为 `watch_fire:<watch id>:<arm_generation>:<envelope seq>`（静默类为：`watch_fire:<watch id>:<arm_generation>:silence:<due_at>`），使并发周期发生重放而非重复触发。向外的决策随后经过动作网关，并记录为 `action_gate` Activity（其 `DecisionRecord` 记录 `act`、`ask`、`defer` 或 `silence`，其 `inputs` 指明所响应的 Watch、应用的技能和记忆）。触发的 Watch 不赋予任何行动特权。
 
 # 18. 自我模型与工作状态刷新 (SelfModel and WorkingState Refresh)
 
@@ -393,6 +397,7 @@ MUTATE {
   }
   CREATE ACTIVITY ?refresh {
     SET FIELDS {activity_class: "working_state_refresh", status: "completed"}
+    SET FACET "DependencyBasis" {basis_seq: :current_seq, groups: :dependency_groups, policy_basis: :basis}
     SET STRUCTURAL {
       ("inputs", :open_commitment)
       ("inputs", :armed_watch)
@@ -457,6 +462,8 @@ LIMIT 200
 
 载荷清除（`PURGE PAYLOAD`，规范 §60.6）是更为精细的数据最小化工具：在销毁原始证据载荷字节的同时，完整保留证据记录、内容摘要、引用拓扑与溯源角色。当目标是在认知消化完成后缩减存储字节而非移除证据事件本身时，应优先采用该操作；该操作同样需要 purge 权限、二次确认并受法律保全（legal hold）约束。
 
+语义遗忘遵循 ErasurePlan 契约（一致性规范 §8），涵盖语义副本、编译摘要、重放输入以及受控索引/备份。仅执行载荷清除无法满足“遗忘此事实”；未覆盖完全或受保全约束的范围属于部分遗忘或被阻断。
+
 # 24. 清理候选处理
 
 Maintenance 可以识别物理清除候选对象，但在未获得清除授权时，只能生成审核工单或建议报告，严禁绕过 Governance 擅自执行清除。
@@ -503,7 +510,7 @@ UPDATE :insight_id
 SET FACET "DerivationState" {status: "stale"}
 ```
 
-比其源节点更长命的失效残留是记忆说谎的根源；被修订根节点的派生链绝不能处于未被发现的状态。
+在使用派生认知前，必须先读取 `_system.dependency_validity`；即使本审查流程尚未运行，引擎也会立即计算该有效性。分页并遍历完整受影响闭包，检查点记录水位线；DEPTH 2 / LIMIT 100 仅是第一页，绝非遍历完成。重新验证在 dependency_validation Activity 上记录新的 DependencyBasis 并标注确切输出版本。新的认识论前提必须创建新的 Assertion。
 
 # 29. 事务规范与前置断言
 

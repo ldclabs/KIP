@@ -61,6 +61,9 @@ Error squiggles as you type (300ms debounce):
   filter function, a `?variable` where the language requires an exact
   predicate, a write to an engine-maintained field — reported with their KIP
   error code
+- Numbers that cannot survive the portable executable-value contract exactly,
+  including integer-valued numbers outside ±9007199254740991 and nonzero
+  underflow
 - Documents past the protocol's own parser budgets (`KIP_4002`), so a file no
   KIP engine would accept is not reported as clean
 
@@ -94,13 +97,13 @@ structure.
 cd packages/vscode-kip
 pnpm install
 pnpm build
-pnpm package   # produces vscode-kip-2.0.1.vsix
+pnpm package   # produces vscode-kip-2.3.1.vsix
 ```
 
 Then install the `.vsix`:
 
 ```
-code --install-extension vscode-kip-2.0.1.vsix
+code --install-extension vscode-kip-2.3.1.vsix
 ```
 
 ### Development

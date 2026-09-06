@@ -17,7 +17,8 @@
   "time": {
     "missing_valid_time": "unbounded",
     "validity_test": "requested_valid_at_must_intersect_assertion_valid_time",
-    "non_overlapping_functional_values_conflict": false
+    "non_overlapping_functional_values_conflict": false,
+    "interval_bounds": "[from,until)"
   },
   "eligibility": {
     "assertion_lifecycle": {
@@ -53,6 +54,16 @@
       "minimum": null,
       "missing_allowed": true,
       "note": "Assertion confidence is preserved/reported but does not decide fixture status."
+    },
+    "context": "assertion_context_subset_of_request_context",
+    "evidence_lifecycle": {
+      "include": [
+        "active"
+      ],
+      "exclude": [
+        "corrected"
+      ],
+      "payload_purge": "preserve_event_and_root_identity"
     }
   },
   "trust": {
@@ -179,7 +190,9 @@
       "uncertain": "none",
       "insufficient": "none",
       "note": "Disclosure only: leading never changes status (Spec §21.6, §27.2)."
-    }
+    },
+    "final_conflict_rule": "Compute candidate status first, then mark every materially supported member of an unresolved functional/exclusive conflict contested, including grounded BELIEF and BELIEF-by-id. accepted_values contains only final accepted candidates.",
+    "dependency_validity": "An inferred derivation with needs_review/unverifiable basis cannot be final accepted; report uncertain unless contested or rejected is already warranted."
   },
   "explanation": {
     "minimum_output": [
@@ -188,7 +201,12 @@
       "policy_id",
       "policy_version",
       "valid_at",
-      "as_of"
+      "as_of",
+      "candidate_status",
+      "slot_status",
+      "basis",
+      "conflict_refs",
+      "conflict_reasons"
     ],
     "ledger_when_requested": [
       "eligible_assertions",
@@ -209,13 +227,13 @@
     "does_not_grant_governance_authority"
   ],
   "canonicalization": {
-    "fixture_profile": "kip-draft-canonical-json-v1",
-    "production_status": "test-only",
-    "description": "UTF-8 JSON, recursively sorted object keys, compact separators, finite JSON numbers; integrity is excluded from its own digest. Test-only fixture usage of the shared draft canonicalization profile."
+    "profile": "kip-jcs-safe-v1",
+    "status": "normative-draft",
+    "description": "RFC 8785 JCS, narrowed to KIP portable safe integral values; no nonzero underflow; strict decoded-key/Unicode validation; integrity excluded from its own digest."
   },
   "integrity": {
-    "digest_profile": "kip-draft-canonical-json-v1",
-    "content_digest": "sha256:22275fc912095a3256ba5f203ffde68c94286b5d0e1fc8394fd7db69fce3059d",
+    "digest_profile": "kip-jcs-safe-v1",
+    "content_digest": "sha256:203da04f15f62b0daeba4e9c0f814f1061004220e66176c06d8836b03474c997",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

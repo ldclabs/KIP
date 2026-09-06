@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-023",
+  "title": "Required coverage outranks similarity",
+  "description": "Provide an applicable constraint in a low-similarity source and a high-similarity\nadopted Skill that would violate it. With a small briefing budget, the constraint\nmust survive, or coverage/action eligibility must say incomplete/false. Candidate\nexposure alone updates no utility. Test the constraint without explicitly asking\nabout it in the final user question.\nIn procedural recall, relevant proposed/trialed Skills with no GradingState remain\nvisible as unproven candidates. Grades from another revision or an unavailable\nevaluation must not be borrowed; a claimed adopted Skill lacking matching validated\nevidence is surfaced as unverifiable, never a validated recommendation.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-023"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/constraint_retained_or_incomplete",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/ungraded_candidates_visible",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/unverified_adopted_recommended",
+      "operator": "equals",
+      "expected": false
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/exposure_only_reinforcement",
+      "operator": "equals",
+      "expected": false
+    }
+  ]
+}
