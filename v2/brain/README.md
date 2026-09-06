@@ -11,7 +11,11 @@ The normative [Cognitive Consistency contract](../KIP-2.0-Cognitive-Consistency.
 
 This directory holds one reference Brain design for KIP 2.0. It is not part of KIP Core conformance; normative semantics come from [KIP-2.0-SPECIFICATION.md](../KIP-2.0-SPECIFICATION.md).
 
-The Brain is a dedicated LLM layer that manages a Cognitive Nexus on behalf of business AI agents. It turns conversations and structured interaction traces into durable memory, reconstructs that memory for future decisions, and consolidates repeated experience into semantic knowledge and procedural skills.
+The Brain is a Module that manages a Cognitive Nexus on behalf of business AI agents.
+Its Interface accepts memory intent and returns usable, attributable memory. An
+Adapter may embed Brain behavior in the acting Agent, use a dedicated LLM, or combine
+deterministic code with selective model calls. It turns conversations and structured
+traces into durable memory and, where enabled, consolidates experience into skills.
 
 The design goal is broader than storage:
 
@@ -31,7 +35,7 @@ https://github.com/ldclabs/anda-brain
 │ messages / tool traces   │
 │ goals / observations     │
 └────────────┬─────────────┘
-             │ Natural language + structured trace
+             │ Memory Interface: intent + captured source
              ▼
 ┌──────────────────────────┐
 │          Brain           │
@@ -49,7 +53,21 @@ https://github.com/ldclabs/anda-brain
 └──────────────────────────┘
 ```
 
-Business agents do not need to understand KIP syntax. They provide ordinary messages or observable execution traces; the Brain is the only layer that translates them into KIP operations.
+Business agents do not need to understand KIP syntax. The optional normative
+[Memory Interface](../KIP-2.0-Memory-Interface.md) standardizes observe, recall,
+revise, feedback and forget, including processing receipts and recall barriers.
+Start with the [Agent card](./MemoryInterface.md). The Brain translates intent into
+KIP while preserving the same source, belief, scope and authority distinctions.
+
+## Start small
+
+The [capability bundles](../KIP-2.0-Memory-Interface.md#2-capability-bundles) separate
+basic memory, experience, validated learning, durable workers and exchange. A
+basic Brain can remember preferences, correct facts, recall unfinished tasks and
+preserve feedback without running trials. Unproven procedures remain labeled as
+such. Only a deployment supporting learning can confer validated standing.
+The full Cognitive Memory Profile keeps its existing contract; a narrower bundle
+claim does not imply it. Installed Schema names alone do not advertise functionality.
 
 ## Identity and Authority
 
@@ -100,12 +118,12 @@ For a single agent that owns its Nexus directly, with no Brain service in front 
 ### Memory Formation
 
 1. A business agent sends conversation messages, or a structured trace containing observable actions and observations.
-2. Observed payloads enter through the request's ingestion context, which mints Evidence from the transport envelope — the model never re-types what it observed.
+2. The host supplies captured source handles; observed payloads enter through ingestion without model re-typing. Durable intake records completed effects or pending processing work.
 3. Brain extracts durable semantic claims as Proposition + Assertion, attributed to the actor who made them.
 4. When the **process** has reuse value, Brain additionally encodes an `Experience` with ordered `ExperienceStep`s.
 5. One coherent formation commits as one atomic transaction, leaving no misleading partial state.
 6. Brain may create a `SleepTask` for deeper semantic or procedural consolidation.
-7. Brain returns a compact summary — or `skipped` when nothing meets the storage bar.
+7. Brain returns a compact summary and processing receipt. Recorded intake, processed disposition and recall availability are distinct; skipped/Evidence-only results are explicit.
 
 Formation must not attempt to persist a model's hidden chain-of-thought. It stores only observable actions, observations, outcomes, and concise decision rationales that are safe and useful to reuse.
 
@@ -131,6 +149,14 @@ accepted knowledge
 Reading never reinforces: Recall does not raise confidence, touch `memory_strength`, or increment counters. It answers belief questions through Epistemic Projection (`BELIEF` / `BELIEF SLOT`) and reserves raw `FIND` for audit — a stored Proposition is a statement that exists, not a statement that is true, and `insufficient` is never reported as "no".
 
 A failed past experience can be as valuable as a successful one. Recall should not blindly imitate the nearest trajectory.
+
+When newly supplied information matters, recall names the intake receipt in `after`.
+The Brain must account for its processing and use a sufficiently new read basis;
+a fresh database snapshot alone does not prove the latest message was interpreted.
+Pending work, limited coverage and unresolved Schema meaning stay visible. Required
+constraints and warnings survive compact output; full evidence and computation
+bases are available through governed expansion handles. Task-specific WorkingState
+is never silently served as another task's context.
 
 ### Memory Maintenance (Sleep Mode)
 
@@ -281,11 +307,21 @@ LLM + Experience + Skill consolidation
 
 ## Dependencies
 
-Each system prompt references the shared KIP syntax card:
+Load the smallest relevant Interface; the full specification is for implementation
+and audit, not a mandatory per-turn prompt:
 
-- **[../KIPSyntax.md](../KIPSyntax.md)**: must be loaded alongside each system prompt.
+- **[MemoryInterface.md](./MemoryInterface.md)**: business Agent using the five intents.
+- **[KIPRecall.md](./KIPRecall.md)**: direct read-only KIP caller.
+- **[KIPFormation.md](./KIPFormation.md)**: direct formation caller.
+- **[KIPMaintenance.md](./KIPMaintenance.md)**: maintenance work, gated by capabilities.
+- **[../KIPSyntax.md](../KIPSyntax.md)**: complete language reference, loaded as needed.
 - **`execute_kip`**: required by Formation and Maintenance for read/write operations.
 - **`execute_kip_readonly`**: required by Recall, which must reject state-changing semantics.
 - **Wire schemas**: [../schemas/kip-request.schema.json](../schemas/kip-request.schema.json) and [../schemas/kip-response.schema.json](../schemas/kip-response.schema.json) — validate against them rather than inventing envelope fields.
 
 A production Brain also needs a live `DESCRIBE PRIMER` at startup: the syntax card teaches the language, never the current deployment's identities, Schema, capabilities, or limits.
+
+Adapters retain actual read pins, progress watermarks, retry identities, digests and
+pagination state. Models still identify intent, real evidence used and uncertainty;
+mechanical automation cannot fabricate those semantic decisions. Numeric confidence,
+salience and utility may remain absent when no meaningful estimate is available.

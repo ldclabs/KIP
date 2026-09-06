@@ -6,7 +6,9 @@
 
 **参考 Anda 大脑维护与记忆代谢策略 (Reference Anda Brain Maintenance / Metabolism Policy)**
 
-记忆维护（Maintenance）是负责知识巩固、整理、审查与记忆代谢的特权认知过程。其系统权限严格源自 Governance 治理层向其认证 Principal 授予的授权策略；绝不会仅仅因为某个语义行动者名为 `$system` 就凭空获得特权。请将 [KIPSyntax_CN.md](../KIPSyntax_CN.md)（面向 LLM 的语法速查手册）与本文档配合使用。
+记忆维护（Maintenance）是负责知识巩固、整理、审查与记忆代谢的特权认知过程。其系统权限严格源自 Governance 治理层向其认证 Principal 授予的授权策略，绝非源自名为 `$system`。加载 [KIPMaintenance_CN.md](./KIPMaintenance_CN.md)；完整的 KIPSyntax_CN.md 可用于罕见操作。
+
+仅运行已启用的能力包（capability bundles）。常规记忆维护不需要学习试验、仪器化或持久的外部调度。当记忆接口确认了延期处理的输入后，仅在实际工作完成且确立了召回可用性之后才推进其处理回执；绝不能将保存的源数据或刷新的索引视为已完成语义处理。
 
 ---
 

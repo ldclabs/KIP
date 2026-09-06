@@ -63,3 +63,15 @@ _Avoid_: Outcome, observation, retry
 Immutable comparison basis and immutable verdict with retained rule, parameter and
 input artifacts. TrialState and GradingState are current caches of these records.
 _Avoid_: Mutable counters as historical evidence
+
+**Memory Interface**:
+The business Agent's five memory intents (observe, recall, revise, feedback, forget)
+at the Agent-to-Brain seam. A Brain Adapter executes them through the existing KIP
+state Interface; no new Core kind or command language is implied.
+_Avoid_: Raw KIP command, a mandatory second LLM
+
+**Processing receipt**:
+An intake identity whose progress distinguishes durable recording, completed
+processing disposition and availability to recall. An after barrier requires the
+specified inputs to be accounted for; a fresh Space snapshot alone is insufficient.
+_Avoid_: Transaction Receipt, proof of belief, permanent freshness

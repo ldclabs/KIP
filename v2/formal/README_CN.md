@@ -1,5 +1,7 @@
 # KIP 2.0 形式化验证
 
+套件 8 还运行针对处理屏障（processing barriers）、乱序完成、幂等摄入、任务范围及诚实覆盖的记忆接口（Memory Interface）模式与场景模型检查。这些属于可执行的契约测试，而非穷举证明或生产环境 Brain 的结果。真实的绑定场景通过可选的接口适配器套件运行。
+
 **[English](./README.md) | [中文](./README_CN.md)**
 
 KIP 2.0 规范的机器检查模型。验证结果、发现与范围限制详见 **[REPORT_CN.md](./REPORT_CN.md)**。

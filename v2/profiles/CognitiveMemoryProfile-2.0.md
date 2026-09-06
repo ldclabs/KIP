@@ -16,6 +16,14 @@ kip://profiles/cognitive-memory@2.1.0
 
 This document defines standard portable memory structures for KIP 2.0 Brains. It builds on KIP Core and does not redefine Core semantics. If it conflicts with `KIP-2.0-SPECIFICATION.md`, the Specification takes precedence.
 
+This remains the **full** standard Profile. Implementations may instead advertise
+the narrower [Memory Interface capability bundles](../KIP-2.0-Memory-Interface.md#2-capability-bundles):
+basic memory, experience, learning, durable work and exchange. A bundle does not
+claim this entire Profile, change stored symbol lineages or weaken Core invariants.
+The same package supplies vocabulary; availability of its symbols does not promise
+every associated runtime operation. Validated Skill standing requires the learning
+contract; ordinary facts and descriptive feedback do not require trials.
+
 ---
 
 # 0. Profile Thesis

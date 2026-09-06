@@ -1,4 +1,4 @@
-/** Adapter runner for the shipped memory subset. Never asserts whole-profile coverage. */
+/** Adapter runner for the shipped memory/interface subsets. Never asserts whole-profile coverage. */
 import { isDeepStrictEqual } from 'node:util'
 
 function pointer(value, path) {
@@ -58,6 +58,6 @@ export async function runMemoryVectors(adapter, vectors) {
   return {implementation:{name:`[${about.kind}] ${about.name}`,version:about.version,kip_version:'2.0-draft'},
     profiles_claimed:[],profiles:{},summary,tests,
     overall_status:summary.fail||summary.harness_error||!summary.pass||tests.length!==vectors.length?'FAIL':'PASS',
-    warnings:[{code:'PartialSuite',message:'Memory subset only. No full-profile conformance or behavioral learning is claimed.'}],
+    warnings:[{code:'PartialSuite',message:'Selected memory contract subset only. No full-profile conformance or behavioral learning is claimed.'}],
     extensions:{'kip.org/evidence':{critical:false,kind:about.kind,selected: vectors.length,executed:tests.length}}}
 }

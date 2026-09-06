@@ -26,6 +26,8 @@ The following KIP 2.0 design documents are informative references and design rat
 
 The following artifacts are normative companions to this Specification:
 
+- `KIP-2.0-Memory-Interface.md`, `schemas/kip-memory.schema.json` and `profiles/memory-bundles.json` — optional Agent-to-Brain intents, processing barriers and composable memory capability bundles
+- `conformance/KIP-2.0-Memory-Interface-Tests.md` — acceptance scenarios for the optional binding
 - `KIP-2.0-Cognitive-Consistency.md` — conflict-complete belief, computation bases, dependency validity, identity repair and reliable learning/worker contracts
 - `schemas/kip-projection.schema.json`, `schemas/kip-cognitive-records.schema.json`, `schemas/kip-element.schema.json`, `schemas/kip-capsule.schema.json`, `schemas/kip-schema-package.schema.json` — normative result and artifact shapes
 - `conformance/KIP-2.0-Cognitive-Tests.md` — cross-cutting Core/Profile acceptance vectors
@@ -79,6 +81,14 @@ portable cognitive artifacts
 ```
 
 The protocol is **Model-First**: the language and runtime are designed to be reliably generated and consumed by LLM-based Agents while remaining deterministic enough for interoperable implementations.
+
+KQL/KML/META define the Brain-to-Nexus Interface. A business Agent may instead use
+the optional [Memory Interface](./KIP-2.0-Memory-Interface.md): observe, recall,
+revise, feedback and forget. The Brain Module interprets those intents and manages
+their KIP operations; it may be embedded in the Agent or use a separate model.
+Both paths preserve the same cognitive state contract. A transaction receipt proves
+durable state, while the binding's processing receipt additionally identifies when
+an input has been processed and can participate in recall.
 
 KIP 2.0 separates three fundamental questions:
 
@@ -263,6 +273,12 @@ Learning/reinforcement requires an explicit cognitive mutation.
 KIP SHOULD remain compact, declarative, and structurally regular enough for reliable model generation.
 
 Ergonomic sugar MAY exist, but MUST desugar to the same normative semantics.
+
+Adapters SHOULD capture mechanical read pins, digests, retry identities and paging
+without asking models to invent them. The model still identifies semantic intent,
+actual evidence used and uncertainty. Role-specific instruction cards MAY expose
+only the needed language surface; a short model-facing view MUST retain material
+uncertainty and provide governed access to its full computation basis.
 
 ---
 
@@ -2770,15 +2786,22 @@ Derived content SHOULD NOT automatically declassify restricted source content.
 Governance records how far a memory element may influence behavior in `governance.authority_class`:
 
 ```text
-descriptive     may be reported
-advisory        may inform a recommendation
-behavioral      may shape the Agent's own conduct
+descriptive     may be reported or used as factual data within the permitted purpose/scope
+advisory        may supply procedural guidance for deliberation
+behavioral      may be adopted as a procedure shaping the Agent's own conduct
 executable      may drive an external action (§62)
 ```
 
 The field is Governance-protected: ordinary KML cannot write it; it is read in the element's `governance` view (`?x.governance.authority_class`, subject to the caller's visibility under §30) and `DESCRIBE ACCESS` reports which classes the caller may elevate to; it is never inferred from cognitive content (§28.1). An element without the field has `descriptive` authority. A Profile MAY tie lifecycle standing to a class — a `proposed` Skill is at most `advisory`, and adoption under the Cognitive Memory Profile's §14 is what a Governance policy may accept as grounds for `behavioral` — but the class is assigned and enforced by Governance, not by the Profile's own fields. For procedural influence, grants/elevations bind the exact SkillRevision and behavior_digest; selecting another revision does not transfer them.
 
 ---
+
+These classes govern permitted uses and enforceable operations: disclosure,
+procedural adoption, authority elevation and dispatch. A Nexus MUST NOT claim that
+a label proves exposed content had no internal influence on a model. Using an
+authorized fact as decision data does not require Skill adoption; treating content
+as a governing instruction or executing a stored procedure still requires the
+appropriate independent checks. Factual data cannot grant additional permission.
 
 ## 31.4 Imported Skills
 
@@ -4885,9 +4908,21 @@ capsule_signatures          §37.8
 derive_permission           §29.6
 record_outcome_permission   §29.8
 kip1_migration              §103    KIP 1.x compatibility and `DESCRIBE COMPATIBILITY`
+memory_interface            Memory Interface companion; requires memory_basic
+memory_basic                five intents, scoped recall, processing barriers and governed erasure
+memory_experience           memory_basic + experience/procedural candidates
+memory_learning             memory_experience + validated learning contracts
+memory_durable              memory_basic + durable_brain_runtime
+memory_exchange             memory_basic + capsule_export + capsule_import
 ```
 
 A `requires` entry that names a capability the runtime does not recognize — neither this registry nor one of its own — fails `UnsupportedCapability`, exactly as one the runtime does not support.
+
+The memory entries are additive capability bundles, defined by the Memory Interface
+companion and profiles/memory-bundles.json. They preserve existing Schema lineages
+and do not imply a claim of the full KIP-CognitiveMemory profile. A declaration must
+include its dependencies and must be backed by an available Brain binding, not only
+by installed type definitions.
 
 ---
 
@@ -6051,6 +6086,8 @@ projection ledger
 Requires:
 
 ```text
+MUTATE (atomic coherent formation)
+ASSERT sugar (normative desugaring)
 Concept create/upsert
 ENSURE Proposition
 Evidence create
@@ -6068,8 +6105,6 @@ Governance/Schema validation
 Full profile adds:
 
 ```text
-MUTATE
-ASSERT sugar (normative desugaring)
 forward local refs
 Facets
 Structural mutation
@@ -6164,6 +6199,12 @@ See [KIP-2.0-Optional-Profiles-and-Migration.md](./KIP-2.0-Optional-Profiles-and
 ---
 
 # 104. Model-First Primer
+
+Business Agents using the optional Memory Interface need only the compact
+[Agent card](./brain/MemoryInterface.md). Direct KIP callers may load the
+[Recall](./brain/KIPRecall.md), [Formation](./brain/KIPFormation.md) or
+[Maintenance](./brain/KIPMaintenance.md) card as needed. The complete syntax
+reference remains available for uncommon operations and engine authors.
 
 A minimal Agent-facing KIP 2.0 primer SHOULD be derivable from META and may resemble:
 

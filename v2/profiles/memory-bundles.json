@@ -1,0 +1,93 @@
+{
+  "format": "KIP-Memory-Bundles",
+  "version": "2.0-draft",
+  "description": "Additive conformance bundles; existing Schema symbol identities and the full KIP-CognitiveMemory profile remain unchanged.",
+  "bundles": {
+    "memory_basic": {
+      "requires": [],
+      "contract": "KIP-2.0-Memory-Interface.md",
+      "capabilities": [
+        "ingestion_context",
+        "dependency_validity",
+        "payload_purge"
+      ],
+      "guarantees": [
+        "observe",
+        "recall",
+        "revise",
+        "feedback",
+        "forget",
+        "processing_barrier",
+        "scoped_recall",
+        "read_only_recall",
+        "atomic_formation",
+        "idempotent_intake"
+      ],
+      "required_kml": [
+        "ASSERT",
+        "MUTATE"
+      ],
+      "validated_standing": false
+    },
+    "memory_experience": {
+      "requires": [
+        "memory_basic"
+      ],
+      "contract": "profiles/CognitiveMemoryProfile-2.0.md",
+      "capabilities": [],
+      "guarantees": [
+        "experience_reconstruction",
+        "failure_recall",
+        "immutable_procedural_candidates"
+      ],
+      "validated_standing": false
+    },
+    "memory_learning": {
+      "requires": [
+        "memory_experience"
+      ],
+      "contract": "KIP-2.0-Cognitive-Consistency.md#5-revision-attempt-trial-and-evaluation-identities",
+      "capabilities": [
+        "record_outcome_permission"
+      ],
+      "guarantees": [
+        "independent_attempts",
+        "comparable_trials",
+        "replayable_evaluations",
+        "validated_standing"
+      ],
+      "validated_standing": true
+    },
+    "memory_durable": {
+      "requires": [
+        "memory_basic"
+      ],
+      "contract": "KIP-2.0-Cognitive-Consistency.md#7-durable-attention-work-and-external-actions",
+      "capabilities": [
+        "durable_brain_runtime"
+      ],
+      "guarantees": [
+        "durable_watches",
+        "fenced_leases",
+        "dispatch_reconciliation"
+      ],
+      "validated_standing": false
+    },
+    "memory_exchange": {
+      "requires": [
+        "memory_basic"
+      ],
+      "contract": "KIP-2.0-Capsule-Specification.md",
+      "capabilities": [
+        "capsule_export",
+        "capsule_import"
+      ],
+      "guarantees": [
+        "governed_exchange",
+        "origin_preservation",
+        "no_transferred_standing"
+      ],
+      "validated_standing": false
+    }
+  }
+}

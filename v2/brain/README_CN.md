@@ -11,7 +11,7 @@
 
 本目录收录一套面向 KIP 2.0 的参考大脑 (Brain) 设计。它不属于 KIP Core 一致性测试范畴；规范性语义以 [KIP-2.0-SPECIFICATION_CN.md](../KIP-2.0-SPECIFICATION_CN.md) 为准。
 
-大脑是一个专职的 LLM 层，代表业务型 AI 智能体管理认知中枢 (Cognitive Nexus)。它把对话与结构化交互轨迹转化为持久记忆，为未来决策重建这些记忆，并把反复出现的经验固化为语义知识与程序性技能。
+大脑 (Brain) 是代表业务 AI 智能体管理认知中枢 (Cognitive Nexus) 的模块 (Module)。其接口接收记忆意图并返回可用且可归因的记忆。适配器 (Adapter) 可以将 Brain 行为嵌入到执行动作的智能体中、使用专职 LLM、或将确定性代码与选择性模型调用相结合。它把对话与结构化交互轨迹转化为持久记忆，并在启用时将经验固化为技能。
 
 其设计目标远不止于存储：
 
@@ -31,7 +31,7 @@ https://github.com/ldclabs/anda-brain
 │ messages / tool traces   │
 │ goals / observations     │
 └────────────┬─────────────┘
-             │ Natural language + structured trace
+             │ 记忆接口 (Memory Interface): 意图 + 捕获源
              ▼
 ┌──────────────────────────┐
 │          Brain           │
@@ -49,7 +49,11 @@ https://github.com/ldclabs/anda-brain
 └──────────────────────────┘
 ```
 
-业务智能体无需理解 KIP 语法。它们只提供普通消息或可观测的执行轨迹；大脑是唯一负责把这些内容翻译为 KIP 操作的层。
+业务智能体无需理解 KIP 语法。可选的规范性[记忆接口 (Memory Interface)](../KIP-2.0-Memory-Interface_CN.md) 标准化了 observe（观测）、recall（召回）、revise（修订）、feedback（反馈）与 forget（遗忘），包括处理回执（processing receipts）与召回屏障（recall barriers）。请从[智能体速查卡](./MemoryInterface_CN.md)开始。Brain 将意图翻译为 KIP 操作，同时保留相同的来源、信念、范围与权限隔离。
+
+## 从精简能力开始 (Start small)
+
+[能力包 (capability bundles)](../KIP-2.0-Memory-Interface_CN.md#2-能力包-capability-bundles) 将基础记忆、经验、经过验证的学习、持久工作进程以及交换予以分离。基础 Brain 可以记住偏好、更正事实、召回未完成任务并保留反馈，而无需运行试验。未经证实的流程保持原样标注。只有支持学习的部署才能赋予经过验证的资格地位。完整的 Cognitive Memory Profile 保持其既有契约；声称实现更精简的能力包并不意味着支持整个 Profile。仅安装了 Schema 名称本身并不能代表声明了对应功能。
 
 ## 身份标识与权限
 
@@ -100,12 +104,12 @@ Experience ──reflect───> Insight / SelfModel
 ### 记忆形成 (Formation)
 
 1. 业务智能体发送对话消息，或包含可观测动作与观察结果的结构化轨迹。
-2. 被观测的载荷经由请求的摄取上下文进入，由运行时从传输信封中铸造证据 —— 模型绝不重新誊写自己观测到的内容。
+2. 宿主提供捕获的源句柄；被观测的载荷经由摄入进入，无需模型重新誊写。持久摄入记录已完成的效应或待处理的处理工作。
 3. 大脑把持久的语义主张抽取为 Proposition + Assertion，并归属到真正作出该主张的行动者。
 4. 当**过程**具备复用价值时，大脑额外编码一条带有序 `ExperienceStep` 的 `Experience`。
 5. 一次连贯的形成过程作为一个原子事务提交，不留下误导性的中间状态。
 6. 大脑可以创建 `SleepTask`，把更深的语义或程序性固化交给维护环节。
-7. 大脑返回一份紧凑摘要 —— 若没有任何内容达到存储门槛，则返回 `skipped`。
+7. 大脑返回紧凑摘要与处理回执。已记录的摄入、已处理的处置方式以及可供召回的可用性彼此独立区分；跳过／仅证据（skipped/Evidence-only）的结果是显式的。
 
 Formation 绝不试图持久化模型的隐式思维链。它只存储可观测的动作、观察、结果，以及可安全复用的简明决策理由。
 
@@ -131,6 +135,8 @@ Recall 严格只读。它承担两种不同角色：
 读取绝不构成强化：Recall 不提升置信度、不改动 `memory_strength`、不递增任何计数器。它通过认知投影（`BELIEF` / `BELIEF SLOT`）回答信念类问题，把原始 `FIND` 留给审计 —— 已存储的 Proposition 只说明该陈述存在，不说明它为真，而 `insufficient` 永远不能被当作「没有」来汇报。
 
 一段失败的过往经验，可能与成功经验同样宝贵。Recall 不应盲目模仿最相近的那条轨迹。
+
+当新提供的信息至关重要时，召回在 `after` 中指定摄入回执。大脑必须对其处理情况负责，并使用足够新的读取基准；单纯的最新数据库快照并不能证明最新消息已被解释。待处理工作、有限覆盖范围和未解析的 Schema 含义保持可见。必需的约束和警告在紧凑输出中得以保留；完整的证据和计算基础可通过受治理的展开句柄获取。特定任务的 WorkingState 绝不能静默地作为另一个任务的上下文提供。
 
 ### 记忆维护（睡眠模式）
 
@@ -281,11 +287,17 @@ LLM + Experience + Skill consolidation
 
 ## 依赖
 
-每个系统提示词都引用共享的 KIP 语法速查手册：
+加载最小相关的接口；完整规范用于实现和审计，而非每轮交互必配的提示词：
 
-- **[../KIPSyntax_CN.md](../KIPSyntax_CN.md)**：必须与每个系统提示词一同加载。
+- **[MemoryInterface_CN.md](./MemoryInterface_CN.md)**：使用五种意图的业务智能体。
+- **[KIPRecall_CN.md](./KIPRecall_CN.md)**：直接只读 KIP 调用者。
+- **[KIPFormation_CN.md](./KIPFormation_CN.md)**：直接形成调用者。
+- **[KIPMaintenance_CN.md](./KIPMaintenance_CN.md)**：由能力门禁控制的维护工作。
+- **[../KIPSyntax_CN.md](../KIPSyntax_CN.md)**：完整语言参考，按需加载。
 - **`execute_kip`**：Formation 与 Maintenance 执行读写操作所需。
 - **`execute_kip_readonly`**：Recall 所需，且必须拒绝任何改变状态的语义。
 - **线协议 Schema**：[../schemas/kip-request.schema.json](../schemas/kip-request.schema.json) 与 [../schemas/kip-response.schema.json](../schemas/kip-response.schema.json) —— 请对照校验，而不是自行杜撰信封字段。
 
 生产环境中的大脑还需要在启动时执行一次真实的 `DESCRIBE PRIMER`：语法手册教的是语言本身，永远不是当前部署的身份、Schema、能力与限额。
+
+适配器保留实际的读取锚定、进度水位线、重试标识、摘要和分页状态。模型仍负责识别意图、所使用的真实证据和不确定性；机械自动化无法捏造这些语义决策。当没有有意义的估计可用时，数值置信度、显著性和效用可保持缺省。

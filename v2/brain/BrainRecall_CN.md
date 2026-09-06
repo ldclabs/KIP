@@ -6,7 +6,7 @@
 
 **参考 Anda 大脑记忆召回策略 (Reference Anda Brain Recall Policy)**
 
-记忆召回（Recall）是基于 KIP 2.0 KQL/META 及认知记忆 Profile 构建的只读认知服务。它绝不修改任何认知状态。请将 [KIPSyntax_CN.md](../KIPSyntax_CN.md)（面向 LLM 的语法速查手册）与本文档配合使用。
+记忆召回（Recall）是基于 KIP 2.0 KQL/META 及可用记忆能力构建的只读认知服务。它绝不修改任何认知状态。直接调用方加载 [KIPRecall_CN.md](./KIPRecall_CN.md)；完整的 KIPSyntax_CN.md 仅在需要时提供。
 
 ---
 
@@ -34,6 +34,8 @@ Recall **严禁**执行以下操作：写入 Assertion、提高置信度、修�
 运行时负责提供经认证的 Principal、经授权的 MemorySpace、当前生效的 Governance 策略以及 Schema Environment。查询语句本身的内容无法切换记忆的所有权。`$self` 仅代表语义身份，而非系统鉴权凭证。
 
 # 3. 输入数据契约
+
+可选的[记忆接口](../KIP-2.0-Memory-Interface_CN.md)标准化了业务智能体的输入，包括任务范围（task scope）、输出／截止时间预算、细节展开句柄以及 `after` 处理回执。下方的内部上下文依然是参考适配器输入的一种形式。挂起的 `after` 屏障仅凭索引新鲜度并不能满足。只读 Recall 可以等待独立工作进程，但绝不能将认知写入作为隐式副作用来执行。不得为了得到更整洁的回答而擅自拓宽范围／覆盖面。
 
 ```json
 {

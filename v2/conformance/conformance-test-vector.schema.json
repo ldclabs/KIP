@@ -141,7 +141,7 @@
   "$defs": {
     "TestId": {
       "type": "string",
-      "pattern": "^KIP2-(CORE|SCHEMA|EPI|GOV|TX|CAP|KQL|KML|META|RT|HIST|HA|MIG|X|MEM)-[0-9]{3}$",
+      "pattern": "^KIP2-(CORE|SCHEMA|EPI|GOV|TX|CAP|KQL|KML|META|RT|HIST|HA|MIG|X|MEM|MIF)-[0-9]{3}$",
       "examples": [
         "KIP2-CORE-001",
         "KIP2-X-008"

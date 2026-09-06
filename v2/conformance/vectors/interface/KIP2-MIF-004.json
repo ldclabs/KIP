@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MIF-004",
+  "title": "Evidence-only and skipped dispositions are explicit",
+  "description": "Preserve an unresolved actor/Schema observation as Evidence-only and explicitly skip an irrelevant event. Both may finish processing, but neither is presented as accepted knowledge or validated learning. Recall the Evidence-only source through ordinary evidence recall with its unresolved interpretation. A deferred event remains pending.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Core",
+    "KIP-Runtime"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "core-basic",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Memory-Interface.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_interface_scenario",
+      "args": {
+        "id": "KIP2-MIF-004"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/evidence_only_retrievable",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/evidence_only_disposition",
+      "operator": "equals",
+      "expected": "evidence_only"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/skipped_disposition",
+      "operator": "equals",
+      "expected": "skipped"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/deferred_satisfied",
+      "operator": "equals",
+      "expected": false
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/invented_assertion_count",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

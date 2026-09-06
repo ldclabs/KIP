@@ -14,6 +14,8 @@ kip://profiles/cognitive-memory@2.1.0
 
 本文档定义了面向 KIP 2.0 大脑的标准可移植记忆结构。它建立在 KIP Core 基础之上，并不重新定义 Core 语义。若本文档与 `KIP-2.0-SPECIFICATION_CN.md` 发生冲突，以规范为准。
 
+本文档依然是**完整**的标准 Profile。实现也可以改为声明更窄的[记忆接口能力包 (Memory Interface capability bundles)](../KIP-2.0-Memory-Interface_CN.md#2-能力包-capability-bundles)：基础记忆（basic memory）、经验（experience）、学习（learning）、持久工作（durable work）与交换（exchange）。声明某个能力包并不等同于声称支持整个 Profile，也不会改变已存储符号的血统 (symbol lineages) 或削弱 Core 不变式。相同的 Schema 包提供词汇表；其符号的可用性并不承诺支持每一项关联的运行时操作。经过验证的 Skill 资格地位要求满足学习契约；普通事实和描述性反馈不需要进行试验。
+
 ---
 
 # 0. Profile 核心主张

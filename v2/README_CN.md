@@ -82,6 +82,8 @@ KIP 不定义具体的准入阈值、打断策略、显著性算法、巩固调�
 
 | 文档 | 内容概述 |
 | --- | --- |
+| [🔌 记忆接口](./KIP-2.0-Memory-Interface_CN.md) | 业务智能体的五种记忆意图、处理回执、限定范围召回及可组合能力包（[English](./KIP-2.0-Memory-Interface.md)） |
+| [📇 智能体记忆速查卡](./brain/MemoryInterface_CN.md) | 紧凑的日常操作接口；直接 KIP 角色卡与之并存（[English](./brain/MemoryInterface.md)） |
 | [🧩 认知一致性](./KIP-2.0-Cognitive-Consistency_CN.md) | 完备信念、修订版本、独立尝试、重放、依赖项与持久运行时契约（[English](./KIP-2.0-Cognitive-Consistency.md)） |
 | [📋 评审决议](./KIP-2.0-Review-Resolution_CN.md) | 全部 12 项复审问题的决议、实现位置与验证范围（[English](./KIP-2.0-Review-Resolution.md)） |
 | [🔬 Brain 评测](./brain/BrainEvaluation_CN.md) | 独立的协议、可靠性与行为学习发布门禁（[English](./brain/BrainEvaluation.md)） |
@@ -96,7 +98,7 @@ KIP 不定义具体的准入阈值、打断策略、显著性算法、巩固调�
 | [🤖 `$self` / ⚙️ `$system`](./SelfInstructions_CN.md) | 单智能体提示词对，基于 Brain 2.0 的精简增量（[`$system`](./SystemInstructions_CN.md)） |
 | [🗂 设计文档](./design/) | 十篇规范统合前的参考性设计草稿，自 2026-09-02 起冻结 |
 | [🔤 语法与 Schema](./grammar/) | 规范性 EBNF，以及[传输层 Schema](./schemas/) |
-| [🧪 一致性测试套件](./conformance/KIP-2.0-Conformance-Tests.md) | 包含 356 个可移植测试向量与可执行契约断言 (Oracle) |
+| [🧪 一致性测试套件](./conformance/KIP-2.0-Conformance-Tests.md) | 包含 356 个状态/一致性测试向量、12 个可选记忆接口场景及可执行契约模型 |
 | [🔬 形式化验证](./formal/README_CN.md) | Alloy 与 TLA+ 模型及其验证结论 |
 | [🔀 从 1.x 迁移](./migration/KIP-2.0-Migration-from-1.x_CN.md) | 升级变更点与遗留语义迁移约束 |
 

@@ -12,7 +12,7 @@
 
 ```text
 KIP-2.0-SPECIFICATION_CN.md
-KIPSyntax_CN.md                 （面向 LLM 的语法速查手册；与本策略配合使用）
+brain/KIPFormation_CN.md        （角色速查卡；仅在需要时加载完整的 KIPSyntax_CN.md）
 profiles/CognitiveMemoryProfile-2.0_CN.md
 brain/ExperienceLearningArchitecture_CN.md
 ```
@@ -262,6 +262,116 @@ CREATE CONCEPT ?task {
 
 在语义上将任务指派给维护主体不赋予其任何特权；其权限来自 Governance 治理策略对其认证主体的明确授权。
 
+# 26. 幂等性与重试
+
+使用规范：
+
+```text
+事务 idempotency_key → 逻辑提交重试保护
+client_key          → 持久类似事件的元素唯一标识
+```
+
+超时不等于中止。在重新形成非幂等认知之前，必须先查询事务／幂等性执行结果。
+
 新行为应创建 `SkillRevision`；绝不能直接修改已采纳 Skill 的 procedure 或 task_family。选定修订版本将以原子操作重置当前资格地位以及 trial/grade 指针，而不会篡改旧有的不可变评估。
 
+# 27. 事务边界
 
+当部分写入状态会产生误导时，必须保持原子性：
+
+```text
+Evidence + Assertion
+Experience + Steps + Activity
+更正 + supersession + Activity
+```
+
+当部分成功在语义上完全可接受时，互不相关的产物可以使用独立事务提交。
+
+# 28. 治理与密级分类
+
+Formation 必须服从 Space 可见性、数据密级分类、写入权限、行动者代表权、保留策略与 Schema 授权。
+
+派生产物的数据密级至少应与所有实质性输入一样严格，除非执行了显式降级解密。机密输入在默认情况下绝不能变为公开摘要。
+
+# 29. 外部导入的认知
+
+保留导入模式与溯源信息。不得将导入的主张重新标记为本地观测，不得直接继承源可信度，也不得继承源端 Skill 的权威地位。
+
+# 30. Schema 演进
+
+Formation 通常不是 Schema 管理员。如果缺少某种类型或谓词，应优先使用现有的泛型 Schema，安全保留未解析的认知，或申请 Schema 审查。绝不能仅为了单次写入就自行激活新的 Package。
+
+# 31. 保留与时效
+
+切勿混淆以下概念：
+
+```text
+Assertion.valid_time
+Evidence.observed_at
+retention.expires_at
+memory_strength
+Commitment.due_at
+```
+
+# 32. 提交后处理
+
+提交成功后，返回／记录带有 `tx_id`/`space_seq` 的收据（Receipt）并停止。切勿仅仅为了强化记忆而回头读取该记忆。
+
+# 33. 歧义结果处理
+
+对于 `outcome_unknown`，在重试之前必须通过幂等键／事务状态进行查询。绝不能凭空推定 `timeout → 未写入任何内容`。
+
+# 34. 输出契约
+
+当通过可选的记忆接口（Memory Interface）对外暴露时，必须使用其规范的响应 Schema 和处理回执（processing receipt）。下方的既有内部摘要仅描述形成事务本身：`stored` 本身并不能证明源数据已被完全处理或可供召回。摄入必须持久记录待处理工作；`after` 屏障用于等待已处理的处置方式与召回可用性。任务范围（task scope）在抽取过程中保持完整；带范围限定的 Assertion 使用显式 `context_refs`，因为 `ASSERT` 语法糖不包含 `context` 成员。缺失的估计值不可靠猜测来填充字段。
+
+```json
+{
+  "status": "stored",
+  "space_id": "...",
+  "tx_id": "...",
+  "space_seq": 123,
+  "products": {
+    "evidence": 1,
+    "assertions": 1,
+    "events": 0,
+    "experiences": 1,
+    "commitments": 0
+  },
+  "warnings": []
+}
+```
+
+无记忆产物时的结果：
+
+```json
+{"status": "skipped", "reason": "no durable cognitive value"}
+```
+
+# 35. 记忆形成核心不变式
+
+1. 输入内容不能自行选择权限。
+2. Principal 不是语义行动者 (Actor)。
+3. 记录归属不等于身份冒用。
+4. 在可行情况下，证据必须先于对真实性敏感的持久主张存在。
+5. Proposition 的存在不等于信念。
+6. Assertion 承载立场、置信度与归属。
+7. 更正保留历史。
+8. 第三方分歧不能取代另一行动者的主张。
+9. 经验形成是有选择性的。
+10. 失败的经验也是有效经验。
+11. 隐式思维链绝不存储。
+12. SEARCH 得分不等于置信度。
+13. memory_strength 不等于置信度。
+14. 重试不等于重复观测。
+15. 超时不是中止。
+16. Formation 不能自行激活 Schema 权限。
+17. 导入认知不等于本地背书。
+18. SelfModel 不是 Governance。
+19. Commitment 不是外部执行。
+20. 原子形成不留下具有误导性的部分认知状态。
+21. 证据载荷从传输信封中捕获，绝不由模型重新誊写。
+
+# 36. 终极准则
+
+> **记忆形成应当存储足够多的结构化证据与经验，以便未来的大脑进行学习；同时绝不能为了追求更整洁的记忆图谱而捏造信念、身份、溯源或权限。**

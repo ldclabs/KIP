@@ -1,5 +1,10 @@
 # KIP 2.0 Formal Verification
 
+Suite 8 also runs Memory Interface schema and scenario-model checks for processing
+barriers, out-of-order completion, idempotent intake, task scope and honest coverage.
+These are executable contract tests, not an exhaustive proof or a production Brain
+result. Real binding scenarios run through the optional interface adapter suite.
+
 **[English](./README.md) | [中文](./README_CN.md)**
 
 Machine-checked models of the KIP 2.0 specification. Results, findings,

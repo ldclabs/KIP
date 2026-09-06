@@ -59,3 +59,11 @@ _避免混用_：结果 (Outcome)、观测 (Observation)、重试 (Retry)
 **TrialRecord / EvaluationRecord（试用记录 / 评估裁决记录）**：
 不可变的比对基准与不可变的裁决结果，完整留存规则、参数和输入工件。TrialState 与 GradingState 仅为这些记录的当前缓存切面。
 _避免混用_：将可变计数器作为历史证据
+
+**Memory Interface（记忆接口）**：
+业务智能体在智能体到大脑接缝（Agent-to-Brain seam）处的五种记忆意图（observe、recall、revise、feedback、forget）。Brain 适配器通过既有的 KIP 状态接口执行它们；不引入新的 Core 类型或命令语言。
+_避免混用_：原始 KIP 命令、强制要求第二个 LLM
+
+**Processing receipt（处理回执）**：
+摄入操作的标识，其处理进度区分了持久记录、完成的处理处置（disposition）以及对召回的可用性。after 屏障要求所指定的输入均已得到核算；仅仅获取一个崭新的 Space 快照是不够的。
+_避免混用_：事务回执 (Transaction Receipt)、信念证明、永久新鲜度

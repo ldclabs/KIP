@@ -10,6 +10,12 @@ Cognitive Memory Profile. Durable workers and identity repair are capabilities,
 never implied execution authority. Brain ranking and evaluation algorithms remain
 replaceable, subject to the recorded inputs and acceptance conditions below.
 
+The optional [Memory Interface](./KIP-2.0-Memory-Interface.md) defines narrower,
+composable capability bundles without claiming this entire Profile. Basic memory
+retains applicable §1–§3 and §8 protections, while experience, learning and durable
+work activate their respective additional obligations. Full-profile claims still
+require every applicable contract here. Stored Schema identities are unchanged.
+
 ## 1. Conflict-complete belief
 
 Projection has two stages. First compute `candidate_status` from one candidate's

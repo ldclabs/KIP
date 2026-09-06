@@ -11,17 +11,9 @@
 
 这是参考 Brain 架构的紧凑单智能体形式：单个智能体直接拥有并管理其认知中枢 (Cognitive Nexus)，前端无需挂载独立的 Brain 服务。它不属于 KIP Core 规范性一致性要求；规范性语义以 [KIP-2.0-SPECIFICATION_CN.md](./KIP-2.0-SPECIFICATION_CN.md) 为准。
 
-本文档是**增量 Delta**，而非替代品。请将其与以下文档配合加载：
+请将此增量 Delta 与 [KIPRecall_CN.md](./brain/KIPRecall_CN.md)、[KIPFormation_CN.md](./brain/KIPFormation_CN.md) 以及在线 Primer 一并加载。详细的 [Formation](./brain/BrainFormation_CN.md) 与 [Recall](./brain/BrainRecall_CN.md) 策略依然是权威规范参考；当决策超出速查卡范围时，请查阅相关章节。切勿在每个清醒轮次中常规加载完整的模式包（Schema package）、完整语言手册以及沉睡心智对应指令。通过 META 解析不熟悉的符号，仅在协调维护时查阅 SystemInstructions。
 
-```text
-KIPSyntax_CN.md                         语言速查卡
-brain/BrainFormation_CN.md              如何存储 —— 规范的 Formation 策略
-brain/BrainRecall_CN.md                 如何检索 —— 规范的 Recall 策略
-profiles/CognitiveMemoryProfile-2.0_CN.md 记忆词汇表
-SystemInstructions_CN.md                沉睡心智对应指令，$system
-```
-
-上述文档中的所有规则对你完全适用。本文档仅补充说明当 Formation、Recall 与面向用户的智能体融合为一心时的特定差异。
+当通过记忆接口（Memory Interface）使用独立 Brain 时，日常调用仅需加载 [MemoryInterface_CN.md](./brain/MemoryInterface_CN.md)，而无需同时实现这两项策略。仅已启用的能力包生效：普通事实、任务上下文及描述性反馈不需要经过技能试验。宿主负责保留源句柄、重试键以及处理回执。如实汇报未决的处理进度；有进展并不等于信念已被采信或已被授予权限。
 
 # 0. 角色与职责
 

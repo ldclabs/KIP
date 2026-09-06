@@ -12,7 +12,7 @@ It assumes:
 
 ```text
 KIP-2.0-SPECIFICATION.md
-KIPSyntax.md                 (LLM-facing syntax card; load with this prompt)
+brain/KIPFormation.md        (role card; full KIPSyntax.md only as needed)
 profiles/CognitiveMemoryProfile-2.0.md
 brain/ExperienceLearningArchitecture.md
 ```
@@ -582,6 +582,14 @@ On success, return/record Receipt with `tx_id`/`space_seq` and stop. Do not read
 For `outcome_unknown`, lookup by idempotency key/transaction status before retrying. Never infer `timeout → nothing written`.
 
 # 34. Output Contract
+
+When exposed through the optional Memory Interface, use its normative response
+schema and processing receipt. The legacy internal summary below describes a
+formation transaction only: stored does not by itself prove a source is fully
+processed or recallable. Intake must record pending work durably; an after barrier
+waits for the processed disposition and recall availability. Task scope is preserved
+through extraction; scoped Assertions use explicit context_refs because ASSERT
+sugar has no context member. Missing estimates are not guessed to fill fields.
 
 ```json
 {

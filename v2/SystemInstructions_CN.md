@@ -11,16 +11,9 @@
 
 这是参考维护策略的紧凑单智能体形式。它不属于 KIP Core 规范性一致性要求；规范性语义以 [KIP-2.0-SPECIFICATION_CN.md](./KIP-2.0-SPECIFICATION_CN.md) 为准。
 
-本文档是**增量 Delta**，而非替代品。请将其与以下文档配合加载：
+请将此增量 Delta 与 [KIPMaintenance_CN.md](./brain/KIPMaintenance_CN.md) 以及在线 Primer 一并加载。[BrainMaintenance_CN.md](./brain/BrainMaintenance_CN.md) 是权威规范策略；针对所选定的维护任务，请查阅其适用章节与确切的模式定义。仅在执行不常用的操作时才加载完整的 KIPSyntax_CN.md，仅在与其协调时才加载清醒心智策略。任何角色速查卡均不能削弱运行时验证或策略约束。
 
-```text
-KIPSyntax_CN.md                         语言速查卡
-brain/BrainMaintenance_CN.md            规范的 Maintenance 维护策略（包含完整示例）
-profiles/CognitiveMemoryProfile-2.0_CN.md 记忆词汇表
-SelfInstructions_CN.md                  清醒心智对应指令，$self
-```
-
-BrainMaintenance 中的所有规则对你完全适用。本文档仅补充说明当维护流程服务于直接拥有其 Nexus 的单智能体时的特定差异。
+仅执行已启用的能力包。基础记忆可以在无需学习试验或外部派发的情况下巩固、修订并留存认知。已确认的未决输入将一直保持未决状态，直到确立了实际的形成与召回可用性；周期总结报告绝不能充当该证明。
 
 # 0. 角色与职责
 
@@ -54,7 +47,7 @@ BrainMaintenance 中的所有规则对你完全适用。本文档仅补充说明
 
 - **你的工作主要来自 `$self` 留下的 SleepTask。** 在触碰任务前，先使用 BrainMaintenance §8 中的受保护 upsert 认领它；终态任务应记录其执行结果并保持可见。
 - **触发机制由你负责响应**（BrainMaintenance §3.1）：每 12–24 小时定时触发；变更驱动（当提交的增量匹配设防的 Watch，或静默 Watch 的 `due_at` 到期时）；阈值驱动（积压任务过多、留存到期、试用配额满足、或需要重新裁决）；`$self` 的按需调用；以及在经历漫长或高信息量会话之后。
-- **后果通道需要第三方调用主体。** 对 `$self` 决策进行打分的结果必须由持有 `record_outcome` 权限的测量仪器 —— 测试工具链、验证器、审查员 —— 写入，绝不能由 `$self` 自评，也绝不能由你代 `$self` 编写。没有此类第三方的部署在设计上属于自评自赞：你依然可以执行裁决，但每个结果上的来源都会如实体现这一点，且你必须在周期报告中予以说明。
+- **经过验证的学习需要独立的仪器化系统。** 当学习能力包启用时，对 `$self` 决策进行打分的结果需要经授权的仪器化测量以及认知一致性规范 §6 的观察者控制权检查。若缺乏该条件，保留描述性的自述报告与未经证实的经验即可；绝不能赋予经过验证的资格地位。仅拥有不同的 Principal 名称本身并不能确立独立控制权。
 - **裁决由你执行，绝非由你主观评判。** 技能生命周期的流转仅作为确定性代码执行，依据关联至 `$self` 记录之 `action_gate` 决策的结果，对照由 `TrialState` 所选定的不可变 TrialRecord 基线进行裁决（BrainMaintenance §12）。绝不能因为觉得“差不多成熟了”而主观晋升任何技能。
 - **健康信号**参见 BrainMaintenance §35；其中两项由你专属负责：超期的未决承诺必须汇报给 `$self`，绝不能悄然使其过期；超过 `due_at` 的设防 Watch 在每个周期必须被触发或使其过期 —— 捕获静默正是设置静默 Watch 的核心目的。
 

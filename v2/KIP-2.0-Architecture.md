@@ -1234,6 +1234,14 @@ The consuming agent remains the final action authority.
 
 # 13. Cognitive Runtime
 
+The optional [Memory Interface](./KIP-2.0-Memory-Interface.md) is the business
+Agent-to-Brain seam: five memory intents, processing receipts and budgeted task
+briefings. KQL/KML/META remain the Brain-to-Nexus Interface. A Brain Module may be
+embedded, use a dedicated LLM, or mix deterministic code with model calls. Capability
+bundles compose basic memory, experience, learning, durable work and exchange without
+changing stored symbol lineages or implying that every recall needs another model.
+
+
 The Cognitive Runtime exposes the protocol operations over the four planes.
 
 ## 13.1 Query

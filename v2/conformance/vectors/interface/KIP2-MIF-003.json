@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MIF-003",
+  "title": "Out-of-order formation does not skip input",
+  "description": "Admit A then B. Complete B first at a later Space sequence. A recall after both receipts must still wait/report A as pending. Complete A and repeat. Repeat with processed A whose index lags; either canonical/source fallback includes its terminal disposition or the barrier remains pending.",
+  "level": "OPTIONAL",
+  "class": "fault_injection",
+  "profiles": [
+    "KIP-Core",
+    "KIP-Runtime"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "core-basic",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Memory-Interface.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_interface_scenario",
+      "args": {
+        "id": "KIP2-MIF-003"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/later_sequence_satisfied_A",
+      "operator": "equals",
+      "expected": false
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/both_available_satisfied",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/index_lag_not_silently_ignored",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/unprocessed_A_marked_available",
+      "operator": "equals",
+      "expected": false
+    }
+  ]
+}

@@ -14,6 +14,11 @@ complete KIP conformance profile by itself: Schema resolution, Governance,
 transactions, persistence, projection, history, Capsules, and runtime
 envelopes remain engine responsibilities.
 
+The optional [Memory Interface](../../v2/KIP-2.0-Memory-Interface.md) sits above
+command text and adds no parser keywords or new exported runtime here. Its five
+Agent intents, processing receipts and capability bundles have separate wire
+schemas and contract tests; those tests do not implement a production Brain.
+
 The parser targets the KIP 2.0 command-text syntax — all three languages:
 **KQL** (`FIND`) to read, **KML** (`ASSERT`, `MUTATE`, `CREATE`, `UPSERT`,
 `UPDATE`, the single `TRANSITION` lifecycle statement, `SET RETENTION`,

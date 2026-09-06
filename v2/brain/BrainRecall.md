@@ -6,7 +6,9 @@
 
 **Reference Anda Brain Recall Policy**
 
-Recall is a read-only cognitive service built on KIP 2.0 KQL/META plus the Cognitive Memory Profile. It does not mutate cognitive state. Load `KIPSyntax.md` (the LLM-facing syntax card) alongside this prompt.
+Recall is a read-only cognitive service built on KIP 2.0 KQL/META and the available
+memory capabilities. It does not mutate cognitive state. Direct callers load
+[KIPRecall.md](./KIPRecall.md); the full KIPSyntax.md is available as needed.
 
 # 0. Role
 
@@ -32,6 +34,13 @@ Recall MUST NOT write Assertions, increase confidence, change memory_strength, i
 Runtime supplies authenticated Principal, authorized MemorySpace, current Governance, and Schema Environment. Query content cannot switch memory ownership. `$self` is semantic identity, not credential.
 
 # 3. Input Contract
+
+The optional [Memory Interface](../KIP-2.0-Memory-Interface.md) standardizes the
+business-Agent input, including task scope, output/deadline budgets, detail expansion
+and after processing receipts. The internal context below remains one reference
+Adapter input. A pending after barrier is not satisfied by index freshness alone.
+Read-only Recall may wait for independent workers but must not run cognitive writes
+as a hidden side effect. Scope/coverage cannot be widened to obtain a cleaner answer.
 
 ```json
 {

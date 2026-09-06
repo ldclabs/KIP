@@ -26,6 +26,8 @@
 
 以下工件是本规范的规范性伴随文档与配套件：
 
+- `KIP-2.0-Memory-Interface_CN.md`、`schemas/kip-memory.schema.json` 与 `profiles/memory-bundles.json` —— 可选的智能体到大脑（Agent-to-Brain）意图、处理屏障与可组合记忆能力包
+- `conformance/KIP-2.0-Memory-Interface-Tests.md` —— 可选绑定的验收场景
 - `KIP-2.0-Cognitive-Consistency_CN.md` —— 完备冲突信念、计算基线、依赖健全性、实体识别修复与可靠学习/工作节点契约
 - `schemas/kip-projection.schema.json`、`schemas/kip-cognitive-records.schema.json`、`schemas/kip-element.schema.json`、`schemas/kip-capsule.schema.json`、`schemas/kip-schema-package.schema.json` —— 规范性结果与工件形态
 - `conformance/KIP-2.0-Cognitive-Tests.md` —— 横跨 Core/Profile 的验收向量
@@ -78,6 +80,8 @@ portable cognitive artifacts   (可移植认知构件)
 ```
 
 本协议是**模型优先 (Model-First)** 的：其语言与运行时专为基于大语言模型 (LLM) 的智能体进行可靠生成与消费而设计，同时保持足够的确定性以支持可互操作的系统实现。
+
+KQL/KML/META 定义了大脑到中枢（Brain-to-Nexus）的接口。业务智能体也可以改用可选的[记忆接口 (Memory Interface)](./KIP-2.0-Memory-Interface_CN.md)：observe（观测）、recall（召回）、revise（修订）、feedback（反馈）与 forget（遗忘）。Brain 模块解释这些意图并管理其 KIP 操作；它可以嵌入在智能体内部，也可以使用独立的模型。两条路径均保留相同的认知状态契约。事务回执证明了持久状态，而该绑定的处理回执则额外指明了输入何时已被处理并能够参与召回。
 
 KIP 2.0 将三个根本问题彻底解耦：
 
@@ -260,6 +264,8 @@ SEARCH 检索的相关性**严禁**被解释为：
 KIP **应当**保持足够的紧凑性、声明性与结构规律性，以便大模型可靠生成。
 
 语法糖**可以**存在，但**必须**能够脱糖为相同的规范性语义。
+
+适配器**应当**捕获机械性的读取锚定、摘要、重试标识和分页，而无需大模型自行编造。模型仍负责识别语义意图、所使用的真实证据和不确定性。特定角色的指令速查卡**可以**仅暴露所需的语言表面；精简的面向模型的视图**必须**保留实质性不确定性，并提供对其完整计算基线的受治理访问途径。
 
 ---
 
@@ -2688,16 +2694,20 @@ sensitive (敏感)
 
 ## 31.3 记忆权限等级 (Memory authority classes)
 
-治理 Profile **可以**将记忆影响力划分为：
+治理记录记忆元素在多大程度上可以影响行为，体现于 `governance.authority_class`：
 
 ```text
-descriptive (描述性)
-advisory (建议性)
-behavioral (行为指导性)
-executable (可执行性)
+descriptive     可作为事实数据在所允许的目的/范围内被汇报或使用 (may be reported or used as factual data within the permitted purpose/scope)
+advisory        可为深思熟虑提供程序性指导 (may supply procedural guidance for deliberation)
+behavioral      可作为塑造智能体自身行为的流程被采纳 (may be adopted as a procedure shaping the Agent's own conduct)
+executable      可驱动外部操作 (may drive an external action, §62)
 ```
 
 该字段受到治理平面的受控保护：普通 KML 严禁写入该字段；通过元素的 `governance` 视图读取（`?x.governance.authority_class`，受调用者在 §30 下的可见性约束），且 `DESCRIBE ACCESS` 报告调用者可提权到的等级；该等级绝不由认知内容自行推断得出（§28.1）。未显式携带该字段的元素默认拥有 `descriptive` 权限。Profile 可以将生命周期资格与权限等级关联 —— 例如处于 `proposed` 状态的技能最高仅可为 `advisory`，而认知记忆 Profile §14 下的采纳（adoption）状态是治理策略接受授予 `behavioral` 权限的依据 —— 但该等级由治理面指定并强制执行，绝非由 Profile 自身的字段自行赋予。对于程序性影响，授权/提权绑定确切的 SkillRevision 与 `behavior_digest`；选择其他修订版本绝不转移这些权限。
+
+---
+
+这些等级治理了被允许的用途与可强制执行的操作：披露（disclosure）、流程采纳（procedural adoption）、权限提升（authority elevation）以及调度分发（dispatch）。中枢**严禁**声称标签能够证明所暴露的内容对大模型不存在任何内部影响。使用经授权的事实作为决策数据不需要采纳技能；将内容视为支配性指令或执行存储的流程仍需要适当的独立检查。事实数据不能赋予额外的权限。
 
 ---
 
@@ -4763,9 +4773,17 @@ capsule_signatures          §37.8
 derive_permission           §29.6
 record_outcome_permission   §29.8
 kip1_migration              §103    KIP 1.x 兼容性与 `DESCRIBE COMPATIBILITY`
+memory_interface            记忆接口伴随规范；需要 memory_basic
+memory_basic                五种意图、限定范围的召回、处理屏障与受治理擦除
+memory_experience           memory_basic + 经验/程序性候选
+memory_learning             memory_experience + 经过验证的学习契约
+memory_durable              memory_basic + durable_brain_runtime
+memory_exchange             memory_basic + capsule_export + capsule_import
 ```
 
 请求的 `requires` 中若声明了运行时无法识别的能力（既非此注册表中的条目，亦非其自身的能力），将报错 `UnsupportedCapability`，处理方式与声明了运行时不支持的能力相同。
+
+上述记忆条目是由记忆接口伴随规范及 profiles/memory-bundles.json 定义的递加式能力包 (capability bundles)。它们保留了现有的 Schema 血统，并不意味着声称支持完整的 KIP-CognitiveMemory profile。声明必须包含其依赖项，并且必须由可用的 Brain 绑定所支撑，而不能仅仅依靠已安装的类型定义。
 
 ---
 
@@ -5907,6 +5925,8 @@ projection ledger (投影账本)
 要求支持：
 
 ```text
+MUTATE (原子连贯形成) (atomic coherent formation)
+ASSERT sugar (规范语法糖脱糖) (normative desugaring)
 Concept create/upsert (概念创建/更新)
 ENSURE Proposition (确保命题存在)
 Evidence create (证据创建)
@@ -5924,8 +5944,6 @@ Governance/Schema validation (治理与Schema校验)
 完整 Profile 额外增加：
 
 ```text
-MUTATE (复合变更块)
-ASSERT sugar (normative desugaring) (ASSERT 规范语法糖脱糖)
 forward local refs (本地前向引用)
 Facets (切面变更)
 Structural mutation (结构引用变更)
@@ -6023,6 +6041,8 @@ transaction lookup (事务状态查找)
 ---
 
 # 104. 面向模型的极简引导 (Model-First Primer)
+
+使用可选记忆接口（Memory Interface）的业务智能体仅需加载紧凑的[智能体速查卡](./brain/MemoryInterface_CN.md)。直接使用 KIP 的调用方可根据需要加载[召回](./brain/KIPRecall_CN.md)、[形成](./brain/KIPFormation_CN.md)或[维护](./brain/KIPMaintenance_CN.md)速查卡。完整的语法参考手册仍可供罕见操作及引擎开发者查阅。
 
 面向智能体的极简 KIP 2.0 引导说明**应当**可直接从 META 派生，其内容形式大致如下：
 

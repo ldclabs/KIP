@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MIF-008",
+  "title": "Feedback is not an automatic grade",
+  "description": "Through memory_basic feedback, record the acting Agent reporting success. It remains agent_statement and does not promote a Skill. Where learning is enabled, separately test authorized instrument feedback with the actual attempt/decision and pinned observer configuration. An arbitrary input role or different Principal name alone must not manufacture validated learning.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Core",
+    "KIP-Runtime"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "core-basic",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Memory-Interface.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_interface_scenario",
+      "args": {
+        "id": "KIP2-MIF-008"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/self_report_class",
+      "operator": "equals",
+      "expected": "agent_statement"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/self_report_validated",
+      "operator": "equals",
+      "expected": false
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/forged_source_role_rejected",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/self_report_promotions",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

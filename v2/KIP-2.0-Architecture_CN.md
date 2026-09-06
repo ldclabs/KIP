@@ -1229,6 +1229,8 @@ Warnings (警示)
 
 # 13. 认知运行时 (Cognitive Runtime)
 
+可选的[记忆接口 (Memory Interface)](./KIP-2.0-Memory-Interface_CN.md)是业务智能体到大脑接缝（Agent-to-Brain seam）：包含五种记忆意图、处理回执与受预算约束的任务简报。KQL/KML/META 依然是 Brain 到 Nexus 的交互接口。Brain 模块可以直接嵌入、使用专用 LLM、或混合确定性代码与模型调用。能力包（Capability bundles）组合了基础记忆、经验、学习、持久工作与交换，而无需改变存储的符号谱系，亦不意味着每次召回都需要另一个模型。
+
 认知运行时在四个平面之上暴露协议操作。
 
 ## 13.1 查询 (Query)

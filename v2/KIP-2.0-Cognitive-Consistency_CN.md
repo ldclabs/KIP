@@ -6,6 +6,8 @@
 
 本文档定义核心规范 §9、§11、§21、§27、§57、§62 以及认知记忆 Profile 所引用的横切契约。本文档不引入新的 Core 核心元素类型。Profile 记录依然为 Concept、Activity 和 Facet。§1–§4 中的 Core 规则在其父特性得到支持的地方普遍适用；§5–§8 对标准 Cognitive Memory Profile 具有约束力。持久化工作进程（durable workers）与身份修复（identity repair）属于能力，绝非暗含的执行授权。Brain 的排序与评估算法保持可替换性，但必须受制于下述已记录的输入与验收条件。
 
+可选的[记忆接口 (Memory Interface)](./KIP-2.0-Memory-Interface_CN.md)定义了更精简、可组合的能力包，而无需声称实现整个 Profile。基础记忆保留适用的 §1–§3 与 §8 保护，而经验、学习与持久工作则激活各自对应的附加义务。声称完整实现 Profile 仍需满足本文中的每一项适用契约。存储的模式（Schema）身份标识保持不变。
+
 ## 1. 冲突完备信念 (Conflict-complete belief)
 
 认识投影包含两个阶段。首先，依据单一候选断言自身所具备的合格支持/反对证据计算 `candidate_status`。随后，在同一 ProjectionBasis（§2）下求值同一主语–谓词槽位中可见且合格的所有候选断言。

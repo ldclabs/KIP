@@ -1,0 +1,1651 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:kip:2.0:schema:memory",
+  "title": "KIP 2.0 Memory Interface",
+  "description": "Optional Agent-to-Brain binding over existing KIP semantics. Static shapes do not prove source fidelity, authority, processing progress, coverage, token budgets or erasure; adapters enforce those contracts.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Request"
+    },
+    {
+      "$ref": "#/$defs/Response"
+    },
+    {
+      "$ref": "#/$defs/Descriptor"
+    }
+  ],
+  "$defs": {
+    "Ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "Sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "Scope": {
+      "type": "object",
+      "properties": {
+        "task_ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "context_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "uniqueItems": true,
+          "maxItems": 128
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "Budget": {
+      "type": "object",
+      "properties": {
+        "max_output_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "deadline_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "tokenizer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "Bundle": {
+      "enum": [
+        "memory_basic",
+        "memory_experience",
+        "memory_learning",
+        "memory_durable",
+        "memory_exchange"
+      ]
+    },
+    "Operation": {
+      "enum": [
+        "observe",
+        "recall",
+        "revise",
+        "feedback",
+        "forget"
+      ]
+    },
+    "ObserveInput": {
+      "type": "object",
+      "properties": {
+        "source_ref": {
+          "$ref": "#/$defs/Ref"
+        }
+      },
+      "required": [
+        "source_ref"
+      ],
+      "additionalProperties": false
+    },
+    "RecallInput": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "target_ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "mode": {
+          "enum": [
+            "answer",
+            "action",
+            "resume"
+          ],
+          "default": "answer"
+        },
+        "goal": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "context": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "after": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "uniqueItems": true,
+          "maxItems": 128
+        },
+        "detail": {
+          "enum": [
+            "brief",
+            "evidence"
+          ],
+          "default": "brief"
+        },
+        "time": {
+          "type": "object",
+          "properties": {
+            "valid_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "as_of_seq": {
+              "$ref": "#/$defs/Sequence"
+            }
+          },
+          "additionalProperties": false,
+          "minProperties": 1
+        }
+      },
+      "required": [],
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "query"
+          ]
+        },
+        {
+          "required": [
+            "target_ref"
+          ]
+        }
+      ]
+    },
+    "ReviseInput": {
+      "type": "object",
+      "properties": {
+        "source_ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "target_ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "change_kind": {
+          "enum": [
+            "correction",
+            "world_change",
+            "unspecified"
+          ],
+          "default": "unspecified"
+        }
+      },
+      "required": [
+        "source_ref"
+      ],
+      "additionalProperties": false
+    },
+    "FeedbackInput": {
+      "type": "object",
+      "properties": {
+        "source_ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "decision_ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "attempt_ref": {
+          "$ref": "#/$defs/Ref"
+        }
+      },
+      "required": [
+        "source_ref"
+      ],
+      "additionalProperties": false
+    },
+    "ForgetInput": {
+      "type": "object",
+      "properties": {
+        "target_ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "mode": {
+          "enum": [
+            "payload_only",
+            "semantic"
+          ]
+        }
+      },
+      "required": [
+        "target_ref",
+        "mode"
+      ],
+      "additionalProperties": false
+    },
+    "Receipt": {
+      "type": "object",
+      "properties": {
+        "receipt_ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "operation": {
+          "enum": [
+            "observe",
+            "revise",
+            "feedback",
+            "forget"
+          ]
+        },
+        "space_id": {
+          "$ref": "#/$defs/Ref"
+        },
+        "accepted_seq": {
+          "$ref": "#/$defs/Sequence"
+        }
+      },
+      "required": [
+        "receipt_ref",
+        "operation",
+        "space_id",
+        "accepted_seq"
+      ],
+      "additionalProperties": false
+    },
+    "Progress": {
+      "type": "object",
+      "properties": {
+        "receipt_ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "phase": {
+          "enum": [
+            "recorded",
+            "processed",
+            "available",
+            "failed"
+          ]
+        },
+        "disposition": {
+          "enum": [
+            "formed",
+            "evidence_only",
+            "skipped",
+            "erased"
+          ]
+        },
+        "resolved_seq": {
+          "$ref": "#/$defs/Sequence"
+        },
+        "available_seq": {
+          "$ref": "#/$defs/Sequence"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "error": {
+          "$ref": "urn:kip:2.0:schema:response#/$defs/Error"
+        }
+      },
+      "required": [
+        "receipt_ref",
+        "phase"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "phase": {
+                "const": "processed"
+              }
+            },
+            "required": [
+              "phase"
+            ]
+          },
+          "then": {
+            "required": [
+              "disposition",
+              "resolved_seq"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "phase": {
+                "const": "available"
+              }
+            },
+            "required": [
+              "phase"
+            ]
+          },
+          "then": {
+            "required": [
+              "disposition",
+              "resolved_seq",
+              "available_seq"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "phase": {
+                "const": "failed"
+              }
+            },
+            "required": [
+              "phase"
+            ]
+          },
+          "then": {
+            "required": [
+              "error"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "phase": {
+                "const": "recorded"
+              }
+            },
+            "required": [
+              "phase"
+            ]
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "resolved_seq"
+                  ]
+                },
+                {
+                  "required": [
+                    "available_seq"
+                  ]
+                },
+                {
+                  "required": [
+                    "disposition"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "FormationResult": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "memory_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "uniqueItems": true,
+          "maxItems": 128
+        }
+      },
+      "required": [
+        "summary",
+        "memory_refs"
+      ],
+      "additionalProperties": false
+    },
+    "ForgetResult": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "pending",
+            "partial",
+            "blocked",
+            "completed"
+          ]
+        },
+        "plan_ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "coverage_ref": {
+          "$ref": "#/$defs/Ref"
+        }
+      },
+      "required": [
+        "status",
+        "plan_ref",
+        "summary",
+        "coverage_ref"
+      ],
+      "additionalProperties": false
+    },
+    "MemoryItem": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "role": {
+          "enum": [
+            "fact",
+            "constraint",
+            "experience",
+            "procedure",
+            "warning",
+            "source"
+          ]
+        },
+        "epistemic_status": {
+          "enum": [
+            "accepted",
+            "rejected",
+            "contested",
+            "uncertain",
+            "insufficient",
+            "not_applicable"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "uniqueItems": true,
+          "maxItems": 128
+        },
+        "action_eligible": {
+          "type": "boolean"
+        },
+        "standing": {
+          "enum": [
+            "unproven",
+            "validated",
+            "revoked",
+            "unverifiable"
+          ]
+        }
+      },
+      "required": [
+        "ref",
+        "text",
+        "role",
+        "epistemic_status",
+        "evidence_refs",
+        "action_eligible"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "role": {
+                "enum": [
+                  "fact",
+                  "constraint"
+                ]
+              }
+            },
+            "required": [
+              "role"
+            ]
+          },
+          "then": {
+            "properties": {
+              "epistemic_status": {
+                "not": {
+                  "const": "not_applicable"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "role": {
+                "const": "procedure"
+              }
+            },
+            "required": [
+              "role"
+            ]
+          },
+          "then": {
+            "required": [
+              "standing"
+            ]
+          }
+        }
+      ]
+    },
+    "Coverage": {
+      "type": "object",
+      "properties": {
+        "complete": {
+          "type": "boolean"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "channels": {
+          "type": "object",
+          "properties": {
+            "constraints": {
+              "enum": [
+                "complete",
+                "incomplete",
+                "not_applicable"
+              ]
+            },
+            "commitments": {
+              "enum": [
+                "complete",
+                "incomplete",
+                "not_applicable"
+              ]
+            },
+            "dependencies": {
+              "enum": [
+                "complete",
+                "incomplete",
+                "not_applicable"
+              ]
+            },
+            "failures": {
+              "enum": [
+                "complete",
+                "incomplete",
+                "not_applicable"
+              ]
+            },
+            "experiences": {
+              "enum": [
+                "complete",
+                "incomplete",
+                "not_applicable"
+              ]
+            },
+            "skills": {
+              "enum": [
+                "complete",
+                "incomplete",
+                "not_applicable"
+              ]
+            },
+            "evidence": {
+              "enum": [
+                "complete",
+                "incomplete",
+                "not_applicable"
+              ]
+            }
+          },
+          "required": [
+            "constraints",
+            "commitments",
+            "dependencies",
+            "failures",
+            "experiences",
+            "skills",
+            "evidence"
+          ],
+          "additionalProperties": false
+        },
+        "pending_receipts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "uniqueItems": true,
+          "maxItems": 128
+        },
+        "unverified_preconditions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "uniqueItems": true,
+          "maxItems": 128
+        },
+        "action_eligible": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "complete",
+        "scope",
+        "channels",
+        "pending_receipts",
+        "unverified_preconditions",
+        "action_eligible"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action_eligible": {
+                "const": true
+              }
+            },
+            "required": [
+              "action_eligible"
+            ]
+          },
+          "then": {
+            "properties": {
+              "complete": {
+                "const": true
+              },
+              "pending_receipts": {
+                "maxItems": 0
+              },
+              "unverified_preconditions": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "complete": {
+                "const": true
+              }
+            },
+            "required": [
+              "complete"
+            ]
+          },
+          "then": {
+            "properties": {
+              "channels": {
+                "additionalProperties": {
+                  "enum": [
+                    "complete",
+                    "not_applicable"
+                  ]
+                }
+              },
+              "pending_receipts": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Details": {
+      "type": "object",
+      "properties": {
+        "basis": {
+          "$ref": "urn:kip:2.0:schema:projection#/$defs/ProjectionBasis"
+        },
+        "coverage": {
+          "$ref": "urn:kip:2.0:schema:cognitive-records#/$defs/RecallCoverage"
+        },
+        "elements": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:kip:2.0:schema:element"
+          },
+          "maxItems": 128
+        }
+      },
+      "required": [
+        "basis",
+        "coverage"
+      ],
+      "additionalProperties": false
+    },
+    "Briefing": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MemoryItem"
+          },
+          "maxItems": 128
+        },
+        "uncertainties": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "uniqueItems": true,
+          "maxItems": 128
+        },
+        "basis_ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "coverage": {
+          "$ref": "#/$defs/Coverage"
+        },
+        "after": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Progress"
+          },
+          "maxItems": 128
+        },
+        "continuation_ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "details": {
+          "$ref": "#/$defs/Details"
+        }
+      },
+      "required": [
+        "summary",
+        "items",
+        "uncertainties",
+        "basis_ref",
+        "coverage",
+        "after"
+      ],
+      "additionalProperties": false
+    },
+    "Request": {
+      "type": "object",
+      "properties": {
+        "kip_memory": {
+          "const": "2.0"
+        },
+        "request_id": {
+          "$ref": "#/$defs/Ref"
+        },
+        "operation": {
+          "$ref": "#/$defs/Operation"
+        },
+        "space": {
+          "$ref": "urn:kip:2.0:schema:request#/$defs/SpaceSelector"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "budget": {
+          "$ref": "#/$defs/Budget"
+        },
+        "idempotency_key": {
+          "$ref": "#/$defs/Ref"
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Bundle"
+          },
+          "uniqueItems": true,
+          "maxItems": 5
+        },
+        "input": {}
+      },
+      "required": [
+        "kip_memory",
+        "operation",
+        "input"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "observe"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "input": {
+                "$ref": "#/$defs/ObserveInput"
+              }
+            },
+            "required": [
+              "idempotency_key"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "recall"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "input": {
+                "$ref": "#/$defs/RecallInput"
+              }
+            },
+            "not": {
+              "required": [
+                "idempotency_key"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "revise"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "input": {
+                "$ref": "#/$defs/ReviseInput"
+              }
+            },
+            "required": [
+              "idempotency_key"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "feedback"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "input": {
+                "$ref": "#/$defs/FeedbackInput"
+              }
+            },
+            "required": [
+              "idempotency_key"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "forget"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "input": {
+                "$ref": "#/$defs/ForgetInput"
+              }
+            },
+            "required": [
+              "idempotency_key"
+            ]
+          }
+        }
+      ]
+    },
+    "Response": {
+      "type": "object",
+      "properties": {
+        "kip_memory": {
+          "const": "2.0"
+        },
+        "request_id": {
+          "$ref": "#/$defs/Ref"
+        },
+        "operation": {
+          "$ref": "#/$defs/Operation"
+        },
+        "status": {
+          "enum": [
+            "succeeded",
+            "pending",
+            "partial",
+            "failed"
+          ]
+        },
+        "receipt": {
+          "$ref": "#/$defs/Receipt"
+        },
+        "progress": {
+          "$ref": "#/$defs/Progress"
+        },
+        "result": {},
+        "error": {
+          "$ref": "urn:kip:2.0:schema:response#/$defs/Error"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "uniqueItems": true,
+          "maxItems": 128
+        }
+      },
+      "required": [
+        "kip_memory",
+        "operation",
+        "status"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "failed"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "error"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "succeeded",
+                  "pending",
+                  "partial"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "result"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "enum": [
+                  "observe",
+                  "revise",
+                  "feedback",
+                  "forget"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "succeeded",
+                  "pending",
+                  "partial"
+                ]
+              }
+            },
+            "required": [
+              "operation",
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "receipt",
+              "progress"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "observe"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "$ref": "#/$defs/FormationResult"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "recall"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "$ref": "#/$defs/Briefing"
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "receipt"
+                  ]
+                },
+                {
+                  "required": [
+                    "progress"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "revise"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "$ref": "#/$defs/FormationResult"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "feedback"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "$ref": "#/$defs/FormationResult"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "forget"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "$ref": "#/$defs/ForgetResult"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "recall"
+              },
+              "status": {
+                "const": "succeeded"
+              }
+            },
+            "required": [
+              "operation",
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "properties": {
+                  "coverage": {
+                    "properties": {
+                      "complete": {
+                        "const": true
+                      }
+                    }
+                  },
+                  "after": {
+                    "items": {
+                      "properties": {
+                        "phase": {
+                          "const": "available"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "observe"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "receipt": {
+                "properties": {
+                  "operation": {
+                    "const": "observe"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "observe"
+              },
+              "status": {
+                "const": "succeeded"
+              }
+            },
+            "required": [
+              "operation",
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "progress": {
+                "properties": {
+                  "phase": {
+                    "const": "available"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "revise"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "receipt": {
+                "properties": {
+                  "operation": {
+                    "const": "revise"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "revise"
+              },
+              "status": {
+                "const": "succeeded"
+              }
+            },
+            "required": [
+              "operation",
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "progress": {
+                "properties": {
+                  "phase": {
+                    "const": "available"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "feedback"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "receipt": {
+                "properties": {
+                  "operation": {
+                    "const": "feedback"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "feedback"
+              },
+              "status": {
+                "const": "succeeded"
+              }
+            },
+            "required": [
+              "operation",
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "progress": {
+                "properties": {
+                  "phase": {
+                    "const": "available"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "forget"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "receipt": {
+                "properties": {
+                  "operation": {
+                    "const": "forget"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "forget"
+              },
+              "status": {
+                "const": "succeeded"
+              }
+            },
+            "required": [
+              "operation",
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "progress": {
+                "properties": {
+                  "phase": {
+                    "const": "available"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "forget"
+              },
+              "status": {
+                "const": "succeeded"
+              }
+            },
+            "required": [
+              "operation",
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "properties": {
+                  "status": {
+                    "const": "completed"
+                  }
+                }
+              },
+              "progress": {
+                "properties": {
+                  "disposition": {
+                    "const": "erased"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "recall"
+              },
+              "status": {
+                "enum": [
+                  "pending",
+                  "partial"
+                ]
+              }
+            },
+            "required": [
+              "operation",
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "properties": {
+                  "coverage": {
+                    "properties": {
+                      "action_eligible": {
+                        "const": false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Descriptor": {
+      "type": "object",
+      "properties": {
+        "kip_memory": {
+          "const": "2.0"
+        },
+        "bundles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Bundle"
+          },
+          "uniqueItems": true,
+          "minItems": 1,
+          "maxItems": 5,
+          "contains": {
+            "const": "memory_basic"
+          }
+        },
+        "default_scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "default_budget": {
+          "$ref": "#/$defs/Budget",
+          "required": [
+            "max_output_tokens",
+            "deadline_ms"
+          ]
+        },
+        "tokenizer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "minimum_response_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "default_space": {
+          "$ref": "urn:kip:2.0:schema:request#/$defs/SpaceSelector"
+        }
+      },
+      "required": [
+        "kip_memory",
+        "bundles",
+        "default_budget",
+        "tokenizer",
+        "minimum_response_tokens"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "bundles": {
+                "contains": {
+                  "const": "memory_experience"
+                }
+              }
+            },
+            "required": [
+              "bundles"
+            ]
+          },
+          "then": {
+            "properties": {
+              "bundles": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "const": "memory_basic"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "bundles": {
+                "contains": {
+                  "const": "memory_learning"
+                }
+              }
+            },
+            "required": [
+              "bundles"
+            ]
+          },
+          "then": {
+            "properties": {
+              "bundles": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "const": "memory_experience"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "bundles": {
+                "contains": {
+                  "const": "memory_durable"
+                }
+              }
+            },
+            "required": [
+              "bundles"
+            ]
+          },
+          "then": {
+            "properties": {
+              "bundles": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "const": "memory_basic"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "bundles": {
+                "contains": {
+                  "const": "memory_exchange"
+                }
+              }
+            },
+            "required": [
+              "bundles"
+            ]
+          },
+          "then": {
+            "properties": {
+              "bundles": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "const": "memory_basic"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

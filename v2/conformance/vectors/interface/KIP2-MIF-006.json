@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MIF-006",
+  "title": "Scopes and progress handles do not grant access",
+  "description": "Record a task-A-only instruction, then recall in task B and in global scope; neither treats it as a permanent global preference. Use a task-A recall with the correct context to retrieve it. Probe a progress receipt as another Principal/Space and require an existence-neutral error. Recall with transient context and compare durable state before/after.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Core",
+    "KIP-Runtime"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "core-basic",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Memory-Interface.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_interface_scenario",
+      "args": {
+        "id": "KIP2-MIF-006"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/other_task_instruction_returned",
+      "operator": "equals",
+      "expected": false
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/task_A_instruction_returned",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/foreign_receipt_error",
+      "operator": "equals",
+      "expected": "NotFoundOrNotVisible"
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/transient_context_persisted",
+      "operator": "equals",
+      "expected": false
+    },
+    {
+      "source": "state",
+      "path": "/recall_reinforced_memory",
+      "operator": "equals",
+      "expected": false
+    }
+  ]
+}

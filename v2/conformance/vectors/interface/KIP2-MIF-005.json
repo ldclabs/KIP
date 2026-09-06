@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MIF-005",
+  "title": "Intake retries survive restart",
+  "description": "Observe a captured immutable source under a logical idempotency key; restart after durable intake and again after formation. Retry with the same scope/input/source but a different transport request_id and output budget. Return the original acknowledgement without another extraction. Reuse the key with changed source bytes or changed task scope; return IdempotencyConflict. Current progress remains separately readable.",
+  "level": "OPTIONAL",
+  "class": "fault_injection",
+  "profiles": [
+    "KIP-Core",
+    "KIP-Runtime"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "core-basic",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Memory-Interface.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_interface_scenario",
+      "args": {
+        "id": "KIP2-MIF-005"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/same_acknowledgement",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/changed_source_error",
+      "operator": "equals",
+      "expected": "IdempotencyConflict"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/changed_scope_error",
+      "operator": "equals",
+      "expected": "IdempotencyConflict"
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/intake_count",
+      "operator": "equals",
+      "expected": 1
+    },
+    {
+      "source": "state",
+      "path": "/formation_count",
+      "operator": "equals",
+      "expected": 1
+    }
+  ]
+}

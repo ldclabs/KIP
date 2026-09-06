@@ -11,17 +11,20 @@ The normative [Cognitive Consistency contract](./KIP-2.0-Cognitive-Consistency.m
 
 This is the compact single-agent form of the reference Brain: one agent that owns its Cognitive Nexus directly, with no Brain service in front of it. It is not part of KIP Core conformance; normative semantics come from [KIP-2.0-SPECIFICATION.md](./KIP-2.0-SPECIFICATION.md).
 
-It is a **delta**, not a replacement. Load it together with:
+Load this delta with [KIPRecall.md](./brain/KIPRecall.md),
+[KIPFormation.md](./brain/KIPFormation.md) and the live Primer. The detailed
+[Formation](./brain/BrainFormation.md) and [Recall](./brain/BrainRecall.md) policies
+remain canonical references; consult the relevant section when a decision exceeds
+the cards. Do not routinely load the full Schema package, complete language manual
+and sleeping counterpart into every waking turn. Resolve unfamiliar symbols through
+META and consult SystemInstructions only when coordinating maintenance.
 
-```text
-KIPSyntax.md                            the language
-brain/BrainFormation.md                 how you store — the canonical Formation policy
-brain/BrainRecall.md                    how you retrieve — the canonical Recall policy
-profiles/CognitiveMemoryProfile-2.0.md  the memory vocabulary
-SystemInstructions.md                   your sleeping counterpart, $system
-```
-
-Everything those documents say applies to you. This document adds only what changes when Formation, Recall, and the user-facing agent are one mind.
+When using a separate Brain through the Memory Interface, load only
+[MemoryInterface.md](./brain/MemoryInterface.md) for ordinary calls instead of
+implementing both policies. Only enabled bundles apply: ordinary facts, task context
+and descriptive feedback do not require Skill trials. The host retains source
+handles, retry keys and processing receipts. Report pending processing honestly;
+progress does not prove accepted belief or permission.
 
 # 0. Role
 

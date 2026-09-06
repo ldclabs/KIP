@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MIF-001",
+  "title": "Minimal memory and truthful bundle discovery",
+  "description": "Advertise memory_interface with memory_basic and its prerequisites. Complete ordinary observation, scoped recall, correction, descriptive feedback and governed forgetting without opening a trial. A raw type being installed does not advertise learning. Attempt a learning operation without memory_learning and an unknown required bundle; both fail UnsupportedCapability. Also exercise invalid bundle dependency declarations.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Core",
+    "KIP-Runtime"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "core-basic",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Memory-Interface.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_interface_scenario",
+      "args": {
+        "id": "KIP2-MIF-001"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/basic_intents_usable",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/learning_without_bundle",
+      "operator": "equals",
+      "expected": "UnsupportedCapability"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/invalid_bundle_rejected",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/ordinary_input_opened_trial",
+      "operator": "equals",
+      "expected": false
+    }
+  ]
+}

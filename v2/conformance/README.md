@@ -1,6 +1,7 @@
 # Running the KIP 2.0 checks
 
 The parent suite has 331 vectors; the cognitive consistency companion adds 25.
+The optional Memory Interface adds 12 binding scenarios, separately selectable.
 The repository supplies language tests, deterministic contract oracles, finite
 models, typed JSON schemas, a golden snapshot Capsule and a memory-subset adapter
 runner. These are different evidence sources; none alone is a full engine result.
@@ -35,6 +36,8 @@ just to conceal a failed integrity check.
 ```sh
 node v2/conformance/run.mjs --list
 node v2/conformance/run.mjs --adapter /absolute/path/to/adapter.mjs
+node v2/conformance/run.mjs --suite interface --list
+node v2/conformance/run.mjs --suite interface --adapter /absolute/path/to/adapter.mjs
 ```
 
 An adapter exports a default object:
@@ -72,3 +75,17 @@ Reports keep profiles_claimed empty and state partial-suite coverage. Full Profi
 certification requires all applicable parent and companion vectors on actual engines,
 including concurrency and failure injection, then cross-engine artifact exchange.
 Behavioral learning requires the separate BrainEvaluation workflow.
+
+## Memory Interface binding
+
+`KIP-2.0-Memory-Interface-Tests.md` and `vectors/interface/` exercise the five intents
+through `exercise_memory_interface_scenario`. A binding Adapter captures real source
+handles, invokes the Brain's actual Interface, and validates requests/responses against
+`schemas/kip-memory.schema.json`. Retain source/progress/KIP receipts and independent
+state inspection. Scenarios become required when memory_interface is advertised.
+Basic memory must work without pretending to implement learning or durable dispatch.
+
+`reference/memory-interface.mjs` is a small executable contract model for processing
+barriers, restart/idempotency, scope and coverage. Its tests are model evidence only;
+they do not implement a production Brain, run an LLM or measure tokenizer/latency
+performance. The existing runner supports both suites and keeps their claims partial.

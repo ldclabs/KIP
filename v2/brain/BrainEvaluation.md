@@ -103,3 +103,25 @@ attempt counts, metrics/intervals and trace artifact refs under Governance.
 actual runs and measurements; it means the experiment finished, not that learning
 passed. Every released learning claim links the report and its predeclared criterion.
 Erased/withheld traces reduce reproducibility and must be reported honestly.
+
+## 6. Interface-cost experiment
+
+Compare direct KQL/KML/META with the optional Memory Interface over the **same**
+Nexus, input corpus, memory policy, business model and tool authority. Both conditions
+must preserve identical observable source, scope, belief, revision and erasure
+semantics. An apparent saving obtained by omitting evidence/coverage checks fails.
+Count Adapter/model work, intake, background processing, retrieval, retries and
+evidence expansion in the total budget, including work hidden from the caller.
+
+Use paired scenarios: a new fact; a world change versus correction; a task-only
+instruction; unresolved actor/Schema source recall; unfinished-task resume; feedback;
+and scoped forgetting. Include delayed/out-of-order formation, changed authority,
+an expired result handle, limited output and network retries. Use the same retained
+sources and deterministically controlled worker delays across the two conditions.
+
+Measure first-attempt semantic correctness, business-Agent calls, internal KIP calls,
+total input/output tokens under a pinned tokenizer, p50/p95 latency, recovery success,
+pending processing duration and unsupported automatic-action rate. Record the cards
+and instruction/tokenizer versions each condition loaded. Do not infer lower cost
+from card line count or fewer visible calls. Report measured differences with
+uncertainty; this repository supplies the experiment contract, not measured results.

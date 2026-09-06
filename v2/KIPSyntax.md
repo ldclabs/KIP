@@ -1,8 +1,13 @@
 ## 🧬 KIP 2.0 Syntax Reference (LLM-Facing)
 
+This is the complete command-family reference. Business Agents may use the smaller
+[Memory Interface card](./brain/MemoryInterface.md). Direct callers start with
+[Recall](./brain/KIPRecall.md), [Formation](./brain/KIPFormation.md) or
+[Maintenance](./brain/KIPMaintenance.md) and load this reference only as needed.
+
 **[English](./KIPSyntax.md) | [中文](./KIPSyntax_CN.md)**
 
-**Scope**: this is a common-path, LLM-facing condensation. It covers every current KQL/KML/META statement family, but it is **not** an exhaustive replacement for the normative [Specification](./KIP-2.0-SPECIFICATION.md), the formal [KQL](./grammar/KIP-2.0-KQL.ebnf) / [KML](./grammar/KIP-2.0-KML.ebnf) / [META](./grammar/KIP-2.0-META.ebnf) grammars, or the complete [request](./schemas/kip-request.schema.json) / [response](./schemas/kip-response.schema.json) wire schemas. If they conflict, the Specification wins.
+**Scope**: this is the full command-family, LLM-facing reference. It covers every current KQL/KML/META statement family, but it is **not** an exhaustive replacement for the normative [Specification](./KIP-2.0-SPECIFICATION.md), the formal [KQL](./grammar/KIP-2.0-KQL.ebnf) / [KML](./grammar/KIP-2.0-KML.ebnf) / [META](./grammar/KIP-2.0-META.ebnf) grammars, or the complete [request](./schemas/kip-request.schema.json) / [response](./schemas/kip-response.schema.json) wire schemas. If they conflict, the Specification wins.
 
 KIP 2.0 is a cognitive state protocol between an Agent and a persistent **Cognitive Nexus**. You read with **KQL** (`FIND`), change cognition with **KML** (`ASSERT` / `MUTATE` / ...), and ground/introspect with **META** (`DESCRIBE` / `SEARCH` / `VERIFY` / ...). Assignment and envelope values are JSON-compatible; Proposition endpoints are narrower (see §1.6). Keywords are ASCII case-insensitive (canonical UPPERCASE); schema symbols and strings stay case-sensitive.
 

@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MIF-007",
+  "title": "Compact results preserve warnings and processing coverage",
+  "description": "Set an output budget under the advertised tokenizer and a short deadline. Supply high-scoring ordinary memories plus a relevant critical constraint. The serialized successful model-facing result counts metadata too. Retain the constraint or return incomplete coverage and prohibit unsupported automatic use. An impossibly small budget returns ResultLimitExceeded, not silent omission; unknown tokenizer fails UnsupportedCapability.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Core",
+    "KIP-Runtime"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "core-basic",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Memory-Interface.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_interface_scenario",
+      "args": {
+        "id": "KIP2-MIF-007"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/bounded_or_limit_error",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/critical_constraint_or_incomplete",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/unsupported_tokenizer_error",
+      "operator": "equals",
+      "expected": "UnsupportedCapability"
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/truncation_reported_complete",
+      "operator": "equals",
+      "expected": false
+    }
+  ]
+}

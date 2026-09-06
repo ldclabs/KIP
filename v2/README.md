@@ -92,6 +92,8 @@ If memory is what makes an agent valuable, the natural move is to make it imposs
 
 | Document | Description |
 | --- | --- |
+| [Memory Interface](./KIP-2.0-Memory-Interface.md) | Five Agent intents, processing receipts, scoped recall and composable capability bundles |
+| [Agent memory card](./brain/MemoryInterface.md) | The small everyday Interface; direct KIP role cards live alongside it |
 | [Cognitive consistency](./KIP-2.0-Cognitive-Consistency.md) | Final belief, revisions, independent attempts, replay, dependencies and durable runtime contracts |
 | [Review resolution](./KIP-2.0-Review-Resolution.md) | All 12 review items, implementation locations and verification scope |
 | [Brain evaluation](./brain/BrainEvaluation.md) | Separate protocol, reliability and behavioral-learning release gates |
@@ -106,7 +108,7 @@ If memory is what makes an agent valuable, the natural move is to make it imposs
 | [🤖 `$self` / ⚙️ `$system`](./SelfInstructions.md) | Single-agent prompt pair, a delta over Brain 2.0 ([`$system`](./SystemInstructions.md)) |
 | [🗂 Design Notes](./design/) | Ten pre-consolidation rationale documents, frozen 2026-09-02 |
 | [🔤 Grammars & Schemas](./grammar/) | Normative EBNF, plus the [wire schemas](./schemas/) |
-| [🧪 Conformance Suite](./conformance/KIP-2.0-Conformance-Tests.md) | 356 portable vectors plus executable contract oracles |
+| [🧪 Conformance Suite](./conformance/KIP-2.0-Conformance-Tests.md) | 356 state/consistency vectors plus 12 optional Memory Interface scenarios and executable contract models |
 | [🔬 Formal Verification](./formal/README.md) | Alloy and TLA+ models, and what they proved |
 | [🔀 Migration from 1.x](./migration/KIP-2.0-Migration-from-1.x.md) | What changes, and what legacy meaning must not be invented |
 

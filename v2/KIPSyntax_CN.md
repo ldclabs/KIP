@@ -1,8 +1,10 @@
 ## 🧬 KIP 2.0 语法速查手册（面向 LLM）
 
+这是完整的命令家族参考手册。业务智能体可以使用更小型的[记忆接口速查卡](./brain/MemoryInterface_CN.md)。直接调用方可从[召回卡 (Recall)](./brain/KIPRecall_CN.md)、[形成卡 (Formation)](./brain/KIPFormation_CN.md) 或[维护卡 (Maintenance)](./brain/KIPMaintenance_CN.md) 开始，仅在需要时加载本参考手册。
+
 **[English](./KIPSyntax.md) | [中文](./KIPSyntax_CN.md)**
 
-**适用范围**：本手册是面向 LLM 的常用路径提炼版，覆盖当前 KQL/KML/META 的全部语句家族，但**不能**替代具有规范性效力的[完整规范](./KIP-2.0-SPECIFICATION_CN.md)、正式 [KQL](./grammar/KIP-2.0-KQL.ebnf) / [KML](./grammar/KIP-2.0-KML.ebnf) / [META](./grammar/KIP-2.0-META.ebnf) 语法，以及完整的[请求](./schemas/kip-request.schema.json) / [响应](./schemas/kip-response.schema.json) wire schema。若存在冲突，以完整规范为准。
+**适用范围**：这是完整的命令家族、面向 LLM 的参考手册。它覆盖当前 KQL/KML/META 的全部语句家族，但**不能**替代具有规范性效力的[完整规范](./KIP-2.0-SPECIFICATION_CN.md)、正式 [KQL](./grammar/KIP-2.0-KQL.ebnf) / [KML](./grammar/KIP-2.0-KML.ebnf) / [META](./grammar/KIP-2.0-META.ebnf) 语法，以及完整的[请求](./schemas/kip-request.schema.json) / [响应](./schemas/kip-response.schema.json) wire schema。若存在冲突，以完整规范为准。
 
 KIP 2.0 是智能体（Agent）与持久化**认知中枢（Cognitive Nexus）**之间的认知状态交互协议。系统通过 **KQL**（`FIND`）读取数据，通过 **KML**（`ASSERT` / `MUTATE` / ...）变更认知状态，通过 **META**（`DESCRIBE` / `SEARCH` / `VERIFY` / ...）实现实体接地与自省。赋值与封包值兼容 JSON；Proposition 端点的范围更窄（见 §1.6）。关键字不区分 ASCII 大小写（规范推荐大写）；模式符号与字符串值严格区分大小写。
 

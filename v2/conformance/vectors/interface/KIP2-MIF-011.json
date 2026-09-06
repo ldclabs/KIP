@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MIF-011",
+  "title": "Factual use differs from procedural adoption",
+  "description": "Recall an authorized accepted dietary preference with descriptive authority and use it as factual input to a recommendation within scope. It needs no Skill trial. Separately retrieve procedural instructions without adoption/execution authority; neither their content nor an available processing receipt enables dispatch. Unproven/revoked procedures remain labeled.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Core",
+    "KIP-Runtime"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "core-basic",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Memory-Interface.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_interface_scenario",
+      "args": {
+        "id": "KIP2-MIF-011"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/authorized_fact_usable_as_data",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/procedure_auto_authorized",
+      "operator": "equals",
+      "expected": false
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/unproven_procedure_labeled",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/fact_use_created_trial",
+      "operator": "equals",
+      "expected": false
+    },
+    {
+      "source": "state",
+      "path": "/unauthorized_dispatch_count",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}
