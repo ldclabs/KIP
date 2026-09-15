@@ -170,9 +170,15 @@ UNION { ... }                      // 分支选择（作用域相互独立）
 
 点路径：`?x.id` `?x.name` `?x.attributes.goal` `?a.lifecycle.status` `?x._system.version` `?x.facets["MnemonicState"].memory_strength` `?x["exact-key"]` `?edge.index`；支持访问整个对象（`?x.attributes`）。
 
+**作用域**（[规范 §42.4–§44.5](./KIP-2.0-SPECIFICATION_CN.md#424-解绑定与作用域-solutions-bindings-and-scope)）：常规模式统一已有绑定。`NOT` 读取传入绑定但不导出任何新变量。`OPTIONAL` 读取传入绑定并导出每个兼容的匹配；未命中时保留一次输入，新变量未绑定且其投影路径为 null。`OPTIONAL` 内部的过滤器限制可选匹配；外部同等过滤器可能会移除兜底行。每个 `UNION` 右分支均独立开始，即使前序结果为空；所需约束需在分支内重复声明。仅在某一分支存在的变量在其他行投影为 null。`UNION` 之后的子句作用于其合并后的结果。这些规则可嵌套；任何绑定都不能逃逸外层的 `NOT`。
+
+完全相同的完整解在聚合/投影/分页前去重。同名但不同元素仍为独立行；使用 `COUNT(DISTINCT ?x)` 对去重后的聚合输入计数。纯聚合查询在无匹配时仍有一个分组：COUNT 为 0，其他聚合为 null。带有分组表达式时，无匹配意味着无结果行。与 null 的比较无法通过过滤器；请显式使用 `IS_NULL` / `IS_NOT_NULL`。
+
 聚合操作：`COUNT(?x)` `COUNT(DISTINCT ?x)` `SUM/AVG/MIN/MAX`。`COUNT = 0` 绝不证明命题为假。
 
 原始路径（仅用于图遍历，不传播信念）：`(?x, "is_subclass_of"{0,5}, ?anc)` —— 量词 `{n}` `{m,}` `{m,n}`；备选路径 `(?x, "related_to" | "depends_on", ?y)`。
+
+零跳（zero hop）包含相同的可见端点，无需自环边。带量词/备选路径使用精确的 Predicate 符号或符号参数，不能使用谓词变量。`LIMIT` 限制输出行数，不限制遍历计算量或 Projection 证据量。
 
 游标是不透明的、锁定快照的、绑定于操作族的；游标继续翻页时当前 Governance 权限依然生效。
 

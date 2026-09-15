@@ -2228,7 +2228,11 @@ Primary profile: `KIP-KQL`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Use deterministic literal comparisons. Expected rows returned.
+**Expected semantic behavior:** Use deterministic literal comparisons and the advertised baseline functions (Spec §44.1–§44.2). Seed visible Persons with numeric, string, explicit-null, and absent attributes, including two values `2` and `"2"`. Check equality without string/number coercion, comparison/logical precedence, and parenthesized conditions. `IN(value, [])` retains no rows. `IS_NULL` matches absent and explicit-null values; `IS_NOT_NULL` is its inverse. An ordinary comparison or string test on a missing/null value is unknown and does not retain the row; negating that condition still does not retain it. Check `true || unknown` and `false && unknown` using comparisons that yield the respective known operands.
+
+Project a whole visible attributes object and a nested field from it; the whole-object projection preserves readable content and does not expose protected fields. Access through an in-scope unbound variable or missing optional field yields null. An expression-only variable with no visible pattern binding site fails `InvalidSyntax`. Unknown function names, wrong arity, invalid constant/parameter-supplied regexes, and statically unsupported operations fail explicitly, including when placed inside `NOT`, `OPTIONAL`, or a branch whose preceding pattern has no matches. Errors from evaluating an actual matched row also propagate; the empty-branch cases do not require inventing an error for a value that no row binds.
+
+**Forbidden outcome:** silent scalar coercion; missing data becoming true through negation; a filter introducing a binding; validation errors converted into an empty result or optional fallback.
 
 ---
 
@@ -2236,9 +2240,11 @@ Primary profile: `KIP-KQL`
 
 **Level:** MUST
 
-**Expected semantic behavior:** No visible vegetarian fact. NOT behaves as query negation only; no reject Assertion/belief created.
+**Expected semantic behavior:** Seed two visible Persons, Alice and Bob, and one visible `works_for` Proposition from Alice to Acme. Match each Person before `NOT { (?person, "works_for", ?org) }`. Alice is excluded and Bob is retained: `?person` is correlated with each incoming solution, while `?org` is local to `NOT`. Adding another local pattern that makes the complete inner block fail retains the incoming Person and exports no partial inner binding. A `NOT` block with no shared variables tests the same visible existence condition for every incoming row.
 
-**Forbidden outcome:** world-level negation.
+Projecting or filtering `?org` outside that `NOT` without another visible binding site fails `InvalidSyntax`; it must not be treated as an optional null. Independently bind the same name in a later ordinary pattern and verify that it matches afresh. Repeat with a local variable introduced through a nested `OPTIONAL` or `UNION`: the enclosing `NOT` still exports none of those variables. A hidden relation behaves as no visible match, and a schema/resource failure inside `NOT` remains an error. No reject Assertion or belief is created by any absence result.
+
+**Forbidden outcome:** world-level negation; uncorrelated evaluation of a shared variable; local bindings escaping `NOT`; an evaluation failure reported as no visible match.
 
 ---
 
@@ -2246,9 +2252,11 @@ Primary profile: `KIP-KQL`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Missing optional relation yields null/unbound, not false Assertion.
+**Expected semantic behavior:** In an isolated fixture, Alice works for Acme and Beta, Bob has no visible employer, and Carol works for Beta. Match the Persons before `OPTIONAL { (?person, "works_for", ?org) }`. Project Person identity and organization name: Alice has two rows, Bob has exactly one row with null organization, and Carol has one Beta row. An incoming binding is never overwritten or cleared. `?org`, `?org.name`, and further paths rooted in the missing Bob binding project as null; `IS_NULL(?org)` retains Bob. No Literal null or false Assertion is created.
 
-**Forbidden outcome:** epistemic negation.
+Place `FILTER(?org.name == "Acme")` inside the optional block: Alice retains Acme, while Bob and Carol each retain one fallback row with `?org` unbound. Move that filter after the optional block: only Alice/Acme remains. This also verifies that Carol's partial Beta match cannot leak into a fallback row. On Bob's unmatched row, a subsequent ordinary `?org {id: :acme}` pattern may bind the previously unbound variable to Acme. Variables introduced only inside a nested `NOT` do not become optional outputs. A runtime error inside the block aborts the query instead of emitting fallback rows.
+
+**Forbidden outcome:** epistemic negation; loss of unmatched input rows; one arbitrary optional match instead of all compatible matches; filter pushdown changing the result; null extension overwriting an existing binding or leaking a partial match.
 
 ---
 
@@ -2256,9 +2264,17 @@ Primary profile: `KIP-KQL`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Seed one row per branch. Union returns visible union.
+**Expected semantic behavior:** Use an isolated fixture with visible Persons Alice, Bob, and Carol plus visible Acme, and apply Spec §42.4–§42.5 and §44.5:
 
-**Forbidden outcome:** hidden rows.
+- Bind `?person` to Alice on the left and to Bob inside `UNION { ... }`. Both independent Person bindings are returned; Bob is not constrained to Alice. When the left pattern matches nothing, Bob still appears.
+- Bind `?person` only on the left and `?org` only on the right. Projecting both names yields `("Alice", null)` and `(null, "Acme")`. No row combines Alice with Acme merely because the two branches exist. A right-branch expression that refers only to a left-bound variable, with no binding site in the right branch, is `InvalidSyntax`.
+- Add a second consecutive `UNION` binding Carol to `?person`: all three Persons appear. A filter after both unions applies to the accumulated result; for example, filtering for Bob returns Bob alone. A filter inside one branch constrains only that branch.
+- Have two branches return the identical complete binding of `?person` to Alice: it occurs once. Create another Person with the same name and a different identity: both survive and project two equal `"Alice"` cells. If two rows differ only in an unprojected relation binding, both survive. Deduplication precedes projection and `LIMIT`; equal projected cells are not a second deduplication opportunity.
+- Nest a union inside an optional block entered with `?person` bound to Alice. Make its left pattern fail and its independent right branch bind `?person` to Bob plus `?org` to Acme. The right branch executes, but is incompatible with Alice; the enclosing optional produces the Alice fallback with `?org` unbound. A right branch binding only `?org` to Acme is compatible and extends Alice. Repeat inside `NOT`: the incompatible Bob branch does not exclude Alice, while the compatible organization-only branch does. Nested branch bindings cannot overwrite the enclosing input or escape a surrounding `NOT`.
+
+All branches use the same request parameters, Space, snapshot, Schema Environment, and current authorization. Hidden rows never contribute to any branch or deduplication decision.
+
+**Forbidden outcome:** hidden rows; inherited right-branch bindings; a vanished right result when the left is empty; a Cartesian join instead of row union; one branch's value copied into another branch's missing column; post-projection deduplication.
 
 ---
 
@@ -2266,9 +2282,11 @@ Primary profile: `KIP-KQL`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Visible+secret fixture. Count visible only.
+**Expected semantic behavior:** Count only authorized visible solutions in a visible+secret fixture. Repeat a complete visible solution in two union branches: it contributes once. In a separate fixture where one Person has two distinct matched employer Propositions, the two complete solutions contribute `COUNT(?person) = 2` and `COUNT(DISTINCT ?person) = 1`, including when the relation variable is not projected. Two different same-named Persons contribute two identity values to either count.
 
-**Forbidden outcome:** aggregate leak.
+Mix a plain projection with aggregates and verify implicit grouping: two same-named Persons group together under `?person.name`, but form separate groups when `?person.id` is also projected. For four distinct Persons in one group, with a numeric attribute providing non-null inputs `2, 2, 4` and a null input, require `COUNT = 3`, `COUNT(DISTINCT ...) = 2`, `SUM = 8`, `AVG = 8/3`, `MIN = 2`, and `MAX = 4`, with binary64 comparison for numeric results. A `LIMIT` on returned groups does not change aggregate inputs. An inappropriate non-null aggregate input fails `TypeMismatch`, rather than disappearing or contributing zero.
+
+**Forbidden outcome:** aggregate leak; counting duplicate complete solutions twice; collapsing distinct solutions before counting their non-distinct inputs; grouping by an undeclared identity key; pagination changing aggregate values.
 
 ---
 
@@ -2276,9 +2294,11 @@ Primary profile: `KIP-KQL`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Zero raw rows does not convert later BELIEF to rejected.
+**Expected semantic behavior:** A query projecting only aggregates over zero visible solutions returns one row: `COUNT` and `COUNT(DISTINCT ...)` are `0`; `SUM`, `AVG`, `MIN`, and `MAX` are null. The same empty input with a non-aggregate grouping expression returns no groups and no rows. Over an existing grouping row whose optional inputs are all unbound/null, counts are again `0` and the other aggregates are null. Explicit Literal null, where allowed, is also ignored by aggregates.
 
-**Forbidden outcome:** closed-world shortcut.
+Check that a missing visible ID pattern is a successful empty match, subject to these aggregate rules, rather than a missing-reference error. `LIMIT 0` returns no rows even for an aggregate-only query. Zero raw rows and zero counts do not convert a later `BELIEF` result to `rejected` or create an Assertion.
+
+**Forbidden outcome:** closed-world shortcut; omission of the aggregate-only empty group; invention of grouped rows with no input solutions; treating an all-null optional group as count one or numeric zero for `SUM`.
 
 ---
 
@@ -2286,7 +2306,9 @@ Primary profile: `KIP-KQL`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Seed distinct sort values. Rows ordered accordingly.
+**Expected semantic behavior:** Seed Persons with scalar pairs `(rank, score)` equal to `(1, 2)`, `(1, 4)`, and `(2, 9)`. `ORDER BY ?person.attributes.rank, ?person.attributes.score DESC` returns those rows in the order `(1, 4)`, `(1, 2)`, `(2, 9)`: omitted direction means `ASC`, and each later key breaks ties in the preceding keys. `LIMIT 2` selects the first two rows after sorting, not two arbitrary input rows. Repeat with primitive variable bindings and with a projected aggregate as a sort key; for an aggregate query, non-aggregate sort keys are grouping expressions (Spec §44.7). Do not require a semantic order from an unpaginated query without `ORDER BY`.
+
+**Forbidden outcome:** treating comma-separated sort keys as independent orderings; defaulting a missing direction to `DESC`; limiting the input before sorting or aggregating.
 
 ---
 
@@ -2294,7 +2316,7 @@ Primary profile: `KIP-KQL`
 
 **Level:** SHOULD
 
-**Expected semantic behavior:** Seed solutions where the `ORDER BY` key is null for some rows. Null keys sort last (Spec §44.7). A documented different baseline is a conformance warning, not a silent difference.
+**Expected semantic behavior:** Seed solutions where the `ORDER BY` key is null for some rows, including an unmatched optional binding. Null keys sort last in both `ASC` and `DESC`, including when null occurs in a secondary key after a primary-key tie (Spec §44.7). A documented different baseline is a conformance warning, not a silent difference; the SHOULD requirement is not promoted to MUST by this vector.
 
 ---
 
@@ -2302,9 +2324,11 @@ Primary profile: `KIP-KQL`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Fetch page1, commit new matching row, continue cursor. New row absent from traversal.
+**Expected semantic behavior:** Fetch page1, commit a new matching row, then continue the cursor. The new row is absent from that traversal. Include several distinct complete solutions with equal explicit sort keys, as well as distinct Concepts with equal projected names. Across all pages, every solution from the authorized pinned snapshot appears exactly once; the engine's deterministic tie-breaker cannot skip a solution merely because its projected cells equal another row's cells. Repeat without explicit `ORDER BY`: the traversal is still stable even though no semantic ordering is promised.
 
-**Forbidden outcome:** moving snapshot pagination.
+Bind `LIMIT` and `CURSOR` through complete-value parameters and verify the same behavior as literal values. A negative, fractional, or unsafe limit and an empty/non-string cursor fail validation. If a result cap is applied, the response discloses truncation and continuation rather than claiming a complete result. If the snapshot becomes unavailable, continuation fails explicitly instead of silently restarting at the current head. Current Governance remains enforced on every continuation.
+
+**Forbidden outcome:** moving snapshot pagination; skipping or repeating tied solutions; cursor continuation changing aggregate values by aggregating only a page; undisclosed truncation; using historical authority to bypass current access controls.
 
 ---
 
@@ -2372,9 +2396,16 @@ Primary profile: `KIP-KQL`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Raw Proposition path exists but links lack accepted Assertions. No implicit belief path.
+**Expected semantic behavior:** Where raw paths are supported, use an isolated visible graph with `knows` edges `A → B`, `B → C`, `A → D`, and `D → C`, no self-edges, and an isolated visible Person Z. Bind the start by identity and omit a path-value/link binding. Verify:
 
-**Forbidden outcome:** belief arithmetic invented.
+- From A, `"knows"{0}` returns A without requiring a Proposition, `"knows"{1}` returns B and D, `"knows"{2}` returns C once, and `"knows"{0,2}` returns A, B, C, and D. With the fixture's finite graph within the declared limits, `"knows"{2,}` returns C. From Z, `{0}` still returns Z and `{1}` returns no row.
+- Add a one-hop `parent_of` edge from A to C. The alternative `"knows" | "parent_of"` returns B, C, and D; it does not concatenate the predicates. Repeated paths to the same complete endpoint binding do not multiply the solution.
+- Negative/fractional bounds, an upper bound below the lower bound, and predicate variables carrying quantifiers or alternatives fail `InvalidSyntax`, including where syntax parsing precedes semantic rejection. Parameters resolving to exact Schema symbols obey the same path semantics as quoted symbols.
+- An implementation hop/resource limit produces an explicit error, never a truncated traversal masquerading as complete absence. Hidden edges and endpoints cannot contribute reachability. A result `LIMIT` does not excuse incomplete traversal or change the meaning of the path.
+
+The raw edges need no accepted Assertions. No path match creates a Proposition, propagates confidence, or creates belief; a zero-hop result supplies no Proposition ID. A runtime that supports path-value bindings documents their representation and never fabricates a durable Proposition for a zero-hop or multi-hop path. A runtime without optional raw-path support reports that absence of support explicitly; the invariant against implicit belief propagation still applies.
+
+**Forbidden outcome:** belief arithmetic invented; requiring a self-edge for zero hops; fabricating a path Proposition; treating alternatives as concatenation; counting each walk as a separate identical endpoint solution; silent reachability truncation.
 
 ---
 
@@ -2545,9 +2576,11 @@ Primary profile: `KIP-KML`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Declare same handle twice. DuplicateLocalHandle; no commit.
+**Expected semantic behavior:** Declare the same output handle twice in one MUTATE. `DuplicateLocalHandle` or an equivalent syntax error; no commit (§53.2). A handle declared once may be referenced before its declaration where the full profile permits it (KML-008), but a handle that is never declared or bound by the referring clause's own WHERE fails reference/binding validation. A WHERE variable in one mutation clause is unavailable in another clause. A variable declared only inside NOT cannot become the mutation target outside that NOT. Reusing the same output-handle spelling in separate operations is legal and creates separate local bindings; an operation cannot reference another operation's handle, including in `sequence` or `atomic` mode.
 
-**Forbidden outcome:** ambiguous binding.
+**Postconditions:** rejected compound plans leave every element/version unchanged. In an atomic request, a cross-operation handle reference aborts the request; in sequence mode it fails the referring operation without undoing any earlier committed operation (§75).
+
+**Forbidden outcome:** ambiguous binding; source-order shadowing of duplicate handles; leaking a WHERE/NOT-local variable into another scope; automatic cross-operation handle or parameter binding.
 
 ---
 
@@ -2565,9 +2598,11 @@ Primary profile: `KIP-KML`
 
 **Level:** MUST
 
-**Expected semantic behavior:** WHERE matches none. matched/updated=0, no element created.
+**Expected semantic behavior:** WHERE matches none. No element is created or mutated, and any reported `matched`/`updated` counts are zero (§58.4). An exact visible-ID pattern with no match also succeeds with no effect; it is different from an unresolved direct target reference. Seed one eligible target reached through two distinct relation bindings and another reached through one. An UPDATE over these rows changes each selected target once; `LIMIT 1` changes at most one distinct target, not one target per matching row (§52.7). `LIMIT 0` changes none. A negative, fractional, or unsafe-integer limit fails validation without writes. Adding a bare UPDATE with no SET or UNSET action is invalid.
 
-**Forbidden outcome:** upsert behavior.
+**Postconditions:** for an uncapped update or `LIMIT 2` over both seeded targets, each changed element's version advances once and any reported counts are `matched = 2`, `updated = 2`; the `LIMIT 1` variant changes only one element, regardless of which target the documented selection chooses. Target selection uses the pre-update view: a changed target is not reconsidered, and changes made by this statement do not admit further targets. Reassigning only existing values has `updated = 0` and advances no target version.
+
+**Forbidden outcome:** upsert behavior; updating a target twice because a join or UNION returned it twice; applying the cap to join rows before target deduplication; treating LIMIT as a scan bound; writes feeding the same statement's match set.
 
 ---
 
@@ -2575,7 +2610,13 @@ Primary profile: `KIP-KML`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Change memory_strength. Only allowed Facet state changes.
+**Expected semantic behavior:** Change `MnemonicState.memory_strength`; omitted Facet keys such as `salience` remain unchanged. On the canonical test Package's open Person attributes, seed `{settings: {theme: "dark", density: "compact"}, tags: ["a", "b"], note: "old"}`. `SET ATTRIBUTES {settings: {theme: "light"}, tags: ["c"]}` produces `{settings: {theme: "light"}, tags: ["c"], note: "old"}`: objects/arrays replace the complete named value rather than recursively merging or appending (§58.3). The same shallow-merge rule applies to an UPSERT of that existing identity. A SET FIELDS update of `name` preserves omitted mutable fields.
+
+**Postconditions:** setting the permitted `note` attribute to literal `null` retains a present key with value null; `UNSET ATTRIBUTES {"note"}` removes it. Inspect the complete attributes object to distinguish these states, since both missing and null project as null through a field path. `UNSET` of an already-absent optional field has no effect and advances no version. A nullable Facet field such as `MnemonicState.last_metabolized_at` follows the same SET-null/UNSET distinction while retaining other Facet keys.
+
+**Atomic rejection variants:** assigning `MnemonicState.memory_strength = 2` violates the Profile and aborts the containing transaction, including another otherwise-valid target update. Removing a required/immutable field such as the canonical `StatusValue.code` likewise fails without partially applying other actions. A stale `EXPECT VERSION` guard fails before any proposed shallow replacement becomes durable; a current affected-plane guard allows the legal update under §35.1.
+
+**Forbidden outcome:** replacing an entire attributes/Facet bag when only some keys are supplied; implicit deep merge or array union; interpreting literal null as deletion; UNSET bypassing Schema/mutability; partial changes after a Schema or guard failure.
 
 ---
 
@@ -2691,7 +2732,15 @@ Primary profile: `KIP-KML`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Allowed MnemonicState update succeeds.
+**Expected semantic behavior:** With the baseline update functions supported, seed an eligible Concept with `MnemonicState {memory_strength: 0.8, salience: 0.2}`. One UPDATE assigns `memory_strength: MUL(?m.facets["MnemonicState"].memory_strength, 0.5)` and `salience: ADD(?m.facets["MnemonicState"].memory_strength, 0.1)`. The resulting values are `0.4` and `0.9`, because both expressions read the same pre-update target state (§58.4, §59), independent of assignment order. `CLAMP(x, 0, 1)` enforces those bounds. A read of another joined variable's field in an update expression fails instead of choosing one joined row.
+
+**Missing/type variants:** a missing `memory_strength` passed through `COALESCE(path, 0.5)` initializes the decay input. Without COALESCE, the missing input produces a null expression and skips only that assigned key, while a valid `last_metabolized_at` assignment still commits. On the test Package's open Project attributes, a non-numeric source value likewise skips the numeric-expression target key and preserves its previous value; COALESCE does not coerce that non-null source into a number. A literal null assignment remains a value assignment under KML-012. If every key is skipped or unchanged, that target has no version increment.
+
+**Atomic error variants:** wrong arity (ADD/MUL/COALESCE take two arguments; CLAMP takes three), an unsupported function, a forbidden variable reference, or CLAMP with `lo > hi` fails the transaction. A missing bound parameter is `ReferenceError` under §74, not a null input to skip or default. Numeric overflow, non-finite output, an unsafe integral result such as `ADD(9007199254740991, 1)`, and nonzero underflow violate §9.3 and abort all writes. These errors must not be converted into the null-input key-skip path.
+
+**Sweep variant:** seed more eligible Concepts than the chunk limit and execute the §59.1 marker-based decay. Reuse one `cycle_start` across chunks, commit strength and marker together, and exclude marked targets. Each chunk uses a distinct idempotency key; retrying that chunk with its same key replays its retained outcome without applying decay again. Repeating chunks selects every eligible target at most once for that cycle and terminates when fewer than the cap are selected. Concurrent workers need serializable execution or appropriate guards; the marker alone does not establish isolation.
+
+**Forbidden outcome:** assignment-order-dependent arithmetic; join-row-dependent values; null-input expressions erasing keys; missing parameters swallowed by COALESCE; partial commits after numeric/Schema errors; using a fresh cycle marker per retry or one idempotency key for all chunks and claiming the sweep completed.
 
 ---
 
@@ -2776,9 +2825,11 @@ Primary profile: `KIP-KML`
 
 **Expected semantic behavior:** `UPSERT CONCEPT ?p {MATCH {type: "Person", key: "alice"} SET FIELDS {name: "Alice"}}` against an absent key commits a Concept whose `schema_ref` is the exact symbol `Person` resolves to, so `?p CONCEPT {type: "Person", key: "alice"}` matches it afterwards (§54.4). The same upsert with no `type` member MUST fail rather than create an untyped Concept (§10.3).
 
-**Postconditions:** the created Concept's `schema_ref` resolves to a Concept Type definition; the type-less create reports `SchemaSymbolNotFound` and commits nothing.
+**Identity/guard variants:** an ID-addressed UPSERT whose ID is absent, not visible, or incompatible with the declared type fails `NotFoundOrNotVisible` and creates nothing (§54.3). Supplying an additional key or name does not permit fallback to a different element. A key-addressed create with `EXPECT VERSION 0` succeeds only when that logical identity is absent; applying it to the created identity fails `VersionConflict` without changing its fields. A current ordinary version guard allows an existing identity update; a stale guard aborts all mutations in its transaction.
 
-**Forbidden outcome:** a Concept with an empty or unresolvable `schema_ref`; a declared MATCH type parsed and then ignored.
+**Postconditions:** the created Concept's `schema_ref` resolves to a Concept Type definition; the type-less create reports `SchemaSymbolNotFound` and commits nothing. No failed ID selector mints a client-supplied ID, discloses the hidden element's actual type, or changes another same-named Concept. The failed create-only/stale guards leave identity, attributes and versions unchanged.
+
+**Forbidden outcome:** a Concept with an empty or unresolvable `schema_ref`; a declared MATCH type parsed and then ignored; ID-based creation; selector fallback to an arbitrary identity; partial writes after a failed guard.
 
 ---
 
@@ -2885,9 +2936,11 @@ Primary profile: `KIP-META`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Search known label. Result carries exact ID/kind.
+**Expected semantic behavior:** With a current index, search a known Concept label and a distinct value present only in that Concept's top-level `aliases`; both queries include the expected exact ID/kind. `WITH TYPE` resolves a Schema type and narrows the candidates accordingly. `SEARCH PROPOSITION ... WITH PREDICATE :predicate` resolves and filters by the Predicate; a v1-style Predicate name supplied through native `WITH TYPE` is not silently reinterpreted as that Predicate. Ambiguous symbols fail `SchemaSymbolAmbiguous`; a modifier inappropriate for the selected kind is rejected rather than ignored (§66.1).
 
-**Forbidden outcome:** name-only grounding result.
+Omitting `MODE` uses the runtime's documented default and reports the actual mode in the result/context. Explicit `MODE "keyword"` is supported for KIP-META conformance. On an implementation that lacks semantic/hybrid support, explicitly requesting the unsupported mode fails `SearchModeUnsupported`, without returning keyword results under that label. An unavailable index uses `SearchIndexUnavailable`; an unsatisfied request-level `requires` uses `UnsupportedCapability` (§66.3).
+
+**Forbidden outcome:** name-only grounding result; aliases omitted from Concept grounding; a type filter silently treated as a Predicate filter; ignored modifiers; an undisclosed mode or silent semantic-to-keyword fallback.
 
 ---
 
@@ -2895,9 +2948,11 @@ Primary profile: `KIP-META`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Search then query object. No durable retrieval score/confidence mutation.
+**Expected semantic behavior:** Search then query the object. Hits expose transient `retrieval.score` values in `[0, 1]`, in descending order, while the stored element, `_system`, Facets and Assertion confidence are unchanged. For an unchanged index/query/mode, select a returned score `s` and repeat with `THRESHOLD s`: a hit equal to `s` remains eligible, hits below it are excluded, and threshold filtering occurs before the page's `LIMIT`. Literal or parameter thresholds below `0`, above `1`, or of the wrong type fail validation. Equal-score ties remain stable across pages without duplicated or skipped hits (§66.4).
 
-**Forbidden outcome:** retrieval metadata persisted.
+Grounding-field and ranking/normalization disclosure are assessed at their respective requirement levels in §66.4–§66.5. This vector does not require equal floating-point scores across implementations, queries or modes; test threshold boundaries against the same index/ranking context, not against another engine's scores (§31).
+
+**Forbidden outcome:** retrieval metadata persisted; out-of-range scores or thresholds accepted; the threshold-equal hit excluded by a strict-greater-than comparison; `LIMIT` applied before threshold filtering; unstable pagination of tied hits.
 
 ---
 
@@ -2905,7 +2960,7 @@ Primary profile: `KIP-META`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Lag index behind canonical state. SEARCH misses while exact KQL finds. Runtime does not claim canonical absence.
+**Expected semantic behavior:** Lag index behind canonical state. SEARCH misses while exact KQL finds. The successful miss returns an explicit empty hit collection, not a missing result or a not-found error. Runtime does not claim canonical absence.
 
 **Forbidden outcome:** search-as-database.
 
@@ -3128,9 +3183,11 @@ Primary profile: `KIP-Runtime`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Parameter contains KIP-looking syntax. It remains data or fails datatype validation; no injected command executes.
+**Expected semantic behavior:** A parameter contains KIP-looking syntax. It remains data or fails datatype validation; no injected command executes. Shared request-level bindings supply defaults to each operation. An operation-level binding replaces the shared value by key: overriding an object replaces that complete object without inheriting nested keys, overriding an array replaces the array, and explicit `null` overrides a non-null default where the receiving Schema permits null. Omitted operation keys retain shared values. These values are validated at the receiving grammar position exactly like literals (§74).
 
-**Forbidden outcome:** string interpolation execution.
+Use two operations with different overrides of the same name and confirm that neither changes the other's effective parameters. Query variables, creation handles and returned values from operation 1 do not become implicit parameters/handles of operation 2, including in `sequence` and supported `atomic` execution. Cross-operation reuse requires a supplied durable reference.
+
+**Forbidden outcome:** string interpolation execution; recursive merging or array concatenation of parameter overrides; null treated as an omitted override; bindings leaking between operations; parameters bypassing type/range/Schema validation.
 
 ---
 
@@ -3138,9 +3195,9 @@ Primary profile: `KIP-Runtime`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Use `"Hello :name"` template-like literal. Runtime does not unsafe-expand into syntax.
+**Expected semantic behavior:** Use the `"Hello :name"` template-like literal with a supplied `name` parameter. Its value remains exactly `Hello :name`; interpolation does not occur inside quotes. A parameter occupies a complete value position and cannot supply a keyword, clause or variable name. Parameter object keys omit the colon and are case-sensitive: `name` does not bind `:Name`. Referencing a missing effective parameter fails that operation with `ReferenceError`; it is not silently bound to null. Explicit null remains a value and succeeds or fails according to the receiving position's nullability (§74).
 
-**Forbidden outcome:** template injection.
+**Forbidden outcome:** template injection or even safe-looking template expansion inside quotes; case-insensitive parameter lookup; a missing parameter becoming null; nullability checks skipped.
 
 ---
 
@@ -3178,9 +3235,9 @@ Primary profile: `KIP-Runtime`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Concurrent commit between independent reads. Different snapshots are permitted and contexts identify them.
+**Expected semantic behavior:** Concurrent commit between independent reads. Different snapshots are permitted and contexts identify them. Make the later submitted operation finish first; `results[]` still follows submission order, and every supplied `op_id` is echoed on its corresponding outcome (§81.1).
 
-**Forbidden outcome:** runner incorrectly assumes shared snapshot.
+**Forbidden outcome:** runner incorrectly assumes shared snapshot; result order follows completion order; result payloads or `op_id` values associated with the wrong operation.
 
 ---
 
@@ -3216,9 +3273,9 @@ Primary profile: `KIP-Runtime`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Multiple reads under atomic. One shared snapshot context; no state-changing receipt.
+**Expected semantic behavior:** Multiple reads under atomic. One shared snapshot context; no state-changing receipt. Include a successful collection query with no matches and an aggregate-only query over the same empty match set. The former returns an explicit empty collection in the declared binding layout, while the latter returns its aggregate row (`COUNT = 0`, other empty aggregates as defined by §44.6), not a missing result or `NotFoundOrNotVisible` (§81.1).
 
-**Forbidden outcome:** fake read transaction commit.
+**Forbidden outcome:** fake read transaction commit; empty collection read treated as an error; aggregate-only empty input confused with no output.
 
 ---
 
@@ -3384,9 +3441,9 @@ Primary profile: `KIP-Runtime`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Cross-use KQL/SEARCH/CHANGES cursors. CursorTypeMismatch/equivalent.
+**Expected semantic behavior:** Cross-use KQL/SEARCH/CHANGES cursors. CursorTypeMismatch/equivalent. A request containing two paginated reads returns each continuation as that operation's `results[i].next_cursor`; it cannot substitute one ambiguous top-level cursor for both traversals. Continuing a traversal keeps its query/parameters, Space and snapshot; changing bound query parameters fails `CursorMismatch`. Absence of `next_cursor` reports no continuation for that traversal (§81.1).
 
-**Forbidden outcome:** cursor type confusion.
+**Forbidden outcome:** cursor type confusion; a continuation attributed to the wrong operation; several traversals represented by one ambiguous cursor; changed parameters accepted against an old cursor.
 
 ---
 

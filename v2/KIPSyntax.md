@@ -174,9 +174,15 @@ UNION { ... }                      // alternative branch (independent scope)
 
 Dot paths: `?x.id` `?x.name` `?x.attributes.goal` `?a.lifecycle.status` `?x._system.version` `?x.facets["MnemonicState"].memory_strength` `?x["exact-key"]` `?edge.index`; whole objects too (`?x.attributes`).
 
+**Scope** ([Spec §42.4–§44.5](./KIP-2.0-SPECIFICATION.md#424-solutions-bindings-and-scope)): ordinary patterns unify existing bindings. `NOT` reads incoming bindings but exports no new variables. `OPTIONAL` reads incoming bindings and exports every compatible match; on a miss it keeps the input once, with new variables unbound and their projected paths null. A filter inside `OPTIONAL` restricts optional matches; the same filter outside can remove the fallback row. Each `UNION` right branch starts independently, even when the preceding result is empty; repeat constraints needed there. Branch-only variables project as null in other rows. Clauses after `UNION` apply to its combined results. These rules nest; no binding escapes an enclosing `NOT`.
+
+Identical complete solutions deduplicate before aggregation/projection/pagination. Different elements with equal projected names remain separate rows; use `COUNT(DISTINCT ?x)` for distinct aggregate inputs. An aggregate-only query has one group even on no matches: COUNT is 0, other aggregates null. With grouping expressions, no matches means no rows. Null comparisons do not pass filters; use `IS_NULL` / `IS_NOT_NULL` explicitly.
+
 Aggregates: `COUNT(?x)` `COUNT(DISTINCT ?x)` `SUM/AVG/MIN/MAX`. `COUNT = 0` never proves falsehood.
 
 Raw paths (traversal only, no belief propagation): `(?x, "is_subclass_of"{0,5}, ?anc)` — quantifiers `{n}` `{m,}` `{m,n}`; alternatives `(?x, "related_to" | "depends_on", ?y)`.
+
+Zero hops include the same visible endpoint without requiring a self-edge. Quantified/alternative paths use exact Predicate symbols or symbol parameters, not predicate variables. `LIMIT` bounds output rows, not traversal work or Projection Evidence.
 
 Cursors are opaque, snapshot-pinned, family-specific; current Governance still applies on continuation.
 

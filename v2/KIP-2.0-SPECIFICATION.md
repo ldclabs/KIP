@@ -3292,6 +3292,41 @@ It does not mean the Brain accepts it.
 
 ---
 
+## 42.4 Solutions, bindings, and scope
+
+A **solution** is a mapping from query variable names to matched values. A value may be a Cognitive Element, a scalar Literal, a JSON-compatible field value (including an array or object), an exact Schema ref, or virtual query state such as a Structural edge or a Belief result. A variable is **bound** when the solution supplies its value; being in scope does not guarantee a binding in every solution.
+
+An ordinary pattern extends each incoming solution with compatible bindings. Reusing a bound variable constrains the next match; it MUST NOT overwrite that binding. Ordinary patterns and `FILTER` within a branch are conjunctive. The top-level `WHERE` and each independent `UNION` branch start with one empty solution, so their first patterns can produce matches. A pattern that removes every solution does not restart matching from an empty binding; a later independent `UNION` can still contribute results.
+
+`NOT`, `OPTIONAL`, and `UNION` establish the scope boundaries in §44.3–§44.5. Their observable behavior follows the incoming solutions at their position in the block. An optimizer MAY reorder evaluation only if it preserves these bindings, boundaries, null extensions, and results. In particular, moving a `FILTER` into or out of an `OPTIONAL`, or making a `UNION` branch inherit its preceding branch's bindings, is not generally equivalent.
+
+These rules apply recursively to nested blocks and to the raw `WHERE` patterns reused by KML and META. The latter still exclude `BELIEF` / `BELIEF SLOT` under their grammars. All branches share their enclosing operation's resolved Space, snapshot, Schema Environment, parameters, and applicable Governance; an independent variable scope is not a new authorization or snapshot scope.
+
+A variable used only in an expression (`FIND`, `FILTER`, or `ORDER BY`) MUST have a visible pattern binding site. A name declared only inside `NOT` is not such a site outside that block; using it there without another binding site is `InvalidSyntax`. A visible variable missing in a particular `OPTIONAL` or `UNION` solution is instead unbound, with the null behavior in §44.1. A later ordinary pattern may bind an unbound variable; a null result cell is not an assignment that prevents subsequent matching. KML output-handle declarations are also explicit binding sites within their mutation scope (§53); query variables do not become forward-declared KML handles merely by sharing the `?` prefix.
+
+---
+
+## 42.5 FIND and solution processing
+
+`FIND` declares one or more output expressions, in output order. The portable forms are variables, field paths, and the aggregates in §44.6. A variable projects its bound value; a path projects the selected field. Projecting a whole Element preserves its kind and identity and includes only fields the caller may read.
+
+The logical processing order MUST be:
+
+1. Evaluate the `WHERE` branches over authorized visible state, including any requested Projection.
+2. Deduplicate identical complete solution bindings.
+3. Form implicit groups and compute aggregates if present.
+4. Evaluate output expressions and sort keys, then apply `ORDER BY` and the pagination window.
+
+Deduplication uses every visible variable binding in the solution, including variables not named in `FIND`; `NOT`-local variables never participate. Element bindings compare by identity, not by display name or serialized payload. Literal bindings use §9.6. Schema-symbol bindings use lineage identity, including declared renames, under §20.14; their returned values still report exact refs. Missing bindings are distinct from a binding to an explicit Literal `null`, even though both project as JSON `null`.
+
+Virtual Structural bindings identify the same source/field/target relation (including the position for an ordered field); virtual Belief bindings identify the same target and ProjectionBasis (§27). Re-evaluating the same virtual binding within that context does not create a distinct solution merely because an implementation allocated another object. Whole attribute/Facet objects used as values compare by their visible data contents, with object-key order insignificant and array order significant.
+
+The same complete solution found through two `UNION` branches occurs once. Two different Concepts both named `Alice` remain two solutions and can produce two identical `"Alice"` cells in `FIND(?person.name)`. Likewise, two solutions differing in an unprojected relation binding remain distinct. There is no implicit value-level `DISTINCT` after projection. `COUNT(DISTINCT ...)` explicitly deduplicates its input values within each group (§44.6).
+
+`LIMIT` caps result rows after this processing, not intermediate matches or the Evidence considered by a Projection (§46.3). A valid query with no matches succeeds with an empty result, subject to the aggregate-only empty-group rule in §44.6. It MUST NOT become a reference error merely because an ID pattern matched no visible element; invalid syntax, unresolved Schema symbols, and unavailable capabilities remain errors even for an empty result.
+
+---
+
 # 43. KQL Pattern Families
 
 Baseline pattern families:
@@ -3325,6 +3360,10 @@ Explicit optional form:
 ```
 
 `type` is schema-resolution sugar for a Concept Type lineage (§20.14): it matches every readable version of that type, and each matched element reports its own exact `schema_ref`.
+
+An object pattern constrains all supplied fields together; fields omitted from the pattern are unconstrained. Nested object patterns constrain the supplied nested fields, rather than requiring equality with the whole stored object. A variable in a field position binds the matched value and unifies with other occurrences in its scope. An absent field does not supply a binding or match an explicit `null` field constraint; use `OPTIONAL` and null checks to query absence.
+
+`{id: :id}` is a match-only identity lookup. `{type: "Person", name: "Alice"}` may match several Concepts because names are not unique (§7.2); only stable identity selectors have identity semantics. Inline Concept patterns in Proposition endpoints use the same rules and do not create Concepts. Nested Proposition tuples similarly match existing Propositions; a read never creates an endpoint or a Proposition.
 
 ---
 
@@ -3374,6 +3413,10 @@ Matching is **canonical** (§12.3): an endpoint term matches a stored endpoint w
 ```
 
 In native v2, `?predicate` binds the exact canonical Predicate ref.
+
+It may be projected, filtered, and unified across patterns. When a comparison/match operates on Schema symbols, lineage identity governs (§20.14), so matching one Predicate across package versions does not split the population. It does not bind a v1 local predicate name. Ordinary scalar string comparisons do not implicitly resolve local aliases; clients must resolve symbols before comparing them with Predicate refs (§20).
+
+A predicate-variable exploration SHOULD constrain at least one endpoint by identity, a Concept pattern, or a prior binding. `LIMIT` bounds returned rows, not the cost of scanning an unconstrained `(?subject, ?predicate, ?object)` pattern; a runtime MAY reject exploration that exceeds its resource limits with `ResourceExhausted`.
 
 ---
 
@@ -3447,6 +3490,10 @@ Examples:
 
 Facet access MAY use bracketed exact/local facet names.
 
+Paths are usable in `FIND`, `FILTER`, and `ORDER BY`. A path may also stop at an object, for example `?x.attributes`, `?x.facets["MnemonicState"]`, or `?x._system`, to return that complete visible object. Quoted bracket access selects keys that cannot be written as identifiers, including exact package refs; a quoted key is one path step, even when it contains dots.
+
+An absent optional field, a missing Facet, or a path rooted in an unbound in-scope variable yields `null`, as does further access through that missing value. Thus an unmatched `?org` projects both `?org` and `?org.name` as `null`, and `IS_NULL(?org)` is true. This query null extension MUST NOT materialize a Literal, a field, or a negative Assertion. Schema-invalid paths and unauthorized disclosures remain subject to Schema/Governance validation; absence is not permission to bypass either.
+
 ---
 
 ## 44.2 FILTER
@@ -3476,6 +3523,20 @@ LITERAL_TYPE
 
 These are functions, not infix operators: they are written in call form, e.g. `FILTER(IN(?x.name, ["A", "B"]))`.
 
+`FILTER` retains a solution only when its condition evaluates to true; it binds no new variables. Parentheses control grouping; otherwise unary `!`/`-` bind before relational comparisons, then equality, then `&&`, then `||`, as defined by the EBNF.
+
+| Function | Meaning |
+| --- | --- |
+| `IN(value, [v1, v2, ...])` | Whether a non-null value equals a member of the list; an empty list matches nothing |
+| `IS_NULL(value)` / `IS_NOT_NULL(value)` | Whether a field/variable is absent, unbound, or explicitly null, and its inverse |
+| `CONTAINS(text, part)` | Whether the string contains the given substring |
+| `STARTS_WITH(text, prefix)` / `ENDS_WITH(text, suffix)` | Whether the string starts/ends with the given string |
+| `REGEX(text, pattern)` | Whether the string matches the regular expression; the supported dialect and resource limits MUST be documented |
+
+Scalar comparisons MUST NOT silently coerce strings to numbers or booleans. Baseline `FILTER` does not require deep equality or ordering of arbitrary attribute/Facet arrays and objects; an array passed to `IN` is a candidate list, not an array comparison. Use explicit Element identity paths when comparing whole-element results with scalar IDs.
+
+Ordinary comparisons, membership, and string tests with an absent/unbound/null operand do not satisfy a filter; null checks are the explicit way to test those cases. Logical evaluation MUST preserve this unknown condition: negating it does not make it true, `true || unknown` is true, and `false && unknown` is false. Invalid function names/arity, invalid regular expressions, and unsupported operations are errors, not an empty match. Errors determinable from the command and bound parameters MUST be validated even for an empty branch. Errors encountered while evaluating a solution MUST propagate through `NOT`/`OPTIONAL` rather than become a successful absence test or fallback row; a value-dependent expression has no runtime value to inspect when no solution reaches it.
+
 ---
 
 ## 44.3 NOT
@@ -3492,6 +3553,23 @@ means:
 
 It MUST NOT mean world-level falsehood.
 
+`NOT` is a correlated existence filter. For each incoming solution, its already-bound variables are visible inside the block and constrain matching. If the block produces at least one compatible solution, the incoming solution is discarded; otherwise it is retained unchanged. A block sharing no variables with its input tests the same independent visible existence condition for every incoming solution.
+
+New variables first bound inside `NOT` are local to that block and its descendants. They MUST NOT be exported to a later clause, to a sibling branch, or to `FIND`/`ORDER BY`. Reusing such a name in a separate later pattern introduces a separate binding, not a value obtained from the negated match. Nested `OPTIONAL` or `UNION` cannot export bindings past the enclosing `NOT` boundary.
+
+```prolog
+FIND(?person.name)
+WHERE {
+  ?person {type: "Person"}
+  NOT {
+    ?org {type: "Organization", key: "acme"}
+    (?person, "works_for", ?org)
+  }
+}
+```
+
+Here `?person` is correlated, while `?org` is local. The query retains people for whom the whole inner pattern has no visible match. Failure to evaluate that pattern (for example, a Schema or resource error) MUST NOT be treated as proof of no match.
+
 ---
 
 ## 44.4 OPTIONAL
@@ -3500,11 +3578,54 @@ It MUST NOT mean world-level falsehood.
 
 A null result means no visible match, not falsehood.
 
+For each incoming solution, evaluate the optional block using the incoming bindings. If it has compatible matches, emit each compatible extension; multiple matches produce multiple solutions. If it has none, retain the incoming solution once, with the optional block's newly introduced variables unbound. Incoming bindings MUST be preserved in both cases. Variables introduced inside nested `NOT` remain local to that `NOT`.
+
+The optional variables are in scope in subsequent clauses and in `FIND`/`ORDER BY`; their missing values and paths yield null under §44.1. An optional block succeeds only when its complete pattern, including its internal filters, succeeds. A partial match MUST NOT leak bindings into the unmatched fallback row.
+
+```prolog
+FIND(?person.name, ?org.name)
+WHERE {
+  ?person {type: "Person"}
+  OPTIONAL {
+    (?person, "works_for", ?org)
+    FILTER(?org.name == "Acme")
+  }
+}
+```
+
+The example keeps every matching Person, using null for the organization when no visible Acme match exists. Moving the `FILTER` after the closing optional brace removes those null rows; it changes the query. A runtime error inside the optional block aborts the query rather than producing a fallback row.
+
 ---
 
 ## 44.5 UNION
 
 `UNION` represents alternative pattern branches.
+
+The KIP spelling is a preceding pattern block followed by `UNION { ... }`, not a correlated join. At the position of `UNION`, the left operand is the solution set accumulated by preceding clauses in the current block. Its braced right operand executes independently, starting with one empty binding, even if the left operand has no solutions. It MUST NOT inherit query-variable bindings from the left operand or surrounding block. Repeat any constraint needed by both branches in each branch, or apply it after the union when the relevant variables are available.
+
+The result is the row-wise union of the two sets, with identical complete solutions deduplicated under §42.5. Same-named variables in the two branches are bound independently; their names identify the same output column after merging. A variable present in only one branch is in scope after the union but unbound in rows from the other branch. Its projected value/path is null, not a value copied from another row.
+
+```prolog
+FIND(?person.name, ?org.name)
+WHERE {
+  ?person {type: "Person", key: "alice"}
+  UNION {
+    ?org {type: "Organization", key: "acme"}
+  }
+}
+```
+
+If both records exist with display names `Alice` and `Acme`, this returns two rows: `("Alice", null)` and `(null, "Acme")`. If Alice is absent, Acme still appears. A same-name alternative such as two branches binding `?person` instead produces independent Person solutions, and an identical Person binding produced by both appears once.
+
+An expression inside the right branch must resolve against that branch's own binding sites. For example, `?person {id: :alice} UNION { FILTER(?person.name == "Alice") }` is invalid: the right branch never introduces `?person`. This differs from a filter after the union, where the merged variables are in scope. Parameters such as `:alice` remain available in every branch.
+
+Consecutive `UNION` clauses add independent alternatives to the accumulated result. Ordinary clauses following a `UNION` operate on that accumulated result; clauses inside its braces affect only that branch. These rules apply recursively. When a union is nested inside `NOT` or `OPTIONAL`, its right branch still starts without inherited bindings; the enclosing operator then tests or joins only solutions compatible with its own input. This preserves an outer binding and prevents an independent branch from overwriting it.
+
+| Clause | Reads incoming bindings inside its block | Exports newly introduced variables | No compatible match |
+| --- | --- | --- | --- |
+| `NOT` | Yes | No | Keeps the incoming solution unchanged |
+| `OPTIONAL` | Yes | Yes, except nested `NOT` locals | Keeps the incoming solution once; new variables are unbound |
+| `UNION` right branch | No | Yes, except nested `NOT` locals | Contributes no rows; the left result is retained |
 
 ---
 
@@ -3525,6 +3646,10 @@ Aggregation MUST occur over authorized visible solutions.
 
 Grouping is implicit: the non-aggregated projected expressions of the `FIND` list form the grouping key. Aggregates ignore null inputs, so `COUNT(?optional)` returns `0` when every row in its group is null.
 
+With only aggregate expressions, the complete solution set is one group, including when it is empty. With grouping expressions, each distinct grouping key produces one row; no solutions means no groups and no rows. Grouping combines equal projected key values, so grouping by `?person.name` can combine different same-named people; include `?person.id` when identity is intended.
+
+`COUNT(expr)` counts non-null inputs, and `COUNT(DISTINCT expr)` counts distinct non-null inputs. `SUM` and `AVG` operate on numeric inputs; `MIN` and `MAX` require mutually comparable scalar inputs. An empty or all-null group returns `0` for `COUNT` and `null` for `SUM`, `AVG`, `MIN`, and `MAX`. Non-null inputs of an inappropriate type are `TypeMismatch`, not numeric zero or silently discarded data; numeric results must satisfy §9.3. Aggregation consumes the complete deduplicated solutions before pagination, never just the current page.
+
 `COUNT = 0` does not mean a proposition is false.
 
 ---
@@ -3537,7 +3662,9 @@ ORDER BY <expr> ASC|DESC [, ...]
 
 Sort keys are applied left to right.
 
-Null SHOULD sort last unless future explicit syntax says otherwise.
+Each key defaults to `ASC`; a later key resolves ties in all preceding keys. Portable sort keys are comparable scalar variables, field paths, and aggregate expressions also present in `FIND`. With aggregation, non-aggregate sort keys must be grouping expressions. Ordering by a whole Element, array, or object is not portable; use a scalar path such as `?person.name` or `?person.id` instead.
+
+Null SHOULD sort last in both ascending and descending order unless future explicit syntax says otherwise. Without `ORDER BY`, no semantic result order is promised; pagination still requires the stable traversal below.
 
 ---
 
@@ -3553,6 +3680,10 @@ KQL pagination cursor MUST preserve one canonical cognitive snapshot for that tr
 The engine MUST apply a deterministic tie-breaker within one cursor traversal so that solutions with equal `ORDER BY` values are neither duplicated nor skipped across pages.
 
 Current Governance authority still applies when continuing.
+
+`LIMIT` MUST be a non-negative safe integer (§9.3); `0` returns no rows. `CURSOR` MUST be an opaque non-empty string. Both accept complete-value parameters. If no limit is supplied, any implementation result cap MUST be disclosed; a truncated page MUST NOT be presented as a complete result.
+
+A continuation belongs to its query and bound parameters, Space, and snapshot. Incompatible query reuse fails `CursorMismatch`; use in a different cursor family fails `CursorTypeMismatch`; malformed, expired, or invalidated cursors use the errors in §87.7. A client MUST NOT decode or edit a token to change its position. If the pinned snapshot is no longer available, the runtime MUST fail explicitly instead of silently restarting at the current head. Result layout and `next_cursor` are described in §81.
 
 ---
 
@@ -3573,6 +3704,12 @@ and Predicate alternatives:
 These paths traverse stored raw Propositions.
 
 They MUST NOT automatically propagate belief/confidence.
+
+When raw paths are supported, `{n}` means exactly `n` hops, `{m,n}` means an inclusive range, and `{m,}` has no query-specified upper bound. Bounds are non-negative integers and an upper bound less than the lower bound is invalid. A zero lower bound includes the reflexive zero-hop match: both endpoints resolve to the same visible Element without traversing or requiring any Proposition. Zero hops therefore provide no Proposition ID, evidence of an edge, or belief commitment.
+
+Each nonzero hop traverses a visible stored Proposition matching the declared Predicate. Alternatives select among the named Predicates; the same endpoint solution reached along several paths is subject to §42.5, not counted once per walk. A raw path is a reachability pattern, not a newly inferred transitive Proposition. Multi-hop and zero-hop results MUST NOT fabricate a durable Proposition for an optional link-variable binding; any supported path-value binding must be explicitly documented. Portable reachability queries omit that binding, as in the examples above.
+
+A predicate variable denotes one exact Predicate (§43.3), not a path or predicate list. The portable path forms use quoted Schema symbols or parameters resolving to them; predicate variables with quantifiers or alternatives MUST be rejected as `InvalidSyntax` during semantic validation, even where the EBNF can parse their shape. Implementations MUST declare path support and hop/resource limits. Exceeding a limit fails explicitly (for example, `ResourceExhausted`) rather than silently truncating reachability and reporting absence; `LIMIT` does not turn an unbounded traversal into a bounded one.
 
 ---
 
@@ -3930,6 +4067,26 @@ its `WHERE` only guards them.
 a bounded sweep over a larger match set MUST NOT be assumed to be deterministic
 unless the runtime documents an order.
 
+The bound applies to **distinct target elements**, not to matching rows. The
+runtime determines the selected target set from the statement's pre-mutation
+view, deduplicates it by element identity, and applies the cap before writing.
+An element reached through several matching paths is selected once; changes
+made by the statement MUST NOT admit more targets into that same statement.
+`LIMIT` MUST be a non-negative safe integer (§9.3); `LIMIT 0` selects none.
+
+`LIMIT` does not bound how much data `WHERE` scans. Runtimes MAY enforce
+documented scan/materialization limits and fail the transaction when those
+limits are exceeded. Maintenance SHOULD constrain candidate sets structurally
+(for example by Concept Type, Predicate, or endpoint) before applying filters.
+
+Repeating a capped sweep MAY select the same elements again. To process each
+element once per maintenance cycle, write a schema-defined cycle marker in the
+same mutation and exclude already-marked elements in `WHERE` (§59.1). Bind the
+cycle marker once and reuse it across all chunks and retries; a new marker on
+each retry re-admits work already performed. Each chunk is a separate request:
+use its own transaction idempotency key, and reuse that key only to retry that
+chunk (§34). KQL cursors do not paginate mutation targets.
+
 ---
 
 ## 52.8 Clause order and guard position
@@ -3968,6 +4125,15 @@ Handles are local to the MUTATE block.
 
 They are not durable IDs.
 
+Each output handle MUST be declared exactly once in that block; duplicate
+declarations fail with `DuplicateLocalHandle` or an equivalent syntax error.
+Every handle reference MUST resolve to a block output or to a variable bound
+by that mutation clause's own `WHERE`. A `WHERE` binding in one clause does not
+declare a handle for other clauses, and handles do not carry across runtime
+operations, including operations sharing an atomic request. A standalone
+creation's handle is local to that statement. Clients use returned durable
+IDs to reference its result in a later operation.
+
 ---
 
 ## 53.3 Forward references
@@ -3975,6 +4141,12 @@ They are not durable IDs.
 Native v2 MUTATE SHOULD allow forward local references.
 
 The engine MUST resolve/validate the entire mutation graph before commit.
+
+Forward references do not require v1's source-order execution or a globally
+acyclic mutation graph. For example, Evidence may name its generating Activity
+while that Activity names the Evidence among its outputs, where the Schema
+allows it. All references must resolve, and each relation's own cycle,
+cardinality, same-Space and mutability constraints still apply.
 
 ---
 
@@ -4040,6 +4212,14 @@ key
 
 Name-only universal upsert is forbidden.
 
+An `id` selector only addresses an existing Concept. If that ID cannot be
+resolved as an accessible matching Concept, the upsert MUST fail with
+`NotFoundOrNotVisible`; it MUST NOT create an element with a client-supplied ID
+or fall back to a name match. A `key` selector may create a new Concept under
+the type/lineage rules in §54.4. Additional selector fields constrain the match;
+they do not override the addressed identity or authorize choosing an arbitrary
+candidate.
+
 ---
 
 ## 54.4 The MATCH type
@@ -4061,7 +4241,7 @@ than mint an untyped one (§10.3).
 
 A declared type that the resolved element does not carry is not a match. Where
 the selector is `key`, the upsert proceeds to create under that type; where it
-is `id`, the upsert cannot create (§53) and MUST fail existence-neutrally,
+is `id`, the upsert cannot create (§54.3) and MUST fail existence-neutrally,
 without reporting the type it found.
 
 ---
@@ -4363,6 +4543,63 @@ when a client attempts to update immutable Assertion belief history.
 
 ---
 
+## 58.3 Assignment and removal semantics
+
+`SET FIELDS`, `SET ATTRIBUTES` and `SET FACET` assign only the named keys in
+their respective planes. They use **shallow merge**: omitted keys retain their
+values, while a supplied key replaces its complete previous value. An array or
+object at that key is replaced as a whole; there is no implicit append, array
+union, or recursive object merge. These rules also apply to the corresponding
+clauses in CREATE and UPSERT (§54), subject to each kind's legal fields.
+
+For example, if a schema-defined attribute `settings` is
+`{theme: "dark", density: "compact"}`, then
+`SET ATTRIBUTES {settings: {theme: "light"}}` leaves `settings` equal to
+`{theme: "light"}`. A client preserving
+`density` must supply the complete new object. Read-modify-write of such values
+SHOULD use `EXPECT VERSION`, optionally guarding only the affected plane (§35).
+
+An explicit JSON `null` is an assigned value where the Schema permits it; it
+does not delete a key. `UNSET ATTRIBUTES {"key", ...}` and
+`UNSET FACET "Facet" {"key", ...}` remove the named keys. Removing an absent
+optional key has no effect. The resulting element MUST still satisfy its
+Schema: removing a required field or assigning a disallowed `null` fails the
+transaction. `SET/UNSET STRUCTURAL` use the reference semantics of §17.5,
+rather than object-assignment semantics.
+
+SET and UNSET MUST NOT bypass field mutability or protected-plane checks.
+Conflicting assignments/removals of the same key in one declarative plan follow
+§53.4; their meaning MUST NOT depend on which action appears last.
+
+---
+
+## 58.4 Bulk target and atomicity rules
+
+An UPDATE requires at least one SET or UNSET action. Its `WHERE` uses raw KQL
+matching and the binding/scope rules in §44; BELIEF and BELIEF SLOT projections
+are not mutation targets. Every distinct selected target is updated exactly
+once, even if joins or UNION produce several rows for it (§52.7). A variable
+target must resolve to a durable element for the selected row; an unbound
+optional result cannot be mutated. If no target matches, UPDATE creates
+nothing and has no effect.
+
+Target selection and expression evaluation use one pre-update view, including
+transaction-local writes already visible under §32.6. A write performed by
+this UPDATE MUST NOT change its own target set or the input of another
+assignment in the same UPDATE. Thus two assignments that read one counter both
+read its old value, regardless of action order.
+
+The statement is atomic: any Schema, mutability, authorization, reference or
+version-precondition failure aborts its transaction, rather than silently
+skipping an invalid target. The numeric-expression key-skip rule in §59 is a
+specific exception for absent/non-numeric input, not a general error-recovery
+mechanism. Where a result reports `matched` and `updated`, `matched` counts
+distinct selected targets after the cap, and `updated` counts those whose
+durable state actually changed. An unchanged target has no version increment
+(§35.5).
+
+---
+
 # 59. KML Update Expressions
 
 Mutable/profile numeric state MAY support deterministic expressions such as:
@@ -4375,6 +4612,39 @@ COALESCE
 ```
 
 Expressions MUST be deterministic per target.
+
+When these baseline functions are supported, their signatures and meanings
+are:
+
+| Function | Arguments | Result |
+|---|---|---|
+| `ADD(a, b)` | exactly 2 | `a + b`; a negative `b` subtracts |
+| `MUL(a, b)` | exactly 2 | `a × b` |
+| `CLAMP(x, lo, hi)` | exactly 3 | `min(max(x, lo), hi)`; `lo` MUST NOT exceed `hi` |
+| `COALESCE(x, fallback)` | exactly 2 | `fallback` if `x` is missing or `null`; otherwise `x` |
+
+Operands may be numeric literals, bound parameters, nested update expressions,
+or dot-notation paths on the UPDATE target itself. An expression MUST NOT read
+another query variable's state: several join rows must not offer competing
+values for one target. Use a target variable bound by an ID pattern when the
+expression needs to read the target's fields. All assignments read the same
+pre-update target state (§58.4), not values written by earlier SET actions.
+
+Missing paths resolve to `null`. For `ADD`, `MUL` and `CLAMP`, a missing,
+`null` or non-numeric operand yields a null expression result. `COALESCE`
+replaces only missing/null values; it does not coerce strings or booleans into
+numbers. If the final numeric-expression result is null or non-numeric, the
+runtime MUST skip that assigned key for that target, preserving its existing
+value or absence; other valid assignments still apply. This differs from a
+literal `null` assignment (§58.3).
+
+Wrong function arity, unsupported functions and invalid expression references
+are errors, not skipped keys. All supplied numeric values and evaluated numeric
+results MUST obey §9.3: overflow, a non-finite result, an unsafe integral result
+or nonzero underflow MUST fail the transaction rather than store a rounded
+counter or silently skip an update. Invalid CLAMP bounds likewise fail. Schema
+validation applies to the resulting state, including values produced by an
+expression.
 
 ---
 
@@ -4389,6 +4659,34 @@ memory_strength
 but SHOULD NOT periodically decay historical Assertion confidence merely because time passed.
 
 Temporal relevance belongs in Projection.
+
+With the Cognitive Memory Profile's `MnemonicState` Facet, a bounded cycle may
+use:
+
+```prolog
+UPDATE ?memory
+SET FACET "MnemonicState" {
+  memory_strength: CLAMP(
+    MUL(COALESCE(?memory.facets["MnemonicState"].memory_strength, 0.5), :decay_factor),
+    0, 1
+  ),
+  last_metabolized_at: :cycle_start
+}
+WHERE {
+  ?memory {type: "Experience"}
+  FILTER(IS_NULL(?memory.facets["MnemonicState"].last_metabolized_at) ||
+         ?memory.facets["MnemonicState"].last_metabolized_at < :cycle_start)
+}
+LIMIT :chunk_size
+```
+
+Bind a valid `:cycle_start` timestamp once for the entire cycle (§52.7), use a
+decay factor in `[0, 1]`, and repeat chunks until fewer than `:chunk_size`
+distinct targets are selected. The marker and strength change commit together.
+If concurrent workers can process the same shard, use serializable execution
+or appropriate concurrency guards; the marker does not replace transaction
+isolation. The marker is ordinary validated profile state, not `_system`
+metadata.
 
 ---
 
@@ -4507,6 +4805,12 @@ WHERE {
 ```
 
 Merge MUST follow the non-destructive identity semantics defined earlier.
+
+Each endpoint MUST resolve to exactly one visible Concept in the same Space. An empty endpoint selection fails `NotFoundOrNotVisible`; an ambiguous selection fails `IdentityMergeConflict` rather than merging an arbitrary pair. The endpoints must satisfy Schema identity compatibility (§20.14); matching display names or type strings alone is not sufficient. The operation requires `merge_identity` authority, not merely generic `update` (§28.5).
+
+The identity transition is atomic. Merging a Concept into itself has no effect. Repeating a completed merge to the same canonical target SHOULD return `no_effect` or an explicit already-merged diagnostic without a new durable change; a source already redirected to an incompatible target fails `IdentityMergeConflict`. Cycle prevention (§11.1) and identity-repair requirements (§11.5) still apply.
+
+The merge preserves source identity, raw Proposition/Assertion references, and history (§11). It does not implicitly shallow-merge attributes, union aliases, or collapse actors' Assertions. Any desired mutable-field consolidation must be stated separately in legal KML and satisfy its Schema and version preconditions. A result summary SHOULD identify the source, canonical target, and redirect/collision effects; it MUST NOT report v1-style destructive link rewriting or source deletion as native merge behavior.
 
 ---
 
@@ -4752,7 +5056,7 @@ Recommended syntax:
 SEARCH <KIND> :term
   [WITH TYPE :type]
   [WITH PREDICATE :predicate]
-  [MODE "keyword|semantic|hybrid"]
+  [MODE "keyword" | "semantic" | "hybrid" | :mode]
   [THRESHOLD :threshold]
   [AS OF SEQ :seq]
   [LIMIT :limit]
@@ -4762,6 +5066,8 @@ SEARCH <KIND> :term
 `AS OF SEQ` is historical search: a runtime that cannot serve a historically
 correct index MUST reject it (`HistoricalSearchUnavailable`) rather than
 silently search present state; it is a capability, not baseline.
+
+`WITH TYPE` filters by a resolved Schema type; `WITH PREDICATE` filters by a resolved Predicate. Symbol resolution follows the active Schema Environment (§20), including ambiguity errors. A modifier MUST be meaningful for the selected kind; an unsupported combination MUST be rejected rather than ignored. In particular, the v1 spelling `SEARCH PROPOSITION ... WITH TYPE "predicate"` is a compatibility-layer convention: native v2 uses `WITH PREDICATE` for that filter and MUST NOT silently reinterpret a type as a Predicate.
 
 ---
 
@@ -4788,9 +5094,11 @@ semantic
 hybrid
 ```
 
-Keyword SHOULD be portable baseline.
+`keyword` matches indexed grounding text. It is the portable baseline required by KIP-META conformance (§98). `semantic` retrieves by meaning; `hybrid` combines lexical and semantic retrieval. Embedding generation and ranking algorithms are implementation-defined; an Agent supplies text and need not supply embeddings.
 
-Semantic/hybrid are capability-dependent.
+Semantic/hybrid are capability-dependent (§67.4). An explicitly requested mode that the runtime does not support fails `SearchModeUnsupported`; an unavailable index fails `SearchIndexUnavailable`. Native v2 MUST NOT silently substitute keyword retrieval for an explicitly requested semantic/hybrid mode. A failed capability requirement in the request envelope still uses `UnsupportedCapability` (§67).
+
+If `MODE` is omitted, the runtime uses its documented default. It SHOULD disclose that default through META and MUST report the mode actually used in the search result/context. Clients requiring a particular mode name it explicitly; the v1 hybrid-when-available default and silent fallback are not implicit native v2 rules.
 
 ---
 
@@ -4806,6 +5114,14 @@ safe snippet
 retrieval.score
 retrieval.mode
 ```
+
+Concept grounding MUST include visible `name` and `aliases` text (§10.2); Schema-defined descriptions and other salient text SHOULD also be indexed, with the participating fields documented. Proposition grounding SHOULD include the Predicate's visible name/description. Search over other kinds MUST document its grounding fields. These fields assist discovery; none makes a display name an identity selector.
+
+`retrieval.score` is a transient normalized relevance value in `[0, 1]`, with higher values more relevant. It MUST NOT be persisted into the element, `_system`, a Facet, or Assertion confidence. A raw index score on a different scale must be normalized for this field; its normalization/ranking semantics SHOULD be disclosed (§66.5). Scores are not assumed comparable across queries, modes, or implementations.
+
+`THRESHOLD` accepts a number in `[0, 1]`, including when supplied as a parameter, and retains hits whose `retrieval.score >= threshold`. Results MUST be returned in descending score order, with threshold filtering before the `LIMIT` page cap. Equal-score ties MUST be resolved consistently within one cursor traversal so pagination neither skips nor repeats a hit. An omitted threshold imposes no additional score cutoff.
+
+Search permissions apply to candidates before visible ranking (§29.3, §88.5); hidden candidates MUST NOT influence disclosed scores, snippets, or order. A search miss is an empty hit collection, subject to the freshness limitation below.
 
 ---
 
@@ -5030,6 +5346,8 @@ without committing/reserving.
 
 Only a successful Transaction Receipt establishes a durable state change.
 
+The request option `options.dry_run: true` selects validation/preview behavior under this section. It MUST NOT establish a durable cognitive commit, reserve identities, or authorize a later commit. A runtime that cannot honor a dry run MUST reject it explicitly rather than execute the mutations. A later real execution revalidates current state, preconditions, and Governance.
+
 ---
 
 # 70. Protocol Runtime
@@ -5220,6 +5538,12 @@ FOR TIME :world_time
 ```
 
 Parameters are data, not code.
+
+The request-level `parameters` object supplies shared defaults. An operation's own `parameters` overrides those defaults by a key-by-key shallow merge: an omitted key inherits the shared value; a supplied key replaces the entire value, including an object, array, or explicit `null`. Parameter names are case-sensitive and are written without the leading `:` in either object. The resulting bindings belong to that operation; its local variables/handles and results do not automatically become parameters of later operations, even in `sequence` or `atomic` mode. Evidence references supplied by ingestion follow §71.1.
+
+A placeholder inside a quoted string is ordinary string content, not a substitution site: `"Hello :name"` remains that literal text. Parameters cannot inject a keyword, clause, variable name, or part of a string. They may supply a Schema symbol only in a grammar position that accepts a parameter, after which ordinary Schema resolution still applies.
+
+Every referenced parameter MUST be present in the effective bindings before that operation executes; absence is a `ReferenceError`, not an implicit `null`. Explicit `null` remains a value and is legal only where the receiving position permits it. Bound values MUST satisfy the same type, numeric range, reference, and Schema constraints as literal values at that position (§9); structural binding is not a way to bypass validation. Extra unused parameters MAY be ignored.
 
 ---
 
@@ -5447,6 +5771,26 @@ Recommended:
 ```
 
 `execution` echoes the request's `idempotency_key` when one was given, so a client holding an `outcome_unknown` response can recover by key (§80.4) without re-deriving it. In `sequence` and `independent` modes the Receipts sit in `results[].receipt` (§75); the top-level `receipt` is the atomic transaction's.
+
+## 81.1 Operation results and pagination
+
+The `results` array correlates operation outcomes with the submitted operations, preserving request order even when execution is `independent`. A supplied `op_id` is echoed on its result. The operation's `result` is the command payload; it is separate from that operation's `error`, `context`, `receipt`, and `next_cursor`. A successful collection read with no result items MUST return an empty collection rather than a missing result or a not-found error; aggregate-only queries still return their aggregate result (§44.6). An exact `DESCRIBE`/reference lookup can instead fail `NotFoundOrNotVisible` under its own contract.
+
+The response schema deliberately leaves `result` open. A transport binding MUST document its command result layouts; it SHOULD use the following distinctions:
+
+| Command family | Result content |
+| --- | --- |
+| `FIND` | Ordered projections of the solution set. A binding declares whether it encodes rows or columns, preserves `FIND` expression order, and preserves null cells for unbound optional/branch variables. Grouping and aggregate-only queries follow §44.6; a bare element variable projects its authorized element view, while `BELIEF` values use the Projection contract (§27). |
+| `DESCRIBE` | A single structured description of the requested subject, including resolved Schema identities where applicable (§65). |
+| `LIST`, `HISTORY`, `CHANGES` | A collection of items/records for the selected family, with its own context and continuation. Change Envelopes retain transaction boundaries (§36). |
+| `SEARCH` | A ranked collection of exact-identity hits carrying the retrieval information of §66. |
+| `EXPORT CAPSULE` | A Capsule artifact or its Artifact descriptor/handle (§63.4, §85), rather than a v1 `UPSERT` script. |
+| KML | A structured operation summary identifying affected elements/counts where useful; durable outcome is established by the appropriate Transaction Receipt, not by a success-shaped summary alone. |
+| `VERIFY`, `VALIDATE`, `PREVIEW` | Structured verification, validation, or predicted-effect information under §69; none is a commit Receipt. |
+
+KIP 1's single-expression unwrapping, columnar `FIND` layout, and command-specific mutation counters are compatibility binding choices, not implied by the native `results[]` envelope. A compatibility adapter MUST translate them explicitly rather than make a client guess from the number of expressions or operations.
+
+For a paginated operation, its `next_cursor` belongs in that operation's result envelope; its presence means more results may be available, and absence means the reported traversal has no continuation. It is an opaque family-specific continuation (§44.8, §87.7), not a row value or offset. A cursor cannot be reused for another operation family or for changed query parameters. A top-level cursor, where a binding uses one, MUST unambiguously identify the single traversal it continues; it cannot stand for several paginated operations at once.
 
 ---
 
@@ -6067,6 +6411,8 @@ Governance filtering
 BELIEF
 snapshot context
 ```
+
+Supporting the clause names alone is insufficient: conformance includes the solution-processing rules (§42.5), variable visibility and nested-block semantics (§42.4, §44.3–§44.5), null/empty-group behavior (§44.1–§44.6), and stable ordering/pagination (§44.7–§44.8). The corresponding KQL vectors exercise these boundaries as well as authorized visibility.
 
 Full profile adds:
 
