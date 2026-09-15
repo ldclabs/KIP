@@ -1,6 +1,7 @@
 packages:
   - 'packages/*'
-  - 'mcp/*'
+
+# v1/ contains frozen historical integrations outside the active workspace.
 
 # Approve (true) or deny (false) dependency build scripts. pnpm 11 requires an
 # explicit decision for every package that ships an install/build script;

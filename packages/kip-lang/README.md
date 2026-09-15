@@ -14,7 +14,7 @@ complete KIP conformance profile by itself: Schema resolution, Governance,
 transactions, persistence, projection, history, Capsules, and runtime
 envelopes remain engine responsibilities.
 
-The optional [Memory Interface](../../v2/KIP-2.0-Memory-Interface.md) sits above
+The optional [Memory Interface](../../KIP-2.0-Memory-Interface.md) sits above
 command text and adds no parser keywords or new exported runtime here. Its five
 Agent intents, processing receipts and capability bundles have separate wire
 schemas and contract tests; those tests do not implement a production Brain.
@@ -236,8 +236,8 @@ String-or-parameter operands stay `ScalarValue` nodes — `SearchStatement.term`
 
 KIP 2.0 is the cognitive state protocol between an agent and a persistent
 Cognitive Nexus: you read with KQL, change cognition with KML, and ground or
-introspect with META. See the [KIP 2.0 Specification](https://github.com/ldclabs/KIP/blob/main/v2/KIP-2.0-SPECIFICATION.md)
-for full syntax details, or the [syntax card](https://github.com/ldclabs/KIP/blob/main/v2/KIPSyntax.md) for a
+introspect with META. See the [KIP 2.0 Specification](https://github.com/ldclabs/KIP/blob/main/SPECIFICATION.md)
+for full syntax details, or the [syntax card](https://github.com/ldclabs/KIP/blob/main/KIPSyntax.md) for a
 condensed reference.
 
 ## License

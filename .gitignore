@@ -12,6 +12,6 @@ node_modules
 dist
 *.vsix
 
-# Formal-verification output: run.sh writes Alloy/TLC results under v2/formal/.out
+# Formal-verification output: run.sh writes Alloy/TLC results under formal/.out
 .out/
 __pycache__/

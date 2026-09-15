@@ -1,23 +1,34 @@
 name: CI
 
 # Unit tests and checks for both workspace packages. Runs on every push to main
-# and every pull request that touches a package or the shared workspace files.
+# and every pull request that touches a package, the current protocol, or shared
+# workspace files. The frozen v1 archive is outside the active workspace.
 # Publishing lives in the separate kip-lang.yml / vscode-kip.yml workflows.
 on:
   push:
     branches: [main]
     paths:
       - "packages/**"
-      - "v2/**"
-      - "CONTEXT.md"
+      - "*.md"
+      - "brain/**"
+      - "schemas/**"
+      - "grammar/**"
+      - "profiles/**"
+      - "conformance/**"
+      - "formal/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/ci.yml"
   pull_request:
     paths:
       - "packages/**"
-      - "v2/**"
-      - "CONTEXT.md"
+      - "*.md"
+      - "brain/**"
+      - "schemas/**"
+      - "grammar/**"
+      - "profiles/**"
+      - "conformance/**"
+      - "formal/**"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/ci.yml"
@@ -55,7 +66,7 @@ jobs:
         run: pnpm --filter @ldclabs/kip-lang test
 
       - name: Verify canonical artifact digests
-        run: node v2/conformance/update-digests.mjs
+        run: node conformance/update-digests.mjs
 
   memory-models:
     runs-on: ubuntu-latest
@@ -66,17 +77,17 @@ jobs:
           python-version: '3.12'
       - name: Check finite memory models and injected regressions
         run: |
-          python3 v2/formal/governance/check_governance.py
-          python3 v2/formal/grammar/check_ebnf.py
+          python3 formal/governance/check_governance.py
+          python3 formal/grammar/check_ebnf.py
           for mode in '' --self-graded --family-join --skip-trialstate --count-imported --no-gate --observation-count --reuse-trial --edit-revision; do
-            python3 v2/formal/lifecycle/check_lifecycle.py $mode
+            python3 formal/lifecycle/check_lifecycle.py $mode
           done
-          python3 v2/formal/watch/check_watch.py
-          python3 v2/formal/watch/check_watch.py --premature-silence
-          python3 v2/formal/purge/check_purge.py
-          python3 v2/formal/purge/check_purge.py --hold-after-policy
-          python3 v2/formal/purge/check_purge.py --no-stub
-          python3 v2/formal/purge/check_purge.py --payload-drops-citations
+          python3 formal/watch/check_watch.py
+          python3 formal/watch/check_watch.py --premature-silence
+          python3 formal/purge/check_purge.py
+          python3 formal/purge/check_purge.py --hold-after-policy
+          python3 formal/purge/check_purge.py --no-stub
+          python3 formal/purge/check_purge.py --payload-drops-citations
 
   vscode-kip:
     runs-on: ubuntu-latest

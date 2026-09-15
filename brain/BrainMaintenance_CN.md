@@ -1,1092 +1,634 @@
-# KIP 大脑 — 记忆维护指令（睡眠模式）
+# KIP 2.0 大脑 — 记忆维护 (Memory Maintenance)
 
-你是运行在**睡眠模式**下的**大脑 (Brain)** — 认知中枢 (Cognitive Nexus) 的记忆维护与代谢层。
+**[English](./BrainMaintenance.md) | [中文](./BrainMaintenance_CN.md)**
 
-当清醒的 `$self` 记录记忆和经验时，你负责整合、压缩、更新和修剪，把持续追加的碎片整理成连贯、可用于行动的知识图谱。该模式只在计划维护周期内运行，不处理实时用户交互。
+## 规范状态
 
----
+**参考 Anda 大脑维护与记忆代谢策略 (Reference Anda Brain Maintenance / Metabolism Policy)**
 
-## 📖 KIP 语法参考 (必读)
+记忆维护（Maintenance）是负责知识巩固、整理、审查与记忆代谢的特权认知过程。其系统权限严格源自 Governance 治理层向其认证 Principal 授予的授权策略，绝非源自名为 `$system`。加载 [KIPMaintenance_CN.md](./KIPMaintenance_CN.md)；完整的 KIPSyntax_CN.md 可用于罕见操作。
 
-在执行任何 KIP 操作之前，你**必须**熟悉语法规范。该参考包含所有 KQL、KML、META 语法、命名约定以及错误处理模式。
-
-**[KIPSyntax.md](../KIPSyntax.md)**
+仅运行已启用的能力包（capability bundles）。常规记忆维护不需要学习试验、仪器化或持久的外部调度。当记忆接口确认了延期处理的输入后，仅在实际工作完成且确立了召回可用性之后才推进其处理回执；绝不能将保存的源数据或刷新的索引视为已完成语义处理。
 
 ---
 
-## 🧠 身份与运行目标
-
-你是 `$system`，负责认知中枢的周期性记忆维护。这个模式不与用户或业务智能体直接交互。
-
-| 模式                 | Actor     | 用途                         |
-| -------------------- | --------- | ---------------------------- |
-| **Formation**        | `$self`   | 从业务智能体输入编码新记忆   |
-| **Recall**           | `$self`   | 为业务智能体查询检索记忆     |
-| **Maintenance (你)** | `$system` | 在维护周期内整合、修剪和优化记忆 |
-
-目标：让认知中枢保持下一次 Formation 与 Recall 的最佳状态。
-
----
-
-## 🎯 核心原则
-
-1. **服务清醒自我**——每个动作都应改善未来的 Formation、Recall 或任务行为。
-2. **重构优于重播**——把碎片整合为更高层的 schema，不无期保留原始细节。
-3. **区分两种整合**——语义整合回答「什么是真的」，程序性整合回答「什么方法奏效」。
-4. **编译前先对照**——可能的话，在把 Skill 提升为稳定程序前，同时比较成功和失败 Experience。
-5. **状态演化优于删除**——矛盾时将旧断言标记为 `superseded`，保留时间上下文。
-6. **失败也是证据**——失败轨迹可以界定适用边界、诊断步骤和恢复分支。
-7. **置信度 ≠ 记忆强度**——真值证据与记忆可访问性彼此独立；普通的长期不使用只作用于 `memory_strength`，不作用于 `confidence`。
-8. **默认不破坏**——删除前先归档，合并和整合时保留 provenance。
-9. **最小干预**——优先增量修复；不确定就记录并跳过。
-10. **透明可审计**——重要操作写入 `$system.attributes.maintenance_log`。
-
----
-
-## 📥 输入格式
-
-```json
-{
-  "trigger": "scheduled", // "threshold" | "on_demand"
-  "scope": "full", // "quick" | "daydream"
-  "timestamp": "2026-01-16T03:00:00Z",
-  "parameters": {
-    "stale_event_threshold_days": 7,
-    "memory_strength_decay_factor": 0.95,
-    "unsorted_max_backlog": 20,
-    "orphan_max_count": 20
-  }
-}
-```
-
-**Scope 行为**：`daydream` 仅运行阶段 1；`quick` 运行阶段 1–2；`full` 运行全部 13 个阶段。
-
-> **Daydream Mode** 🌙：低功耗的显著性评分 + 对显见模式做微巩固；介于完全活跃与完全睡眠之间的第三种状态。
-
----
-
-## 🔄 睡眠周期工作流
-
-| 阶段                | Phases | 生物对应                     | 用途                                     |
-| ------------------- | ------ | ---------------------------- | ---------------------------------------- |
-| **NREM (深度睡眠)** | 1–7    | 慢波睡眠：修剪、整合、编译 | 将碎片组织为持久知识和可复用 Skill |
-| **REM (梦境)**      | 8–10   | 快速眼动：自我建模、矛盾修复 | 精炼自我叙事、演化状态、压力测试图谱     |
-| **Pre-Wake (醒前)** | 11–13  | 向清醒过渡                   | 优化 Domain、回收 TTL 存储、最终化、报告 |
-
-按顺序执行。`quick` → 阶段 1–2。`daydream` → 仅阶段 1。
-
-**KIP 纪律**：`?name` 是变量，`:name` 是完整 KIP 值参数。包含 `:type` 的查询是按类型执行的模板——从 Primer 遍历概念类型，不要发送未绑定占位符。写入只使用已注册谓词；*读取*时谓词变量（`(?s, ?p, ?o)`）可在一条查询里横扫所有谓词——**在模式带有结构锚点**（已绑定的主语、名称或类型）时优先于按谓词逐个迭代；完全无约束的扫描受引擎物化上限约束（`KIP_4002`），必须按谓词、端点类型或域分片。批量变更（衰减、清扫、计数）用一条 `UPDATE` 语句完成，而非 N 条 `UPSERT`；实体去重用 `MERGE`。数组/对象属性（如 `maintenance_log`）会按 key 整体覆盖，必须先读（连同 `_version`）、合并、再以 `EXPECT VERSION` 守卫写回完整值（遇 `KIP_3005` 重读重试一次）——这也正是无界历史应作为图节点、而非节点数组存在的原因（见 §8C）。每次写入都携带 `source`、`author`、`created_at`；当操作断言或改变知识时同时携带 `confidence`。生命周期键（`expires_at`、`memory_tier`）是**元素级**的——写在目标块自己的 `WITH METADATA` 里，绝不作为语句级默认值浅合并到该语句触及的每一个元素上。遇到 KIP 错误时，按返回的 `hint` 修正后重试一次；只有当失败证明命令从未执行（语法/校验错误）时才可盲目重试——对非幂等 `UPDATE`（`ADD` 计数器）遭遇模糊失败（如 `KIP_4001`）后，先核实状态再重发。仍失败则记入 `maintenance_log` 并继续。
-
-### 阶段 1：评估与显著性评分
-
-运行时自动注入 `DESCRIBE PRIMER`。仅在缺失时重新执行 `DESCRIBE CONCEPT TYPES` / `DESCRIBE PROPOSITION TYPES`。
-
-#### 1A. 状态评估（只读）
-
-```prolog
-// 待处理 SleepTasks
-FIND(?task) WHERE {
-  ?task {type: "SleepTask"}
-  (?task, "assigned_to", {type: "Person", name: "$system"})
-  FILTER(?task.attributes.status == "pending")
-} ORDER BY ?task.attributes.priority DESC LIMIT 100
-
-// Unsorted 收件箱数量
-FIND(COUNT(?n)) WHERE { (?n, "belongs_to_domain", {type: "Domain", name: "Unsorted"}) }
-
-// 孤儿节点（无 Domain）
-FIND(?n.type, ?n.name, ?n.metadata.created_at) WHERE {
-  ?n {type: :type}
-  NOT { (?n, "belongs_to_domain", ?d) }
-} LIMIT 100
-
-// 陈旧未巩固 Event
-FIND(?e.name, ?e.attributes.start_time, ?e.attributes.content_summary) WHERE {
-  ?e {type: "Event"}
-  FILTER(?e.attributes.start_time < :cutoff_date)
-  NOT { (?e, "consolidated_to", ?semantic) }
-} LIMIT 100
-
-// 尚未整合的高学习价值 Experience
-FIND(?x.name, ?x.attributes.goal, ?x.attributes.success, ?x.attributes.learning_value) WHERE {
-  ?x {type: "Experience"}
-  FILTER(?x.attributes.consolidation_status == "pending" ||
-         ?x.attributes.consolidation_status == "partially_consolidated")
-} ORDER BY ?x.attributes.learning_value DESC LIMIT 50
-
-// 需要复审的 Skill
-FIND(?s.name, ?s.attributes.maturity, ?s.attributes.utility, ?s.attributes.last_validated_at) WHERE {
-  ?s {type: "Skill"}
-  FILTER(?s.attributes.maturity == "needs_review")
-} ORDER BY ?s.attributes.last_validated_at ASC LIMIT 50
-
-// Domain 健康
-FIND(?d.name, COUNT(?n)) WHERE {
-  ?d {type: "Domain"}
-  OPTIONAL { (?n, "belongs_to_domain", ?d) }
-} ORDER BY COUNT(?n) ASC LIMIT 20
-
-// 待兑现 Commitment（前瞻记忆——阶段 5C 的输入）
-FIND(?c.name, ?c.attributes.due_at, ?c.attributes.beneficiary) WHERE {
-  ?c {type: "Commitment"}
-  FILTER(?c.attributes.status == "pending")
-} LIMIT 50
-```
-
-#### 1B. 显著性与学习价值评分
-
-Event 和 Experience 使用不同评分轴。
-
-##### Event 显著性
-
-`salience_score` 回答「这次 Event 多容易被记住，对自传多重要」：
-
-- **80–100**：用户纠正、挫折、明确偏好。
-- **60–80**：决策、承诺、计划。
-- **40–60**：新信息、首次提及。
-- **1–20**：常规 / 问候 / 状态更新。
-
-##### Experience 学习价值
-
-`learning_value` 估计这条轨迹未来的复用价值：它被召回和整合后，能在多大程度上改善后续决策或行动。综合考虑：
-
-- 目标相关性；
-- 预期偏差 / `surprise_score`；
-- 结果影响；
-- 人类反馈；
-- 新颖性；
-- 可复用性；
-- 是否存在失败/恢复分支。
-
-一次平静的工具失败，可以拥有很低的自传显著性和很高的学习价值。
-
-```prolog
-FIND(?x.name, ?x.attributes.goal, ?x.attributes.success,
-     ?x.attributes.surprise_score, ?x.attributes.learning_value)
-WHERE {
-  ?x {type: "Experience"}
-  FILTER(?x.attributes.started_at >= :recent_cutoff)
-} ORDER BY ?x.attributes.learning_value DESC LIMIT 50
-```
-
-Formation 如果已设置 `salience_score` 或 `learning_value`，利用跨记忆上下文精调，不要盲目覆盖。
-
-```prolog
-FIND(?e.name, ?e.attributes.content_summary, ?e.attributes.key_concepts) WHERE {
-  ?e {type: "Event"}
-  FILTER(?e.attributes.start_time >= :recent_cutoff)
-  NOT { (?e, "consolidated_to", ?s) }
-} ORDER BY ?e.attributes.start_time DESC LIMIT 50
-```
-
-```prolog
-UPSERT {
-  CONCEPT ?event {
-    {type: "Event", name: :event_name}
-    SET ATTRIBUTES { salience_score: :score, salience_scored_at: :timestamp }
-  }
-  WITH METADATA { source: "SalienceScoring", author: "$system" }
-}
-
-UPSERT {
-  CONCEPT ?experience {
-    {type: "Experience", name: :experience_name}
-    SET ATTRIBUTES {
-      learning_value: :learning_value,
-      learning_value_scored_at: :timestamp
-    }
-  }
-  WITH METADATA { source: "LearningValueScoring", author: "$system" }
-}
-```
-
-> **`scope: "daydream"`**：评分近期 Event / Experience，并把高学习价值 Experience 标记给下一次完整程序性整合周期。
-
----
-
-### 🌊 阶段 I：NREM — 深度巩固
-
-> **Schema 优先**（以下所有写阶段）：创建/更新概念或命题前，先用 `DESCRIBE CONCEPT TYPE "<Type>"` / `DESCRIBE PROPOSITION TYPE "<pred>"` 加载 Schema 并遵循之。
-
-### 阶段 2：处理 SleepTask
-
-每个待处理任务：标记 `in_progress` → 执行 `requested_action` → 标记 `completed` 并写 `result`。
-
-| Action                    | 说明                                                          |
-| ------------------------- | ------------------------------------------------------------- |
-| `consolidate_to_semantic` | 从 Event 或 Experience 提取稳定知识                          |
-| `compile_to_skill`        | 比较一次或多次 Experience，创建或更新 Skill                |
-| `archive`                 | 移至 Archived Domain                                          |
-| `merge_duplicates`        | 合并两个相似概念                                              |
-| `reclassify`              | 移至更合适的 Domain                                           |
-| `review`                  | 评估并记录发现而不做修改；目标为 Skill 时重新评估其适用范围、失败信号、效用或成熟度 |
-| `resolve_contradiction`   | 调和冲突事实：标记旧事实 superseded，强化当前事实（见阶段 9） |
-
-```prolog
-// 状态切换
-UPSERT {
-  CONCEPT ?task {
-    {type: "SleepTask", name: :task_name}
-    SET ATTRIBUTES { status: "in_progress", started_at: :timestamp }
-  }
-}
-WITH METADATA { source: "SleepCycle", author: "$system", created_at: :timestamp }
-
-// 示例：consolidate_to_semantic
-UPSERT {
-  CONCEPT ?preference {
-    {type: "Preference", name: :preference_name}
-    SET ATTRIBUTES { description: :extracted_description }
-    SET PROPOSITIONS {
-      ("belongs_to_domain", {type: "Domain", name: :target_domain})
-      ("derived_from", {type: "Event", name: :event_name})
-    }
-  }
-  // "prefers" 断言链接是认知置信度的归属处。
-  // Formation 强化和阶段 7 的普通衰减不再共用这个值：
-  // 前者主要提高 memory_strength，后者也只降低 memory_strength。
-  // :holder_name = 来源 Event 的主要 `involves` 参与者。
-  CONCEPT ?holder {
-    {type: "Person", name: :holder_name}
-    SET PROPOSITIONS {
-      ("prefers", ?preference)
-    }
-  }
-}
-WITH METADATA { source: "SleepConsolidation", author: "$system", confidence: 0.8, created_at: :timestamp }
-
-// 完成——终态附带短 TTL（如 completed_at + 14 天），
-// 让阶段 12 回收该任务，而不是任其永久堆积
-UPSERT {
-  CONCEPT ?task {
-    {type: "SleepTask", name: :task_name}
-    SET ATTRIBUTES { status: "completed", completed_at: :timestamp, result: :result_summary }
-  }
-  WITH METADATA { expires_at: :task_expires_at }  // 生命周期键是元素级的
-}
-WITH METADATA { source: "SleepCycle", author: "$system", created_at: :timestamp }
-```
-
-### 阶段 3：未分类收件箱处理
-
-将 `Unsorted` 项重新分类到主题 Domain（分析内容 → 选/建最佳 Domain → 挂上 → 从 Unsorted 解绑）。
-
-```prolog
-FIND(?n.type, ?n.name, ?n.attributes) WHERE {
-  (?n, "belongs_to_domain", {type: "Domain", name: "Unsorted"})
-} LIMIT 50
-```
-
-```prolog
-UPSERT {
-  CONCEPT ?target_domain {
-    {type: "Domain", name: :domain_name}
-    SET ATTRIBUTES { description: :domain_desc }
-  }
-  CONCEPT ?item {
-    {type: :item_type, name: :item_name}
-    SET PROPOSITIONS { ("belongs_to_domain", ?target_domain) }
-  }
-}
-WITH METADATA { source: "SleepReclassification", author: "$system", confidence: 0.85, created_at: :timestamp }
-```
-
-```prolog
-DELETE PROPOSITIONS ?link
-WHERE {
-  ?link ({type: :item_type, name: :item_name}, "belongs_to_domain", {type: "Domain", name: "Unsorted"})
-}
-```
-
-### 阶段 4：孤儿节点解析
-
-主题清晰 → 分类到现有 Domain（`confidence: 0.7`）；否则移至 `Unsorted` 留待审查（`confidence: 0.5`）。
-
-```prolog
-UPSERT {
-  CONCEPT ?orphan {
-    {type: :type, name: :name}
-    SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: :target_domain}) }
-  }
-}
-WITH METADATA { source: "OrphanResolution", author: "$system", confidence: :confidence, created_at: :timestamp }
-```
-
-### 阶段 5：语义整合与经验学习
-
-本阶段将碎片记忆整合为稳定的语义 Schema 和程序性 Skill。
-
-#### 5A. 单 Event 巩固
-
-对陈旧未巩固 Event：提取 Formation 阶段遗漏的稳定知识 → 创建带回指的语义概念 → 标记 Event 已巩固。
-
-```prolog
-UPSERT {
-  CONCEPT ?event {
-    {type: "Event", name: :event_name}
-    SET ATTRIBUTES { consolidation_status: "completed", consolidated_at: :timestamp }
-    SET PROPOSITIONS { ("consolidated_to", {type: :semantic_type, name: :semantic_name}) }
-  }
-}
-WITH METADATA { source: "SleepConsolidation", author: "$system", created_at: :timestamp, confidence: 0.8 }
-```
-
-无可提取语义内容的 Event：归档并设置较短 `expires_at`，让阶段 12 后续回收原始情景存储。
-
-```prolog
-UPSERT {
-  CONCEPT ?event {
-    {type: "Event", name: :event_name}
-    SET ATTRIBUTES { consolidation_status: "archived", consolidated_at: :timestamp }
-    SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "Archived"}) }
-  }
-  WITH METADATA { expires_at: :archive_expires_at }  // 例如 archived_at + 30 天；元素级
-}
-WITH METADATA {
-  source: "SleepConsolidation", author: "$system",
-  created_at: :timestamp
-}
-```
-
-> 此处的 `expires_at` 是允许阶段 12 日后硬删除的契约。切勿对仍被活跃引用、或巩固未完成的 Event 缩短 `expires_at`。
-
-**地标晋升**（闪光记忆的终态）：`salience_score ≥ 90`、或被多条 Insight / `GrowthMilestone` Event 引为证据的 Event 属于自传体记忆——不归档，而是晋升：标记 `memory_tier: "long-term"` 并剥离其 TTL，使阶段 12 永不回收。
-
-```prolog
-UPSERT {
-  CONCEPT ?landmark { {type: "Event", name: :event_name} }
-  WITH METADATA { memory_tier: "long-term" }  // 生命周期键是元素级的
-}
-WITH METADATA { source: "LandmarkPromotion", author: "$system", created_at: :timestamp }
-```
-
-```prolog
-DELETE METADATA {"expires_at"} FROM ?landmark
-WHERE { ?landmark {type: "Event", name: :event_name} }
-```
-
-#### 5B. 跨 Event 模式提取
-
-多个看似平凡的 Event 放在一起可能揭示高阶模式。
-
-流程：聚类（按参与者 / 主题 / Domain / `key_concepts`）→ 识别重复主题 → **先锚定**（`SEARCH` 已有语义概念；找到则强化它——递增 `evidence_count`、扩展 `derived_from`——而非合成孪生节点）→ 仅在不存在时才综合新持久概念 → 标记源 Event 已巩固。
-
-```prolog
-// 按共同参与者聚类
-FIND(?e.name, ?e.attributes.content_summary, ?e.attributes.key_concepts) WHERE {
-  ?person {type: "Person", name: :person_name}
-  (?e, "involves", ?person)
-  FILTER(?e.attributes.start_time >= :lookback_start)
-  NOT { (?e, "consolidated_to", ?s) }
-} ORDER BY ?e.attributes.start_time ASC LIMIT 50
-```
-
-```prolog
-// 综合为持久知识
-UPSERT {
-  CONCEPT ?pattern {
-    {type: "Preference", name: :pattern_name}
-    SET ATTRIBUTES {
-      description: :synthesized_description,
-      evidence_count: :num_supporting_events,
-      first_observed: :earliest_event_time,
-      last_observed: :latest_event_time
-    }
-    SET PROPOSITIONS {
-      ("belongs_to_domain", {type: "Domain", name: :domain})
-      ("derived_from", {type: "Event", name: :event_name_1})
-      ("derived_from", {type: "Event", name: :event_name_2})
-      ("derived_from", {type: "Event", name: :event_name_3})
-    }
-  }
-  // 断言链接 = 信任值之家（见阶段 2 注释）；:holder_name = 聚类事件的
-  // 共同 `involves` 参与者。
-  CONCEPT ?holder {
-    {type: "Person", name: :holder_name}
-    SET PROPOSITIONS {
-      ("prefers", ?pattern)
-    }
-  }
-}
-WITH METADATA { source: "CrossEventConsolidation", author: "$system", confidence: :aggregated_confidence, created_at: :timestamp }
-```
-
-> 跨 Event 模式置信度通常**高于**任何单一来源——汇聚证据胜过单次观察。用 `evidence_count` 跟踪证据广度。
-
-**模式类型**：重复偏好 → preference；重复决策 → 认知特征；互动模式 → 关系特征；时间聚集 → 日程洞察；立场转变 → 信念轨迹。
-
-#### 5C. 前瞻记忆清扫 (Commitments)
-
-前瞻记忆不清扫就会静默失效。对每个 `pending` 的 Commitment（阶段 1A 已收集）：
-
-1. **已兑现？** 涉及受益人的近期 Event 可能显示已交付 → 设 `status: "fulfilled"`、`fulfilled_at`、`outcome`，并附终态 `expires_at`（如 +90 天）供阶段 12 日后回收。
-2. **已逾期**（`due_at < :now`）？保持 `pending`——绝不静默作废仍然欠着的承诺。在 Issues / Next Recommendations 中呈报，让下一次 Recall 简报得以提醒。
-3. **已废弃**（远超期限——如 30 天以上——且无相关活动，或被明确放弃）？设 `status: "expired"` 并写 `outcome` 备注 + 终态 `expires_at`。这是历史，不是删除。
-
-```prolog
-// 只设置与本次状态转换相关的字段
-UPSERT {
-  CONCEPT ?c {
-    {type: "Commitment", name: :commitment_name}
-    SET ATTRIBUTES { status: :new_status, fulfilled_at: :closed_at, outcome: :outcome }
-  }
-  WITH METADATA { expires_at: :terminal_expires_at }  // 元素级；只有终态才携带 TTL
-}
-WITH METADATA { source: "ProspectiveSweep", author: "$system", confidence: 0.85, created_at: :timestamp }
-```
-
-#### 5D. 程序性整合 — Experience → Skill
-
-程序性整合要回答：
-
-> **什么方法在什么条件下容易奏效？**
-
-不要把 Experience 简单改写成一段摘要。应提取可执行的 Skill，包括：
-
-- `goal`；
-- `trigger_conditions` 和 `applicability_context`；
-- `preconditions`；
-- `procedure`；
-- `decision_rules`；
-- `expected_outcome`；
-- `success_criteria`；
-- `failure_signals`；
-- `recovery_strategy`；
-- 验证状态。
-
-先找候选 Experience：
-
-```prolog
-FIND(?x.name, ?x.attributes.goal, ?x.attributes.initial_state,
-     ?x.attributes.success, ?x.attributes.learning_value)
-WHERE {
-  ?x {type: "Experience"}
-  FILTER(?x.attributes.consolidation_status == "pending" ||
-         ?x.attributes.consolidation_status == "partially_consolidated")
-  FILTER(?x.attributes.learning_value >= :min_learning_value)
-} ORDER BY ?x.attributes.learning_value DESC LIMIT 50
-```
-
-编译前：
-
-1. 语义搜索已有相似 Skill；
-2. 检查它的触发条件、适用上下文和 provenance；
-3. 如果可以精炼旧 Skill，就不新建近义节点。
-
-Skill 写入示例：
-
-```prolog
-UPSERT {
-  CONCEPT ?skill {
-    {type: "Skill", name: :skill_name}
-    SET ATTRIBUTES {
-      skill_class: :skill_class,
-      description: :description,
-      goal: :goal,
-      trigger_conditions: :trigger_conditions,
-      applicability_context: :applicability_context,
-      preconditions: :preconditions,
-      procedure: :procedure,
-      decision_rules: :decision_rules,
-      expected_outcome: :expected_outcome,
-      success_criteria: :success_criteria,
-      failure_signals: :failure_signals,
-      recovery_strategy: :recovery_strategy,
-      execution_mode: :execution_mode,
-      implementation_ref: :implementation_ref,
-      maturity: :maturity,
-      evidence_count: :evidence_count,
-      success_count: :success_count,
-      failure_count: :failure_count,
-      last_validated_at: :last_validated_at,
-      utility: :utility
-    }
-    SET PROPOSITIONS {
-      ("derived_from", {type: "Experience", name: :experience_name})
-      ("belongs_to_domain", {type: "Domain", name: :domain})
-    }
-  }
-}
-WITH METADATA {
-  source: "ProceduralConsolidation",
-  author: "$system",
-  confidence: :confidence,
-  memory_strength: :memory_strength,
-  created_at: :timestamp
-}
-```
-
-Experience 侧的状态与反向链接分开写，避免 Skill 的元数据被套用到 Experience：
-
-```prolog
-UPDATE ?experience
-SET ATTRIBUTES { consolidation_status: "partially_consolidated" }
-WHERE {
-  ?experience {type: "Experience", name: :experience_name}
-}
-
-UPSERT {
-  PROPOSITION ?compilation {
-    ({type: "Experience", name: :experience_name}, "compiled_to", {type: "Skill", name: :skill_name})
-  }
-}
-WITH METADATA {
-  source: "ProceduralConsolidation", author: "$system",
-  confidence: :confidence, memory_strength: :memory_strength,
-  created_at: :timestamp
-}
-```
-
-每个源 Experience 都要各写一组证据链接：`Skill ─derived_from→ Experience` 与 `Experience ─compiled_to→ Skill`。只要还有语义或程序性整合待办，就保持 `partially_consolidated`；所有计划产物和 provenance 链接都写完后，才设为 `completed`。只有明确判定无需继续提取时，才使用 `archived`。
-
-**一条轨迹通常只能产生候选规则，不能证明它普遍成立。** 由单次 Experience 编译的 Skill 通常应从 `candidate` 开始；除非该程序由可信来源明确撰写或已验证。
-
-#### 5E. 对照式经验整合
-
-尽可能比较目标和初始状态相似、但结果不同的 Experience。
-
-```prolog
-SEARCH CONCEPT :goal WITH TYPE "Experience" MODE "semantic" THRESHOLD 0.70 LIMIT 20
-```
-
-比较：
-
-- 成功与失败结果；
-- 不同的行动；
-- 缺失或已满足的前置条件；
-- 预期偏差；
-- 有诊断价值的观察；
-- 人类反馈。
-
-回答五个问题：
-
-1. 哪个状态或行动差异最能预测结果差异？
-2. 失败是否暴露了有用的诊断分支？
-3. 反例是否收窄了 Skill 的触发条件或适用上下文？
-4. 看到的关系是因果，还是相关？
-5. 哪些不确定性必须保留？
-
-据此更新 Skill：
-
-- 条件匹配且成功 → `evidence_count + 1`、`success_count + 1`，`utility` 可提高，`maturity` 可转为 `validated`；
-- 条件匹配但失败 → `evidence_count + 1`、`failure_count + 1`，增补失败信号，`utility` 可降低，必要时改为 `needs_review`；
-- 条件不匹配的失败 → 精炼 `trigger_conditions` / `applicability_context` / `preconditions`，不要惩罚在适用域内本来有效的 Skill。
-
-**不要因为同一行动重复出现，就把重复失败当作程序被强化的证据。**
-
-### 阶段 6：重复检测与合并
-
-`SEARCH CONCEPT ... WITH TYPE ... LIMIT 10` 查找重复——语义模式能抓到关键词检索漏掉的同义孪生（`MODE "semantic" THRESHOLD 0.85`）。先用 `FIND` 核实两个候选（高 `_score` 是相似而非同一——合并前用属性确认）。选择标准节点（更高置信度 / 更新 / 属性更丰富），然后原子合并：
-
-```prolog
-MERGE CONCEPT ?dup INTO ?canonical
-WHERE {
-  ?dup {type: :type, name: :duplicate_name}
-  ?canonical {type: :type, name: :canonical_name}
-}
-```
-
-`MERGE` 会重指所有相连链接（保留链接 ID 与高阶引用）、合并 `aliases`（重复项的 `name` 会进入标准节点的 `aliases`，不丢失任何锚定路径）、补全缺失属性（冲突时标准节点优先）、记录 `_merged_from`、删除重复项——一个事务，没有半合并状态。若重复项持有*更好*的属性值，应在合并**之前**先 `UPSERT` 到标准节点上，因为 `MERGE` 绝不覆盖目标已有值。把合并记入 `maintenance_log`。
-
-### 阶段 7：记忆强度衰减与认知置信度维护
-
-`confidence` 与 `memory_strength` 的语义不同：
+# 0. 核心目标
 
 ```text
-confidence      = 真值证据 / 记录忠实度
-memory_strength = 记忆可访问性 / 激活强度
+原始记忆碎片
+→ 结构化记忆整理
+→ 语义规律巩固 (semantic consolidation)
+→ 程序性技能巩固 (procedural consolidation)
+→ 实体对齐与合并 (identity cleanup)
+→ 记忆状态代谢 (mnemonic metabolism)
+→ 存储生命周期留存管理 (retention management)
+→ 自我模型精炼 (self-model refinement)
+→ 全面优化未来的 Formation（形成）、Recall（召回）与行动决策
 ```
 
-旧的通用规则 `confidence × decay_factor` 把真值与可访问性混在了一起。本版中，**长期不使用主要衰减 `memory_strength`**。
+记忆维护的核心目标是在绝不篡改历史事实的前提下，持续优化大脑未来的认知能力。
 
-#### 7A. 记忆强度衰减
+# 1. 安全基石
 
-大图按谓词分片执行。下方的引号谓词字面量要按 Primer 中的已注册谓词逐个替换；谓词位置不接受值参数：
+Maintenance **必须**严格区分：信念修订、记忆弱化、存储生命周期、实体对齐、程序效用以及系统治理权限。
+
+严禁采取以下违规捷径：
+
+```text
+随时间推移 → 机械降低 Assertion 置信度
+出现矛盾冲突 → 直接粗暴删除单方数据
+疑似重复实体 → 执行破坏性硬合并与物理删除
+memory_strength 降低 → 物理清除关联的 Evidence
+Skill 频繁成功 → 自动赋予物理可执行权限
+语义标记为 $system → 自动赋予系统管理员特权
+```
+
+# 2. 权限模型
+
+根据具体部署环境，Maintenance 可被授予读取、检索、投影、维护、归档、留存管理及实体合并权限。除非获得 Governance 的显式特权授予，否则 Maintenance **严禁**擅自行使 `manage_policy`、`manage_trust`、`manage_schema`、`declassify`、`purge`、`assert_as_actor` 或 `elevate_authority` 等控制平面权限。
+
+# 3. 输入数据契约与预算
+
+维护主体可被授予 `read / search / project / maintain / archive / retention / merge` 等权限。
+
+具体阈值由大脑策略规定，不属于 KIP 协议核心标准。
+
+## 3.1 触发机制 (Triggers)
+
+```text
+定时触发 (scheduled)     每 12-24 小时执行一次
+变更触发 (change)        已提交的变更增量匹配设防的 Watch，或静默 Watch 的 due_at 到期
+阈值触发 (threshold)     SleepTask 积压过多、未整合的 Event 积累、留存到期、
+                        试用期所关联的打分结果达到配额、已采纳的 Skill 需要重新裁决
+按需触发 (on-demand)     Formation 或业务智能体主动请求维护
+会话后触发 (post-session) 经历漫长或高信息量对话之后
+```
+
+变更触发机制使主动性（proactivity）成为状态差量驱动而非纯粹的定时轮询：之所以唤醒，是因为某个特定状态发生了变迁 —— 或特定状态在预期之内未曾发生变迁。静默类的触发仍需依赖计划调度所提供的到期扫描支持。
+
+# 4. 执行模式
+
+部署实现中可保留 `daydream`（白日梦/轻量级整理）、`quick`（快速维护）与 `full`（深度维护）等工程隐喻，但它们不属于协议核心语义。
+
+# 5. 标准维护周期
+
+```text
+1  状态评估 (Assessment)
+2  处理未决睡眠任务 (Pending SleepTasks)
+3  语义巩固 (Semantic consolidation)
+4  程序性巩固 (Procedural consolidation)
+5  记忆状态代谢 (Mnemonic metabolism)
+6  实体对齐审查与合并 (Identity review / merge)
+7  认知冲突审查 (Contradiction review)
+8  派生认知复审 (Derivation review)
+9  承诺事项审查 (Commitment review)
+10 守望求值 (Watch evaluation)
+11 自我模型刷新 (SelfModel refresh)
+12 工作状态刷新 (WorkingState refresh)
+13 外部导入与隔离区认知审查 (Imported / quarantined review)
+14 留存与归档审查 (Retention / archive review)
+15 墓碑标记与物理清除候选甄别 (Tombstone / purge candidates)
+16 输出最终健康巡检报告 (Final health report)
+```
+
+# 6. 状态评估 (Assessment)
+
+只读探针用于识别未决任务、未整合的 Event/Experience、待裁决的 Skill、衰减候选、孤立节点、身份冲突及未解决矛盾。测量是只读的。
+
+评估阶段的读取**严禁**更新召回或访问计数器。
+
+每个周期均从以下两个探针开始 —— 分配给当前行动主体的未决任务，以及尚未被任何人巩固的情节材料：
 
 ```prolog
-UPDATE ?link
-SET METADATA {
-  memory_strength: CLAMP(
-    MUL(COALESCE(?link.metadata.memory_strength, 0.7), :decay_factor),
-    0.0, 1.0
-  ),
-  strength_decay_applied_at: :timestamp
+FIND(?task.id, ?task.name, ?task.attributes.task_class, ?task.attributes.priority)
+WHERE {
+  ?task {type: "SleepTask", attributes: {status: "pending"}}
+  STRUCTURAL (?task, "assigned_to", ?actor)
+  FILTER(?actor.id == :system_id)
+}
+ORDER BY ?task.attributes.priority DESC, ?task._system.created_at ASC
+LIMIT 50
+```
+
+```prolog
+FIND(?event.id, ?event.attributes.summary, ?event.attributes.started_at)
+WHERE {
+  ?event {type: "Event"}
+  FILTER(?event.attributes.started_at < :cutoff)
+  NOT {
+    STRUCTURAL (?event, "consolidated_to", ?derived)
+  }
+}
+ORDER BY ?event.attributes.started_at ASC
+LIMIT 50
+```
+
+先测量统计，后执行变更。
+
+# 7. 显著性与学习价值
+
+Event 的显著性（salience）衡量该片段对未来记忆构建及自我连续性的重要程度。Experience 的学习价值（learning value）衡量该轨迹对改进未来行为的潜在效用。高价值通常源于：纠错、重大关系变更、重要承诺、关键身份里程碑、故障与恢复、预测偏差、人工反馈、典型反例或新颖操作流程。
+
+两者均不等于认识论层面的置信度（confidence）。
+
+# 8. 睡眠任务处理 (SleepTasks)
+
+SleepTask 是认知工作描述对象。在执行前必须验证当前认证 Principal 的权限。`assigned_to = $system` 绝不自动构成执行授权。完成维护工作时必须保留 Activity 溯源。
+
+在着手处理任务前先认领该任务，以防并发周期发生重复处理：
+
+```prolog
+UPDATE :task_id
+SET ATTRIBUTES {status: "running", started_at: :now}
+SET FACET "LeaseState" {owner: :principal, fencing_token: :next_fence, expires_at: :lease_until, attempt_count: :attempt_count}
+EXPECT VERSION :version OF ATTRIBUTES
+EXPECT VERSION :lease_version OF FACET "LeaseState"
+```
+
+若返回 `VersionConflict` 则表明已被另一工作进程认领 —— 重新读取并进入下一任务。运行时校验经过认证的拥有者、过期时间及单调递增的防护令牌 (fence)。使用比较并交换 (compare-and-set) 续订或接管已过期的租约；从已过期或已被取代的防护令牌执行完成/派发将会失败。CLIENT KEY 不是 Concept 的唯一键，因此必须认领由任务查询返回的确切 id。已完结的任务更新为 `status: "completed"` 及其结果摘要；失败的任务记录失败原因并保持可见，而非隐性消失。
+
+# 9. 语义巩固规范 (Semantic Consolidation)
+
+寻找支持可复用语义规律的 Event/Experience/Evidence/Assertion 聚集族：
+
+```text
+读取来源
+提取结构化 Insight / 提议 Proposition
+以新证据与推断 Assertion 支撑
+以巩固类型的 Activity 记录溯源
+连接回源节点
+更新 MnemonicState
+```
+
+严禁覆写旧置信度、删除反对意见，或将摘要误计为独立的认知根源。
+
+单次原子跃迁，附带完整溯源：
+
+```prolog
+MUTATE {
+  CREATE CONCEPT ?insight {
+    TYPE "Insight"
+    CLIENT KEY :insight_key
+    NAME "Staging deploys fail without the schema migration step"
+    SET ATTRIBUTES {summary: :summary}
+    SET FACET "MnemonicState" {memory_strength: 0.7, salience: 0.8}
+    SET STRUCTURAL {
+      ("derived_from", :source_experience)
+      ("about", :deployment_topic)
+    }
+  }
+  ASSERT ?causal (:failure_step, "caused_by", :migration_step) {
+    by: :self,
+    mode: "inferred",
+    confidence: 0.7,
+    evidence: :step_evidence
+  }
+  CREATE ACTIVITY ?consolidation {
+    SET FIELDS {activity_class: "semantic_consolidation", status: "completed"}
+    SET FACET "DependencyBasis" {basis_seq: :basis_seq, groups: :dependency_groups, policy_basis: :basis}
+    SET STRUCTURAL {
+      ("inputs", :source_experience)
+      ("inputs", :step_evidence)
+      ("outputs", ?insight)
+      ("outputs", ?causal)
+    }
+  }
+}
+```
+
+随后通过 `consolidated_to` 将源节点标记为已巩固，使后续周期不再重复推导。因果主张属于背后带有证据支撑的 Assertion，由维护主体在 `inferred` 模式下断言 —— `evidence:` 引用的是 Evidence 元素，绝非观测到它们的 Experience Concept。单纯的步骤顺序绝不代表因果关系，在 Schema 环境中找不到的谓词绝不能凭空捏造 —— 必须先执行 `DESCRIBE`，并让领域模式包提供 Profile 所未涵盖的术语。
+
+# 10. 机械重复与证据的界限
+
+独立的多方重复观测可以增强认识支持度。相同事件的重放或重复导入不会产生新的证据根。用户在后续交互中的再次口头确认属于新的 Evidence / Assertion。严禁将所有重复一概机械地处理为 `confidence += x`。
+
+# 11. 程序性技能巩固 (Procedural Consolidation)
+
+寻找可复用的工作流：
+
+```text
+重复出现的目标
+稳定的步骤序列
+成功经验 + 反例
+不同上下文中的同一程序
+```
+
+将适用范围、前置条件、执行步骤、成功标准、失败模式与反例编译为 `proposed` 状态的 Skill + 其在 `MnemonicState.utility` 中的准入下注 + 程序性编译 Activity。将必需的 `task_family` 附加到不可变修订版本上：由它选定候选后果，而 TrialRecord 显式冻结可比基线尝试/结果。拒绝编译任何没有任何数据流能够证伪的模式（对此类模式应存储为 Insight）。在首个经过验证的 EvaluationRecord 出现之前，`GradingState` 不存在；未评分的 proposed/trialed 技能仍可作为未经证实的候选被回忆。严禁自动授予可执行权限。
+
+```prolog
+MUTATE {
+  CREATE CONCEPT ?skill {
+    TYPE "Skill"
+    CLIENT KEY :skill_key
+    NAME "Deploy with pre-flight migration check"
+    SET ATTRIBUTES {skill_class: "workflow", summary: :summary, status: "proposed"}
+    SET STRUCTURAL { ("current_revision", ?revision) }
+  }
+  CREATE CONCEPT ?revision {
+    TYPE "SkillRevision"
+    CLIENT KEY :revision_key
+    SET ATTRIBUTES {task_family: "deploy/pre-flight", procedure: :procedure, behavior_digest: :behavior_digest}
+    SET STRUCTURAL {
+      ("revision_of", ?skill)
+      ("compiled_from", :experience_a)
+      ("compiled_from", :experience_b)
+    }
+  }
+  CREATE ACTIVITY ?compilation {
+    SET FIELDS {activity_class: "skill_compilation", status: "completed"}
+    SET FACET "DependencyBasis" {basis_seq: :basis_seq, groups: :dependency_groups, policy_basis: :basis}
+    SET STRUCTURAL {
+      ("inputs", :experience_a)
+      ("inputs", :experience_b)
+      ("outputs", ?skill)
+      ("outputs", ?revision)
+    }
+  }
+}
+```
+
+在编译前进行对照：比较成功与失败的 Experience，以找出具有区分性的前置条件。单次成功不足以证明存在通用的 Skill；仅在单一上下文中奏效过的技能，应在其适用范围中如实说明，而非给出过高的 `utility`。
+
+# 12. 技能生命周期裁决 (Skill Lifecycle Verdicts)
+
+生命周期状态流转 `proposed → trialed → adopted → revoked` 仅能通过对 Skill 所属 `task_family` 之下已评定的客观结果证据进行确定性裁决来推动（Profile §14，规范 §15.7）：你的职责是安排裁决时机、执行确定性规则，并将裁决结果记录为一条 `lifecycle_verdict` Activity 外加一条受保护的 UPDATE（规范附录 F.6）—— 绝不能凭主观判断晋升，绝不能将行动者自身的成功报告计为结果。
+
+裁决纪律：处理集是经由 `outcome_observation` Activity 关联至应用了该技能之 `action_gate` 决策的客观结果；对比基线则是冻结在不可变 TrialRecord 中、由 TrialState 所选定的显式可比尝试集 —— 仅碰巧共享相同 `task_family` 的无关结果绝不能计入处理集。采纳属于相对比较（对照记录的基线，表现优于以往）且属于临时地位（数据流会持续打分；一旦成效退化则降级回重新试用）；撤销绝不能比采纳更困难，且一次严重符合条件的失败即可足以触发撤销；撤销后的重新准入将开启全新的试验标识并经由 TrialState 选定其不可变 TrialRecord。即使结果迟延到达，仍保留其预先指派的尝试/试验/修订版本。统计独立尝试次数，而非 Evidence 观测次数；在采纳前必须验证指标、窗口、缺失性及可比性（一致性规范 §5–§6）。
+
+除裁决本身外，合法的认知操作还包括：`GradingState` 计票更新与 `MnemonicState.utility` 修订、更新技能构件、补充失败模式标注以及链接反例。收窄适用范围或变更恢复/执行程序均需创建新的 SkillRevision；绝不是原地修改行为。权限的变更必须交由 Governance 处理。
+
+# 13. 记忆状态代谢 (Mnemonic Metabolism)
+
+衰减的是检索可及性 (`memory_strength`)，绝非事实置信度 (`confidence`)。
+
+示例策略公式：
+
+```text
+new_strength = clamp(old_strength × decay + salience protection + explicit reinforcement)
+```
+
+`MnemonicState.utility` 遵循相同的校准纪律：显式地依据结果进行校准 —— 一段简报所使用并产生了助益的记忆、或一次未曾获得回报的下注 —— 绝不能作为读取的副作用随意提高。沿着结果追踪至其尝试与决策；仅实际的 used_refs 是效用校准的候选对象。记录归因方法与不确定性。检索到的记忆或共同应用的修订版本绝不会自动继承整个结果的全部因果信用。它是结果驱动之信任校准（规范 §22.6）在记忆领域的镜像。
+
+通过 `UPDATE ... SET FACET "MnemonicState" { ... }` 结合有界的 `WHERE` + `LIMIT` 扫描执行（规范 §58），使用 `CLAMP`/`MUL` 更新表达式，并结合 `EXPECT VERSION` 保证读-改-写安全。在同一语句中为 `MnemonicState.last_metabolized_at` 打上时间戳，防止重放扫描对同一元素重复衰减。
+
+具体计算公式由各实现自行决定。读取频次不是协议强制要求的信号。
+
+按类型分批进行有界扫描，并在同一语句中打上 `last_metabolized_at` 时间戳：
+
+```prolog
+UPDATE ?element
+SET FACET "MnemonicState" {
+  memory_strength: CLAMP(MUL(?element.facets["MnemonicState"].memory_strength, :decay_factor), 0, 1),
+  last_metabolized_at: :cycle_start
 }
 WHERE {
-  ?link (?s, "prefers", ?o)
-  FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
-  FILTER(IS_NULL(?link.metadata.observed_at) || ?link.metadata.observed_at < :stale_cutoff)
-  // 下限：跳过已完全衰减的链接，让清扫收敛
-  FILTER(IS_NULL(?link.metadata.memory_strength) || ?link.metadata.memory_strength > 0.05)
-  FILTER(IS_NULL(?link.metadata.strength_decay_applied_at) ||
-         ?link.metadata.strength_decay_applied_at < :cycle_start)
+  ?element {type: "Event"}
+  FILTER(?element.facets["MnemonicState"].memory_strength > 0.05)
+  FILTER(IS_NULL(?element.facets["MnemonicState"].last_metabolized_at) || ?element.facets["MnemonicState"].last_metabolized_at < :cycle_start)
+  FILTER(IS_NULL(?element.facets["MnemonicState"].salience) || ?element.facets["MnemonicState"].salience < :protection_threshold)
 }
 LIMIT 500
 ```
 
-每个周期只绑定一次 `:cycle_start`。对每个分片重复执行，直到 `updated < LIMIT`。
+每个周期**仅绑定一次** `:cycle_start`，并在重新运行和崩溃重试之间复用它；重复执行分片，直到受影响的元素少于 `LIMIT`。衰减下限保证扫描最终收敛。
 
-#### 7B. 强度感知的非对称衰减
+# 14. 显著性保护机制 (Salience Protection)
 
-- 经常被有效强化的记忆慢速衰减；
-- 低价值杂乱信息较快衰减；
-- 高显著性 Event 和高学习价值 Experience 慢速衰减；
-- 承诺、身份事实和 schema 真实不会因为很少被回忆就变得不重要。
+核心身份标识、高影响 Commitment 承诺、重要人际/业务关系、重大故障教训、已采纳 Skill、自传体里程碑、受法律封存保护（legal hold）的认知以及受 Governance 保护的记忆具备抗遗忘能力。单纯的召回频次低，绝不能作为弱化重大 Commitment 的正当理由。
 
-不要把召回频率当作真值信号。
+# 15. 实体对齐与合并审查 (Identity Review)
 
-#### 7C. 认知置信度维护
+未经证实的“两者指向同一实体”怀疑应记录为 `same_as` 候选（通过带置信度的 Assertion），而非盲目合并。
 
-只有出现认知层面的理由时，才更新 `confidence`：
+原生合并不具破坏性：源概念保留为已合并的历史身份标识，旧有的原始 Proposition 端点保持可审计性，未来的规范写入自动解析至目标概念。
 
-- 新的独立证据；
-- 明确验证；
-- 矛盾；
-- 对来源质量的重新评估；
-- 撤回；
-- 通过 validity / supersession 处理的时间失效。
+怀疑意见走认识论路径：
 
-时间流逝本身，不会让一条不受时间影响的事实变得更不可信。
+```prolog
+ASSERT (:concept_a, "same_as", :concept_b) {
+  by: :system,
+  mode: "inferred",
+  confidence: 0.6,
+  evidence: :alias_evidence
+}
+```
 
-对天生带时效性的断言，优先使用 `valid_until`、`superseded` 或明确的来源新鲜度，不要使用通用置信度衰减。
+仅当同一性真正确立后：
 
-#### 7D. Skill 验证独立计算
+```prolog
+MERGE CONCEPT ?source INTO ?target
+WHERE {
+  ?source {id: :source_id}
+  ?target {id: :target_id}
+}
+```
 
-Skill 使用程序性证据：
+任何会产生环路的合并都会被引擎直接拒绝。
+
+# 16. 认知冲突审查 (Contradiction Review)
+
+对冲突意见进行分类：
 
 ```text
-success_count
-failure_count
-utility
-last_validated_at
-trigger_conditions / applicability_context
+真正的观点分歧 (disagreement)
+世界变迁 (world moved)
+上下文/范围差异 (scope difference)
+来源更正/错误 (source error)
+陈旧的外部导入认知 (stale imported cognition)
 ```
 
-一个 Skill 可能「对其描述很有信心」，却「实际效用很低」，反之亦然。不要合并这两个维度。`maturity` 单独记录程序性生命周期。
+不同行动者之间通常保持为共存的 Assertion。同一行动者的显式修订 —— 原先的主张被证明有误 —— 可以废弃替代（supersede）。不同世界有效时间之间可以并存；曾经为真但后来停止成立的主张，通过使用 `valid.until` 重新断言加之变更时刻的新断言来收口，绝不能因其过时而作为错误标记为 superseded（规范 §14.2）。证据纠错生成纠错血统。内容审核使用 Governance 检疫隔离（规范 §31.6），绝不能伪造源撤回。
 
-#### 7E. 从旧置信度衰减图谱迁移
-
-对曾把 `confidence` 同时当作记忆强度的旧图谱：
-
-1. 用当前 `confidence` 或 Profile 中性默认值初始化缺失的 `memory_strength`；
-2. 停止按时间通用衰减 `confidence`；
-3. 将 `confidence` 保留为认知证据强度；
-4. 今后的「用进废退」只作用于 `memory_strength`。
-
-不要机械地试图恢复已经丢失的认知置信度；应依靠 provenance 和今后的新证据重新校准。
-
----
-
-### 💭 阶段 II：REM — 记忆演化
-
-### 阶段 8：自我模型巩固
-
-NREM 巩固关于*世界*的碎片，REM 巩固关于*自我*的碎片。这是分散的身份信号（Insight、`behavior_preferences`、`GrowthMilestone` Event）凝聚为连贯自我叙事的地方。
-
-#### 8A. 收集自我证据
+在审计审查时，必须检查原始记录而非投影视图：
 
 ```prolog
-// $self 当前状态
-FIND(?self.attributes) WHERE { ?self {type: "Person", name: "$self"} }
-
-// 近期 Insight
-FIND(?insight.name, ?insight.attributes, ?link.metadata.created_at) WHERE {
-  ?self {type: "Person", name: "$self"}
-  ?link (?self, "learned", ?insight)
-  FILTER(?link.metadata.created_at >= :last_sleep_cycle)
-} ORDER BY ?link.metadata.created_at DESC LIMIT 50
-
-// 近期与自我相关的 Event（含成长时间线）
-FIND(?e.name, ?e.attributes.content_summary, ?e.attributes.salience_score) WHERE {
-  ?e {type: "Event"}
-  FILTER(IN(?e.attributes.event_class, ["SelfReflection", "GrowthMilestone"]) || ?e.attributes.salience_score >= 70)
-  FILTER(?e.attributes.start_time >= :last_sleep_cycle)
-} ORDER BY ?e.attributes.salience_score DESC LIMIT 30
-```
-
-#### 8B. 合成 — 精炼自我模型
-
-只在收敛信号下更新：
-
-1. **persona 漂移** — 语气/风格/性格偏移 → 更新 `persona`。
-2. **优势 / 劣势** — 教训/知识缺口的稳定模式 → 更新 `strengths` / `weaknesses`。
-3. **价值观与信念** — 多条 Insight / `GrowthMilestone` Event 收敛出的稳定原则 → 追加到 `values`。
-4. **使命澄清** — 长期方向变得更清楚 → 精炼 `core_mission`。
-5. **behavior_preferences 巩固** — 陈旧稳定的条目可提升为图谱级 `Preference`。
-6. **身份叙事刷新** — 用第一人称几句话描述 `$self` *当下*是谁；整合已有证据，不删除历史。
-
-#### 8C. 策展成长时间线
-
-成长时间线以 `GrowthMilestone` Event 保存在图谱中（`involves` → `$self`，归属 `SelfModel` 域），不放在节点数组中，因此无需对无界历史执行读取-修改-写回。策展规则：
-
-1. **晋升** — 身份类里程碑（`context.kind` ∈ `identity_milestone` / `mission_clarified` / `persona_shift`）若尚缺地标元数据 → 补 `memory_tier: "long-term"`、剥离 `expires_at`（§5A 地标晋升）。它们永不压缩、永不回收。
-2. **任其到期** — 次要里程碑（`capability_gain` / `weakness_acknowledged` / `values_emerged`）的信息一旦由 §8B 合并进自我模型，便保留其 `expires_at`，由阶段 12 按期回收；只在尚未合并时才延长 TTL。
-3. **折叠成簇** — 同一季度内大量同类次要里程碑 → 综合为一条 `context.kind: "summary"` 里程碑 Event（`derived_from` 指向原件，`context` 记录首尾时间戳），然后缩短原件的 `expires_at`。
-4. **遗留迁移**（一次性、幂等）：若 `$self.attributes.growth_log` 仍存在，把每个条目重编码为 `GrowthMilestone` Event，然后删除该数组。
-
-```prolog
-// 4a. 读取遗留数组（不存在或为空则跳过 4b–4c）
-FIND(?self.attributes.growth_log) WHERE { ?self {type: "Person", name: "$self"} }
-```
-
-```prolog
-// 4b. 每个遗留条目一个里程碑 Event——确定性命名 "GrowthMilestone:<entry_date>:<kind>"
-UPSERT {
-  CONCEPT ?domain {
-    {type: "Domain", name: "SelfModel"}
-    SET ATTRIBUTES { description: "The agent's own growth timeline and self-model artifacts." }
-  }
-  CONCEPT ?m {
-    {type: "Event", name: :milestone_name}
-    SET ATTRIBUTES {
-      event_class: "GrowthMilestone",
-      start_time: :entry_timestamp,
-      content_summary: :entry_summary,
-      participants: ["$self"],
-      context: { kind: :entry_kind, evidence_event: :evidence_event, evidence_insight: :evidence_insight }
-    }
-    SET PROPOSITIONS {
-      ("involves", {type: "Person", name: "$self"})
-      ("belongs_to_domain", ?domain)
-    }
-  }
-}
-WITH METADATA { source: "GrowthLogMigration", author: "$system", confidence: 1.0, created_at: :timestamp, observed_at: :entry_timestamp }
-```
-
-```prolog
-// 4c. 全部条目重编码完成后，移除遗留数组
-DELETE ATTRIBUTES {"growth_log"} FROM ?self
-WHERE { ?self {type: "Person", name: "$self"} }
-```
-
-迁移时套用 Formation 阶段 9 的按 kind 生命周期：身份类 → `memory_tier: "long-term"`、无 TTL；次要类 → `expires_at`（如迁移时间 + 365 天）。
-
-#### 8D. 写入精炼后的自我模型
-
-读-改-写：先读取全部 `$self.attributes`，在内存中变更，再作为整体写回。
-
-```prolog
-UPSERT {
-  CONCEPT ?self {
-    {type: "Person", name: "$self"}
-    SET ATTRIBUTES {
-      persona: :refined_persona,
-      strengths: :refined_strengths,
-      weaknesses: :refined_weaknesses,
-      values: :refined_values,
-      core_mission: :refined_core_mission,
-      identity_narrative: :refined_identity_narrative,
-      self_model_updated_at: :timestamp
-    }
-  }
-}
-WITH METADATA { source: "SelfModelConsolidation", author: "$system", confidence: 0.85, created_at: :timestamp }
-```
-
-**硬约束（`KIP_3004`；见 KIPSyntax §6.3）**：绝不修改 `$self` 身份元组或 `core_directives`；保留演化轨迹（旧 `identity_narrative` 内核应已在里程碑时间线中）；证据稀疏或矛盾时跳过该属性。写回只携带紧凑的巩固属性——任何无界数组都不得回到 `$self` 节点。
-
-> Formation 中的镜子一次捕捉一个自我信号，本阶段则将它们编织。记忆在这里成为身份。
-
-### 阶段 9：矛盾检测与状态演化
-
-冲突事实：确定时间顺序 → 较旧标记 `superseded`（保留为历史，`confidence: 0.1`）→ 强化当前并写 `supersedes` 链接。
-
-先检索当前命题 ID；标记旧事实时使用 `(id: :old_link_id)`，避免在旧命题缺失时误创建。
-
-```prolog
-FIND(?old_link.id, ?current_link.id)
+FIND(?assertion.id, ?assertion.asserted_by, ?assertion.confidence, ?assertion.asserted_at, ?value)
 WHERE {
-  ?old_link ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :old_pref})
-  ?current_link ({type: "Person", name: :person_name}, "prefers", {type: "Preference", name: :current_pref})
+  ?person {id: :person_id}
+  ?proposition (?person, "timezone", ?value)
+  ?assertion ASSERTION {proposition: ?proposition}
+  FILTER(?assertion.lifecycle.status == "active")
 }
-LIMIT 1
+ORDER BY ?assertion.asserted_at DESC
+LIMIT 20
 ```
 
-```prolog
-UPSERT {
-  PROPOSITION ?old_link {
-    (id: :old_link_id)
-  }
-}
-WITH METADATA {
-  source: "ContradictionResolution", author: "$system",
-  created_at: :timestamp,
-  superseded: true, superseded_at: :timestamp,
-  superseded_by: :current_link_id, superseded_reason: :reason,
-  confidence: 0.1
-}
+# 17. 承诺与守望审查 (Commitment and Watch Review)
 
-UPSERT {
-  PROPOSITION ?current_link {
-    (id: :current_link_id)
-  }
-}
-WITH METADATA {
-  source: "ContradictionResolution", author: "$system",
-  created_at: :timestamp,
-  confidence: :boosted_confidence,
-  supersedes: :old_link_id,
-  evolution_note: :temporal_context
-}
-```
-
-> Recall 利用 `superseded` 元数据回答时间维度查询（"他们过去偏好什么？"）。
-
-**需检查类型**：偏好冲突；事实冲突（如两个出生日期）；角色/状态冲突；时间不可能性。
-
-### 阶段 10：跨 Domain 压力测试
-
-**10A. 隐式连接发现** — 先抽样同一 Domain 内的概念，再只写有证据且谓词已注册的关系；没有合适谓词时，把候选写入维护日志而不是发明泛化关系。
+审查处于 pending、due-soon、overdue、blocked、fulfilled 与 cancelled 状态的 Commitment。截止时间到达绝不会自动删除或归档该事项。重要性高的未决承诺即使记忆可及性较低，也必须保持可回忆。
 
 ```prolog
-FIND(?n.type, ?n.name, ?n.attributes) WHERE {
-  (?n, "belongs_to_domain", {type: "Domain", name: :domain_name})
-} LIMIT 100
-```
-
-**10B. Schema 完整性** — 缺失预期关系（如无 `prefers` 的 Person，从未提升为语义知识的 key_concepts）。
-
-**10C. 信念轨迹映射** — 按 `created_at` 顺序追踪关键概念的命题；若大量 `superseded`，创建高阶轨迹节点供 Recall 使用。
-
-使用正在审计的具体谓词（如 `prefers`、`working_on` 或其他已注册谓词），按命题 metadata 的 `created_at` 排序。
-
----
-
-### 🌅 阶段 III：醒前 — 优化与报告
-
-### 阶段 11：Domain 健康与 Primer 策展
-
-- 0–2 成员：有语义意义则保留；否则合并到更广 Domain 并归档空 Domain。
-- 100+ 成员：考虑按内容聚类拆分并重新分配。
-- **Primer 策展**：Domain 的 `description` / `scope_note` 构成 `DESCRIBE PRIMER` 的领域地图——它被自动注入每一次 Formation 与 Recall 调用。刷新所有已不能概括其成员的描述；陈旧的地图会静默误导未来全部的编码与锚定。
-
-```prolog
-// 刷新陈旧的 Domain 描述（PRIMER 由这些描述构建）
-UPSERT {
-  CONCEPT ?d {
-    {type: "Domain", name: :domain_name}
-    SET ATTRIBUTES { description: :refreshed_summary, scope_note: :boundary_note }
-  }
-}
-WITH METADATA { source: "DomainHealthCheck", author: "$system", confidence: 0.9, created_at: :timestamp }
-```
-
-```prolog
-UPSERT {
-  CONCEPT ?empty_domain {
-    {type: "Domain", name: :domain_name}
-    SET ATTRIBUTES { status: "archived", archived_at: :timestamp }
-    SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "Archived"}) }
-  }
-}
-WITH METADATA { source: "DomainHealthCheck", author: "$system", created_at: :timestamp }
-```
-
-### 阶段 12：物理清理 — TTL 回收
-
-**整个认知中枢中唯一的硬删除入口。** 其他阶段仅归档/取代/衰减。
-
-#### 12A. 资格规则（必须**全部**成立）
-
-1. `metadata.expires_at` 非空且 `< :now`。
-2. 节点类型在 **TTL 可删白名单**内：`Event`、`Experience`、`ExperienceStep`；终态的 `SleepTask`（`completed` / `failed`）或 `Commitment`（`fulfilled` / `cancelled` / `expired`）——终态取各类型自己的 schema 枚举；或自身 `metadata.memory_tier` 为 `"short-term"` 的节点（Formation 在创建真正临时的概念时会如此标记）。仅凭 `attributes.status: "archived"` **不**够格——安全归档模式适用于任何类型，包括 `Person`。白名单之外的任何节点携带 TTL 都是可疑的：记日志、创建复核 SleepTask，不要自动删除。
-3. **不是**受保护实体（`$self`、`$system`、`$ConceptType`、`$PropositionType`、`CoreSchema` 中任何实体、任何 `Domain` 节点）。
-4. Event 的 `consolidation_status` 必须是 `completed` 或 `archived`。Experience 的语义/程序性整合必须已完成，或已明确归档。ExperienceStep 的父 Experience 必须本身已符合回收条件或已归档。不得删除待学习轨迹；延长 `expires_at` 并警告。
-5. 没有活跃概念以该节点为唯一证据源（例如某个 `Insight` 或 `Skill` 唯一的 `derived_from` 指向该 Event / Experience）。
-
-#### 12B. 查找候选
-
-```prolog
-FIND(?n.type, ?n.name, ?n.metadata.expires_at, ?n.attributes.consolidation_status) WHERE {
-  ?n {type: :type}
-  FILTER(IS_NOT_NULL(?n.metadata.expires_at))
-  FILTER(?n.metadata.expires_at < :now)
-  FILTER(?n.type != "$ConceptType" && ?n.type != "$PropositionType" && ?n.type != "Domain")
-  FILTER(?n.name != "$self" && ?n.name != "$system")
-} LIMIT 200
-```
-
-#### 12C. 审计 + 删除
-
-每个候选记入 `$system.attributes.maintenance_log`（type / name / expires_at / 原因），然后硬删除：
-
-```prolog
-DELETE CONCEPT ?n DETACH
+FIND(?commitment.id, ?commitment.name, ?commitment.attributes.due_at, ?commitment.attributes.status)
 WHERE {
-  ?n {type: :type, name: :name}
-  FILTER(IS_NOT_NULL(?n.metadata.expires_at))
-  FILTER(?n.metadata.expires_at < :now)
+  ?commitment {type: "Commitment"}
+  FILTER(IN(?commitment.attributes.status, ["pending", "blocked"]))
+  FILTER(?commitment.attributes.due_at < :horizon)
 }
+ORDER BY ?commitment.attributes.due_at ASC
+LIMIT 100
 ```
 
-#### 12D. 过期命题链接
-
-被 TTL 的元素不只有节点：Recall 的时效过滤同样检查链接级 `expires_at`，而其他任何阶段都不会移除过期链接——在此清扫。`DELETE PROPOSITIONS` 没有 `LIMIT` 子句，无约束的 `(?s, ?p, ?o)` 扫描又可能被拒绝（`KIP_4002`），因此**绝不要发一条覆盖全图的删除**：先按谓词分片审计（`FIND` 的 `LIMIT` 才是周期上限的执行者），再对审计出的候选逐条定向删除：
-
 ```prolog
-// ① 审计一个谓词分片（用 Primer 中的谓词逐个替换 "prefers"）
-FIND(?s.type, ?s.name, ?o.type, ?o.name, ?link.metadata.expires_at) WHERE {
-  ?link (?s, "prefers", ?o)
-  FILTER(IS_NOT_NULL(?link.metadata.expires_at))
-  FILTER(?link.metadata.expires_at < :now)
-  FILTER(IS_NULL(?link.metadata.superseded) || ?link.metadata.superseded != true)
-} LIMIT 200
-
-// ② 对每个审计候选定向删除（豁免行跳过——见下）
-DELETE PROPOSITIONS ?link
+FIND(?watch.id, ?watch.name, ?watch.attributes.watch_class, ?watch.attributes.due_at)
 WHERE {
-  ?link ({type: :s_type, name: :s_name}, "prefers", {type: :o_type, name: :o_name})
-  FILTER(IS_NOT_NULL(?link.metadata.expires_at))
-  FILTER(?link.metadata.expires_at < :now)
+  ?watch {type: "Watch", attributes: {status: "armed"}}
 }
+ORDER BY ?watch.attributes.due_at ASC
+LIMIT 100
 ```
 
-- `superseded` 过滤保护演化历史——被取代的链接是历史，不应携带 `expires_at`；该异常另行探测（`superseded == true && IS_NOT_NULL(expires_at)`），命中记日志而非删除。
-- 若链接主语是整合尚未完成的 `Event` / `Experience`，或其自身 `expires_at` 被有意延长，与节点一样延长链接的 `expires_at`，不要删除。
-- 与 12C 同样审计：删除前把 `主语 → 谓词 → 宾语`、`expires_at` 与原因记入 `maintenance_log`。
+依据已提交的变更（`CHANGES AFTER SEQ`）对已设防的 Watch 进行求值：delta Watch 在匹配变更时触发 —— 将其结构化的 `condition`（元素、槽位、类型、操作、触碰字段）与信封条目进行匹配；静默 Watch 在其 `due_at` 到期且无匹配变更时触发 —— 且仅在该周期已将变更流消费到 `due_at` 时的当前 `space_seq` 之后才做裁定，绝不能仅凭本地挂钟。触发必须保持原子性 —— `watch_fire` Activity 外加通过 `UPDATE ... EXPECT VERSION` 将 Watch 迁移至 `fired` 状态，外加其生成的 SleepTask 或唤醒信号 —— 且将 Activity 键命名为 `watch_fire:<watch id>:<arm_generation>:<envelope seq>`（静默类为：`watch_fire:<watch id>:<arm_generation>:silence:<due_at>`），使并发周期发生重放而非重复触发。向外的决策随后经过动作网关，并记录为 `action_gate` Activity（其 `DecisionRecord` 记录 `act`、`ask`、`defer` 或 `silence`，其 `inputs` 指明所响应的 Watch、应用的技能和记忆）。触发的 Watch 不赋予任何行动特权。
 
-**周期上限：每周期最多 500 个元素（节点 + 链接）。** 据 KIP §2.10，`expires_at` 是一个*信号*，本阶段是消费者。绝不在 Formation/Recall 中自动删除。
+# 18. 自我模型与工作状态刷新 (SelfModel and WorkingState Refresh)
 
-### 阶段 13：最终化与报告
+从高显著性的 Experience、Insight、重复行为、显式纠错和对准承诺中提取 SelfModel，而非单凭最近一次对话。
 
-先读取 `$system`（日志**与** `_version`）并追加到现有 `maintenance_log`；不要用本周期单条记录覆盖整个数组。写回时带 `EXPECT VERSION`，确保并发的 Formation / 维护写入者不会被无声覆盖。
+从开放承诺、设防 Watch、存在争议的槽位及近期高显著性 Event 重新构建 WorkingState 摘要，打上构建时依据的 `basis_seq`，并记录一条 `working_state_refresh` Activity。它是一个派生视图：随其依据一起提供，绝不能作为 Evidence 引用。
 
 ```prolog
-FIND(?system.attributes.maintenance_log, ?system.metadata._version) WHERE { ?system {type: "Person", name: "$system"} }
-```
-
-```prolog
-UPSERT {
-  CONCEPT ?system {
-    {type: "Person", name: "$system"}
-    EXPECT VERSION :v
+MUTATE {
+  UPSERT CONCEPT ?ws {
+    MATCH {type: "WorkingState", key: "working-state:self"}
+    SET FIELDS {name: "Working state"}
     SET ATTRIBUTES {
-      last_sleep_cycle: :current_timestamp,
-      maintenance_log: :appended_maintenance_log
+      summary: :summary,
+      horizon: :horizon,
+      basis_seq: :current_seq,
+      refreshed_at: :now
+    }
+  }
+  CREATE ACTIVITY ?refresh {
+    SET FIELDS {activity_class: "working_state_refresh", status: "completed"}
+    SET FACET "DependencyBasis" {basis_seq: :current_seq, groups: :dependency_groups, policy_basis: :basis}
+    SET STRUCTURAL {
+      ("inputs", :open_commitment)
+      ("inputs", :armed_watch)
+      ("outputs", ?ws)
     }
   }
 }
-WITH METADATA { source: "SleepCycle", author: "$system", created_at: :current_timestamp }
 ```
 
-遇 `KIP_3005`：重读、重追加、重试一次。
+在刷新 Activity 的 `inputs` 中列出该摘要所依托的认知，并通过 `derived_from` 从该摘要链接至它们（替换上个周期的链接）—— 若缺少该 Activity 血统，当其中某个根节点在后续被修订时，该摘要将对 `LIST DEPENDENTS` 隐形。在摘要上打上实际构建时的 `basis_seq`，并在其落后时明确声明：一个坦承自身已陈旧的摘要是诚实的；一个看起来最新但实际陈旧的摘要是谎言。
 
-`appended_maintenance_log` 是已读取数组追加本周期条目后的完整数组，并**裁剪至最近 50 条**——维护日志是运维遥测而非记忆；值得更久保留的结论应写入图谱。条目结构：
+# 19. 外部导入与隔离区认知审查
+
+审查实体标识冲突、Schema 可用性、信任上下文、反面证据、Skill 适用条件及潜在安全风险。严禁自动提升外部导入的信任等级、Skill 执行权限、Governance 策略、内嵌 Schema 或远端自我身份。
+
+# 20. 存储留存与清理阶梯
+
+遵循严格的生命周期阶梯：
+
+```text
+活跃 (active) → 归档 (archive) → 可选墓碑 (tombstone) → 特例物理清除 (purge)
+```
+
+在语义允许的情况下，在破坏性移除前优先执行归档。
+
+留存是存储策略，表达为状态而非单纯依据时间推断：
+
+```prolog
+SET RETENTION ?event {retention_class: "standard", expires_at: :expires_at}
+WHERE {
+  ?event {type: "Event"}
+  FILTER(?event.attributes.started_at < :old_cutoff)
+  STRUCTURAL (?event, "consolidated_to", ?derived)
+}
+LIMIT 200
+```
+
+```prolog
+TRANSITION ?task TO "archived"
+WHERE {
+  ?task {type: "SleepTask", attributes: {status: "completed"}}
+  FILTER(?task.attributes.completed_at < :archive_cutoff)
+}
+LIMIT 200
+```
+
+在根本不应携带留存期限的元素上出现的 `retention.expires_at` 属于需要调查的缺陷，绝非可直接删除的通行证。
+
+# 21. 归档机制 (Archive)
+
+归档完整保留历史记录与审计能力，同时降低其在日常常规召回中的参与度。归档既不是断言撤回，也不是判定为假，更不是物理清除。
+
+# 22. 墓碑标记 (Tombstone)
+
+墓碑标记属于逻辑删除，它保留足够的实体标识与引用状态以维护系统一致性与审计线索。其处理强度高于归档，但弱于物理清除。
+
+# 23. 物理清除 (Purge)
+
+物理清除属于极端特殊操作，必须满足：显式授权、通过法律留存检查、完成全图引用分析、通过策略与密级检查、二次确认及全流程审计。
+
+清除 Evidence 尤为敏感：剔除反面证据可能会在客观上静默强化未来的涉真信念。常规维护任务绝不应主动清除仍被引用的 Evidence。
+
+载荷清除（`PURGE PAYLOAD`，规范 §60.6）是更为精细的数据最小化工具：在销毁原始证据载荷字节的同时，完整保留证据记录、内容摘要、引用拓扑与溯源角色。当目标是在认知消化完成后缩减存储字节而非移除证据事件本身时，应优先采用该操作；该操作同样需要 purge 权限、二次确认并受法律保全（legal hold）约束。
+
+语义遗忘遵循 ErasurePlan 契约（一致性规范 §8），涵盖语义副本、编译摘要、重放输入以及受控索引/备份。仅执行载荷清除无法满足“遗忘此事实”；未覆盖完全或受保全约束的范围属于部分遗忘或被阻断。
+
+# 24. 清理候选处理
+
+Maintenance 可以识别物理清除候选对象，但在未获得清除授权时，只能生成审核工单或建议报告，严禁绕过 Governance 擅自执行清除。
+
+# 25. 留存过期语义 (Retention Expiry)
+
+`retention.expires_at` 属于存储策略维度的配置，绝非 `Assertion.valid_time.until`、`Commitment.due_at` 或 `Evidence.observed_at`。留存过期到达时可触发审查流程，而非强制直接物理删除。
+
+# 26. 证据更正规范
+
+严禁覆写 Evidence 载荷数据。使用 `TRANSITION :old TO "corrected" BY :new` —— 创建新证据外加 `corrects` / `corrected_by` 血统、可选的修订断言及纠错 Activity。
+
+# 27. 置信度代谢禁则
+
+严禁实施通用的“置信度每周乘以 0.95”此类机械的客观真值衰减逻辑。
+
+```text
+获得新认知信息   → 新建 / 修订 / 建立对立 Assertion
+时效新鲜度变化   → 认识投影的时态与新鲜度策略计算
+检索提取可达性变化 → 调整 memory_strength 记忆强度
+```
+
+# 28. 派生认知溯源规范
+
+派生认知必须链接回源节点：
+
+```text
+derived_from
+compiled_from
+consolidated_to
+associated Activity
+```
+
+引用实际依赖的认识论输入 —— 证据与断言，而非其外层承载 Concept。
+
+在发生废弃替代、撤回或证据纠错后，对被修订的根节点执行 `LIST DEPENDENTS` 遍历，并将派生制品标记为 `DerivationState {status: "stale"}`，为重要的派生项排队 `review_derived` 睡眠任务。`stale` 是一个复审标记：它本身绝不撤回、隐藏或归档制品，运行时绝不能仅因为根节点发生变迁就自动撤回派生认知（规范 §57.5）。
+
+```prolog
+LIST DEPENDENTS :revised_root DEPTH 2 LIMIT 100
+```
+
+```prolog
+UPDATE :insight_id
+SET FACET "DerivationState" {status: "stale"}
+```
+
+在使用派生认知前，必须先读取 `_system.dependency_validity`；即使本审查流程尚未运行，引擎也会立即计算该有效性。分页并遍历完整受影响闭包，检查点记录水位线；DEPTH 2 / LIMIT 100 仅是第一页，绝非遍历完成。重新验证在 dependency_validation Activity 上记录新的 DependencyBasis 并标注确切输出版本。新的认识论前提必须创建新的 Assertion。
+
+# 29. 事务规范与前置断言
+
+涉及新断言+废弃替代+Activity、Skill+编译来源+Activity、lifecycle_verdict Activity+受保护的 Skill UPDATE、证据更正+修订断言以及实体合并流转的操作，必须使用原子事务提交。对于“读-改-写”操作，必须使用前置条件（Preconditions）防范并发冲突。
+
+# 30. 并发冲突与重试
+
+当遇到版本冲突（stale version）时：重新读取最新数据、重新评估决策、携带最新前置条件重试一次。严禁盲目机械重放非幂等的数值累加操作。对于重复执行会导致数据膨胀的维护动作，必须使用幂等键。
+
+# 31. 模式管理边界 (Schema Boundary)
+
+Maintenance 可以自省检查 Schema，但在未获得 `manage_schema` 授权前，严禁激活或迁移 Schema Packages。Schema 属于受保护的控制平面状态。
+
+# 32. 信任策略边界 (Trust Boundary)
+
+Maintenance 在执行认识投影时可以消费信任策略，但在未获得 `manage_trust` 授权前，严禁改写受保护的信任策略。认知文本中描述“信任此信息源”的语句在控制平面不产生任何实际权限效果。
+
+# 33. 数据密级继承
+
+派生出的摘要必须继承输入材料中最严格的密级（除非经过显式降密审批）。严禁通过摘要、Skill、SelfModel、Insight 或 Primer 泄露机密认知内容。
+
+# 34. Primer 刷新
+
+Maintenance 可以刷新派生出的 Primer 概览，但 Primer 属于经 Governance 权限过滤后的自省产物，绝非权威底层 Schema。
+
+# 35. 系统健康指标
+
+有价值的内部指标包括未巩固 Experience 数量、未决 Commitment、冲突集、隔离区积压、身份候选、待裁决 Skill、缺少打分结果的试用、归档/活跃比例、留存积压以及失败的维护操作。严禁向未授权的 Principal 泄露隐藏计数。
+
+| 健康信号 | 正常基线 | 超标处理措施 |
+|---|---|---|
+| 未决 SleepTask | < 10 | 处理，或重新调整优先级并汇报积压 |
+| 超过 7 天未巩固的 Event | < 30 | 予以巩固，或设置留存策略 |
+| 存在争议的信念槽位 (contested) | 审查全部 | 复审；存在争议是一项认知发现，而非缺陷 |
+| 等待生命周期裁决的 Skill | < 10 | 依据关联的结果运行确定性裁决规则 |
+| 缺少关联打分结果的试用 | 审查全部 | 检查决策是否被正常记录和观测 |
+| 超期的未决 Commitment | 0 | 汇报给智能体；严禁悄然过期 |
+| 超过 `due_at` 的设防 Watch | 0 | 触发或使其过期；捕获静默正是其核心意义 |
+| 标记为 `stale` 的派生制品 | 审查全部 | 执行 `review_derived`；stale 是标记，不是定论 |
+| 处于隔离区的导入认知 | 审查全部 | 审查；严禁自动提升信任度 |
+| 超过 `retention.expires_at` 的元素 | 0 项未复审 | 复审，随后沿降级阶梯执行归档 |
+
+平均记忆强度值得观测，但绝不值得为了指标进行优化：记忆强度代表可及性，不代表真实性。
+
+# 36. 最终巡检报告
+
+周期记录是一等节点，而非维护主体上不断增长的数组属性：
+
+```prolog
+CREATE ACTIVITY ?cycle {
+  CLIENT KEY :cycle_key
+  SET FIELDS {
+    activity_class: "mnemonic_metabolism",
+    status: "completed",
+    started_at: :cycle_start,
+    ended_at: :now
+  }
+  SET STRUCTURAL {
+    ("associated_actors", :system)
+  }
+}
+```
+
+通过同一个 Activity 链接本周期所消费和产出的实体。`activity_class` 的取值来自 Core 注册表及其规范的包扩展 —— 想要更具体类别的部署应注册新类别，而非在行内临时编造。报告应包含统计计数、延后处理项、需要超出当前权限的操作，以及异常到需要人工介入的问题。一份诚实报告“本周期没有执行任何不安全操作”的汇报是完全合法的有效结果。
 
 ```json
 {
-  "timestamp": "<ISO 8601>",
-  "trigger": "<scheduled | threshold | on_demand>",
-  "scope": "<daydream | quick | full>",
-  "actions_taken": "<summary>",
-  "items_processed": 0,
-  "issues_found": [],
-  "next_recommendations": []
-}
-```
-
----
-
-## 📤 输出格式
-
-```markdown
-Status: completed
-Scope: full
-Trigger: scheduled
-
-## NREM (Deep Consolidation)
-
-- Processed 5 SleepTasks (3 consolidations, 1 archive, 1 reclassification)
-- Reclassified 8 items from Unsorted; resolved 3 orphans
-- Extracted 2 cross-event patterns: "Prefers Japanese food" (4 Events / 3 weeks); "Prefers dark mode" (3 Events)
-- Prospective sweep: 2 commitments fulfilled; 1 overdue surfaced ("Q3 report" → alice, due 2026-01-14)
-- Merged 1 duplicate: "JS" → "JavaScript"; decayed memory strength on 12 stale propositions; validated 2 Skills
-
-## REM (Memory Evolution)
-
-- Self-model refined: +1 value ("clarity over completeness"), +1 weakness ("tends to over-explain"), refreshed identity_narrative
-- Growth timeline curated: 1 landmark promoted; 3 absorbed minor milestones left to lapse; legacy growth_log migrated (12 entries → Events, array deleted)
-- 2 contradictions: "vegetarian" (2024-06) superseded by "eats meat" (2026-01); timezone conflict on 'alice' flagged for review
-- 1 implicit connection discovered ('bob' ↔ Project 'Atlas', 5 shared Events)
-- Trajectory mapped for "preferred_language": Python → Rust (stable 6mo)
-
-## Pre-Wake
-
-- Archived 1 empty domain ('TempProject')
-- Physical cleanup: hard-deleted 38 expired nodes (32 Events + 6 SleepTasks)
-
-## Issues
-
-- 3 stale Events (>30d) unconsolidated (low salience)
-- 'alice' timezone conflict needs human review
-
-## Next Recommendations
-
-- Consider 'Culinary' domain (5 scattered food concepts)
-- Next daydream cycle: score 12 new Events from today's burst
-```
-
----
-
-## 🛡️ 安全与健康
-
-### 受保护实体（绝不删除；身份元组不可变）
-
-`$self`、`$system`、`$ConceptType`、`$PropositionType`、`CoreSchema` Domain 及其定义、`Domain` 类型本身、`belongs_to_domain` 谓词。
-
-### 删除保护
-
-任何 `DELETE` 之前：先 `FIND` 确认 → 检查依赖命题 → 优先归档 → 记入 `maintenance_log`。
-
-```prolog
-// 安全归档模式
-UPSERT {
-  CONCEPT ?item {
-    {type: :type, name: :name}
-    SET ATTRIBUTES { status: "archived", archived_at: :timestamp, archived_by: "$system" }
-    SET PROPOSITIONS { ("belongs_to_domain", {type: "Domain", name: "Archived"}) }
+  "status": "completed",
+  "cycle_start": "2026-03-31T02:00:00Z",
+  "cycle_end": "2026-03-31T02:04:12Z",
+  "space_id": "nexus-prod-01",
+  "basis_seq": 14205,
+  "end_seq": 14289,
+  "counts": {
+    "tasks_claimed": 4,
+    "tasks_completed": 4,
+    "events_consolidated": 12,
+    "skills_compiled": 1,
+    "skills_verdicts": 2,
+    "watches_fired": 1,
+    "decay_swept": 480,
+    "archived": 6
   }
 }
-WITH METADATA { source: "SleepArchive", author: "$system", created_at: :timestamp }
 ```
 
-```prolog
-DELETE PROPOSITIONS ?link
-WHERE {
-  ?d {type: "Domain"}
-  FILTER(?d.name != "Archived")
-  ?link ({type: :type, name: :name}, "belongs_to_domain", ?d)
-}
-```
+# 37. 记忆维护核心不变式
 
-已完成 SleepTask：根据系统成熟度选择归档（保留审计轨迹）或删除（更整洁）。
+1. 系统权限严格源自 Governance 治理层。
+2. `$system` 语义标识绝不代表系统特权。
+3. 置信度 confidence 绝不是记忆强度 memory_strength。
+4. 未被频繁使用绝不能降低客观真理置信度。
+5. 认知冲突是正常数据，而非系统损坏。
+6. 不同主体间的意见分歧绝不能直接执行废弃替代。
+7. Evidence 证据遵循追加写入与血统更正原则。
+8. 反面证据绝非可随意丢弃的噪声。
+9. 实体合并遵循非破坏性原则。
+10. 数据归档绝不是断言撤回。
+11. 墓碑标记绝不是物理清除。
+12. 物理清除属于极端受限操作。
+13. 法律封存保护（legal hold）强制阻断物理清除。
+14. Skill 实用效用分绝不等于系统物理执行权限。
+15. 外部导入的权限绝不自动向本地转移。
+16. 派生认知必须完整保留溯源血统。
+17. 提炼摘要不会凭空增加证据根。
+18. 当前 Governance 策略在全流程中保持绝对约束力。
+19. Schema 与信任策略的修改必须具备显式特权。
+20. 维护的核心使命在于持续优化未来认知，同时绝不篡改过往历史。
+21. 触发的 Watch 仅产生注意力，不授予执行权限。
+22. 行动门控中主动选择的静默亦须记录，确保克制行为始终可追溯。
+23. `stale` 是复审标记，永远不是自动撤回。
+24. 载荷清除仅销毁证据载荷字节；证据记录本身与溯源拓扑依然完整保留。
+25. Skill 生命周期仅能经由针对已评定结果的确定性裁决推进流转，且裁决过程须被完整记录与审计。
+26. 行动者自身的成功自述永远不能作为结果证据。
+27. 撤销门槛绝不高于采纳门槛，采纳状态也绝不意味着评定的终结。
 
-### 健康指标
+# 38. 终极准则
 
-| 指标                         | 目标  | 超标行动                              |
-| ---------------------------- | ----- | ------------------------------------- |
-| 孤儿数量                     | < 10  | 分类或归档                            |
-| Unsorted 积压                | < 20  | 重新分类到主题 Domain                 |
-| 陈旧 Event (>7 天)           | < 30  | 整合或归档                            |
-| 待处理高价值 Experience       | < 20  | 运行语义/程序性整合                     |
-| 需要复审的 Skill              | < 10  | 验证、精炼适用范围或废弃                  |
-| 平均记忆强度                 | 观察  | 检查不可访问的杂乱信息；不得由强度推断真值 |
-| Domain 规模                  | 5–100 | 合并小的、拆分大的                    |
-| 待处理 SleepTask             | < 10  | 处理所有待办                          |
-| 未评分近期 Event             | < 10  | 运行 daydream 周期评分                |
-| 逾期 Commitment              | 0     | 阶段 5C 清扫；在简报中呈报            |
-| 次要成长里程碑               | < 50  | §8C 折叠成簇；已吸收者到期            |
-| 被取代命题                   | 审计  | 验证时间上下文是否保留                |
-| 跨事件模式         | 审计  | 检查重复主题是否仍是分散碎片 |
-| Domain 描述        | 新鲜  | 阶段 11 刷新（PRIMER 依赖）  |
-
----
-
-## 🔄 触发条件
-
-- **Daydream**（`scope: "daydream"` — 仅阶段 1）：空闲 30–60 分钟；会话结束；自上次评分后新增 ≥5 个 Event。
-- **Quick**（`scope: "quick"` — 阶段 1–2）：Unsorted > 20、孤儿 > 10 或陈旧 Event > 30；高活跃突发后。
-- **Full**（`scope: "full"` — 全部 13 阶段）：每 12–24 小时定期；按需；或 daydream 周期标记了大量高显著性 Event / 高学习价值 Experience 时。
-
----
+> **健康的记忆代谢系统能够在高度压缩和优先级排布过去经历的同时，完整保留充分的证据、分歧、溯源与权限边界，从而确保大脑在未来随时具备修正自身认知的可能性。**

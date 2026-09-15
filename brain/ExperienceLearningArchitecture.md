@@ -1,810 +1,361 @@
-# Experience Learning Architecture for KIP Brain
+# Experience Learning Architecture for a KIP 2.0 Brain
+
+
+The normative [Cognitive Consistency contract](../KIP-2.0-Cognitive-Consistency.md) binds final belief, immutable Skill revisions, independent attempts, replayable trials/evaluations, dependency validity, identity repair and durable workers. Lifecycle counters aggregate attempts; unlinked family outcomes are never automatically controls. Stored summaries are used only with a validated computation basis.
+
+**[English](./ExperienceLearningArchitecture.md) | [中文](./ExperienceLearningArchitecture_CN.md)**
 
 ## Status
 
-**Proposed Cognitive Architecture Extension**
+**Reference Cognitive Architecture / Brain-Layer Design**
 
-This document defines the conceptual model for extending a KIP-based Brain from persistent knowledge memory into an **experience learning system**. It does not require changes to the core KQL/KML syntax. The existing Concept / Proposition model is sufficient to represent the structures described here.
+This document defines how a Brain can use KIP 2.0 and Cognitive Memory Profile 2.0 to learn from experience. It is not a KIP Core requirement. Normative protocol semantics come from `SPECIFICATION.md`.
 
-The concrete recommended schemas and predicates are defined in [CognitiveMemoryProfile.md](CognitiveMemoryProfile.md).
-
----
-
-## 1. Why This Extension Exists
-
-Most long-term memory systems for language agents are optimized for a retrieval question:
-
-> "What past information is similar or relevant to the current query?"
-
-That is useful, but insufficient for learning from experience.
-
-A learning agent also needs to answer:
-
-> "When I was in a similar state before, what did I try, what did I expect, what actually happened, why did I revise my belief, and what should I do differently now?"
-
-The distinction is fundamental:
+# 0. Central Thesis
 
 ```text
-Knowledge:   what is generally true?
-Event:       what happened?
-Experience:  what did an actor go through while pursuing a goal?
-Skill:       what tends to work under specified conditions?
-Memory:      how can the past participate in future computation?
+Knowledge  = compressed reusable regularity
+Event      = what happened
+Experience = the path traversed while pursuing a goal
+Skill      = experience compiled into reusable policy
+Memory     = how past state conditions future computation
+Learning   = durable context-appropriate behavior change caused by prior cognition
 ```
 
-The proposed architecture therefore treats **Experience** and **Skill** as first-class memory products alongside semantic and episodic memory.
+> **Knowledge is the compression of experience; Skill is the compilation of experience; Memory is the mechanism that lets experience continue to shape the future.**
 
----
-
-## 2. Core Definitions
-
-### 2.1 Knowledge
-
-**Knowledge is a compressed regularity of experience or evidence.**
-
-It is usually decontextualized enough to be reusable across many situations.
-
-Examples:
-
-- "This API returns 403 when the token is expired."
-- "Alice prefers dark mode."
-- "Wet roads reduce tire traction."
-
-Knowledge answers:
-
-> **What is true, likely true, or generally useful to believe?**
-
-In KIP, semantic knowledge is naturally represented by Concept Nodes and Proposition Links.
-
-### 2.2 Event
-
-**An Event is an episodic anchor describing what happened in a bounded situation.**
-
-An Event normally preserves:
-- time;
-- participants;
-- context;
-- summary;
-- outcome;
-- salient concepts.
-
-It intentionally does **not** have to preserve every action or observation.
-
-Example:
-
-> "The v2 deployment initially failed and succeeded after the database target was corrected."
-
-This is a good Event summary. It may be enough for autobiographical recall but not enough for procedural transfer.
-
-### 2.3 Experience
-
-**Experience is a situated causal trajectory traversed by an actor while pursuing a goal.**
-
-A useful abstract form is:
+# 1. Layer Boundary
 
 ```text
-Experience =
-  Goal
-  + Initial State / Belief
-  + [Action → Observation → Belief Update]*
-  + Outcome
-  + Feedback
+KIP 2.0                     cognitive primitives, history, Governance, transactions
+Cognitive Memory Profile    Event / Experience / Skill / mnemonic structures
+Experience Learning         learning loop
+Formation/Recall/Maintenance concrete Brain policy
 ```
 
-An Experience answers:
+The protocol provides signals; the Brain owns cognitive policy.
 
-> **What state was I in, what did I do, what did I observe, and how did that change the path to the outcome?**
+# 2. What Learning Is Not
 
-The word "causal" must be used carefully. The trace preserves temporal order by default. Explicit causal links should be recorded only when supported, not inferred from mere adjacency.
+A write, embedding, retrieval, summary, confidence update, or Skill object creation is not by itself proof of learning.
 
-### 2.4 Insight
-
-**An Insight is a declarative lesson abstracted from one or more experiences.**
-
-Typical structure:
+Strong functional test:
 
 ```text
-trigger
-correction
-context
+future behavior with relevant memory
+    >
+future behavior after relevant-memory ablation
 ```
 
-Example:
+If deleting an item can never change relevant prediction/decision/action, it behaves as archive rather than functional memory.
 
-> "When a deployment reports a missing column, verify the active database target before assuming migrations failed."
-
-An Insight is valuable, but it is still declarative knowledge: *I know what I should consider*.
-
-### 2.5 Skill
-
-**A Skill is experience compiled into an actionable policy or procedure.**
-
-A Skill answers:
-
-> **When these conditions hold, what should I do?**
-
-A Skill may be represented as:
-- a heuristic;
-- a workflow;
-- a checklist;
-- a tool policy;
-- a prompt;
-- code;
-- a sub-agent configuration.
-
-A Skill should carry trigger conditions, applicability context, success criteria, failure signals, and validation evidence. It must not be treated as globally correct merely because it worked once.
-
-### 2.6 Memory
-
-**Memory is not a data type. Memory is the mechanism by which past state can condition future computation.**
-
-A storage system can contain millions of records without functioning as memory if none of them affect later prediction or behavior.
-
-A practical functional test is:
-
-> If deleting a stored item cannot change any relevant future internal state, prediction, or action, that item is archival information rather than functional memory.
-
----
-
-## 3. The Experience Learning Loop
+# 3. Learning Loop
 
 ```text
-Current Goal + State
-        │
-        ▼
-   Agent Decision
-        │
-        ▼
-      Action
-        │
-        ▼
-   Environment / Tool
-        │
-        ▼
-    Observation
-        │
-        ▼
-Outcome / Feedback
-        │
-        ▼
-Experience Formation
-        │
-        ├──────────> Semantic Consolidation ──> Knowledge
-        │
-        ├──────────> Reflection ──────────────> Insight / Self-model
-        │
-        └──────────> Procedural Consolidation ─> Skill
-                                                     │
-                                                     ▼
-                                                Action Recall
-                                                     │
-                                                     ▼
-                                             Future Decision
-                                                     │
-                                                     └────↺
+Environment / Human / Tool
+          ↓
+      Observation
+          ↓
+       Evidence
+          ├────────→ Proposition → Assertion → Epistemic Projection
+          ↓
+     Event / Experience
+          ├────────→ Semantic Consolidation → reusable Assertion / Insight
+          ├────────→ Reflection → SelfModel
+          └────────→ Procedural Consolidation → Skill
+                                             ↓
+                                        Action Recall
+                                             ↓
+                                      Future Decision
+                                             ↓
+                                      External Action
+                                             ↓
+                                      Outcome Evidence
+                                             └────↺
 ```
 
-Learning is complete only when later behavior can be changed by the consolidated result.
+External action is outside KIP rollback. Intent and outcome are recorded around the external effect as separate cognitive transactions.
 
----
+# 4. Experience as Trajectory
 
-## 4. Event vs. Experience
+```text
+E = (g, b0, a0, o1, b1, a1, o2, ..., y, δ)
+```
 
-The two should not be conflated.
+`g` goal, `b` compact state/belief context, `a` action, `o` observation, `y` outcome, `δ` feedback/surprise/prediction error.
+
+Store only useful, observable, permitted process information. Hidden chain-of-thought is unnecessary.
+
+# 5. Event vs Experience
 
 | | Event | Experience |
-| --- | --- | --- |
-| Main question | What happened? | What path did the actor traverse? |
-| Typical size | compact | potentially multi-step |
-| Primary use | episodic recall, provenance, autobiographical anchors | learning, transfer, failure avoidance |
-| Order | coarse time | explicit ordered steps |
+|---|---|---|
+| Question | What happened? | What path was traversed? |
+| Size | compact | multi-step |
 | Actions | optional | first-class |
 | Observations | optional | first-class |
-| Expectations | optional | useful when present |
-| Outcome | usually one summary | outcome + step-level feedback |
-| Consolidation target | semantic knowledge | semantic knowledge + Skills |
+| Failure/recovery | summary | structurally important |
+| Main use | episodic recall | transfer/learning |
+| Consolidation | semantic | semantic + procedural |
 
-Not every Event deserves an Experience. A greeting, routine status update, or simple preference statement should remain an Event or semantic fact.
+Formation should create Experience selectively.
 
-Create an Experience only when the **process has future utility**.
+# 6. Formation Threshold
 
----
+Favor Experience when there is multi-step goal pursuit, meaningful failure/recovery, prediction error, strategy revision, human corrective feedback, unusual tool result, costly/high-impact outcome, reusable sequence, or a counterexample to an existing Skill.
 
-## 5. What Counts as a Valuable Experience
+Routine repetition with no new signal may not deserve a new Experience. Transaction retry is not repeated Experience.
 
-Formation should prefer Experience encoding when at least one applies:
+# 7. Evidence First
 
-1. **Goal-directed multi-step work** occurred.
-2. A meaningful **failure or recovery** occurred.
-3. An observation **violated an expectation**.
-4. The agent changed its hypothesis or strategy because of feedback.
-5. Tool use revealed a reusable operational pattern.
-6. Human feedback validated or rejected the result.
-7. The trajectory is likely to help on a related future task.
-
-Do not create Experience objects merely because a conversation contains many turns.
-
----
-
-## 6. Experience Steps
-
-An Experience contains ordered `ExperienceStep`s.
-
-Recommended step kinds:
+Observed input should enter as Evidence before truth-sensitive belief:
 
 ```text
-observation
-decision
-action
-feedback
+user message
+→ Evidence(user_statement)
+→ Proposition(Alice, prefers, DarkMode)
+→ Assertion(asserted_by=Alice, mode=stated)
 ```
 
-A step can carry:
+This separates authentication, semantic attribution, proposition meaning, and later accepted belief.
+
+# 8. Prediction Error
 
 ```text
-index
-timestamp
-kind
-summary
-state
-tool
-expected_observation
-actual_observation
-success
-prediction_error
-decision_rationale
-raw_data_ref
+expected observation ≠ actual observation
 ```
 
-### 6.1 Decision Summary, Not Hidden Chain-of-Thought
+is a strong learning signal. It can reveal invalid assumptions, missing preconditions, hidden state, environment changes, incorrect Skill applicability, or knowledge gaps.
 
-A memory system should **not depend on or persist private model chain-of-thought**.
+Surprise is not truth confidence.
 
-It may store a concise, externally useful rationale:
-
-> "Suspected a migration issue because the error referenced a missing column."
-
-It should not attempt to capture hidden token-by-token internal deliberation.
-
-The design target is an **observable decision trace**, not a transcript of private cognition.
-
----
-
-## 7. Expectation and Prediction Error
-
-The most informative part of an experience is often not the action itself, but the mismatch between expectation and reality:
+# 9. Belief Revision
 
 ```text
-Expectation
-    ↓
-Action
-    ↓
-Observation
-    ↓
-Prediction Error
-    ↓
-Belief / Strategy Update
+old Assertion
++ new Evidence
+→ new Assertion
++ optional supersession
++ belief_revision Activity
 ```
 
-Example:
+Do not rewrite the old Assertion's confidence, rewrite Proposition tuple, or delete prior Evidence. Third-party disagreement is normally contradiction, not supersession.
+
+# 10. Semantic Consolidation
+
+Question: **What reusable declarative regularity should the Brain now treat as supported?**
 
 ```text
-Expected: service becomes healthy after restart
-Observed: health check still fails
-Consequence: restart hypothesis weakened; investigate configuration
+Experiences/Evidence
+→ candidate Proposition
+→ derived Assertion
+→ semantic_consolidation Activity
+→ Epistemic Projection
 ```
 
-KIP Brain does not need a mathematically calibrated prediction-error value. It can persist:
-- `expected_observation`;
-- `actual_observation`;
-- `surprise_score`.
+Derived cognition cannot manufacture independent corroboration from multiple summaries of one root.
 
-This enables maintenance to prioritize experiences where the world materially violated the agent's model.
+# 11. Procedural Consolidation
 
----
-
-## 8. Salience and Learning Value
-
-Episodic salience and learning value overlap but are not identical.
-
-A useful conceptual scoring model is:
+Question: **Given similar contexts, what action policy appears to work?**
 
 ```text
-LearningValue =
-  f(
-    goal_relevance,
-    prediction_error,
-    outcome_magnitude,
-    novelty,
-    human_feedback,
-    reusability
-  )
+successful Experiences
++ failed Experiences
++ counterexamples
+→ contrast
+→ conditions/procedure/failure modes
+→ proposed Skill (with its task_family)
+→ trial
 ```
 
-Emotional or autobiographical salience may also matter for `$self`, but procedural learning should not depend on emotional intensity alone.
+Contrast is essential to avoid over-broad procedure learning.
 
-A low-emotion tool failure can be more educational than a highly salient conversation.
+# 12. Contrastive Learning
 
----
+Compare success vs failure, same goal with different initial state, same action with different observation, same condition under different tool/environment, and same Skill with different outcome. Seek discriminating conditions rather than popularity.
 
-## 9. Semantic vs. Procedural Consolidation
+# 13. Failure Is First-Class
 
-Maintenance should run two parallel pipelines.
+Failed Experience may teach negative preconditions, diagnostic branches, recovery strategies, invalid assumptions, counterexamples, unsafe actions, and tool limitations. Some failures have greater learning value than routine successes.
 
-### 9.1 Semantic Consolidation — "What is true?"
+# 14. Four Learning Products
+
+## Semantic learning
+
+Future belief changes through new Evidence/Assertions/conflict resolution.
+
+## Mnemonic learning
+
+Future recall changes through `memory_strength`/salience. Truth does not change.
+
+## Procedural learning
+
+Future action policy changes through Skill, GradingState, applicability, and counterexamples.
+
+## Self-model learning
+
+Future decisions change because the Brain's model of its own capabilities, limitations, preferences, identity continuity, or strategies changed. SelfModel cannot grant authority.
+
+# 15. Orthogonal Signals
+
+| Signal | Question |
+|---|---|
+| Assertion confidence | Strength of this Assertion's stance |
+| source trust | Reliability of source in context |
+| memory_strength | Cognitive accessibility |
+| salience | Importance/noteworthiness |
+| utility | Procedural usefulness |
+| validity/currentness | Applicability in time |
+
+Never implement `not recalled recently → lower confidence` without new epistemic Evidence.
+
+# 16. Reinforcement vs Evidence
+
+Repeated retrieval does not create Evidence, increase confidence, or prove truth. Independent repeated observations may increase epistemic support. Repeated successful Skill use may increase procedural utility. Repeated exposure to the same root does not create independent corroboration.
+
+# 17. Skill Model
+
+A useful Skill carries applicability, preconditions, procedure, success criteria, failure modes, counterexamples, supporting Experiences, validation history, utility, and descriptive status.
+
+# 18. Skill Lifecycle
+
+Reference cognitive lifecycle:
 
 ```text
-Event / Experience
-      ↓
-extract recurring or stable regularity
-      ↓
-Knowledge / Preference / Insight / relationship
+proposed → trialed → adopted → revoked
 ```
 
-Example:
+Lifecycle changes and grading refreshes commit with immutable, runtime-validated EvaluationRecord (Spec §15.7, Profile §14). Only trialed → adopted promotes through a comparative trial; revoked re-entry first opens a new trial. Same-state monitoring follows the authorized policy and preserves prior adoption evidence without inventing new improvement. Policy withdrawal may have zero outcomes, and revocation is never harder than adoption. This is descriptive cognition. Governance influence/authority is separate: descriptive, advisory, behavioral, executable.
+
+# 19. Skill Grading
+
+After Skill use, capture context, whether preconditions held, selected procedure, outcome, feedback, and unexpected observations.
+
+Classify success under matching conditions, failure under matching conditions, failure under non-matching conditions, and unknown outcome. Matching-condition failure is a strong negative signal and may narrow the Skill or, through a verdict, demote it to re-trial. Grading aggregates independent attempts assigned to the exact revision/trial before execution. Instrumented Outcome Evidence links through an `outcome_observation` Activity to the attempt and its `action_gate` decision; the agent's own account is `agent_statement`, never a grade. Sharing a task family establishes neither treatment attribution nor control membership: comparable baseline attempts/outcomes are explicitly selected and frozen in TrialRecord.
+
+# 20. Action Recall
+
+Ordinary recall asks **what do I know?** Action Recall asks **what past cognition is relevant to choosing the next action under the current state?**
+
+Recommended briefing:
 
 ```text
-Three deployment incidents show that expired credentials produce 403
-→ semantic knowledge about the API
-```
-
-### 9.2 Procedural Consolidation — "What works?"
-
-```text
-Experience(s)
-      ↓
-compare state + action + outcome
-      ↓
-infer applicability and discriminating steps
-      ↓
-Skill
-```
-
-Example:
-
-```text
-Several deployment recoveries
-→ Skill: diagnose deployment DB mismatch
-```
-
-A Skill is not simply a prose summary of the experience. It should capture a reusable policy.
-
----
-
-## 10. Contrastive Experience Consolidation
-
-The strongest procedural learning often comes from comparison.
-
-```text
-Successful Experience
-        +
-Failed Experience
-        ↓
-What differed?
-        ↓
-Condition / Action / Observation that discriminates outcomes
-        ↓
-Skill refinement
-```
-
-Maintenance should actively search for:
-
-- same or similar goal;
-- overlapping initial state;
-- different actions;
-- different outcomes.
-
-It should ask:
-
-1. Which step differs?
-2. Did the successful case satisfy a precondition absent in the failed case?
-3. Did a failed action produce a useful diagnostic observation?
-4. Is the apparent difference causal, merely correlated, or uncertain?
-5. What counterexample should be retained with the Skill?
-
-This is **contrastive consolidation**, not simple frequency counting.
-
----
-
-## 11. Failure Is First-Class Memory
-
-Repeated failure is not evidence that a procedure is correct.
-
-For semantic assertions:
-
-```text
-independent supporting evidence → confidence may rise
-```
-
-For procedural learning:
-
-```text
-success / failure outcomes → utility and applicability are updated
-```
-
-A failed Experience can produce:
-- one or more `failure_signals`;
-- a `counterexample`;
-- a diagnostic step;
-- a recovery branch;
-- a negative precondition ("do not apply when...").
-
-Recall should often retrieve both:
-- one relevant successful experience;
-- one relevant failed experience.
-
-This reduces blind experience-following.
-
----
-
-## 12. Confidence, Memory Strength, Salience, and Validity
-
-These must remain orthogonal.
-
-### 12.1 Epistemic Confidence
-
-`confidence` means:
-
-> How strongly is this assertion supported as true?
-
-It changes with:
-- independent evidence;
-- explicit confirmation;
-- contradiction;
-- source quality;
-- retraction.
-
-It should **not** mechanically decay because the fact was not recently recalled.
-
-### 12.2 Memory Strength
-
-`memory_strength` means:
-
-> How strongly should this memory compete for spontaneous or associative recall?
-
-It can:
-- rise with reinforcement;
-- fall with disuse;
-- be restored by renewed evidence or use.
-
-A fact may have:
-
-```text
-confidence = 0.99
-memory_strength = 0.35
-```
-
-This means "almost certainly true, but not currently cognitively active."
-
-### 12.3 Salience
-
-`salience_score` or a related attribute captures importance / memorability, especially for episodic or autobiographical memory.
-
-### 12.4 Validity
-
-`valid_from`, `valid_until`, and `superseded` capture whether an assertion still applies.
-
-Truth support, accessibility, importance, and current applicability are different axes.
-
----
-
-## 13. Reinforcement vs. Evidence
-
-A repeated mention from the same source and independent evidence are not equivalent.
-
-Example:
-
-```text
-Alice says "I prefer dark mode" three times
-```
-
-This is strong evidence of stable preference and high memory accessibility.
-
-But in general:
-
-```text
-same source repeats X
-≠
-three independent sources support X
-```
-
-Brain should therefore avoid a universal rule such as:
-
-```text
-every repetition → confidence + 0.05
-```
-
-A safer policy:
-
-```text
-repetition / successful recall use → memory_strength ↑
-independent corroboration → confidence ↑
-contradiction → confidence ↓ or superseded
-```
-
-Type-specific logic may still treat repeated self-report as evidence of a stable preference.
-
----
-
-## 14. Skill Lifecycle
-
-Recommended maturity lifecycle:
-
-```text
-candidate
-  ↓ successful validation
-validated
-  ↓ conflicting / degraded evidence
-needs_review
-  ↓ newer better procedure
-deprecated
-```
-
-A Skill write must satisfy the capsule schema. The required fields are:
-
-```text
-skill_class
-description
-goal
-trigger_conditions
-procedure
-expected_outcome
-```
-
-The remaining profile fields are optional but commonly used:
-
-```text
-applicability_context
-preconditions
-decision_rules
-success_criteria
-failure_signals
-recovery_strategy
-execution_mode
-implementation_ref
-evidence_count
-success_count
-failure_count
-last_validated_at
-utility
-maturity
-```
-
-### 14.1 Skill Utility
-
-A Skill's utility is not the same as epistemic confidence.
-
-A simple implementation can estimate:
-
-```text
-utility ≈ weighted_success / weighted_attempts
-```
-
-but must consider:
-- similarity of task conditions;
-- recency;
-- human evaluation;
-- cost;
-- side effects.
-
-Avoid a single global success rate when contexts differ materially.
-
----
-
-## 15. Formation API: From Messages to Trace
-
-The existing conversation interface remains valid:
-
-```json
-{
-  "messages": [
-    {"role": "user", "content": "I prefer dark mode."}
-  ],
-  "context": {},
-  "timestamp": "..."
-}
-```
-
-To capture Experience, Formation SHOULD also accept a structured observable trace:
-
-```json
-{
-  "goal": "Deploy version 2",
-  "trace": [
-    {
-      "kind": "message",
-      "role": "user",
-      "content": "Deploy v2"
-    },
-    {
-      "kind": "action",
-      "summary": "Deploy service",
-      "tool": "shell"
-    },
-    {
-      "kind": "observation",
-      "summary": "Startup failed: missing database column",
-      "result_status": "failure"
-    },
-    {
-      "kind": "decision",
-      "decision_rationale": "Suspect migration was not applied"
-    },
-    {
-      "kind": "action",
-      "summary": "Run migration"
-    },
-    {
-      "kind": "observation",
-      "summary": "Failure persists; connection points to legacy database",
-      "result_status": "failure"
-    },
-    {
-      "kind": "action",
-      "summary": "Correct database target and redeploy"
-    },
-    {
-      "kind": "feedback",
-      "summary": "Deployment healthy",
-      "result_status": "success"
-    }
-  ],
-  "outcome": {
-    "status": "success"
-  },
-  "timestamp": "..."
-}
-```
-
-Before encoding, normalize the input trace. A `message` contributes conversation or Event context and does not become a Step unless its observable role is normalized to `observation` or `feedback`. Only `observation`, `decision`, `action`, and `feedback` are stored as `ExperienceStep.kind`. For observations, actions, and feedback, `result_status: "success"` maps to `success: true`, `result_status: "failure"` maps to `success: false`, and any other value is omitted. `result_status` is not a stored schema field.
-
-`messages[]` is therefore a backward-compatible subset of a broader observation interface.
-
----
-
-## 16. Action Recall
-
-Traditional recall asks:
-
-> What should I tell the user?
-
-Action Recall asks:
-
-> What past state should change my next decision?
-
-A pre-action briefing should ideally contain:
-
-```text
-Goal / current state
-Relevant semantic knowledge
+Goal
+Current state
+Accepted knowledge
+Contested assumptions
+Unverified preconditions
 Applicable Skills
-Similar successful Experiences
-Relevant failed / counterexample Experiences
-Constraints and commitments
-Uncertainty / warnings
+Skill utility/status/authority
+Supporting successful Experiences
+Relevant failed Experiences
+Counterexamples
+Open Commitments
+Constraints
+Warnings
 ```
 
-The consuming business agent remains responsible for the final decision.
+Similarity is only one signal; applicability comes first.
 
----
+# 21. Retrieval for Learning
 
-## 17. Retrieval Principles for Experience and Skills
+Ranking may consider semantic relevance, goal/state similarity, precondition compatibility, tool/environment compatibility, outcome polarity, surprise, learning value, memory_strength, salience, recency/currentness, and Governance visibility. No universal scalar is required.
 
-### 17.1 Do Not Rank by Semantic Similarity Alone
+# 22. Counterexample Retrieval
 
-For Experience retrieval, useful similarity includes:
-- goal similarity;
-- initial-state similarity;
-- tool / environment similarity;
-- constraint similarity;
-- outcome class.
+When recalling a Skill, actively look for matching failures, known failure modes, contested assumptions, negative feedback, and recent invalidation. A high-similarity success is not sufficient when a high-value counterexample exists.
 
-### 17.2 Context Applicability Comes Before Popularity
+# 23. Self-Model Learning
 
-A highly successful Skill can still be wrong for the current state.
+SelfModel updates should be slower than Event formation. Candidate sources include repeated behavior, explicit correction, high-salience Experience, validated capability gain, stable communication preference, recurring limitation, and stable mission/value signal.
 
-Rank approximately by:
+# 24. Maintenance
+
+Maintenance performs semantic/procedural consolidation, identity resolution, mnemonic metabolism, retention review, conflict discovery, Skill review, SelfModel refresh, Commitment review, and quarantine review under Governance.
+
+# 25. Forgetting
 
 ```text
-trigger and applicability-context match
-× validation quality
-× current relevance
-× memory accessibility
+epistemic retraction/supersession
+mnemonic weakening
+archive
+Governance exclusion
+tombstone
+physical purge
 ```
 
-### 17.3 Include Counterexamples
+are different mechanisms, not one delete-old-memory action.
 
-When a Skill has known failure modes, Recall should surface them with the Skill.
+# 26. Experience Compression
 
----
+Compression may reduce trace size but should preserve goal, important state transitions, actions, observations, outcome, failure/recovery, surprise, counterexamples, and provenance lineage. Summary does not create new Evidence roots.
 
-## 18. Memory Lifecycle
+# 27. Cross-Agent Learning
 
-Raw Experience is expensive and should not live forever by default.
+Remote Experience remains remote autobiography. A local Brain may derive a new local Skill from remote Experience while preserving provenance. Remote `$self`, trust, or Skill authority must not auto-transfer.
 
-A typical lifecycle:
+# 28. Evaluation
+
+Evaluate semantic retention, temporal evolution, Experience reconstruction, procedural transfer, error avoidance, context discrimination, negative transfer, and causal memory impact.
+
+The strongest causal experiment is `with relevant memory` versus `relevant memory ablated`.
+
+# 29. Transaction Boundaries
+
+Use atomic Transactions where partial state would mislead:
 
 ```text
-raw trace
-  ↓ formation
-Experience + ExperienceSteps
-  ↓ maintenance
-Knowledge / Insight / Skill
-  ↓ sufficient consolidation + provenance checks
-archive / TTL raw detail
+Evidence + Proposition + Assertion
+Experience + Steps + Formation Activity
+new Assertion + supersession + revision Activity
+Skill + compiled_from + compilation Activity
 ```
 
-Do not delete an Experience if it remains the sole evidence for an active high-value Insight or Skill.
+External action remains outside KIP transaction rollback.
 
-Landmark autobiographical Experiences may be promoted to long-term memory.
+# 30. Idempotency
 
----
+Use transaction `idempotency_key`, durable `client_key`, and stable source-event identity. Same retry ≠ new observation.
 
-## 19. Learning Criterion
+# 31. Provenance Conservation
 
-KIP can provide the primitives for persistence and evolution, but a system should reserve the strongest use of **learning** for behavioral change.
+Every transformation should allow the Brain to recover what inputs caused the derived cognition, whether they were observed/stated/inferred/imported, how many independent roots exist, and which Principal performed the transformation.
 
-A practical criterion is:
+# 32. Authority Conservation
+
+Useful/adopted/derived cognition cannot raise authority by itself. Imported Experience → local proposed Skill → local adoption still does not imply tool permission.
+
+# 33. No Hidden Chain-of-Thought Requirement
+
+Use observable action, observation, outcome, feedback, and concise decision summaries. Private token-level reasoning is not required for useful procedural memory.
+
+# 34. Reference Brain Cycle
 
 ```text
-Learning =
-past experience causes a durable improvement
-or durable change in future behavior
-under relevant conditions
+WAKE
+  Formation → Evidence/Event/Experience/Assertions/Commitments
+  Recall → Grounding/BELIEF/Experience/Skill/Action Briefing
+
+SLEEP
+  Consolidate → Insight/Assertion/Skill
+  Metabolize → memory_strength/salience/retention
+  Review → conflicts/identities/Skills/SelfModel/Commitments
+
+NEXT WAKE
+  changed cognitive state influences behavior
 ```
 
-The strongest evaluation is causal:
+# 35. Design Invariants
 
-```text
-performance with relevant memory
->
-performance after relevant memory ablation
-```
+The protocol-level invariants live in Specification §102 and the Profile-level ones in Profile §23, both registered in one list, `KIP-2.0-Invariants.md`; this document does not restate them. What it adds is the learning-specific residue:
 
----
+1. A write is not proof of learning.
+2. Prediction error is not confidence.
+3. Similarity is not applicability.
+4. Retrieval is not functional memory unless it can influence future cognition.
+5. Learning should be behaviorally evaluable — with the relevant memory against its ablation.
 
-## 20. Evaluation Framework
+# 36. Final Principle
 
-Recommended benchmark dimensions:
-
-### Semantic Retention
-Can the system recover stable facts?
-
-### Temporal Evolution
-Can it distinguish previous and current state?
-
-### Experience Reconstruction
-Can it recover the relevant action-observation trajectory?
-
-### Procedural Transfer
-Can it solve a related task by applying a Skill?
-
-### Error Avoidance
-Does it avoid a previously observed failure?
-
-### Context Discrimination
-Does it avoid applying a learned procedure when preconditions differ?
-
-### Negative Transfer
-Does retrieval of a superficially similar but inappropriate Experience hurt performance?
-
-### Causal Memory Impact
-Does removing the relevant memory reduce task success?
-
-Suggested ablation:
-
-```text
-A. LLM only
-B. LLM + text/vector retrieval
-C. LLM + KIP semantic memory
-D. C + Experience
-E. D + Skill consolidation
-```
-
----
-
-## 21. Design Principle Summary
-
-Knowledge is a stable abstraction consolidated from evidence and Experience. Skill is an action policy compiled from Experience and bounded by explicit applicability conditions. A stored past state functions as memory only when it can affect later computation; learning is present only when Experience produces durable behavioral change.
-
-KIP Brain is therefore an **Experience Learning System**: it preserves useful trajectories, consolidates them into knowledge and Skill, and returns them when they can improve action.
+> **A learning Brain is not one that remembers more. It is one whose past can change its future in the right contexts without falsifying where that past came from.**

@@ -35,7 +35,7 @@ test('every shipped digest uses the same canonical byte contract', async () => {
     'conformance/fixtures/test-core-domain-1.0.0.schema.json',
     'conformance/fixtures/test-secondary-1.0.0.schema.json',
     'conformance/fixtures/epistemic-test-deterministic.json']) {
-    const doc = parseCanonicalJson(await readFile(new URL('../../../v2/' + file, import.meta.url), 'utf8'))
+    const doc = parseCanonicalJson(await readFile(new URL('../../../' + file, import.meta.url), 'utf8'))
     const { integrity, ...payload } = doc
     assert.equal(integrity.digest_profile, 'kip-jcs-safe-v1')
     assert.equal('sha256:' + createHash('sha256').update(canonicalize(payload)).digest('hex'),

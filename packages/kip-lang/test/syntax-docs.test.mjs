@@ -13,13 +13,13 @@ const repoRoot = path.resolve(
 
 const englishOnly = process.env.KIP_DOC_LANG === 'en'
 const docFiles = [
-  'v2/KIPSyntax.md',
-  ...(englishOnly ? [] : ['v2/KIPSyntax_CN.md'])
+  'KIPSyntax.md',
+  ...(englishOnly ? [] : ['KIPSyntax_CN.md'])
 ]
 
 const grammarCoverage = [
   {
-    file: 'v2/grammar/KIP-2.0-KQL.ebnf',
+    file: 'grammar/KIP-2.0-KQL.ebnf',
     rule: 'query',
     productions: {
       projection_list: 'FIND(<projections>)',
@@ -33,7 +33,7 @@ const grammarCoverage = [
     }
   },
   {
-    file: 'v2/grammar/KIP-2.0-KQL.ebnf',
+    file: 'grammar/KIP-2.0-KQL.ebnf',
     rule: 'where_clause',
     productions: {
       concept_pattern: '?person {',
@@ -51,7 +51,7 @@ const grammarCoverage = [
     }
   },
   {
-    file: 'v2/grammar/KIP-2.0-KML.ebnf',
+    file: 'grammar/KIP-2.0-KML.ebnf',
     rule: 'kml_statement',
     productions: {
       mutate_statement: 'MUTATE {',
@@ -71,7 +71,7 @@ const grammarCoverage = [
     }
   },
   {
-    file: 'v2/grammar/KIP-2.0-META.ebnf',
+    file: 'grammar/KIP-2.0-META.ebnf',
     rule: 'meta_statement',
     productions: {
       describe_statement: 'DESCRIBE ',

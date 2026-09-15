@@ -8,11 +8,11 @@ import { test } from 'node:test'
 import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import { canonicalize, parseCanonicalJson, parse, lowerAll } from '../dist/index.js'
-import * as model from '../../../v2/conformance/reference/contracts.mjs'
-import { runMemoryVectors } from '../../../v2/conformance/runner.mjs'
-import { validationSchemaLock } from '../../../v2/conformance/schema-lock.mjs'
+import * as model from '../../../conformance/reference/contracts.mjs'
+import { runMemoryVectors } from '../../../conformance/runner.mjs'
+import { validationSchemaLock } from '../../../conformance/schema-lock.mjs'
 
-const base = new URL('../../../v2/', import.meta.url)
+const base = new URL('../../../', import.meta.url)
 const json = async path => parseCanonicalJson(await readFile(new URL(path, base), 'utf8'))
 const hash = data => 'sha256:' + createHash('sha256').update(canonicalize(data)).digest('hex')
 const ajv = new Ajv2020({ strict: false, allErrors: true })
@@ -266,7 +266,7 @@ test('MEM-011/012: published shapes and pinned package schemas validate independ
 })
 
 test('updated formation/maintenance recipes remain executable command text', async () => {
-  for (const file of ['KIP-2.0-SPECIFICATION.md','brain/BrainFormation.md','brain/BrainMaintenance.md']) {
+  for (const file of ['SPECIFICATION.md','brain/BrainFormation.md','brain/BrainMaintenance.md']) {
     const doc=await readFile(new URL(file,base),'utf8')
     // Only concrete recipes; grammar sketches and ellipsis examples are deliberately non-executable.
     for (const block of doc.matchAll(/^```prolog\s*\n([\s\S]*?)^```/gm)) {

@@ -127,8 +127,8 @@ and leaves the order of keys as you wrote them.
 
 KIP 2.0 is the cognitive state protocol between an agent and a persistent
 Cognitive Nexus: you read with KQL, change cognition with KML, and ground or
-introspect with META. See the [KIP 2.0 Specification](https://github.com/ldclabs/KIP/blob/main/v2/KIP-2.0-SPECIFICATION.md)
-for full syntax details, or the [syntax card](https://github.com/ldclabs/KIP/blob/main/v2/KIPSyntax.md) for a
+introspect with META. See the [KIP 2.0 Specification](https://github.com/ldclabs/KIP/blob/main/SPECIFICATION.md)
+for full syntax details, or the [syntax card](https://github.com/ldclabs/KIP/blob/main/KIPSyntax.md) for a
 condensed reference.
 
 ## License

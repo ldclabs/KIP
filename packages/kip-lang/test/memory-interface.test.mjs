@@ -5,9 +5,9 @@ import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import { parseCanonicalJson, parse, lower } from '../dist/index.js'
 import { IntakeLedger, advanceProgress, processingBarrier, recallEligibility, scopeMatches,
-  validateBundles, channels } from '../../../v2/conformance/reference/memory-interface.mjs'
+  validateBundles, channels } from '../../../conformance/reference/memory-interface.mjs'
 
-const base = new URL('../../../v2/', import.meta.url)
+const base = new URL('../../../', import.meta.url)
 const json = async path => parseCanonicalJson(await readFile(new URL(path, base), 'utf8'))
 const registry = (await json('profiles/memory-bundles.json')).bundles
 const ajv = new Ajv2020({ strict: false, allErrors: true })
