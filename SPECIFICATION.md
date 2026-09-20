@@ -558,7 +558,7 @@ The exact physical storage representation is implementation-defined.
 
 ## 6.3 `_system`
 
-`_system` is engine-maintained.
+`_system` is engine-maintained. Its `created_at` and `updated_at` timestamps MUST follow §6.5.
 
 Ordinary KML MUST NOT directly write:
 
@@ -596,6 +596,18 @@ engine truth           → _system
 ```
 
 A compatibility layer MAY preserve unmapped KIP 1 metadata in a namespaced legacy Facet, but MUST NOT use that mechanism to bypass protected semantics.
+
+---
+
+## 6.5 Timestamp format and precision
+
+Protocol timestamps MUST be strings in UTC with exactly millisecond precision, using the canonical form `YYYY-MM-DDTHH:mm:ss.SSSZ`, for example `2026-08-14T03:00:00.123Z`. The date and time MUST be valid calendar values; `T` and `Z` MUST be uppercase, and the fractional-second component MUST contain exactly three decimal digits, including `.000` for a whole second.
+
+This contract applies to all protocol timestamp fields and time-valued command parameters, including `_system.created_at`, `_system.updated_at`, `Assertion.asserted_at`, `Assertion.valid_time.from` / `until`, `Evidence.observed_at`, `Activity.started_at` / `ended_at`, `retention.expires_at`, `committed_at` in Commit Records, Receipts and Change Envelopes, and time inputs such as `FOR TIME` and `DESCRIBE SNAPSHOT AT TIME`. It also defines `format: "timestamp"` (§9.2, §20.15), including its use in Schema Packages and Profile fields. Existing field-specific rules still determine whether a timestamp may be absent or `null`; `null` is not a timestamp.
+
+Inputs with missing or non-three-digit fractional seconds, timezone offsets other than `Z`, numeric epoch values, or invalid dates/times MUST be rejected, not silently padded, rounded, truncated or converted. A string violating this format is a `ConstraintViolation`; a non-string timestamp is a `TypeMismatch` (§87.2). Format validation does not rewrite string Literal identity (§9.6).
+
+Engine-generated timestamps MUST use the same canonical form. An engine clock with finer resolution MUST truncate its sub-millisecond portion before exposing a protocol timestamp. Physical storage remains implementation-defined (§6.2), but protocol round trips and time comparisons MUST preserve millisecond values. Millisecond precision does not guarantee clock accuracy, uniqueness or commit ordering: multiple commits MAY share a timestamp; `space_seq` remains the per-Space commit-order coordinate. This timestamp contract does not change the units of durations or require arbitrary Evidence payload text to conform.
 
 ---
 
@@ -1911,7 +1923,8 @@ object                {concept_types: [...]} | {kinds: [...]} | {literal_types: 
                       plus nullable: true where null is a permitted object (§9.5),
                       and format: "timestamp" | "uri" | <package-defined name> for a
                       string Literal whose shape the Predicate constrains (§9.2);
-                      format is validated on write and never affects identity
+                      format is validated on write and never affects identity;
+                      timestamp follows §6.5
 functional            true  → at most one accepted object per subject at one valid time;
                               more form a conflict set (§25.1)
 open_world            true  → absence of a Proposition means insufficient (§24)
@@ -5439,7 +5452,7 @@ A request MAY carry an ingestion context:
         "evidence_class": "user_statement",
         "payload": "I prefer dark mode.",
         "media_type": "text/plain",
-        "observed_at": "2026-08-14T01:00:00Z",
+        "observed_at": "2026-08-14T01:00:00.000Z",
         "source_actor": {"id": "concept-alice"},
         "client_key": "message:msg-123"
       }
@@ -6888,7 +6901,7 @@ Illustrative full-surface JSON shape (validates against `kip-request.schema.json
         "evidence_class": "user_statement",
         "payload": "I prefer dark mode.",
         "media_type": "text/plain",
-        "observed_at": "2026-08-14T01:00:00Z",
+        "observed_at": "2026-08-14T01:00:00.000Z",
         "source_actor": {"id": "concept-alice"},
         "client_key": "message:msg-123"
       }
@@ -6971,7 +6984,7 @@ Illustrative committed-write response (validates against `kip-response.schema.js
     "space_id": "space-1",
     "snapshot_seq": 1500,
     "space_seq": 1501,
-    "committed_at": "2026-08-14T03:00:00Z"
+    "committed_at": "2026-08-14T03:00:00.000Z"
   },
 
   "warnings": []

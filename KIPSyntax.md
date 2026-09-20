@@ -107,6 +107,14 @@ object     local Element reference or a Schema-permitted scalar Literal
 
 Baseline Core Literals are JSON `string | number | boolean | null` (numbers: finite binary64, integer-valued results restricted to ±9007199254740991, no nonzero underflow). Arrays and arbitrary objects are assignment/envelope values, **not** baseline Proposition Literals; model structured semantic values as typed Concepts or schema-defined value objects. `null` is legal only where the Predicate schema permits it. A `{type: ...}` term is an inline Concept match, not an arbitrary object Literal.
 
+#### 1.7. Timestamps
+
+All protocol timestamps and time-valued parameters MUST use UTC strings with exactly three fractional-second digits: `YYYY-MM-DDTHH:mm:ss.SSSZ`, for example `"2026-08-16T01:00:00.123Z"` (whole seconds use `.000Z`). See [Specification §6.5](./SPECIFICATION.md#65-timestamp-format-and-precision).
+
+This includes `_system.created_at` / `updated_at`, `asserted_at`, `observed_at`, `valid_time.from` / `until`, `started_at` / `ended_at`, `retention.expires_at`, `committed_at`, `format: "timestamp"`, and parameters bound to `at`, `FOR TIME` or `DESCRIBE SNAPSHOT AT TIME`. `null` or omission is allowed only where the field's contract permits it.
+
+Missing or non-three-digit fractions, non-`Z` offsets and invalid dates/times are rejected as `ConstraintViolation`; numeric epoch values and other non-string timestamps are `TypeMismatch`. Inputs are never silently normalized. Engine-generated timestamps truncate sub-millisecond clock resolution. Millisecond precision does not imply uniqueness or commit ordering; use `space_seq` for per-Space commit order. Durations retain their declared units.
+
 ---
 
 ### 2. KQL — Read
@@ -426,7 +434,7 @@ This is a complete **common-path request**, not the full wire grammar:
       "evidence_class": "user_statement",
       "payload": "I prefer dark mode.",
       "media_type": "text/plain",
-      "observed_at": "2026-08-16T01:00:00Z",
+      "observed_at": "2026-08-16T01:00:00.000Z",
       "source_actor": {"id": "concept-alice"},
       "client_key": "message:123"
     }]

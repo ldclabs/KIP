@@ -552,7 +552,7 @@ WorkingState (工作状态)
 
 ## 6.3 `_system`
 
-`_system` 由引擎负责维护。
+`_system` 由引擎负责维护。其 `created_at` 和 `updated_at` 时间戳**必须**遵循 §6.5。
 
 普通的 KML **严禁**直接写入：
 
@@ -592,6 +592,18 @@ KIP 2.0 不再提供规范性的通用作者可写 `metadata` 黑盒。
 兼容层**可以**将未映射的 KIP 1 元数据保留在带命名空间的遗留切面中，但**严禁**利用该机制绕过受保护的协议语义。
 
 ---
+## 6.5 时间戳格式与精度 (Timestamp format and precision)
+
+协议时间戳**必须**采用 UTC 字符串，精度固定为毫秒，规范形式为 `YYYY-MM-DDTHH:mm:ss.SSSZ`，例如 `2026-08-14T03:00:00.123Z`。日期和时间**必须**是有效的日历值；`T` 和 `Z` **必须**大写，秒的小数部分**必须**恰好包含三位十进制数字，整秒也必须带 `.000`。
+
+此约定适用于所有协议时间戳字段与时间值命令参数，包括 `_system.created_at`、`_system.updated_at`、`Assertion.asserted_at`、`Assertion.valid_time.from` / `until`、`Evidence.observed_at`、`Activity.started_at` / `ended_at`、`retention.expires_at`、提交记录、回执及变更信封中的 `committed_at`，以及 `FOR TIME` 和 `DESCRIBE SNAPSHOT AT TIME` 等时间输入。此约定也定义了 `format: "timestamp"`（§9.2、§20.15），包括它在模式包和 Profile 字段中的使用。时间戳是否可以缺省或为 `null`，仍由各字段的既有规则决定；`null` 不是时间戳。
+
+对于缺少秒的小数部分、小数位数不等于三位、使用 `Z` 以外的时区偏移表示、使用数值型纪元时间或日期/时间无效的输入，**必须**拒绝，**严禁**静默补零、舍入、截断或转换。不符合此格式的字符串报 `ConstraintViolation`；非字符串时间戳报 `TypeMismatch`（§87.2）。格式校验不会改写字符串字面量的身份（§9.6）。
+
+引擎生成的时间戳**必须**采用相同的规范形式。若引擎时钟分辨率高于毫秒，则**必须**在输出协议时间戳前截去不足一毫秒的部分。物理存储形式仍由实现决定（§6.2），但协议往返传输和时间比较**必须**保留毫秒值。毫秒精度不保证时钟准确度、唯一性或提交顺序：多次提交**可以**共享同一时间戳；`space_seq` 仍是每个 Space 内的提交顺序坐标。此时间戳约定不改变时长的单位，也不要求任意 Evidence 载荷文本遵循此格式。
+
+---
+
 # 7. 标识符 (Identifiers)
 
 ## 7.1 本地标识符 `id` (Local `id`)
@@ -1853,7 +1865,8 @@ subject               {concept_types: [...]} | {kinds: [...]}
 object                {concept_types: [...]} | {kinds: [...]} | {literal_types: [...]}
                       外加 nullable: true（当 null 属于允许的 object 时，§9.5），
                       以及 format: "timestamp" | "uri" | <package-defined name>
-                      （用于谓词对其形状施加约束的字符串字面量，§9.2；format 在写入时校验，绝不影响身份）
+                      （用于谓词对其形状施加约束的字符串字面量，§9.2；format 在写入时校验，绝不影响身份；
+                      timestamp 遵循 §6.5）
 functional            true  → 每个主语在特定世界有效时间下至多有一个被接受的 object；
                               多个值构成冲突集 (§25.1)
 open_world            true  → 命题不存在代表依据不足 insufficient (§24)
@@ -5202,7 +5215,7 @@ JSON 文本**必须**采用 UTF-8 编码。
         "evidence_class": "user_statement",
         "payload": "I prefer dark mode.",
         "media_type": "text/plain",
-        "observed_at": "2026-08-14T01:00:00Z",
+        "observed_at": "2026-08-14T01:00:00.000Z",
         "source_actor": {"id": "concept-alice"},
         "client_key": "message:msg-123"
       }
@@ -6653,7 +6666,7 @@ list_target :=
         "evidence_class": "user_statement",
         "payload": "I prefer dark mode.",
         "media_type": "text/plain",
-        "observed_at": "2026-08-14T01:00:00Z",
+        "observed_at": "2026-08-14T01:00:00.000Z",
         "source_actor": {"id": "concept-alice"},
         "client_key": "message:msg-123"
       }
@@ -6736,7 +6749,7 @@ list_target :=
     "space_id": "space-1",
     "snapshot_seq": 1500,
     "space_seq": 1501,
-    "committed_at": "2026-08-14T03:00:00Z"
+    "committed_at": "2026-08-14T03:00:00.000Z"
   },
 
   "warnings": []

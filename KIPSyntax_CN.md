@@ -103,6 +103,14 @@ object     本地 Element 引用，或 Predicate Schema 允许的标量 Literal
 
 基线 Core Literal 仅包括 JSON `string | number | boolean | null`（数值：有限 binary64，整数值结果限制在 ±9007199254740991 范围内，杜绝非零下溢为零）。数组与任意对象可以作为赋值/封包值，但**不是**基线 Proposition Literal；结构化语义值应建模为类型化 Concept 或 Schema 定义的值对象。`null` 仅在 Predicate Schema 允许时合法。term 中的 `{type: ...}` 是内联 Concept 匹配，而不是任意对象 Literal。
 
+#### 1.7. 时间戳
+
+所有协议时间戳与时间值参数**必须**使用 UTC 字符串，秒的小数部分固定为三位：`YYYY-MM-DDTHH:mm:ss.SSSZ`，例如 `"2026-08-16T01:00:00.123Z"`（整秒使用 `.000Z`）。详见[规范 §6.5](./SPECIFICATION_CN.md#65-时间戳格式与精度-timestamp-format-and-precision)。
+
+适用范围包括 `_system.created_at` / `updated_at`、`asserted_at`、`observed_at`、`valid_time.from` / `until`、`started_at` / `ended_at`、`retention.expires_at`、`committed_at`、`format: "timestamp"`，以及绑定到 `at`、`FOR TIME` 或 `DESCRIBE SNAPSHOT AT TIME` 的参数。仅在字段约定允许时才可使用 `null` 或缺省。
+
+缺少小数部分、小数位数不等于三位、非 `Z` 时区表示及无效日期/时间均报 `ConstraintViolation`；数值型纪元时间及其他非字符串时间戳报 `TypeMismatch`。输入绝不静默规范化。引擎生成时间戳时截去时钟中不足一毫秒的部分。毫秒精度不代表唯一性或提交顺序；每个 Space 内的提交顺序使用 `space_seq`。时长仍使用其声明的单位。
+
 ---
 
 ### 2. KQL — 读取
@@ -422,7 +430,7 @@ SEARCH 仅用于关联接地：得分 (score) ≠ 置信度 ≠ 信念；未搜�
       "evidence_class": "user_statement",
       "payload": "I prefer dark mode.",
       "media_type": "text/plain",
-      "observed_at": "2026-08-16T01:00:00Z",
+      "observed_at": "2026-08-16T01:00:00.000Z",
       "source_actor": {"id": "concept-alice"},
       "client_key": "message:123"
     }]
