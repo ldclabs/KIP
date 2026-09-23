@@ -1430,7 +1430,7 @@ Example logical identifiers:
 
 ```text
 kip://core@2.0.0
-kip://profiles/cognitive-memory@2.1.0
+kip://profiles/cognitive-memory@2.2.0
 kip://ldclabs/organization@1.0.0
 ```
 
@@ -2633,7 +2633,7 @@ The Profile is separate from Core because KIP permits other cognitive taxonomies
 A machine-readable Package should be published independently, for example:
 
 ```text
-kip://profiles/cognitive-memory@2.1.0
+kip://profiles/cognitive-memory@2.2.0
 ```
 
 The Profile defines portable structures and invariants. It does not mandate formation frequency, ranking formulas, forgetting thresholds, Skill compilation algorithms, or reflection schedules. Those are Brain policy.
@@ -2770,7 +2770,7 @@ KIP/
 │   └── KIP-2.0-Migration-from-1.x.md
 ├── profiles/
 │   ├── CognitiveMemoryProfile-2.0.md
-│   └── cognitive-memory-2.1.0.schema.json
+│   └── cognitive-memory-2.2.0.schema.json
 ├── brain/
 │   ├── ExperienceLearningArchitecture.md
 │   ├── BrainFormation.md

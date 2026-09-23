@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-REL-006",
+  "title": "Prospective cohort with future controls",
+  "description": "Open a prospective trial with an enrollment artifact and no outcomes. Assign both arms before execution, deliver observations out of order, omit one result, and freeze the complete cohort at cutoff. Reject post-outcome assignment, switched arms and omitted enrolled units.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "capabilities": [
+    "prospective_trials"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_reliability_scenario",
+      "args": {
+        "id": "KIP2-REL-006"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/future_control_supported",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/missing_attempt_accounted",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/post_outcome_assignment_rejected",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/trial_record_unchanged",
+      "operator": "equals",
+      "expected": true
+    }
+  ]
+}

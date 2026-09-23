@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-REL-008",
+  "title": "Recall plan completeness",
+  "description": "Retrieve optional experiences approximately and mandatory constraints exactly. Place the critical constraint outside similarity top-k. Record selector/basis/watermarks and return partial on exact-channel truncation or unresolved source interpretation.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_reliability_scenario",
+      "args": {
+        "id": "KIP2-REL-008"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/critical_constraint_or_incomplete",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/approximate_is_semantically_exhaustive",
+      "operator": "equals",
+      "expected": false
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/false_action_eligibility_count",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

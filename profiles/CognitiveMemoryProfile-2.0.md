@@ -8,10 +8,10 @@
 
 This document and its package bind implementations claiming the standard Cognitive Memory Profile. [Cognitive Consistency](../KIP-2.0-Cognitive-Consistency.md) supplies the mandatory cross-cutting contracts. Draft status does not downgrade MUST requirements; Brain policy examples remain informative.
 
-Current draft package identity (2.1.0; the prior 2.0.0 artifact is retained unchanged for migration):
+Current draft package identity (2.2.0; prior 2.0.0 and 2.1.0 package bytes and the 2.1.0 validation resources are retained unchanged):
 
 ```text
-kip://profiles/cognitive-memory@2.1.0
+kip://profiles/cognitive-memory@2.2.0
 ```
 
 This document defines standard portable memory structures for KIP 2.0 Brains. It builds on KIP Core and does not redefine Core semantics. If it conflicts with `SPECIFICATION.md`, the Specification takes precedence.
@@ -125,8 +125,8 @@ A machine-readable publication SHOULD use an immutable Schema Package:
 
 ```text
 package_id  = kip://profiles/cognitive-memory
-version     = 2.1.0
-package_ref = kip://profiles/cognitive-memory@2.1.0
+version     = 2.2.0
+package_ref = kip://profiles/cognitive-memory@2.2.0
 ```
 
 Persist exact Profile refs. Local aliases remain model-facing conveniences.
@@ -390,7 +390,7 @@ WorkingState never corroborates its own inputs
 WorkingState answers "what is my situation"; SelfModel answers "who am I"
 ```
 
-A Space SHOULD keep at most one active WorkingState per actor scope, under a stable `key`. Its producing Activity pins DependencyBasis and the full ProjectionBasis; consumers validate the basis and all delta pages before claiming a current situation (Consistency §2–§3).
+A Space SHOULD keep at most one active WorkingState per actor and canonical task/context scope, under a stable `key`; MemoryScope records that scope. Its producing Activity pins DependencyBasis and the full ProjectionBasis; consumers validate the basis and all delta pages before claiming a current situation (Consistency §2–§3).
 
 # 6. Standard Facets
 
@@ -401,7 +401,7 @@ A Space SHOULD keep at most one active WorkingState per actor scope, under a sta
   "memory_strength": 0.8,
   "salience": 0.9,
   "utility": 0.6,
-  "last_metabolized_at": "2026-08-14T00:00:00Z"
+  "last_metabolized_at": "2026-08-14T00:00:00.000Z"
 }
 ```
 
@@ -428,7 +428,7 @@ Skills carry the Facet too. A Skill's expected usefulness is `MnemonicState.util
   "success_count": 8,
   "failure_count": 2,
   "graded_count": 11,
-  "last_verdict_at": "2026-08-10T00:00:00Z"
+  "last_verdict_at": "2026-08-10T00:00:00.000Z"
 }
 ```
 
@@ -449,7 +449,7 @@ evidence cannot be served as a validated recommendation (BrainRecall §16).
 {
   "basis_seq": 1500,
   "status": "current",
-  "reviewed_at": "2026-08-14T00:00:00Z"
+  "reviewed_at": "2026-08-14T00:00:00.000Z"
 }
 ```
 
@@ -495,7 +495,8 @@ Independent samples are aggregated attempts, not observations (Consistency §5).
 TrialState points to the immutable trial_open Activity carrying TrialRecord. It is
 only the current cache. Re-entry selects a new trial with a new id; old verdicts
 replay from the old TrialRecord/replay artifact, never this pointer. TrialRecord
-pins baseline attempts/outcomes, comparison inputs, rule and parameters, strata,
+pins the fixed baseline attempts/outcomes (or the prospective enrollment contract
+of Consistency §5.1), comparison inputs, rule and parameters, strata,
 quota in independent attempts, missingness and observation-window policy. The full
 contract is Cognitive Consistency §5–§6.
 
@@ -765,7 +766,9 @@ Rules:
 4. **Adoption is provisional.** An adopted Skill stays subscribed to its stream. A deployment SHOULD define a re-verdict trigger — an outcome count, a time window, or a Watch on the family — so adoption ages with the world instead of outliving it.
 5. **Grading vocabulary.** Distinguish success under matching conditions, failure under matching conditions, failure under non-matching conditions, and unknown outcome. Matching-condition failure lowers utility, adds failure modes and counterexamples, narrows applicability, or demotes; non-matching failure narrows applicability without penalizing the procedure.
 6. **Orthogonal review states.** DerivationState (§6.3) still applies: a Skill whose provenance root was revised goes `stale`/`under_review` regardless of lifecycle standing, and that review may open a re-trial.
-7. **Attribution before counting.** The treatment set consists of independently aggregated attempts assigned to that trial and revision before execution; the baseline is explicitly selected comparable attempts frozen in TrialRecord (Consistency §5–§6). An outcome that merely shares the `task_family` MUST NOT change the Skill's `GradingState` or move its lifecycle; two Skills in one family are graded by their own decisions, not by each other's.
+7. **Attribution before counting.** The treatment set consists of independently aggregated attempts assigned to that trial and revision before execution; the baseline is explicitly selected comparable attempts frozen in TrialRecord, or
+prospectively assigned controls frozen in the EvaluationRecord cohort under the
+predeclared enrollment contract (Consistency §5–§6). An outcome that merely shares the `task_family` MUST NOT change the Skill's `GradingState` or move its lifecycle; two Skills in one family are graded by their own decisions, not by each other's.
 
 No lifecycle state grants execution authority. Adoption is standing, not permission.
 

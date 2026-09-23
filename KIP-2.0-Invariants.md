@@ -102,24 +102,32 @@ An implementation that claims the Cognitive Memory Profile MUST additionally pre
 | P28 | Lifecycle transitions are deterministic verdicts over graded outcomes, recorded and recomputable. | Profile §9, §14 | X-016 |
 | P29 | Revocation is never harder than adoption. | Profile §14 | MEM-018 |
 | P30 | Adoption is provisional; an adopted Skill remains under its outcome stream. | Profile §14 | MEM-018 |
-| P31 | Lifecycle standing does not survive import; an imported Skill enters proposed. | Profile §14, §21 | GOV-021, CAP-023 |
+| P31 | Lifecycle standing does not survive import; an imported Skill enters proposed. | Profile §14, §21 | GOV-021, CAP-023, REL-016 |
 | P32 | A task family finds comparable consequences; it never attributes one. | Profile §8.1 | X-016 |
 | P33 | A tally, a verdict, or a utility calibration changes only through an outcome linked to the decision that applied the cognition. | Profile §8.1 | X-016, GOV-026 |
 | P34 | A trial's immutable TrialRecord basis is fixed before enrollment; TrialState only selects it. | Profile §6.5, §14 | MEM-005, MEM-018 |
 | P35 | A DecisionRecord records what the gate decided; it is never authorization to act. | Profile §6.6 | MEM-014 |
 | P36 | Behavior, standing and authority bind an immutable SkillRevision. | Consistency §5 | MEM-002 |
 | P37 | Independent attempts, not observation count, are the learning sampling unit. | Consistency §5 | MEM-003 |
-| P38 | Baseline membership, comparability, coverage and uncertainty are explicit before learning claims. | Consistency §6 | MEM-004 |
-| P39 | Every trial and verdict retains immutable, governed replay inputs; re-trials have fresh identities. | Consistency §5 | MEM-005 |
-| P40 | Dependency validity is computed before Recall independently of stored reviewer flags. | Consistency §3 | MEM-006 |
-| P41 | Advertised durable workers enforce arm generations, watermarks, leases and fenced recovery. | Consistency §7 | MEM-009 |
-| P42 | Lossy encoding and incomplete required recall coverage are disclosed before automatic use. | Consistency §8 | MEM-010, MEM-023 |
+| P38 | Baseline membership, comparability, coverage and uncertainty are explicit before learning claims. | Consistency §6 | MEM-004, REL-006 |
+| P39 | Every trial and verdict retains immutable, governed replay inputs; re-trials have fresh identities. | Consistency §5 | MEM-005, REL-015, REL-017 |
+| P40 | Dependency validity is computed before Recall independently of stored reviewer flags. | Consistency §3 | MEM-006, REL-002, REL-003 |
+| P41 | Advertised durable workers enforce arm generations, watermarks, leases and fenced recovery. | Consistency §7 | MEM-009, REL-007 |
+| P42 | Lossy encoding and incomplete required recall coverage are disclosed before automatic use. | Consistency §8 | MEM-010, MEM-023, REL-008 |
 | P43 | Semantic erasure cannot complete with retained in-scope controlled copies. | Consistency §8 | MEM-010, MEM-024 |
 | P44 | Typed process records match their Activity class, topology and immutable terminal state. | Profile §6.7, Consistency §5 | MEM-021 |
 | P45 | Erased replay inputs make historical replay unavailable, never reconstructed or fabricated. | Consistency §8 | MEM-024 |
 | P46 | Conformance models and runtime checks do not substitute for measured behavioral learning. | Consistency §9 | MEM-012, MEM-025 |
 
 ---
+
+The 2026-09-23 reliability scenarios refine existing invariants and add binding
+checks for canonical timestamps (REL-001), authorized recording repair (REL-004),
+causal formation (REL-005), uniform scope (REL-009), existence-neutral dependency
+traversal (REL-010), lazy read-only ranking (REL-011), non-promoting applicability
+assessment (REL-012), session barriers (REL-013), and scoped sugar (REL-014). See
+[the reliability suite](conformance/KIP-2.0-Reliability-Tests.md); optional capability
+checks apply only when advertised. Existing invariant numbering remains stable.
 
 ## Reading the two parts together
 

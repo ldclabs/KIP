@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-REL-005",
+  "title": "Causal formation convergence",
+  "description": "Capture three causally linked corrections. Exercise all six arrival/completion permutations, restart between admission and completion, fail a predecessor, and replay source events. Verify the actual final belief, not only receipt phases.",
+  "level": "OPTIONAL",
+  "class": "fault_injection",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_reliability_scenario",
+      "args": {
+        "id": "KIP2-REL-005"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/all_orders_final_value",
+      "operator": "equals",
+      "expected": "latest"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/failed_predecessor_blocks",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/retry_duplicate_count",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

@@ -2,6 +2,8 @@
 
 The parent suite has 331 vectors; the cognitive consistency companion adds 25.
 The optional Memory Interface adds 12 binding scenarios, separately selectable.
+The 2026-09-23 reliability revision adds 17 scenarios (`--suite reliability`),
+with mandatory current-contract checks and separately advertised optional features.
 The repository supplies language tests, deterministic contract oracles, finite
 models, typed JSON schemas, a golden snapshot Capsule and a memory-subset adapter
 runner. These are different evidence sources; none alone is a full engine result.
@@ -30,6 +32,15 @@ used by Capsules. The read-only check verifies that lock and Capsule package pin
 as well as each artifact's own digest. The contract suite compiles the schemas in
 an isolated validator loaded only from the manifest pins. Never regenerate a digest
 just to conceal a failed integrity check.
+
+## Current and retained artifacts
+
+The current memory package is 2.2.0. Package 2.1.0 and its six original resources
+(`schemas/legacy-2.1-*.json`) remain byte-identical. Current Schema IDs include the
+`2026-09-23` contract revision; shared timestamps and ProjectionBasis use `$ref`.
+Validators must load the selected package's complete digest-pinned closure, not
+substitute a resource from another revision. No old deployment is upgraded by a
+new package appearing in this repository.
 
 ## Engine adapter boundary
 
@@ -84,6 +95,8 @@ handles, invokes the Brain's actual Interface, and validates requests/responses 
 `schemas/kip-memory.schema.json`. Retain source/progress/KIP receipts and independent
 state inspection. Scenarios become required when memory_interface is advertised.
 Basic memory must work without pretending to implement learning or durable dispatch.
+See [Anda Brain implementation evidence](Brain-Implementation-Evidence.md) for an
+actual 538-test library run and its limits; it does not certify the new REL suite.
 
 `reference/memory-interface.mjs` is a small executable contract model for processing
 barriers, restart/idempotency, scope and coverage. Its tests are model evidence only;

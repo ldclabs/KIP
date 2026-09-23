@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:kip:2.0:schema:element",
+  "$id": "urn:kip:2.0:2026-09-23:schema:element",
   "type": "object",
   "properties": {
     "id": {
@@ -34,14 +34,10 @@
           "minLength": 1
         },
         "created_at": {
-          "type": "string",
-          "minLength": 1,
-          "format": "date-time"
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
         },
         "updated_at": {
-          "type": "string",
-          "minLength": 1,
-          "format": "date-time"
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
         },
         "created_tx": {
           "type": "string",
@@ -148,12 +144,51 @@
           }
         },
         "dependency_validity": {
-          "$ref": "urn:kip:2.0:schema:projection#/$defs/DependencyValidity"
+          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/DependencyValidity"
         },
         "space_seq": {
           "type": "integer",
           "minimum": 0,
           "maximum": 9007199254740991
+        },
+        "recording_validity": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": [
+                "valid",
+                "invalidated"
+              ]
+            },
+            "repair_ref": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "status",
+            "repair_ref"
+          ],
+          "additionalProperties": false
+        },
+        "output_plane_versions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
         }
       },
       "required": [
@@ -197,9 +232,7 @@
         "expires_at": {
           "anyOf": [
             {
-              "type": "string",
-              "minLength": 1,
-              "format": "date-time"
+              "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
             },
             {
               "type": "null"
@@ -365,9 +398,7 @@
       "maximum": 1
     },
     "asserted_at": {
-      "type": "string",
-      "minLength": 1,
-      "format": "date-time"
+      "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
     },
     "valid_time": {
       "type": "object",
@@ -375,9 +406,7 @@
         "from": {
           "anyOf": [
             {
-              "type": "string",
-              "minLength": 1,
-              "format": "date-time"
+              "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
             },
             {
               "type": "null"
@@ -387,9 +416,7 @@
         "until": {
           "anyOf": [
             {
-              "type": "string",
-              "minLength": 1,
-              "format": "date-time"
+              "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
             },
             {
               "type": "null"
@@ -515,9 +542,7 @@
         "retracted_at": {
           "anyOf": [
             {
-              "type": "string",
-              "minLength": 1,
-              "format": "date-time"
+              "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
             },
             {
               "type": "null"
@@ -591,9 +616,7 @@
       "minLength": 1
     },
     "observed_at": {
-      "type": "string",
-      "minLength": 1,
-      "format": "date-time"
+      "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
     },
     "source": {
       "type": "array",
@@ -638,9 +661,7 @@
     "started_at": {
       "anyOf": [
         {
-          "type": "string",
-          "minLength": 1,
-          "format": "date-time"
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
         },
         {
           "type": "null"
@@ -650,9 +671,7 @@
     "ended_at": {
       "anyOf": [
         {
-          "type": "string",
-          "minLength": 1,
-          "format": "date-time"
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
         },
         {
           "type": "null"

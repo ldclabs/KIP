@@ -233,7 +233,7 @@ ensure_proposition
 
 (* Normative sugar (Spec §55.1): ensure Proposition + create Assertion,
    with optional supersession (TRANSITION ... TO "superseded" BY the new
-   Assertion). Member keys (by, mode, stance, confidence, at, valid,
+   Assertion). Member keys (by, mode, stance, confidence, at, valid, context,
    evidence, key) are validated semantically. *)
 assert_statement = "ASSERT", [ handle ], proposition_tuple,
                    assignment_object,

@@ -14,7 +14,7 @@ const ajv = new Ajv2020({ strict: false, allErrors: true })
 addFormats(ajv)
 for (const name of await readdir(new URL('schemas/', base)))
   if (name.endsWith('.json')) ajv.addSchema(await json('schemas/' + name))
-const validate = name => ajv.getSchema('urn:kip:2.0:schema:memory#/$defs/' + name)
+const validate = name => ajv.getSchema('urn:kip:2.0:2026-09-23:schema:memory#/$defs/' + name)
 const context = { principal: 'alice-runtime', space_id: 'personal', accepted_seq: 10 }
 const source = { ref: 'source-77', identity: 'event-77', digest: 'sha256:' + 'a'.repeat(64) }
 const request = { kip_memory: '2.0', operation: 'observe', idempotency_key: 'observe:77',
@@ -264,5 +264,5 @@ test('MIF: an after barrier cannot silently move a requested historical snapshot
   assert.throws(() => processingBarrier(ledger, context, [receipt.receipt_ref], 12, { fixed: true }), /PreconditionFailed/)
   assert.equal(processingBarrier(ledger, context, [receipt.receipt_ref], 13, { fixed: true }).satisfied, true)
   assert.ok(validate('Request')({ kip_memory: '2.0', operation: 'recall',
-    input: { query: 'What did we believe then?', time: { as_of_seq: 13, valid_at: '2026-09-06T00:00:00Z' } } }))
+    input: { query: 'What did we believe then?', time: { as_of_seq: 13, valid_at: '2026-09-06T00:00:00.000Z' } } }))
 })

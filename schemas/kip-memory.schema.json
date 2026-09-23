@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:kip:2.0:schema:memory",
+  "$id": "urn:kip:2.0:2026-09-23:schema:memory",
   "title": "KIP 2.0 Memory Interface",
   "description": "Optional Agent-to-Brain binding over existing KIP semantics. Static shapes do not prove source fidelity, authority, processing progress, coverage, token budgets or erasure; adapters enforce those contracts.",
   "oneOf": [
@@ -147,8 +147,7 @@
           "type": "object",
           "properties": {
             "valid_at": {
-              "type": "string",
-              "format": "date-time"
+              "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
             },
             "as_of_seq": {
               "$ref": "#/$defs/Sequence"
@@ -296,7 +295,7 @@
           "maxLength": 4096
         },
         "error": {
-          "$ref": "urn:kip:2.0:schema:response#/$defs/Error"
+          "$ref": "urn:kip:2.0:2026-09-23:schema:response#/$defs/Error"
         }
       },
       "required": [
@@ -721,15 +720,15 @@
       "type": "object",
       "properties": {
         "basis": {
-          "$ref": "urn:kip:2.0:schema:projection#/$defs/ProjectionBasis"
+          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
         },
         "coverage": {
-          "$ref": "urn:kip:2.0:schema:cognitive-records#/$defs/RecallCoverage"
+          "$ref": "urn:kip:2.0:2026-09-23:schema:cognitive-records#/$defs/RecallCoverage"
         },
         "elements": {
           "type": "array",
           "items": {
-            "$ref": "urn:kip:2.0:schema:element"
+            "$ref": "urn:kip:2.0:2026-09-23:schema:element"
           },
           "maxItems": 128
         }
@@ -808,7 +807,7 @@
           "$ref": "#/$defs/Operation"
         },
         "space": {
-          "$ref": "urn:kip:2.0:schema:request#/$defs/SpaceSelector"
+          "$ref": "urn:kip:2.0:2026-09-23:schema:request#/$defs/SpaceSelector"
         },
         "scope": {
           "$ref": "#/$defs/Scope"
@@ -827,7 +826,11 @@
           "uniqueItems": true,
           "maxItems": 5
         },
-        "input": {}
+        "input": {},
+        "requires_contract": {
+          "type": "string",
+          "minLength": 1
+        }
       },
       "required": [
         "kip_memory",
@@ -978,7 +981,7 @@
         },
         "result": {},
         "error": {
-          "$ref": "urn:kip:2.0:schema:response#/$defs/Error"
+          "$ref": "urn:kip:2.0:2026-09-23:schema:response#/$defs/Error"
         },
         "warnings": {
           "type": "array",
@@ -1525,7 +1528,11 @@
           "maximum": 9007199254740991
         },
         "default_space": {
-          "$ref": "urn:kip:2.0:schema:request#/$defs/SpaceSelector"
+          "$ref": "urn:kip:2.0:2026-09-23:schema:request#/$defs/SpaceSelector"
+        },
+        "contract_revision": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "required": [

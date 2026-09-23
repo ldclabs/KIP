@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-REL-012",
+  "title": "Applicability without comparative standing",
+  "description": "Record a successful ProcedureAssessment under the authorized criterion. Preserve proposed standing and absent local grade; an author-written assessment may not become a lifecycle verdict or execution permit.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "capabilities": [
+    "memory_experience"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_reliability_scenario",
+      "args": {
+        "id": "KIP2-REL-012"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/assessment_result",
+      "operator": "equals",
+      "expected": "satisfied"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/standing",
+      "operator": "equals",
+      "expected": "unproven"
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/promotion_count",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

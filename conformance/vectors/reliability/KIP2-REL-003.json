@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-REL-003",
+  "title": "Relevant planes and temporal boundaries",
+  "description": "Change only MnemonicState on a pinned prerequisite, then change lifecycle and advance to the next temporal boundary. Capture real plane/output pins; unrelated annotations must not remove semantic certification.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "capabilities": [
+    "dependency_validity"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_reliability_scenario",
+      "args": {
+        "id": "KIP2-REL-003"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/mnemonic_change_invalidates",
+      "operator": "equals",
+      "expected": false
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/lifecycle_change_invalidates",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/boundary_revalidated",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/behavior_unchanged",
+      "operator": "equals",
+      "expected": true
+    }
+  ]
+}

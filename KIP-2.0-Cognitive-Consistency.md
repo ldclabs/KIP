@@ -73,8 +73,9 @@ permitted. `WITH EPISTEMIC {context_refs: [...]}` supplies the request set.
 World intervals are **[from, until)**. Missing/null from is unbounded below;
 missing/null until is unbounded above. Finite bounds require from < until.
 At t = until the old value is excluded; a value beginning at t is eligible.
-Timestamps MUST carry an offset, compare as instants, and normalize to UTC in
-result bases. Coarse or uncertain dates SHOULD retain their precision/anchor as
+Protocol timestamps MUST use the strict UTC millisecond format in Core §6.5;
+noncanonical input is rejected, not silently normalized. Source-local dates remain
+source data until a host explicitly converts them, preserving the original anchor. Coarse or uncertain dates SHOULD retain their precision/anchor as
 Evidence or Profile state; Formation MUST NOT invent an exact instant. A missing
 valid interval follows the declared policy, never retention expiry.
 
@@ -132,6 +133,43 @@ optional extra lineage fields. An action gate pins the checked dependencies;
 the external executor revalidates them and Governance immediately before acting.
 A detected change defers or re-plans; it never authorizes execution itself.
 
+### 3.1 Selection dependencies and precise invalidation
+
+An element pin records consumption of a retained record. It does not by itself
+record that a Proposition was accepted, that a functional slot had no competitor,
+or that a query/absence test covered an entire selection. Derivations relying on
+those judgments MUST also capture `DependencyBasis.queries` (QueryDependency).
+The host pins the normalized selector artifact, result digest, authorization view,
+expectation and an engine-issued selection change token. The selector includes
+bound parameters, scope and the applicable basis; it is captured from the actual
+read, never reconstructed from an author's later account.
+
+Insertions, removals and eligibility changes affecting the selection MUST invalidate
+that token, including new opposing Assertions and previously absent Commitments.
+A changed token requires complete re-evaluation at the current read basis; an
+unchanged result after that evaluation may remain current. An incomplete, missing
+or unauthorized selection proof is unverifiable. Engines without precise selection
+tracking MUST conservatively re-evaluate after any possibly relevant Space change;
+unchanged positive-record pins alone cannot discharge a selection dependency.
+Tests MUST exercise negative reads and newly inserted competition, not only edits.
+
+A nonempty `planes` pin compares the named relevant plane counters; `version`
+retains the original read coordinate, not an additional all-plane equality guard.
+Lifecycle, recording invalidation, Governance and recursive prerequisite validity
+are always checked independently. Empty/absent planes compares the whole version.
+Context-only groups cannot establish epistemic support. Producing/validation output
+bindings record the semantic planes they certify in engine-captured
+`_system.output_plane_versions` keyed by output ID and canonical plane name: changes outside those planes (for example MnemonicState) preserve that
+certification. An annotation in a certified plane conservatively requires validation
+unless the engine proves semantic equivalence. Changed behavior never inherits it.
+
+Projection result caches keep the exact public ProjectionBasis. Implementations may
+reuse a validated computation across unrelated commits or a time interval only by
+proving equivalent selection/control dependencies and absence of a temporal boundary.
+They issue a fresh result basis; they do not relabel an old snapshot as a new read.
+Reaching next_invalid_at requires validation. Strength decay is not a belief input.
+
+
 ## 4. Repairable identity and portable keys
 
 MERGE remains non-destructive, but every merge is a protected, immutable
@@ -167,6 +205,36 @@ identity with `issuer_namespace`, `key_scope` and normalization rules. Capsule
 mapping by key MUST match all of lineage, verified issuer, scope and normalized
 key. Equal local keys in different owners' Spaces otherwise create separate
 identities. A repair never grants new trust or authority.
+
+### 4.1 Recording repair is not an actor's change of mind
+
+Extraction or attribution can be wrong while the captured source is correct.
+A runtime advertising `recording_repair` provides a protected operation with the
+RecordingRepair input shape. It requires `repair_recording` plus normal permissions
+for any replacement Assertions. Neither recording attribution nor ordinary update
+confers repair authority. By default it is limited to the authenticated recorder's
+own source-backed outputs; broader review requires an explicit protected grant.
+
+The engine verifies immutable source identity/digest and locator, recorder origin,
+expected versions, replacement closure and actor/context bindings in one transaction.
+It appends a terminal `recording_repair` Activity and a protected invalidation of the
+incorrect extraction, exposed as governed `_system.recording_validity` (valid or
+invalidated, with a discoverable repair_ref or null). This advances the affected
+element version without rewriting its epistemic payload. It preserves the source
+bytes, original Assertion payload and
+actor lifecycle: Alice did not retract or supersede a statement she never made.
+Current projection excludes the invalidated extraction and invalidates dependents;
+raw history identifies the repair. Historical reads use the repair state at their
+cognitive snapshot, under current authorization. Repair control changes advance the
+Space sequence and authorization-view/control invalidation coordinates as applicable.
+An unsupported runtime rejects repair; it may quarantine under separate authority
+but MUST NOT forge an actor withdrawal or correct a sound Evidence record.
+
+A source locator is a digest-bound byte range, JSON Pointer or format-specific
+selector whose validity the host checks. It helps review extraction fidelity; it
+never proves semantic entailment or substitutes for that review. Actor correction,
+world change and recording repair are distinct acceptance scenarios.
+
 
 ## 5. Revision, attempt, trial and evaluation identities
 
@@ -206,7 +274,8 @@ they never become two successes. Corrected outcomes are excluded from new gradin
 old evaluations retain the exact observations and correction state they used.
 Unlinked outcomes are stream material, never automatically the baseline.
 
-A completed `trial_open` Activity carries immutable TrialRecord: revision/bundle,
+For the default fixed-baseline mode (§5.1), a completed `trial_open` Activity carries
+immutable TrialRecord: revision/bundle,
 basis, rule artifact, parameters artifact, comparability policy, exact baseline
 attempt/outcome refs, strata/weights, quota in **independent attempts**, observation
 window, missingness policy and immutable copies of the comparison inputs needed
@@ -233,6 +302,40 @@ EvaluationRecord state pairs follow the Profile §14 transition table or keep th
 same state. Only trialed → adopted is promotion; revoked/proposed cannot jump
 directly to adopted. Re-entry from revoked first opens and selects a new trial.
 Imported Skills/revisions have no local standing; imported outcomes do not grade.
+
+### 5.1 Fixed baselines and prospective enrollment
+
+TrialRecord.baseline_mode defaults to `fixed`, preserving the existing frozen
+baseline attempt/outcome contract. A host may pre-register paired tasks and selection
+policy before baseline execution, run that complete baseline, then open a fixed trial;
+this is the supported Anda Brain paired-plan path. It is not a concurrent randomized
+control trial and MUST NOT be reported as one.
+
+`prospective_trials` adds baseline_mode `prospective`. TrialRecord freezes an
+`enrollment` artifact describing population, units/arms, assignment procedure,
+predeclared sample limits, comparability, metric, uncertainty and stopping rules.
+Its baseline_attempt_refs and baseline_outcome_refs are empty: it cannot cite future
+records or update a completed trial_open later. Every eligible control and treatment
+AttemptRecord pins the same enrollment through `assignment`, its unit_id, assigned_at
+and arm, before execution and before observing its result. The authenticated host
+verifies assignment against the actual allocation record and applied revisions;
+a model-written arm label never establishes membership or untreated control.
+
+EvaluationRecord.cohort_artifact freezes the complete enrolled cohort through the
+predeclared cutoff, including missing/aborted/unknown attempts, actual outcomes,
+assignment receipts and explicit exclusions. The evaluator checks that no eligible
+assignment disappeared and that no attempt switched arm, trial or revision. Duplicate
+observations never increase independent units. Comparison/replay uses this frozen
+artifact plus TrialRecord; a late result belongs to its original trial and cutoff.
+Missing or unverifiable enrollment/cohort coverage prohibits promotion. Serial or
+concurrent execution is permitted only when the declared experiment design allows it.
+
+A ProcedureAssessment may verify a revision against an applicability/correctness
+criterion without claiming comparative improvement. It remains advisory/unproven,
+never writes GradingState or adopted status, and grants no authority. Comparative
+adoption retains §6's stronger requirements; an absolute success check is not renamed
+learning. This avoids introducing a second competing Skill lifecycle.
+
 
 ## 6. Comparable learning, not just repeatable arithmetic
 
@@ -305,7 +408,8 @@ commit and a silence Watch still needs complete authorized coverage.
 SleepTask claim/renew/complete uses LeaseState: authenticated owner, monotonically
 increasing fencing_token, expires_at and attempt count. Acquisition and takeover
 are compare-and-set transactions; a worker whose lease expired or whose token was
-replaced cannot complete a task or issue a side effect. Authorized ready workers
+replaced cannot complete a task or obtain new native dispatch admission. The
+external effect guarantee is separately defined in §7.1. Authorized ready workers
 can reclaim expired running work. Terminal writes and their outputs are atomic and
 retry-safe. Backlog budgets defer work with a checkpoint, never silently drop it.
 
@@ -319,6 +423,30 @@ If the external system cannot support idempotency or outcome lookup, the state i
 outcome_unknown and automatic redispatch is forbidden; reconcile or ask under
 policy. KIP never claims exactly-once external effects solely from its own atomicity.
 An independent instrument records the returned outcome against that same attempt.
+
+### 7.1 Dispatch admission and external acceptance
+
+A DispatchContract declares `admission` or `receiver_fenced`. The first linearizes
+at the atomic native dispatch admission already used by Anda Brain. The durable
+permit pins attempt/request identity, resource, revision, fence and expiry. Revocation
+prevents later admissions; an already admitted/in-flight operation may still finish.
+No sender-side "last check" promises that a remote receiver will reject a delayed
+request after takeover. Idempotency deduplicates an attempt, not stale authority.
+
+`receiver_fencing` is an additional end-to-end capability, with linearization at
+receiver acceptance. The actual effect-owning receiver verifies an authenticated,
+resource/request-bound permit and the current fencing epoch/expiry, atomically with
+acceptance and deduplication. Its registered binding and enforcement scope are pinned.
+A gateway that checks then forwards to an unfenced remote service cannot claim this
+stronger guarantee. Takeover/epoch changes must reach the receiver's authoritative
+acceptance state before the newer epoch is considered effective there.
+
+Receivers lacking this contract advertise admission only. The executor retains the
+existing outcome_unknown/same-attempt reconciliation behavior. Tests pause execution
+after native admission and before receiver acceptance, then exercise takeover,
+revocation, delay, duplicate delivery and restart. Neither guarantee rolls back an
+external effect that was already accepted at its declared linearization point.
+
 
 ## 8. Encoding, recall coverage and erasure
 
@@ -360,6 +488,91 @@ claim recall of prior external exports. Re-ingestion of erased source events is
 prevented within the stated retention policy by non-content source-event tombstones;
 a new authorized observation is a separate policy decision. Replay whose inputs were
 erased reports unavailable, never fabricates a successful historical recomputation.
+
+### 8.1 Source causality and uniform task scope
+
+Host-captured SourceOrder identifies a source stream/event, stable ordinal and
+explicit predecessor processing receipts. These are transport attestations, never
+ordering claims inferred from payload text or worker completion timestamps. A
+revision cannot be formed before its required predecessor dispositions are available;
+failed/deferred predecessors remain visible blockers. Independent source streams may
+progress concurrently. Ordinals do not assert missing predecessor completeness.
+Late historical observations preserve their world time and do not overwrite the
+current value merely because their processing commit is newer.
+
+Formation may implement this through a durable per-stream queue (Anda Brain already
+serializes formation conversations) or a verified commutative revision reconciler.
+The guarantee is convergence for the same causally ordered corrections under every
+worker completion order, including retries/restarts. Session adapters retain the
+outstanding receipt set and supply recall.after automatically; they never replace
+an incomplete earlier receipt with a maximum sequence.
+
+`MemoryScope` on captured source and formation products uses the canonical task_ref
+and context_refs mapping from the host. Applicable Assertion.context_refs and
+DependencyBasis.policy_basis agree with it. Scope follows extraction and consolidation
+for Evidence, Event, Experience, Commitment and derived summaries, not only Assertions.
+A shared truth-neutral Proposition has no task owner: its scope eligibility comes
+from each Assertion. MemoryScope MUST NOT split canonical Proposition identity.
+Combining scopes must not widen eligibility; cross-task generalization creates a new
+explicitly attributed derived artifact, subject to policy and source restrictions.
+WorkingState keys include actor and canonical task/context scope. Semantic scope is
+not ownership or an authorization grant; MemorySpace and current Governance still apply.
+
+### 8.2 Verifiable recall plans
+
+RecallCoverage.plans records a RecallPlan per queried channel: digest-pinned selector,
+canonical scope, method, snapshot/index/coverage watermarks, authorization view,
+completion and truncation reason. The host determines required channels from the task
+and a versioned policy; a model cannot omit constraints to qualify its own action.
+Constraints, Commitments and prerequisite validity use exact authorized selectors.
+Approximate experience/semantic retrieval may complete its declared bounded plan;
+that never asserts semantic exhaustiveness. Report approximate selection and unresolved
+source interpretation separately, even when no page remains. Index watermarks alone
+do not establish source processing or predicate/constraint coverage.
+
+`action_eligible` requires complete mandatory exact channels, satisfied source
+barriers and necessary preconditions at a coherent current basis. Noncritical optional
+retrieval may remain partial and help deliberation without inventing absence; the
+Memory Interface still reports partial with action_eligible=false when its declared
+coverage is incomplete, as required by its existing response contract. Complete does not mean that
+all potentially relevant memories in the world were found. Unsupported/unknown
+channels cannot be marked not_applicable. User-visible coverage is authorization
+relative; privileged global closure is a separate check (Core §63.5).
+
+### 8.3 Exchange and rebuildable state
+
+A sharing import retains source history but transfers neither standing nor authority.
+Migration/restore additionally verifies owner/self/backup lineage, reference mappings
+and retained control/evaluation artifacts. RestoreReport records missing resources,
+historical preservation and the separate current validation result. Original source
+ProjectionBasis, versions and replay bytes stay in their source namespace, with a
+pinned mapping artifact to destination identities. Never rewrite a signed source basis
+into a fabricated destination read. Typed references inside Facets and artifacts are
+mapped by their declared schema paths, not by replacing every matching string.
+Package `reference_paths` use JSON Pointer segments with `*` for array items,
+`target: element`, and `namespace: source`. Null references remain null. Source
+coordinates inside ProjectionBasis and immutable replay artifacts are retained,
+not remapped; destination views use the explicit mapping artifact. Unknown paths
+or unavailable required references fail closure validation rather than guessing.
+Unmapped or unverifiable pins prohibit current automatic use.
+
+Verified historical adoption may remain readable as history. Imported outcomes still
+do not become local grades, including on restore. Current standing requires explicit
+destination validation under its authorized learning policy; otherwise it remains
+unproven/unverifiable. Permission never transfers. Native storage-level disaster
+recovery preserving the authenticated original runtime is distinct from Capsule
+import and must declare its own recovery boundary.
+
+GradingState counts and derived currentness are rebuildable views; authoritative
+Trial/Evaluation records and current revision/trial/evaluation pointers survive cache
+loss. DerivationState describes a review workflow, never an independent truth flag.
+Implementations may expose compatibility Facet views rather than duplicate writable
+counters, but MUST preserve observable version-plane guards, transaction receipts
+and exported values when replacing persisted Facets with views.
+Activity/DependencyBasis provide authoritative derivation semantics;
+redundant derived_from/compiled_from/consolidated_to edges are generated or validated
+against them, with explicitly typed extra context kept distinct from prerequisites.
+
 
 ## 9. Acceptance and deployment claims
 

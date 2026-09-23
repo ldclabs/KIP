@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-REL-010",
+  "title": "Hidden-dependent noninterference",
+  "description": "Compare two fixtures with identical authorized state and one additional undiscoverable dependent. LIST DEPENDENTS rows, truncation and scope diagnostics must be identical; a privileged global review remains independent.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "capabilities": [
+    "list_dependents"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_reliability_scenario",
+      "args": {
+        "id": "KIP2-REL-010"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/visible_results_equal",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/hidden_identity_disclosed",
+      "operator": "equals",
+      "expected": false
+    }
+  ]
+}

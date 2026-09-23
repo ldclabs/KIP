@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:kip:2.0:schema:schema-package",
+  "$id": "urn:kip:2.0:2026-09-23:schema:schema-package",
   "type": "object",
   "properties": {
     "format": {
@@ -168,6 +168,12 @@
               },
               "value_schema": {
                 "type": "object"
+              },
+              "reference_paths": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/ReferencePath"
+                }
               }
             },
             "required": [
@@ -282,6 +288,12 @@
               },
               "value_schema": {
                 "type": "object"
+              },
+              "reference_paths": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/ReferencePath"
+                }
               }
             },
             "required": [
@@ -396,6 +408,12 @@
               },
               "value_schema": {
                 "type": "object"
+              },
+              "reference_paths": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/ReferencePath"
+                }
               }
             },
             "required": [
@@ -510,6 +528,12 @@
               },
               "value_schema": {
                 "type": "object"
+              },
+              "reference_paths": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/ReferencePath"
+                }
               }
             },
             "required": [
@@ -581,5 +605,28 @@
     "definitions",
     "integrity"
   ],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "ReferencePath": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "target": {
+          "const": "element"
+        },
+        "namespace": {
+          "const": "source"
+        }
+      },
+      "required": [
+        "path",
+        "target",
+        "namespace"
+      ],
+      "additionalProperties": false
+    }
+  }
 }

@@ -11,7 +11,7 @@
     ],
     "version": 17
   },
-  "clock": "2026-01-01T00:00:00Z",
+  "clock": "2026-01-01T00:00:00.000Z",
   "epistemic_policy": "test-deterministic",
   "governance_policy": "governance-test-policy",
   "trust": {

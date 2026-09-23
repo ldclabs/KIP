@@ -58,7 +58,7 @@ Maintenance may be granted read/search/project/maintain/archive/retention/merge 
 {
   "trigger": "scheduled",
   "scope": "full",
-  "timestamp": "2026-08-14T03:00:00Z",
+  "timestamp": "2026-08-14T03:00:00.000Z",
   "budgets": {
     "max_elements_reviewed": 5000,
     "max_writes": 500,
@@ -311,6 +311,12 @@ LIMIT 500
 ```
 
 Bind `:cycle_start` **once** per cycle and reuse it across re-runs and crash retries; re-run a shard until fewer than `LIMIT` elements are affected. The floor keeps the sweep converging.
+
+An optional lazy policy may compute effective strength from the last explicit base,
+time anchor and pinned policy without writing during recall. Prefer this when sweep
+writes dominate cost; keep correction, retention and task work explicit. See
+[ImplementationGuide.md](ImplementationGuide.md). Grading/currentness caches and
+redundant lineage remain rebuildable from authoritative records.
 
 # 14. Salience Protection
 

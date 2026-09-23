@@ -62,7 +62,7 @@ For `Alice: "I prefer dark mode"`, Formation may record `asserted_by = Alice`, `
       "content": "I always prefer dark mode.",
       "actor_ref": "alice",
       "message_id": "msg-123",
-      "timestamp": "2026-08-14T01:00:00Z"
+      "timestamp": "2026-08-14T01:00:00.000Z"
     }
   ],
   "context": {
@@ -374,6 +374,11 @@ Never overwrite A1. If Bob disagrees with Alice, normally create Bob's Assertion
 
 Supersession means A1 was wrong. When the world changed instead — Alice moved, the project's status advanced — A1 was true for its time: re-assert it with its interval closed (`valid: {from, until: <change>}`, superseding the open-ended A1 only for its interval) and assert the new value with `valid: {from: <change>}`. Both stay active, and `FOR TIME` before the change still answers the old value (Spec §14.2, F.2).
 
+Encoding/attribution mistakes use the protected recording_repair contract
+(Consistency §4.1), not an invented actor withdrawal or correction of sound source
+Evidence. Capture a digest-bound source locator and keep related input processing
+causally ordered (Consistency §8.1). Apply MemoryScope to all products.
+
 # 17. Literal-Valued Facts
 
 Use literals directly:
@@ -588,8 +593,8 @@ schema and processing receipt. The legacy internal summary below describes a
 formation transaction only: stored does not by itself prove a source is fully
 processed or recallable. Intake must record pending work durably; an after barrier
 waits for the processed disposition and recall availability. Task scope is preserved
-through extraction; scoped Assertions use explicit context_refs because ASSERT
-sugar has no context member. Missing estimates are not guessed to fill fields.
+through every product using MemoryScope; scoped ASSERT uses `context` and lowers
+to the same explicit context_refs. Missing estimates are not guessed to fill fields.
 
 ```json
 {

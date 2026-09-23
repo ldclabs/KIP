@@ -1419,7 +1419,7 @@ compatibility range (兼容范围)
 
 ```text
 kip://core@2.0.0
-kip://profiles/cognitive-memory@2.1.0
+kip://profiles/cognitive-memory@2.2.0
 kip://ldclabs/organization@1.0.0
 ```
 
@@ -2618,7 +2618,7 @@ Profile 与核心层相互分离，因为 KIP 允许存在其他认知分类体�
 应当独立发布机器可读的模式包，例如：
 
 ```text
-kip://profiles/cognitive-memory@2.1.0
+kip://profiles/cognitive-memory@2.2.0
 ```
 
 Profile 定义了可移植的结构与不变式。它不强制规定形成频率、排序公式、遗忘阈值、技能编译算法或反思调度。那些属于记忆大脑策略。
@@ -2749,7 +2749,7 @@ KIP/
 │   └── KIP-2.0-Migration-from-1.x.md
 ├── profiles/
 │   ├── CognitiveMemoryProfile-2.0.md
-│   └── cognitive-memory-2.1.0.schema.json
+│   └── cognitive-memory-2.2.0.schema.json
 ├── brain/
 │   ├── ExperienceLearningArchitecture.md
 │   ├── BrainFormation.md

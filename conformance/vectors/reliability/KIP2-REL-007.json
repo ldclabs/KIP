@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-REL-007",
+  "title": "Receiver enforcement after sender admission",
+  "description": "Pause after native dispatch admission. Advance the authoritative receiver epoch by takeover; deliver the old request, then repeat the valid request. Reject expired/resource-mismatched permits and changed-payload reuse.",
+  "level": "OPTIONAL",
+  "class": "fault_injection",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "capabilities": [
+    "receiver_fencing"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_reliability_scenario",
+      "args": {
+        "id": "KIP2-REL-007"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/old_request_rejected",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/duplicate_result",
+      "operator": "equals",
+      "expected": "replayed"
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/external_effect_count",
+      "operator": "equals",
+      "expected": 1
+    }
+  ]
+}

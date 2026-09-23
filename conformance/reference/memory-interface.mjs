@@ -76,7 +76,8 @@ export class IntakeLedger {
       space_id: context.space_id, accepted_seq: context.accepted_seq }
     const progress = { receipt_ref: receipt.receipt_ref, phase: 'recorded' }
     const acknowledgement = { receipt, progress }
-    this.state.records.push({ receipt, progress, owner: context.principal, scope })
+    this.state.records.push({ receipt, progress, owner: context.principal, scope,
+      source_order: clone(context.source_order ?? null) })
     this.state.keys.push({ key, digest, intent: clone(intent), acknowledgement: clone(acknowledgement) })
     return clone(acknowledgement)
   }
@@ -88,6 +89,11 @@ export class IntakeLedger {
   }
   advance(context, next) {
     const record = this.read(context, next.receipt_ref)
+    if (next.phase !== 'failed') {
+      for (const predecessor of record.source_order?.predecessor_receipts ?? []) {
+        if (this.read(context, predecessor).progress.phase !== 'available') throw error('PreconditionFailed')
+      }
+    }
     const progress = advanceProgress(record.receipt, record.progress, next)
     this.state.records.find(entry => entry.receipt.receipt_ref === next.receipt_ref).progress = progress
     return clone(progress)

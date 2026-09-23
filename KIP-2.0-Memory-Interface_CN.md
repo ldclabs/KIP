@@ -32,13 +32,15 @@ Brain 可以嵌入在执行动作的智能体中、使用专职模型实现、�
 
 能力包依赖**必须**具有可传递性地公布。不支持的能力包操作报错 `UnsupportedCapability`；可用的类型名称绝不意味着已实现其生命周期或工作进程行为。基础实现**可以**仅使用其所需的领域与记忆符号。它**严禁**接受不受支持的程序性变更、声称实现经过验证的学习、或为未实现的通道捏造空覆盖范围。
 
-既有的 `KIP-CognitiveMemory` profile 依然是完整的标准契约。声称支持更窄的能力包并不等同于声称支持该 Profile。已存储的既有符号引用（包括 `kip://profiles/cognitive-memory@2.1.0`）保留其含义与血统；实现此项拆分无需将任何 Person/Skill 实体移动到新的 package 路径。Package 是词汇表/校验工件，不代表自动声称其词汇表中的每一项操作均可用。所有 Core 保护措施在每个能力包中均适用。
+既有的 `KIP-CognitiveMemory` profile 依然是完整的标准契约。声称支持更窄的能力包并不等同于声称支持该 Profile。已存储的既有符号引用（包括 `kip://profiles/cognitive-memory@2.2.0`）保留其含义与血统；实现此项拆分无需将任何 Person/Skill 实体移动到新的 package 路径。Package 是词汇表/校验工件，不代表自动声称其词汇表中的每一项操作均可用。所有 Core 保护措施在每个能力包中均适用。
 
 `memory_basic` 包括 `ASSERT`、`MUTATE`、摄入、只读执行、幂等性以及针对派生内容的依赖健全性校验。普通事实、偏好与召回的失败经验不需要试验或 GradingState。程序性候选在 `memory_experience` 下可以作为未证实内容为深思熟虑提供参考；只有 `memory_learning` 才能赋予经过验证的本地资格地位。其消费者在读取所声称的地位时**必须**依然校验保留的评估记录。
 
 声明支持 `memory_interface` 的部署在其常规连接建立过程中暴露该绑定的传输协议。其描述符（descriptor）指明绑定版本、可用能力包、安全的默认 Space/范围、支持的分词器以及默认的输出/截止时间预算。它可以包含在 `DESCRIBE PRIMER` 的扩展数据中。裸 Nexus 绝不能公布其所连接的 Brain 实际上无法提供服务的绑定或能力包。能力可用性绝不等于读取或变更每一个对象的权限。
 
 ## 3. 请求与范围 (Request and scope)
+
+当前契约修订版本：`2026-09-23`。通告该修订版本的描述符绑定了适用的认知一致性细化要求。`requires_contract` 请求确切的修订版本，且**必须**在捕获或变更前完成检查；未知或未实现的修订版本将报错 `UnsupportedCapability`。描述符省略修订版本属于遗留/未指定状态，绝不能作为支持该修订版本的证据。现有的 `kip_memory` 依然是主协议传输版本号。
 
 可选的 `requires` 列表指明此请求所需的能力包。适配器在摄入或变更前检查所有能力包；未知/不可用的要求报错 `UnsupportedCapability`。省略该列表则使用 `memory_basic`，而非猜测的高级能力。此项能力检查绝不替代逐项操作的 Governance 治理。
 
@@ -120,6 +122,8 @@ Brain 可以嵌入在执行动作的智能体中、使用专职模型实现、�
 绑定返回摘要（summary）、类型化条目（typed items）、覆盖范围（coverage）以及不透明的 `basis_ref`。每个对真实性敏感的条目均携带最终认识状态；原始源材料标记为 `source`，而非静默呈现为已接受知识。每个条目都拥有不可变的结果引用与证据引用。引用展开读取产生该条目的版本/基准，受当前 Governance 与保留期约束；绝不静默替换为更新的版本。未知项和重要警告在紧凑结果中呈现，而不隐藏在展开句柄之后。
 
 流程条目还会披露资格地位：`unproven`（未证实）、`validated`（经证实）、`revoked`（已撤销）或 `unverifiable`（不可验证）。其结果引用锚定确切的 SkillRevision 及所使用的任何评估。动作网关解析并重新检查该版本；绝不替换为稳定 Skill 较新的 `current_revision`。经过验证的地位仅在学习契约下提供，且仍不授予执行权限。
+
+适配器保留在[认知一致性 §8.2](./KIP-2.0-Cognitive-Consistency_CN.md#82-可验证的召回计划-verifiable-recall-plans)中定义的实际逐通道 RecallPlan；近似检索的完成仅代表其声明的计划已执行完毕，不等于语义完备性。任务作用域贯穿所有形成产物（[§8.1](./KIP-2.0-Cognitive-Consistency_CN.md#81-源因果性与统一步骤作用域-source-causality-and-uniform-task-scope)），且相关源更正的收敛独立于工作进程的完成顺序。
 
 适配器在 `basis_ref` 之后保留完整的 ProjectionBasis、依赖决策与 RecallCoverage；证据详情以规范形态返回它们。这改变的是面向模型的视图，而非底层的 KQL 线协议契约。引用不赋予访问权限，过期的审计材料汇报为不可用。
 

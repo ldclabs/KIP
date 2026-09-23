@@ -6,7 +6,7 @@ import { validationSchemaLock } from './schema-lock.mjs'
 const base = new URL('../', import.meta.url)
 const hash = value => 'sha256:' + createHash('sha256').update(canonicalize(value)).digest('hex')
 const write = process.argv.includes('--write')
-const files = ['profiles/cognitive-memory-2.1.0.schema.json',
+const files = ['profiles/cognitive-memory-2.2.0.schema.json',
   'conformance/fixtures/test-core-domain-1.0.0.schema.json',
   'conformance/fixtures/test-secondary-1.0.0.schema.json',
   'conformance/fixtures/epistemic-test-deterministic.json']
@@ -21,7 +21,7 @@ for (const file of files) {
   const doc = parseCanonicalJson(await readFile(path, 'utf8'))
   if (file.startsWith('profiles/')) {
     const pins = await validationSchemaLock(new URL('schemas/', base),
-      ['projection', 'cognitive-records', 'element', 'capsule', 'schema-package'].map(name => 'urn:kip:2.0:schema:' + name))
+      ['projection', 'cognitive-records', 'element', 'capsule', 'schema-package'].map(name => 'urn:kip:2.0:2026-09-23:schema:' + name))
     if (write) doc.manifest.validation_schemas = pins
     else if (canonicalize(doc.manifest.validation_schemas) !== canonicalize(pins)) {
       failures++; console.error('FAIL validation-schema lock:', file)
@@ -29,8 +29,8 @@ for (const file of files) {
   }
   if (file.startsWith('conformance/fixtures/capsules/')) {
     for (const dependency of doc.payload.schema_dependencies) {
-      if (dependency.package_ref !== 'kip://profiles/cognitive-memory@2.1.0') continue
-      const pkg = parseCanonicalJson(await readFile(new URL('profiles/cognitive-memory-2.1.0.schema.json', base), 'utf8'))
+      if (dependency.package_ref !== 'kip://profiles/cognitive-memory@2.2.0') continue
+      const pkg = parseCanonicalJson(await readFile(new URL('profiles/cognitive-memory-2.2.0.schema.json', base), 'utf8'))
       if (write) dependency.content_digest = pkg.integrity.content_digest
       else if (dependency.content_digest !== pkg.integrity.content_digest) {
         failures++; console.error('FAIL package dependency digest:', file)

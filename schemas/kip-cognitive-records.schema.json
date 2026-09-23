@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:kip:2.0:schema:cognitive-records",
+  "$id": "urn:kip:2.0:2026-09-23:schema:cognitive-records",
   "$defs": {
     "SkillRevision": {
       "type": "object",
@@ -85,106 +85,17 @@
             ],
             "additionalProperties": false
           },
-          "minItems": 1
+          "minItems": 0
         },
         "policy_basis": {
-          "type": "object",
-          "properties": {
-            "space_id": {
-              "type": "string",
-              "minLength": 1
-            },
-            "snapshot_seq": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
-            "schema_environment_version": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
-            "identity_version": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
-            "policy": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "version": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "required": [
-                "id",
-                "version"
-              ],
-              "additionalProperties": false
-            },
-            "trust_version": {
-              "type": "string",
-              "minLength": 1
-            },
-            "authorization_view": {
-              "type": "string",
-              "minLength": 1
-            },
-            "context_refs": {
-              "type": "array",
-              "items": {
-                "type": "string",
-                "minLength": 1
-              },
-              "minItems": 0,
-              "uniqueItems": true
-            },
-            "purpose": {
-              "type": "string",
-              "minLength": 1
-            },
-            "risk": {
-              "type": "string",
-              "minLength": 1
-            },
-            "valid_at": {
-              "type": "string",
-              "minLength": 1,
-              "format": "date-time"
-            },
-            "next_invalid_at": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "format": "date-time"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            }
+          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
+        },
+        "queries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/QueryDependency"
           },
-          "required": [
-            "space_id",
-            "snapshot_seq",
-            "schema_environment_version",
-            "identity_version",
-            "policy",
-            "trust_version",
-            "authorization_view",
-            "context_refs",
-            "purpose",
-            "risk",
-            "valid_at",
-            "next_invalid_at"
-          ],
-          "additionalProperties": false
+          "minItems": 1
         }
       },
       "required": [
@@ -192,7 +103,21 @@
         "groups",
         "policy_basis"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "properties": {
+            "groups": {
+              "minItems": 1
+            }
+          }
+        },
+        {
+          "required": [
+            "queries"
+          ]
+        }
+      ]
     },
     "DecisionRecord": {
       "type": "object",
@@ -242,103 +167,7 @@
           "minItems": 0
         },
         "basis": {
-          "type": "object",
-          "properties": {
-            "space_id": {
-              "type": "string",
-              "minLength": 1
-            },
-            "snapshot_seq": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
-            "schema_environment_version": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
-            "identity_version": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
-            "policy": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "version": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "required": [
-                "id",
-                "version"
-              ],
-              "additionalProperties": false
-            },
-            "trust_version": {
-              "type": "string",
-              "minLength": 1
-            },
-            "authorization_view": {
-              "type": "string",
-              "minLength": 1
-            },
-            "context_refs": {
-              "type": "array",
-              "items": {
-                "type": "string",
-                "minLength": 1
-              },
-              "minItems": 0,
-              "uniqueItems": true
-            },
-            "purpose": {
-              "type": "string",
-              "minLength": 1
-            },
-            "risk": {
-              "type": "string",
-              "minLength": 1
-            },
-            "valid_at": {
-              "type": "string",
-              "minLength": 1,
-              "format": "date-time"
-            },
-            "next_invalid_at": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "format": "date-time"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            }
-          },
-          "required": [
-            "space_id",
-            "snapshot_seq",
-            "schema_environment_version",
-            "identity_version",
-            "policy",
-            "trust_version",
-            "authorization_view",
-            "context_refs",
-            "purpose",
-            "risk",
-            "valid_at",
-            "next_invalid_at"
-          ],
-          "additionalProperties": false
+          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
         }
       },
       "required": [
@@ -396,23 +225,7 @@
           }
         },
         "selection_policy": {
-          "type": "object",
-          "properties": {
-            "artifact_ref": {
-              "type": "string",
-              "minLength": 1
-            },
-            "content_digest": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "^sha256:[0-9a-f]{64}$"
-            }
-          },
-          "required": [
-            "artifact_ref",
-            "content_digest"
-          ],
-          "additionalProperties": false
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
         },
         "preconditions_satisfied": {
           "type": "string",
@@ -423,9 +236,10 @@
           ]
         },
         "started_at": {
-          "type": "string",
-          "minLength": 1,
-          "format": "date-time"
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
+        },
+        "assignment": {
+          "$ref": "#/$defs/TrialAssignment"
         }
       },
       "required": [
@@ -527,141 +341,13 @@
           "minItems": 1
         },
         "basis": {
-          "type": "object",
-          "properties": {
-            "space_id": {
-              "type": "string",
-              "minLength": 1
-            },
-            "snapshot_seq": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
-            "schema_environment_version": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
-            "identity_version": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
-            "policy": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "version": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "required": [
-                "id",
-                "version"
-              ],
-              "additionalProperties": false
-            },
-            "trust_version": {
-              "type": "string",
-              "minLength": 1
-            },
-            "authorization_view": {
-              "type": "string",
-              "minLength": 1
-            },
-            "context_refs": {
-              "type": "array",
-              "items": {
-                "type": "string",
-                "minLength": 1
-              },
-              "minItems": 0,
-              "uniqueItems": true
-            },
-            "purpose": {
-              "type": "string",
-              "minLength": 1
-            },
-            "risk": {
-              "type": "string",
-              "minLength": 1
-            },
-            "valid_at": {
-              "type": "string",
-              "minLength": 1,
-              "format": "date-time"
-            },
-            "next_invalid_at": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "format": "date-time"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            }
-          },
-          "required": [
-            "space_id",
-            "snapshot_seq",
-            "schema_environment_version",
-            "identity_version",
-            "policy",
-            "trust_version",
-            "authorization_view",
-            "context_refs",
-            "purpose",
-            "risk",
-            "valid_at",
-            "next_invalid_at"
-          ],
-          "additionalProperties": false
+          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
         },
         "rule": {
-          "type": "object",
-          "properties": {
-            "artifact_ref": {
-              "type": "string",
-              "minLength": 1
-            },
-            "content_digest": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "^sha256:[0-9a-f]{64}$"
-            }
-          },
-          "required": [
-            "artifact_ref",
-            "content_digest"
-          ],
-          "additionalProperties": false
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
         },
         "parameters": {
-          "type": "object",
-          "properties": {
-            "artifact_ref": {
-              "type": "string",
-              "minLength": 1
-            },
-            "content_digest": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "^sha256:[0-9a-f]{64}$"
-            }
-          },
-          "required": [
-            "artifact_ref",
-            "content_digest"
-          ],
-          "additionalProperties": false
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
         },
         "baseline_attempt_refs": {
           "type": "array",
@@ -758,23 +444,7 @@
           "minLength": 1
         },
         "replay_artifact": {
-          "type": "object",
-          "properties": {
-            "artifact_ref": {
-              "type": "string",
-              "minLength": 1
-            },
-            "content_digest": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "^sha256:[0-9a-f]{64}$"
-            }
-          },
-          "required": [
-            "artifact_ref",
-            "content_digest"
-          ],
-          "additionalProperties": false
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
         },
         "evaluation_policy": {
           "type": "object",
@@ -798,6 +468,15 @@
               "pattern": "^sha256:[0-9a-f]{64}$"
             }
           }
+        },
+        "baseline_mode": {
+          "enum": [
+            "fixed",
+            "prospective"
+          ]
+        },
+        "enrollment": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
         }
       },
       "required": [
@@ -813,7 +492,34 @@
         "replay_artifact",
         "evaluation_policy"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "baseline_mode"
+            ],
+            "properties": {
+              "baseline_mode": {
+                "const": "prospective"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "enrollment"
+            ],
+            "properties": {
+              "baseline_attempt_refs": {
+                "maxItems": 0
+              },
+              "baseline_outcome_refs": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
     },
     "EvaluationRecord": {
       "type": "object",
@@ -866,9 +572,7 @@
           "pattern": "^sha256:[0-9a-f]{64}$"
         },
         "cutoff": {
-          "type": "string",
-          "minLength": 1,
-          "format": "date-time"
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
         },
         "attempt_refs": {
           "type": "array",
@@ -953,23 +657,10 @@
           "additionalProperties": false
         },
         "replay_artifact": {
-          "type": "object",
-          "properties": {
-            "artifact_ref": {
-              "type": "string",
-              "minLength": 1
-            },
-            "content_digest": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "^sha256:[0-9a-f]{64}$"
-            }
-          },
-          "required": [
-            "artifact_ref",
-            "content_digest"
-          ],
-          "additionalProperties": false
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+        },
+        "cohort_artifact": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
         }
       },
       "required": [
@@ -1156,9 +847,7 @@
           "maximum": 9007199254740991
         },
         "expires_at": {
-          "type": "string",
-          "minLength": 1,
-          "format": "date-time"
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
         },
         "attempt_count": {
           "type": "integer",
@@ -1227,103 +916,7 @@
       "type": "object",
       "properties": {
         "basis": {
-          "type": "object",
-          "properties": {
-            "space_id": {
-              "type": "string",
-              "minLength": 1
-            },
-            "snapshot_seq": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
-            "schema_environment_version": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
-            "identity_version": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
-            "policy": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "version": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "required": [
-                "id",
-                "version"
-              ],
-              "additionalProperties": false
-            },
-            "trust_version": {
-              "type": "string",
-              "minLength": 1
-            },
-            "authorization_view": {
-              "type": "string",
-              "minLength": 1
-            },
-            "context_refs": {
-              "type": "array",
-              "items": {
-                "type": "string",
-                "minLength": 1
-              },
-              "minItems": 0,
-              "uniqueItems": true
-            },
-            "purpose": {
-              "type": "string",
-              "minLength": 1
-            },
-            "risk": {
-              "type": "string",
-              "minLength": 1
-            },
-            "valid_at": {
-              "type": "string",
-              "minLength": 1,
-              "format": "date-time"
-            },
-            "next_invalid_at": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "format": "date-time"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            }
-          },
-          "required": [
-            "space_id",
-            "snapshot_seq",
-            "schema_environment_version",
-            "identity_version",
-            "policy",
-            "trust_version",
-            "authorization_view",
-            "context_refs",
-            "purpose",
-            "risk",
-            "valid_at",
-            "next_invalid_at"
-          ],
-          "additionalProperties": false
+          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
         },
         "channels": {
           "type": "object",
@@ -1363,6 +956,12 @@
         },
         "action_eligible": {
           "type": "boolean"
+        },
+        "plans": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/RecallPlan"
+          }
         }
       },
       "required": [
@@ -1497,6 +1096,431 @@
           }
         }
       ]
+    },
+    "QueryDependency": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "belief",
+            "slot",
+            "query"
+          ]
+        },
+        "selector": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+        },
+        "result_digest": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Digest"
+        },
+        "change_token": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+        },
+        "expectation": {
+          "enum": [
+            "snapshot",
+            "accepted",
+            "empty",
+            "complete"
+          ]
+        },
+        "authorization_view": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+        }
+      },
+      "required": [
+        "kind",
+        "selector",
+        "result_digest",
+        "change_token",
+        "expectation",
+        "authorization_view"
+      ],
+      "additionalProperties": false
+    },
+    "MemoryScope": {
+      "type": "object",
+      "properties": {
+        "task_ref": {
+          "anyOf": [
+            {
+              "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "context_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "task_ref",
+        "context_refs"
+      ],
+      "additionalProperties": false
+    },
+    "RecordingRepair": {
+      "type": "object",
+      "properties": {
+        "source_ref": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+        },
+        "source_digest": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Digest"
+        },
+        "source_locator": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+        },
+        "invalidated_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "replacement_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+          },
+          "minItems": 0
+        },
+        "reason": {
+          "enum": [
+            "extraction_error",
+            "attribution_error"
+          ]
+        },
+        "expected_versions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "minProperties": 1
+        }
+      },
+      "required": [
+        "source_ref",
+        "source_digest",
+        "source_locator",
+        "invalidated_refs",
+        "replacement_refs",
+        "reason",
+        "expected_versions"
+      ],
+      "additionalProperties": false
+    },
+    "SourceOrder": {
+      "type": "object",
+      "properties": {
+        "stream_ref": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+        },
+        "event_ref": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "predecessor_receipts": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "stream_ref",
+        "event_ref",
+        "ordinal",
+        "predecessor_receipts"
+      ],
+      "additionalProperties": false
+    },
+    "TrialAssignment": {
+      "type": "object",
+      "properties": {
+        "enrollment": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+        },
+        "unit_id": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+        },
+        "arm": {
+          "enum": [
+            "control",
+            "treatment"
+          ]
+        },
+        "assigned_at": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
+        }
+      },
+      "required": [
+        "enrollment",
+        "unit_id",
+        "arm",
+        "assigned_at"
+      ],
+      "additionalProperties": false
+    },
+    "RecallPlan": {
+      "type": "object",
+      "properties": {
+        "selector": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+        },
+        "scope": {
+          "$ref": "#/$defs/MemoryScope"
+        },
+        "method": {
+          "enum": [
+            "exact",
+            "approximate"
+          ]
+        },
+        "snapshot_seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "index_seq": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "covered_through_seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "authorization_view": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "truncation_reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "budget",
+                "deadline",
+                "index_lag",
+                "unsupported",
+                "unresolved_source",
+                "page_limit"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "selector",
+        "scope",
+        "method",
+        "snapshot_seq",
+        "index_seq",
+        "covered_through_seq",
+        "authorization_view",
+        "complete",
+        "truncation_reason"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "complete": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "truncation_reason": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "DispatchContract": {
+      "type": "object",
+      "properties": {
+        "guarantee": {
+          "enum": [
+            "admission",
+            "receiver_fenced"
+          ]
+        },
+        "linearization_point": {
+          "enum": [
+            "native_admission",
+            "receiver_acceptance"
+          ]
+        },
+        "receiver_binding": {
+          "anyOf": [
+            {
+              "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "guarantee",
+        "linearization_point",
+        "receiver_binding"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "guarantee": {
+                "const": "receiver_fenced"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "linearization_point": {
+                "const": "receiver_acceptance"
+              },
+              "receiver_binding": {
+                "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "linearization_point": {
+                "const": "native_admission"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ProcedureAssessment": {
+      "type": "object",
+      "properties": {
+        "revision_ref": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+        },
+        "basis": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
+        },
+        "criterion": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+          },
+          "minItems": 1
+        },
+        "result": {
+          "enum": [
+            "satisfied",
+            "unsatisfied",
+            "unverifiable"
+          ]
+        },
+        "purpose": {
+          "const": "applicability"
+        },
+        "grants_standing": {
+          "const": false
+        }
+      },
+      "required": [
+        "revision_ref",
+        "basis",
+        "criterion",
+        "evidence_refs",
+        "result",
+        "purpose",
+        "grants_standing"
+      ],
+      "additionalProperties": false
+    },
+    "RestoreReport": {
+      "type": "object",
+      "properties": {
+        "source_capsule": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+        },
+        "mode": {
+          "enum": [
+            "share",
+            "migration",
+            "restore"
+          ]
+        },
+        "source_history_retained": {
+          "type": "boolean"
+        },
+        "mapping_artifact": {
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+        },
+        "current_validation": {
+          "enum": [
+            "pending",
+            "verified",
+            "unverifiable"
+          ]
+        },
+        "authority_transferred": {
+          "const": false
+        },
+        "missing_artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "source_capsule",
+        "mode",
+        "source_history_retained",
+        "mapping_artifact",
+        "current_validation",
+        "authority_transferred",
+        "missing_artifacts"
+      ],
+      "additionalProperties": false
     }
   }
 }

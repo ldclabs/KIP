@@ -217,6 +217,10 @@ ASSERT (:alice, "prefers", :dark_mode) {
 }
 ```
 
+Optional `context: :contexts` lowers to immutable `context_refs` for task-scoped
+claims. It is independent of Evidence citation roles. The host resolves the context
+set; omission keeps the general scope.
+
 Correction — the same actor's earlier claim was wrong:
 
 ```kip

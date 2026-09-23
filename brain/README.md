@@ -299,6 +299,13 @@ LLM + Experience + Skill consolidation
 - **Procedural memory** that can become workflows, heuristics, prompts, code, or tool policies.
 - **Multi-agent support** while keeping memory ownership scoped by MemorySpace and Governance.
 
+## Implementation
+
+[ImplementationGuide.md](ImplementationGuide.md) specifies a concrete minimal
+reference policy, lazy maintenance and host mechanics. The actual service lives in
+[Anda Brain](https://github.com/ldclabs/anda-brain); [verified implementation evidence](../conformance/Brain-Implementation-Evidence.md) records its tested revision and
+separates mechanism tests from unmeasured behavioral gains.
+
 ## Related Documents
 
 - [ExperienceLearningArchitecture.md](./ExperienceLearningArchitecture.md) — the learning loop this Brain implements

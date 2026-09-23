@@ -213,6 +213,8 @@ ASSERT (:alice, "prefers", :dark_mode) {
 }
 ```
 
+可选的 `context: :contexts` 脱糖为不可变的 `context_refs`，用于任务作用域的主张。它独立于 Evidence 的引用角色。由宿主负责解析上下文集合；若省略则保持全局/通用作用域。
+
 修订——同一行动者此前的陈述被证明是错的：
 
 ```kip

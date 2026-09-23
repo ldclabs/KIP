@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-REL-009",
+  "title": "Uniform task scope",
+  "description": "Form Evidence, Assertions, Events and Commitments in two tasks of one actor, with opposite temporary constraints. Rebuild independent WorkingStates; cross-task generalization requires a separate scoped derivation.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_reliability_scenario",
+      "args": {
+        "id": "KIP2-REL-009"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/task_A_context",
+      "operator": "equals",
+      "expected": "A"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/task_B_context",
+      "operator": "equals",
+      "expected": "B"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/implicit_global_preference",
+      "operator": "equals",
+      "expected": false
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/recall_scope_writes",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

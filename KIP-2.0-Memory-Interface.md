@@ -49,7 +49,7 @@ claim validated learning, or invent empty coverage for an unimplemented channel.
 
 The existing `KIP-CognitiveMemory` profile remains the full standard contract.
 A narrower bundle claim does not claim that profile. Existing stored symbol refs,
-including `kip://profiles/cognitive-memory@2.1.0`, retain their meaning and lineage;
+including `kip://profiles/cognitive-memory@2.2.0`, retain their meaning and lineage;
 no Person/Skill identity is moved to a new package path to achieve this split.
 A package is a vocabulary/validation artifact, not an automatic claim that every
 operation in its vocabulary is available. All Core protections apply in every bundle.
@@ -69,6 +69,13 @@ not advertise a binding or bundle that its connected Brain cannot actually serve
 Capability availability is never permission to read or mutate every object.
 
 ## 3. Request and scope
+
+Current contract revision: `2026-09-23`. A descriptor advertising this revision
+binds the applicable Cognitive Consistency refinements. `requires_contract` requests
+an exact revision and MUST be checked before capture or mutation; an unknown or
+unimplemented revision fails UnsupportedCapability. Omitted descriptor revision is
+legacy/unspecified, never evidence of support for this revision. Existing `kip_memory`
+remains the major wire version.
 
 The optional requires list names bundles needed by this request. The Adapter checks
 all of them before intake or mutation; unknown/unavailable requirements fail
@@ -251,6 +258,11 @@ Their result references pin the exact SkillRevision and any evaluation used. An
 action gate resolves and rechecks that version; it never substitutes the stable
 Skill's later current_revision. Validated standing is served only under a learning
 contract, and still grants no execution permission.
+
+The Adapter retains the actual per-channel RecallPlans defined in Cognitive
+Consistency §8.2; complete approximate retrieval means its declared plan completed,
+not semantic exhaustiveness. Task scope follows all formation products (§8.1), and
+related source corrections converge independently of worker completion order.
 
 The Adapter retains the full ProjectionBasis, dependency decisions and RecallCoverage
 behind basis_ref; evidence detail returns them in the normative shapes. This changes

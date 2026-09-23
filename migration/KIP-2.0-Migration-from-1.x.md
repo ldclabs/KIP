@@ -163,7 +163,7 @@ Do not place arbitrary legacy application types into `kip://core`.
 Where semantics match standard cognitive memory, migrate toward:
 
 ```text
-kip://profiles/cognitive-memory@2.1.0
+kip://profiles/cognitive-memory@2.2.0
 ```
 
 # 9. Concept Migration
@@ -690,7 +690,7 @@ Restart Watches with fresh arm generations and declared observation coverage;
 rebuild WorkingState with a complete basis. Earlier ambiguous identity resolutions
 remain reviewable but cannot gain a fabricated original referent.
 
-The consistency package is `kip://profiles/cognitive-memory@2.1.0`. The prior
+The consistency package is `kip://profiles/cognitive-memory@2.2.0`. The prior
 2.0.0 artifact remains byte-for-byte unchanged and is legacy, not the current
 standard Profile contract. Install 2.1.0 under manage_schema and migrate old Skill
 records with schema_migration provenance. Readable old type lineages retain identity,

@@ -6,10 +6,10 @@
 
 **规范性标准 Profile 草案。** 本文档及其模式包对声明实现标准认知记忆 Profile 的系统具有约束力。[认知一致性契约](../KIP-2.0-Cognitive-Consistency_CN.md)提供了必需的跨领域契约。草案状态绝不降低 MUST 等级的强制要求；记忆大脑策略示例保持为参考性内容。
 
-当前草案包标识（2.1.0；先前的 2.0.0 工件按字节完全保留以供迁移参考）：
+当前草案包标识（2.2.0；先前的 2.0.0 与 2.1.0 模式包字节及 2.1.0 校验资源按字节完全保留）：
 
 ```text
-kip://profiles/cognitive-memory@2.1.0
+kip://profiles/cognitive-memory@2.2.0
 ```
 
 本文档定义了面向 KIP 2.0 大脑的标准可移植记忆结构。它建立在 KIP Core 基础之上，并不重新定义 Core 语义。若本文档与 `SPECIFICATION_CN.md` 发生冲突，以规范为准。
@@ -96,8 +96,8 @@ Facet 是局部的结构化属性集
 
 ```text
 package_id  = kip://profiles/cognitive-memory
-version     = 2.1.0
-package_ref = kip://profiles/cognitive-memory@2.1.0
+version     = 2.2.0
+package_ref = kip://profiles/cognitive-memory@2.2.0
 ```
 
 持久化精确的 Profile 引用。本地别名保持为面向模型的便利工具。
@@ -374,7 +374,7 @@ attributes:
   open_hypotheses 待检验假说列表
 ```
 
-`WorkingState` 是派生视图，绝不能作为 `Evidence` 引用或充当佐证源泉。生产它的 Activity 锚定 DependencyBasis 与完整的 ProjectionBasis；消费方在声称当前情境之前必须校验基准及所有增量变更页（[认知一致性 §2–§3](../KIP-2.0-Cognitive-Consistency_CN.md)）。
+`WorkingState` 是派生视图，绝不能作为 `Evidence` 引用或充当佐证源泉。一个 Space 在每个行动者及规范任务/上下文作用域内，在稳定的 `key` 下应当至多保留一个处于活动状态的 WorkingState；MemoryScope 记录该作用域。生产它的 Activity 锚定 DependencyBasis 与完整的 ProjectionBasis；消费方在声称当前情境之前必须校验基准及所有增量变更页（[认知一致性 §2–§3](../KIP-2.0-Cognitive-Consistency_CN.md)）。
 
 ---
 
@@ -389,7 +389,7 @@ attributes:
   "memory_strength": 0.85,
   "salience": 0.70,
   "utility": 0.60,
-  "last_metabolized_at": "2026-08-16T00:00:00Z"
+  "last_metabolized_at": "2026-08-14T00:00:00.000Z"
 }
 ```
 
@@ -411,7 +411,7 @@ attributes:
   "success_count": 8,
   "failure_count": 2,
   "graded_count": 11,
-  "last_verdict_at": "2026-08-10T00:00:00Z"
+  "last_verdict_at": "2026-08-10T00:00:00.000Z"
 }
 ```
 
@@ -427,7 +427,7 @@ attributes:
 {
   "basis_seq": 1500,
   "status": "current",
-  "reviewed_at": "2026-08-14T00:00:00Z"
+  "reviewed_at": "2026-08-14T00:00:00.000Z"
 }
 ```
 
@@ -459,7 +459,7 @@ magnitude (可选)
 {"trial_ref": "TR-1", "revision_ref": "R-1"}
 ```
 
-重新准入选择具有新 ID 的新试验；旧裁决从旧 TrialRecord/回放工件中回放，绝非从当前指针回放。TrialRecord 冻结基线尝试/结果、比对输入、规则与参数、分层、独立尝试配额、缺失性与观察窗口策略（[认知一致性 §5–§6](../KIP-2.0-Cognitive-Consistency_CN.md)）。
+重新准入选择具有新 ID 的新试验；旧裁决从旧 TrialRecord/回放工件中回放，绝非从当前指针回放。TrialRecord 冻结固定基准尝试/结果（或认知一致性 §5.1 的前瞻性入组契约）、比对输入、规则与参数、分层、独立尝试配额、缺失性与观察窗口策略（[认知一致性 §5–§6](../KIP-2.0-Cognitive-Consistency_CN.md)）。
 
 ---
 
@@ -678,7 +678,7 @@ revoked  → trialed    重新准入开启新试用；任何技能绝不暗中�
 4. **采纳是临时性的**：采纳的技能持续接受后果流监督，劣化将导致重新试用或废弃。
 5. **细分评分语义**：区分匹配条件下的成功、匹配条件下的失败、非匹配条件下的失败等。
 6. **正交的复审状态**：溯源根节点修订使技能进入 `stale`/`under_review`，可触发重新试用。
-7. **打分前严格归因**：处理集由在执行前分配给该试验与修订版本的独立聚合尝试组成；基线是 TrialRecord 中冻结的显式选择的可比尝试（[认知一致性 §5–§6](../KIP-2.0-Cognitive-Consistency_CN.md)）。仅共享 task_family 的结果绝不修改技能的 GradingState 或改变其生命周期；同一任务族中的两项技能由各自的决策独立评分，绝不互相借用。
+7. **打分前严格归因**：处理集由在执行前分配给该试用与修订版本的独立聚合尝试组成；基线是 TrialRecord 中冻结的显式选择的可比尝试，或在预先声明的入组契约下冻结于 EvaluationRecord cohort 中的前瞻性分配对照组（[认知一致性 §5–§6](../KIP-2.0-Cognitive-Consistency_CN.md)）。仅共享 task_family 的结果绝不修改技能的 GradingState 或改变其生命周期；同一任务族中的两项技能由各自的决策独立评分，绝不互相借用。
 
 生命周期状态绝不授予执行权限。采纳代表资格地位，而非权限许可。
 

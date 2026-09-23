@@ -14,7 +14,7 @@
     "context_refs": [],
     "purpose": "answer_user",
     "risk": "low",
-    "valid_at": "2026-09-06T12:00:00Z",
+    "valid_at": "2026-09-06T12:00:00.000Z",
     "next_invalid_at": null
   },
   "projection": [
@@ -52,7 +52,7 @@
       "request": {
         "functional": true,
         "context_refs": [],
-        "valid_at": "2026-09-06T12:00:00Z"
+        "valid_at": "2026-09-06T12:00:00.000Z"
       },
       "expected": {
         "slot_status": "contested",
@@ -97,7 +97,7 @@
       "request": {
         "functional": false,
         "context_refs": [],
-        "valid_at": "2026-09-06T12:00:00Z"
+        "valid_at": "2026-09-06T12:00:00.000Z"
       },
       "expected": {
         "slot_status": "accepted",
@@ -151,7 +151,7 @@
       "request": {
         "functional": true,
         "context_refs": [],
-        "valid_at": "2026-09-06T12:00:00Z"
+        "valid_at": "2026-09-06T12:00:00.000Z"
       },
       "expected": {
         "slot_status": "insufficient",
@@ -204,7 +204,7 @@
         "context_refs": [
           "work"
         ],
-        "valid_at": "2026-09-06T12:00:00Z"
+        "valid_at": "2026-09-06T12:00:00.000Z"
       },
       "expected": {
         "slot_status": "accepted",
@@ -231,7 +231,7 @@
               "mode": "stated",
               "stance": "support",
               "trusted": true,
-              "until": "2026-09-06T12:00:00Z"
+              "until": "2026-09-06T12:00:00.000Z"
             }
           ]
         },
@@ -245,7 +245,7 @@
               "mode": "stated",
               "stance": "support",
               "trusted": true,
-              "from": "2026-09-06T12:00:00Z"
+              "from": "2026-09-06T12:00:00.000Z"
             }
           ]
         }
@@ -253,7 +253,7 @@
       "request": {
         "functional": true,
         "context_refs": [],
-        "valid_at": "2026-09-06T12:00:00Z"
+        "valid_at": "2026-09-06T12:00:00.000Z"
       },
       "expected": {
         "slot_status": "accepted",
@@ -288,7 +288,7 @@
       "request": {
         "functional": true,
         "context_refs": [],
-        "valid_at": "2026-09-06T12:00:00Z"
+        "valid_at": "2026-09-06T12:00:00.000Z"
       },
       "expected": {
         "slot_status": "uncertain",
@@ -339,7 +339,7 @@
       "request": {
         "functional": false,
         "context_refs": [],
-        "valid_at": "2026-09-06T12:00:00Z"
+        "valid_at": "2026-09-06T12:00:00.000Z"
       },
       "expected": {
         "slot_status": "contested",
@@ -389,7 +389,7 @@
         "context_refs": [],
         "purpose": "answer_user",
         "risk": "low",
-        "valid_at": "2026-09-06T12:00:00Z",
+        "valid_at": "2026-09-06T12:00:00.000Z",
         "next_invalid_at": null
       }
     },
@@ -419,7 +419,7 @@
         "context_refs": [],
         "purpose": "answer_user",
         "risk": "low",
-        "valid_at": "2026-09-06T12:00:00Z",
+        "valid_at": "2026-09-06T12:00:00.000Z",
         "next_invalid_at": null
       }
     },
@@ -442,7 +442,7 @@
         "content_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       },
       "preconditions_satisfied": "yes",
-      "started_at": "2026-09-06T12:00:00Z"
+      "started_at": "2026-09-06T12:00:00.000Z"
     },
     "OutcomeRecord": {
       "task_family": "deploy",
@@ -472,7 +472,7 @@
         "context_refs": [],
         "purpose": "answer_user",
         "risk": "low",
-        "valid_at": "2026-09-06T12:00:00Z",
+        "valid_at": "2026-09-06T12:00:00.000Z",
         "next_invalid_at": null
       },
       "rule": {
@@ -527,7 +527,7 @@
       "to_status": "adopted",
       "rule_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "parameters_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "cutoff": "2026-09-06T12:00:00Z",
+      "cutoff": "2026-09-06T12:00:00.000Z",
       "attempt_refs": [
         "A1",
         "A2"
@@ -561,7 +561,7 @@
     "LeaseState": {
       "owner": "worker",
       "fencing_token": 2,
-      "expires_at": "2026-09-06T12:00:00Z",
+      "expires_at": "2026-09-06T12:00:00.000Z",
       "attempt_count": 2
     },
     "CompressionRecord": {
@@ -593,7 +593,7 @@
         "context_refs": [],
         "purpose": "answer_user",
         "risk": "low",
-        "valid_at": "2026-09-06T12:00:00Z",
+        "valid_at": "2026-09-06T12:00:00.000Z",
         "next_invalid_at": null
       },
       "channels": {

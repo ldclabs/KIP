@@ -114,7 +114,7 @@
     },
     "TestId": {
       "type": "string",
-      "pattern": "^KIP2-(CORE|SCHEMA|EPI|GOV|TX|CAP|KQL|KML|META|RT|HIST|HA|MIG|X|MEM|MIF)-[0-9]{3}$"
+      "pattern": "^KIP2-(CORE|SCHEMA|EPI|GOV|TX|CAP|KQL|KML|META|RT|HIST|HA|MIG|X|MEM|MIF|REL)-[0-9]{3}$"
     },
     "TestLevel": {
       "type": "string",
@@ -625,7 +625,7 @@
         "expected": {},
         "observed": {},
         "protocol_error": {
-          "$ref": "urn:kip:2.0:schema:response#/$defs/Error"
+          "$ref": "urn:kip:2.0:2026-09-23:schema:response#/$defs/Error"
         },
         "details": {
           "type": "object",

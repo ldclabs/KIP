@@ -15,7 +15,11 @@ transactions, persistence, projection, history, Capsules, and runtime
 envelopes remain engine responsibilities.
 
 The optional [Memory Interface](../../KIP-2.0-Memory-Interface.md) sits above
-command text and adds no parser keywords or new exported runtime here. Its five
+command text and adds no parser keywords. The host-side `MemorySession` helper
+retains scoped processing barriers across retries/restarts; it is not a Brain or
+authorization service. `parseTimestamp` validates strict UTC milliseconds and real
+calendar dates without silent conversion. Scoped ASSERT accepts `context` and
+lowers it to the existing immutable context_refs field. Its five
 Agent intents, processing receipts and capability bundles have separate wire
 schemas and contract tests; those tests do not implement a production Brain.
 

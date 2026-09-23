@@ -13,8 +13,9 @@ without re-typing its payload. Missing confidence is allowed.
 ASSERT (:subject, :predicate, :object) {by: :actor, mode: "stated", evidence: :evidence}
 ```
 
-The ASSERT sugar has no context member. For a scoped claim use the explicit form;
-the Adapter selects this form automatically for a task-scoped Memory Interface input.
+For a scoped claim use `ASSERT ... {context: :contexts}`. It lowers exactly to
+`context_refs`; the Adapter supplies the canonical task/context set. The equivalent
+explicit form remains available:
 
 ```kip
 MUTATE {
@@ -51,8 +52,8 @@ MUTATE {
 }
 ```
 
-This example is unscoped. Scoped revisions retain explicit context_refs using the
-CREATE ASSERTION form. Unknown change time remains unknown; do not invent an instant.
+This example is unscoped. Scoped revisions retain `context: :contexts` on each ASSERT (or equivalent
+explicit context_refs). Unknown change time remains unknown; do not invent an instant.
 
 Only observed, supplied process is recorded. Feedback has its actual origin:
 self-report is never a gradable outcome. Ordinary facts and feedback need no trial.

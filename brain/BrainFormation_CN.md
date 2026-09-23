@@ -64,7 +64,7 @@ Formation 是记忆编码器，而非面向最终用户的对话型智能体。
       "content": "I always prefer dark mode.",
       "actor_ref": "alice",
       "message_id": "msg-123",
-      "timestamp": "2026-08-14T01:00:00Z"
+      "timestamp": "2026-08-14T01:00:00.000Z"
     }
   ],
   "context": {
@@ -160,6 +160,8 @@ DESCRIBE PRIMER MODE "compact"
 严禁直接覆写或原地修改 A1。若 Bob 与 Alice 的意见发生分歧，应创建 Bob 的新断言并存记录，绝不能废弃替代 Alice 的断言。
 
 废弃替代（supersession）意味着 A1 当初就是错的。当现实世界发生改变时 —— Alice 搬家、项目状态推进 —— A1 在其当时是真实的：通过重新断言同一数值关闭其开放区间（`valid: {from, until: <change>}`，仅就其有效区间废弃替代开放式的 A1），并断言新数值的有效区间（`valid: {from: <change>}`）。两条断言均保持 active 状态，且在变更时刻之前的 `FOR TIME` 查询依然返回旧值（规范第 14.2 节、附录 F.2）。
+
+编码或归属错误采用受保护的 recording_repair 契约（[认知一致性 §4.1](../KIP-2.0-Cognitive-Consistency_CN.md#41-记录修复不同于行动者改变心意-recording-repair-is-not-an-actors-change-of-mind)），而非捏造行动者撤回或篡改可靠的源 Evidence 证据。捕获绑定摘要的源定位符，并保持相关输入处理具有因果顺序（[认知一致性 §8.1](../KIP-2.0-Cognitive-Consistency_CN.md#81-源因果性与统一步骤作用域-source-causality-and-uniform-task-scope)）。对所有产物应用 MemoryScope。
 
 # 18. 事件构建规范
 
@@ -323,7 +325,7 @@ Commitment.due_at
 
 # 34. 输出契约
 
-当通过可选的记忆接口（Memory Interface）对外暴露时，必须使用其规范的响应 Schema 和处理回执（processing receipt）。下方的既有内部摘要仅描述形成事务本身：`stored` 本身并不能证明源数据已被完全处理或可供召回。摄入必须持久记录待处理工作；`after` 屏障用于等待已处理的处置方式与召回可用性。任务范围（task scope）在抽取过程中保持完整；带范围限定的 Assertion 使用显式 `context_refs`，因为 `ASSERT` 语法糖不包含 `context` 成员。缺失的估计值不可靠猜测来填充字段。
+当通过可选的记忆接口（Memory Interface）对外暴露时，必须使用其规范的响应 Schema 和处理回执（processing receipt）。下方的既有内部摘要仅描述形成事务本身：`stored` 本身并不能证明源数据已被完全处理或可供召回。摄入必须持久记录待处理工作；`after` 屏障用于等待已处理的处置方式与召回可用性。通过 MemoryScope 使任务作用域（task scope）贯穿每一个产物；带作用域的 `ASSERT` 使用 `context` 并脱糖为相同的显式 `context_refs`。缺失的估计值不可靠猜测来填充字段。
 
 ```json
 {

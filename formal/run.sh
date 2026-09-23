@@ -146,7 +146,8 @@ if command -v node >/dev/null 2>&1 && [ -f "$HERE/../packages/kip-lang/dist/inde
   node "$HERE/../conformance/update-digests.mjs" || fail=1
   node --test "$HERE/../packages/kip-lang/test/canonical.test.mjs" \
     "$HERE/../packages/kip-lang/test/contracts.test.mjs" \
-    "$HERE/../packages/kip-lang/test/memory-interface.test.mjs" || fail=1
+    "$HERE/../packages/kip-lang/test/memory-interface.test.mjs" \
+    "$HERE/../packages/kip-lang/test/reliability.test.mjs" || fail=1
 else
   echo "SKIPPED — install workspace dependencies and build packages/kip-lang"; skipped=1
 fi

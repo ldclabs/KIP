@@ -1,0 +1,1573 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:kip:2.0:schema:element",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "concept",
+        "proposition",
+        "assertion",
+        "evidence",
+        "activity"
+      ]
+    },
+    "space_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "_system": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "state": {
+          "type": "string",
+          "minLength": 1
+        },
+        "created_at": {
+          "type": "string",
+          "minLength": 1,
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "minLength": 1,
+          "format": "date-time"
+        },
+        "created_tx": {
+          "type": "string",
+          "minLength": 1
+        },
+        "updated_tx": {
+          "type": "string",
+          "minLength": 1
+        },
+        "origin": {
+          "type": "object",
+          "properties": {
+            "principal_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "channel": {
+              "type": "string",
+              "minLength": 1
+            },
+            "import_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "principal_id",
+            "channel"
+          ],
+          "additionalProperties": false
+        },
+        "plane_versions": {
+          "type": "object"
+        },
+        "input_versions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "output_versions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "input_references": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "supplied": {
+                "type": "string",
+                "minLength": 1
+              },
+              "resolved": {
+                "type": "string",
+                "minLength": 1
+              },
+              "decision_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "identity_version": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "op_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "supplied",
+              "resolved",
+              "identity_version",
+              "path",
+              "op_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "dependency_validity": {
+          "$ref": "urn:kip:2.0:schema:projection#/$defs/DependencyValidity"
+        },
+        "space_seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "version",
+        "state",
+        "origin"
+      ],
+      "additionalProperties": false
+    },
+    "governance": {
+      "type": "object",
+      "properties": {
+        "classification": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authority_class": {
+          "type": "string",
+          "enum": [
+            "descriptive",
+            "advisory",
+            "behavioral",
+            "executable"
+          ]
+        },
+        "policy_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "retention": {
+      "type": "object",
+      "properties": {
+        "retention_class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "legal_hold": {
+          "type": "boolean"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "facets": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object"
+      }
+    },
+    "schema_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^kip://[^@]+@[^/]+/.+$"
+    },
+    "key": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string"
+    },
+    "canonical_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "attributes": {
+      "type": "object"
+    },
+    "structural": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "predicate_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^kip://[^@]+@[^/]+/.+$"
+    },
+    "object": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        }
+      ]
+    },
+    "proposition": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "asserted_by": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "stance": {
+      "type": "string",
+      "enum": [
+        "support",
+        "reject",
+        "uncertain"
+      ]
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "observed",
+        "stated",
+        "inferred",
+        "predicted",
+        "hypothetical",
+        "imported"
+      ]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "asserted_at": {
+      "type": "string",
+      "minLength": 1,
+      "format": "date-time"
+    },
+    "valid_time": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "until": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "context_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "support",
+              "challenge",
+              "context"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "role"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "supersedes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "superseded_by": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "corrects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "corrected_by": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "retracted_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "evidence_class": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payload": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "const": "purged"
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "const": "inline"
+            },
+            "inline": {}
+          },
+          "required": [
+            "mode",
+            "inline"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "const": "external"
+            },
+            "content_ref": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "mode",
+            "content_ref"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "content_digest": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "media_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "observed_at": {
+      "type": "string",
+      "minLength": 1,
+      "format": "date-time"
+    },
+    "source": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "generated_by": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "activity_class": {
+      "type": "string",
+      "minLength": 1
+    },
+    "started_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ended_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "associated_actors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "parameters_digest": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "merged_into": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "kind",
+    "space_id",
+    "_system"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "concept"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "schema_ref"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "activity_class"
+              ]
+            },
+            {
+              "required": [
+                "asserted_at"
+              ]
+            },
+            {
+              "required": [
+                "asserted_by"
+              ]
+            },
+            {
+              "required": [
+                "associated_actors"
+              ]
+            },
+            {
+              "required": [
+                "confidence"
+              ]
+            },
+            {
+              "required": [
+                "content_digest"
+              ]
+            },
+            {
+              "required": [
+                "context_refs"
+              ]
+            },
+            {
+              "required": [
+                "ended_at"
+              ]
+            },
+            {
+              "required": [
+                "evidence"
+              ]
+            },
+            {
+              "required": [
+                "evidence_class"
+              ]
+            },
+            {
+              "required": [
+                "generated_by"
+              ]
+            },
+            {
+              "required": [
+                "inputs"
+              ]
+            },
+            {
+              "required": [
+                "lifecycle"
+              ]
+            },
+            {
+              "required": [
+                "media_type"
+              ]
+            },
+            {
+              "required": [
+                "mode"
+              ]
+            },
+            {
+              "required": [
+                "object"
+              ]
+            },
+            {
+              "required": [
+                "observed_at"
+              ]
+            },
+            {
+              "required": [
+                "outputs"
+              ]
+            },
+            {
+              "required": [
+                "parameters_digest"
+              ]
+            },
+            {
+              "required": [
+                "payload"
+              ]
+            },
+            {
+              "required": [
+                "predicate_ref"
+              ]
+            },
+            {
+              "required": [
+                "proposition"
+              ]
+            },
+            {
+              "required": [
+                "source"
+              ]
+            },
+            {
+              "required": [
+                "stance"
+              ]
+            },
+            {
+              "required": [
+                "started_at"
+              ]
+            },
+            {
+              "required": [
+                "status"
+              ]
+            },
+            {
+              "required": [
+                "subject"
+              ]
+            },
+            {
+              "required": [
+                "valid_time"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "proposition"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "subject",
+          "predicate_ref",
+          "object"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "activity_class"
+              ]
+            },
+            {
+              "required": [
+                "aliases"
+              ]
+            },
+            {
+              "required": [
+                "asserted_at"
+              ]
+            },
+            {
+              "required": [
+                "asserted_by"
+              ]
+            },
+            {
+              "required": [
+                "associated_actors"
+              ]
+            },
+            {
+              "required": [
+                "attributes"
+              ]
+            },
+            {
+              "required": [
+                "canonical_id"
+              ]
+            },
+            {
+              "required": [
+                "confidence"
+              ]
+            },
+            {
+              "required": [
+                "content_digest"
+              ]
+            },
+            {
+              "required": [
+                "context_refs"
+              ]
+            },
+            {
+              "required": [
+                "ended_at"
+              ]
+            },
+            {
+              "required": [
+                "evidence"
+              ]
+            },
+            {
+              "required": [
+                "evidence_class"
+              ]
+            },
+            {
+              "required": [
+                "generated_by"
+              ]
+            },
+            {
+              "required": [
+                "inputs"
+              ]
+            },
+            {
+              "required": [
+                "key"
+              ]
+            },
+            {
+              "required": [
+                "lifecycle"
+              ]
+            },
+            {
+              "required": [
+                "media_type"
+              ]
+            },
+            {
+              "required": [
+                "mode"
+              ]
+            },
+            {
+              "required": [
+                "name"
+              ]
+            },
+            {
+              "required": [
+                "observed_at"
+              ]
+            },
+            {
+              "required": [
+                "outputs"
+              ]
+            },
+            {
+              "required": [
+                "parameters_digest"
+              ]
+            },
+            {
+              "required": [
+                "payload"
+              ]
+            },
+            {
+              "required": [
+                "proposition"
+              ]
+            },
+            {
+              "required": [
+                "schema_ref"
+              ]
+            },
+            {
+              "required": [
+                "source"
+              ]
+            },
+            {
+              "required": [
+                "stance"
+              ]
+            },
+            {
+              "required": [
+                "started_at"
+              ]
+            },
+            {
+              "required": [
+                "status"
+              ]
+            },
+            {
+              "required": [
+                "structural"
+              ]
+            },
+            {
+              "required": [
+                "valid_time"
+              ]
+            },
+            {
+              "required": [
+                "merged_into"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "assertion"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "proposition",
+          "asserted_by",
+          "stance",
+          "mode",
+          "asserted_at",
+          "lifecycle"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "activity_class"
+              ]
+            },
+            {
+              "required": [
+                "aliases"
+              ]
+            },
+            {
+              "required": [
+                "associated_actors"
+              ]
+            },
+            {
+              "required": [
+                "attributes"
+              ]
+            },
+            {
+              "required": [
+                "canonical_id"
+              ]
+            },
+            {
+              "required": [
+                "content_digest"
+              ]
+            },
+            {
+              "required": [
+                "ended_at"
+              ]
+            },
+            {
+              "required": [
+                "evidence_class"
+              ]
+            },
+            {
+              "required": [
+                "generated_by"
+              ]
+            },
+            {
+              "required": [
+                "inputs"
+              ]
+            },
+            {
+              "required": [
+                "key"
+              ]
+            },
+            {
+              "required": [
+                "media_type"
+              ]
+            },
+            {
+              "required": [
+                "name"
+              ]
+            },
+            {
+              "required": [
+                "object"
+              ]
+            },
+            {
+              "required": [
+                "observed_at"
+              ]
+            },
+            {
+              "required": [
+                "outputs"
+              ]
+            },
+            {
+              "required": [
+                "parameters_digest"
+              ]
+            },
+            {
+              "required": [
+                "payload"
+              ]
+            },
+            {
+              "required": [
+                "predicate_ref"
+              ]
+            },
+            {
+              "required": [
+                "schema_ref"
+              ]
+            },
+            {
+              "required": [
+                "source"
+              ]
+            },
+            {
+              "required": [
+                "started_at"
+              ]
+            },
+            {
+              "required": [
+                "status"
+              ]
+            },
+            {
+              "required": [
+                "structural"
+              ]
+            },
+            {
+              "required": [
+                "subject"
+              ]
+            },
+            {
+              "required": [
+                "merged_into"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "evidence"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "evidence_class",
+          "payload",
+          "content_digest",
+          "observed_at"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "activity_class"
+              ]
+            },
+            {
+              "required": [
+                "aliases"
+              ]
+            },
+            {
+              "required": [
+                "asserted_at"
+              ]
+            },
+            {
+              "required": [
+                "asserted_by"
+              ]
+            },
+            {
+              "required": [
+                "associated_actors"
+              ]
+            },
+            {
+              "required": [
+                "attributes"
+              ]
+            },
+            {
+              "required": [
+                "canonical_id"
+              ]
+            },
+            {
+              "required": [
+                "confidence"
+              ]
+            },
+            {
+              "required": [
+                "context_refs"
+              ]
+            },
+            {
+              "required": [
+                "ended_at"
+              ]
+            },
+            {
+              "required": [
+                "evidence"
+              ]
+            },
+            {
+              "required": [
+                "inputs"
+              ]
+            },
+            {
+              "required": [
+                "key"
+              ]
+            },
+            {
+              "required": [
+                "mode"
+              ]
+            },
+            {
+              "required": [
+                "name"
+              ]
+            },
+            {
+              "required": [
+                "object"
+              ]
+            },
+            {
+              "required": [
+                "outputs"
+              ]
+            },
+            {
+              "required": [
+                "parameters_digest"
+              ]
+            },
+            {
+              "required": [
+                "predicate_ref"
+              ]
+            },
+            {
+              "required": [
+                "proposition"
+              ]
+            },
+            {
+              "required": [
+                "schema_ref"
+              ]
+            },
+            {
+              "required": [
+                "stance"
+              ]
+            },
+            {
+              "required": [
+                "started_at"
+              ]
+            },
+            {
+              "required": [
+                "status"
+              ]
+            },
+            {
+              "required": [
+                "structural"
+              ]
+            },
+            {
+              "required": [
+                "subject"
+              ]
+            },
+            {
+              "required": [
+                "valid_time"
+              ]
+            },
+            {
+              "required": [
+                "merged_into"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "activity"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "activity_class",
+          "status",
+          "inputs",
+          "outputs"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "aliases"
+              ]
+            },
+            {
+              "required": [
+                "asserted_at"
+              ]
+            },
+            {
+              "required": [
+                "asserted_by"
+              ]
+            },
+            {
+              "required": [
+                "attributes"
+              ]
+            },
+            {
+              "required": [
+                "canonical_id"
+              ]
+            },
+            {
+              "required": [
+                "confidence"
+              ]
+            },
+            {
+              "required": [
+                "content_digest"
+              ]
+            },
+            {
+              "required": [
+                "context_refs"
+              ]
+            },
+            {
+              "required": [
+                "evidence"
+              ]
+            },
+            {
+              "required": [
+                "evidence_class"
+              ]
+            },
+            {
+              "required": [
+                "generated_by"
+              ]
+            },
+            {
+              "required": [
+                "key"
+              ]
+            },
+            {
+              "required": [
+                "lifecycle"
+              ]
+            },
+            {
+              "required": [
+                "media_type"
+              ]
+            },
+            {
+              "required": [
+                "mode"
+              ]
+            },
+            {
+              "required": [
+                "name"
+              ]
+            },
+            {
+              "required": [
+                "object"
+              ]
+            },
+            {
+              "required": [
+                "observed_at"
+              ]
+            },
+            {
+              "required": [
+                "payload"
+              ]
+            },
+            {
+              "required": [
+                "predicate_ref"
+              ]
+            },
+            {
+              "required": [
+                "proposition"
+              ]
+            },
+            {
+              "required": [
+                "schema_ref"
+              ]
+            },
+            {
+              "required": [
+                "source"
+              ]
+            },
+            {
+              "required": [
+                "stance"
+              ]
+            },
+            {
+              "required": [
+                "structural"
+              ]
+            },
+            {
+              "required": [
+                "subject"
+              ]
+            },
+            {
+              "required": [
+                "valid_time"
+              ]
+            },
+            {
+              "required": [
+                "merged_into"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

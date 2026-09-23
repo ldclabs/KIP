@@ -5,8 +5,8 @@ import { runMemoryVectors } from './runner.mjs'
 const args=process.argv.slice(2)
 const suiteIndex=args.indexOf('--suite')
 const suite=suiteIndex<0?'memory':args[suiteIndex+1]
-if (!['memory','interface'].includes(suite)) {
-  console.error('Unknown suite; choose memory or interface');process.exit(2)
+if (!['memory','interface','reliability'].includes(suite)) {
+  console.error('Unknown suite; choose memory, interface or reliability');process.exit(2)
 }
 if(suiteIndex>=0)args.splice(suiteIndex,2)
 const directory=new URL(`vectors/${suite}/`,import.meta.url)
@@ -19,6 +19,6 @@ else if(args[0]==='--adapter'&&args[1]) {
   console.log(JSON.stringify(report,null,2))
   if(report.overall_status!=='PASS')process.exitCode=1
 } else {
-  console.error('Usage: node conformance/run.mjs [--suite memory|interface] --list | --adapter /absolute/path/to/adapter.mjs')
+  console.error('Usage: node conformance/run.mjs [--suite memory|interface|reliability] --list | --adapter /absolute/path/to/adapter.mjs')
   process.exitCode=2
 }

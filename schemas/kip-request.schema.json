@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:kip:2.0:schema:request",
+  "$id": "urn:kip:2.0:2026-09-23:schema:request",
   "title": "KIP 2.0 Request Envelope",
   "description": "JSON Schema for the logical KIP 2.0 request envelope. This schema validates static wire structure only. Runtime semantics such as command classification, Governance authorization, Schema resolution, idempotency digest equivalence, snapshot alignment, and commit-time revalidation remain runtime invariants.",
   "type": "object",
@@ -505,8 +505,7 @@
           "maxLength": 256
         },
         "observed_at": {
-          "type": "string",
-          "format": "date-time"
+          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
         },
         "source_actor": {
           "$ref": "#/$defs/ElementReference",

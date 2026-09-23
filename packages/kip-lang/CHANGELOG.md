@@ -2,6 +2,16 @@
 
 All notable changes to `@ldclabs/kip-lang` are documented here.
 
+## Unreleased
+
+- Add scoped ASSERT context with deterministic context_refs lowering.
+- Export strict `parseTimestamp` and host-side `MemorySession` receipt bookkeeping.
+- Test selection dependencies, source causality, recording repair, prospective
+  enrollment, receiver fencing, scoped recall and rebuildable memory views.
+- Current contract schemas use revisioned IDs and shared definitions; memory
+  package 2.2.0 preserves the exact prior 2.1.0 artifact and validation resources.
+- These changes do not implement or certify a production Nexus/Brain.
+
 ## 2.3.1
 
 Tracks the cognitive-consistency revision of the 2.0 draft: executable values

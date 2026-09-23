@@ -1,31 +1,13 @@
 /** Small, test-only contract oracles. These functions are not a Nexus engine. */
-import { canonicalize } from '../../packages/kip-lang/dist/index.js'
+import { canonicalize, parseTimestamp } from '../../packages/kip-lang/dist/index.js'
+import { validateDependencies } from './reliability.mjs'
 
 export function dependencyValidity(groups, current) {
-  if (!groups?.length) return { status: 'unverifiable', action_eligible: false }
-  let review = false
-  for (const group of groups) {
-    if (group.role === 'context') continue
-    const pins = group.pins.map(pin => {
-      const now = current[pin.id]
-      if (!now || now.visible === false) return 'unknown'
-      return now.version === pin.version && !['retracted', 'superseded', 'corrected'].includes(now.status)
-        ? 'valid' : 'changed'
-    })
-    if (!pins.length) return { status: 'unverifiable', action_eligible: false }
-    if (group.role === 'any_of' && pins.includes('valid')) continue
-    if (pins.includes('unknown')) return { status: 'unverifiable', action_eligible: false }
-    if (pins.includes('changed')) review = true
-  }
-  return { status: review ? 'needs_review' : 'current', action_eligible: !review }
+  return validateDependencies({ groups }, { elements: current })
 }
 
 export function project(candidates, { functional = false, context_refs = [], valid_at }) {
-  const instant = value => {
-    if (typeof value !== 'string' || !/(Z|[+-][0-9]{2}:[0-9]{2})$/.test(value) || !Number.isFinite(Date.parse(value)))
-      throw new Error('unanchored or invalid timestamp')
-    return Date.parse(value)
-  }
+  const instant = parseTimestamp
   const time = instant(valid_at)
   const rows = candidates.map(candidate => {
     for (const a of candidate.assertions) {

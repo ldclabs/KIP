@@ -1069,6 +1069,7 @@ function lowerAssertSugar(
     'confidence',
     'at',
     'valid',
+    'context',
     'evidence',
     'key'
   ])
@@ -1138,7 +1139,8 @@ function lowerAssertSugar(
   const optional: [string, string][] = [
     ['confidence', 'confidence'],
     ['at', 'asserted_at'],
-    ['valid', 'valid_time']
+    ['valid', 'valid_time'],
+    ['context', 'context_refs']
   ]
   for (const [member, field] of optional) {
     const value = members.get(member)

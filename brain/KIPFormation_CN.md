@@ -10,7 +10,7 @@
 ASSERT (:subject, :predicate, :object) {by: :actor, mode: "stated", evidence: :evidence}
 ```
 
-ASSERT 语法糖没有 context 成员。对于限定范围的主张，请使用显式形式；适配器会自动为限定任务范围的记忆接口输入选择此形式。
+对于限定作用域的主张，请使用 `ASSERT ... {context: :contexts}`。它精确脱糖为 `context_refs`；适配器负责提供规范的任务/上下文集合。等价的显式形式依然可用：
 
 ```kip
 MUTATE {
@@ -42,7 +42,7 @@ MUTATE {
 }
 ```
 
-此示例未限定范围。限定范围的修订使用 CREATE ASSERTION 形式保留显式的 context_refs。未知的变更时间应保持为未知；切勿凭空捏造具体时刻。
+此示例未限定作用域。限定作用域的修订在每个 ASSERT 上保留 `context: :contexts`（或等价的显式 context_refs）。未知的变更时间应保持为未知；切勿凭空捏造具体时刻。
 
 仅记录所观测到、由外部提供的过程。反馈保持其真实来源：自述绝非可评分的客观结果。普通事实与反馈无需试验。切勿为了填满可选字段而人为编造置信度、显著性或效用。
 

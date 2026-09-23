@@ -6,9 +6,11 @@
 
 **默认开发版本：KIP 2.0，规范性草案。** 仓库根目录承载当前协议与工具。KIP [v1.0-RC11](./v1/README_CN.md) 已冻结，供历史查阅与迁移参考；切换默认入口不会升级现有部署，也不代表 2.0 协议已成为稳定版。
 
-认知一致性修订加入最终信念保证、不可变程序性记录，以及独立版本的记忆模式包（2.1.0），并配有可执行契约检查和有界模型。[Rust](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) 与 [Cloudflare Durable Object](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do) 引擎面向 KIP 2.0 草案；对本次修订的覆盖必须由最新适配器结果确认，不能从早期一致性结果推断。协议继续标为 `2.0-draft`，与已发布工具的版本独立；结构测试不构成真实 Brain 学习成效的证明。
+认知一致性修订加入最终信念保证、不可变程序性记录，以及独立版本的记忆模式包（2.2.0），并配有可执行契约检查和有界模型。[Rust](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) 与 [Cloudflare Durable Object](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do) 引擎面向 KIP 2.0 草案；对本次修订的覆盖必须由最新适配器结果确认，不能从早期一致性结果推断。协议继续标为 `2.0-draft`，与已发布工具的版本独立；结构测试不构成真实 Brain 学习成效的证明。
 
 [认知一致性契约](./KIP-2.0-Cognitive-Consistency_CN.md) 规定最终信念、不可变 Skill 修订、独立尝试、可重放试用与评估、依赖有效性、身份修复及持久工作者。生命周期计数聚合执行尝试；未关联的同任务族结果不会自动成为对照。已存摘要必须在计算依据通过校验后使用。
+
+2026-09-23 可靠性修订采用记忆模式包 **2.2.0** 与带版本标识的 Schema 身份。新增选择依赖、记录修复、因果形成、前瞻性入组、显式分发保证及召回计划。既有的 2.1.0 模式包与固化的 Schema 资源保持不变。[决议与验证](KIP-2.0-Reliability-Resolution_CN.md) 明确区分了协议层工作、已审查的 Anda Brain 实现以及尚未执行的部署/学习门禁。
 
 ## 从这里开始
 

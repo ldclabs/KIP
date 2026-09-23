@@ -50,7 +50,7 @@ Recall **严禁**执行以下操作：写入 Assertion、提高置信度、修�
     "available_tools": ["deployment_api"]
   },
   "time": {
-    "valid_at": "2026-08-14T01:00:00Z",
+    "valid_at": "2026-08-14T01:00:00.000Z",
     "as_of_seq": null
   }
 }

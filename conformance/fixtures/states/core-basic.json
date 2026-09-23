@@ -11,7 +11,7 @@
     ],
     "version": 17
   },
-  "clock": "2026-01-01T00:00:00Z",
+  "clock": "2026-01-01T00:00:00.000Z",
   "epistemic_policy": "test-deterministic",
   "governance_policy": "governance-test-policy",
   "trust": {
@@ -38,7 +38,7 @@
   "commits": [
     {
       "label": "S1",
-      "at": "2026-01-01T00:00:00Z",
+      "at": "2026-01-01T00:00:00.000Z",
       "principal": "owner",
       "creates": [
         {
@@ -142,7 +142,7 @@
             "text": "I'm on UTC+8 and I like dark mode."
           },
           "media_type": "application/json",
-          "observed_at": "2025-12-31T09:00:00Z",
+          "observed_at": "2025-12-31T09:00:00.000Z",
           "source": "alice"
         },
         {
@@ -169,7 +169,7 @@
           "stance": "support",
           "mode": "stated",
           "confidence": 0.9,
-          "asserted_at": "2025-12-31T09:05:00Z",
+          "asserted_at": "2025-12-31T09:05:00.000Z",
           "evidence": [
             "e_alice_msg"
           ]
@@ -191,7 +191,7 @@
           "stance": "support",
           "mode": "stated",
           "confidence": 0.9,
-          "asserted_at": "2025-12-31T09:05:00Z",
+          "asserted_at": "2025-12-31T09:05:00.000Z",
           "evidence": [
             "e_alice_msg"
           ]
@@ -244,8 +244,8 @@
           "kind": "activity",
           "activity_class": "ingestion",
           "status": "completed",
-          "started_at": "2025-12-31T09:04:00Z",
-          "ended_at": "2025-12-31T09:05:00Z",
+          "started_at": "2025-12-31T09:04:00.000Z",
+          "ended_at": "2025-12-31T09:05:00.000Z",
           "inputs": [
             "e_alice_msg"
           ],

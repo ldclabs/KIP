@@ -162,7 +162,7 @@ kip://legacy/<deployment-id>@1.0.0
 对于语义与标准认知记忆完全吻合的类型，应直接对齐并迁移至：
 
 ```text
-kip://profiles/cognitive-memory@2.1.0
+kip://profiles/cognitive-memory@2.2.0
 ```
 
 # 9. 概念迁移 (Concept Migration)
@@ -674,4 +674,4 @@ JS 节点被物理删除
 
 使用全新的臂世代（arm generations）与声明的观察覆盖范围重启 Watch；使用完备的计算基线重建 WorkingState。先前有歧义的实体识别决策保持可复审状态，但绝不能被赋予凭空捏造的原始指代物。
 
-一致性模式包为 `kip://profiles/cognitive-memory@2.1.0`。先前的 2.0.0 工件按字节完全保持不变，属于遗留工件，而非当前的标准 Profile 契约。在 `manage_schema` 下安装 2.1.0，并携带 `schema_migration` 溯源信息迁移旧版 Skill 记录。可读的旧类型谱系保留身份标识，但若缺少 `current_revision` 与保留的经校验记录，它们不具有当前的 2.1.0 资格。在相同的精确包引用下，严禁使用具有不同摘要的工件替换已安装的工件。
+一致性模式包为 `kip://profiles/cognitive-memory@2.2.0`。先前的 2.0.0 工件按字节完全保持不变，属于遗留工件，而非当前的标准 Profile 契约。在 `manage_schema` 下安装 2.1.0，并携带 `schema_migration` 溯源信息迁移旧版 Skill 记录。可读的旧类型谱系保留身份标识，但若缺少 `current_revision` 与保留的经校验记录，它们不具有当前的 2.1.0 资格。在相同的精确包引用下，严禁使用具有不同摘要的工件替换已安装的工件。

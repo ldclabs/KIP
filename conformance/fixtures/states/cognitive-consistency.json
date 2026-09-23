@@ -8,11 +8,11 @@
     "id": "schema_env:memory-v2",
     "packages": [
       "kip://test/core-domain@1.0.0",
-      "kip://profiles/cognitive-memory@2.1.0"
+      "kip://profiles/cognitive-memory@2.2.0"
     ],
     "version": 18
   },
-  "clock": "2026-09-06T12:00:00Z",
+  "clock": "2026-09-06T12:00:00.000Z",
   "epistemic_policy": "test-deterministic",
   "governance_policy": "governance-test-policy",
   "bindings": {},

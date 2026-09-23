@@ -55,7 +55,7 @@ as a hidden side effect. Scope/coverage cannot be widened to obtain a cleaner an
     "available_tools": ["deployment_api"]
   },
   "time": {
-    "valid_at": "2026-08-14T01:00:00Z",
+    "valid_at": "2026-08-14T01:00:00.000Z",
     "as_of_seq": null
   }
 }

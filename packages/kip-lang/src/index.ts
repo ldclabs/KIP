@@ -1,5 +1,8 @@
 export { tokenize } from './lexer.js'
 export { canonicalize, parseCanonicalJson } from './canonical.js'
+export { parseTimestamp } from './timestamp.js'
+export { MemorySession } from './memory-session.js'
+export type { MemorySessionScope, MemorySessionSnapshot } from './memory-session.js'
 export { parse } from './parser.js'
 export type { ParseResult } from './parser.js'
 export { format } from './formatter.js'

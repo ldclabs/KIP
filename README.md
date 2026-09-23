@@ -10,7 +10,7 @@ for historical reference and migration; changing the default does not upgrade
 existing deployments or declare the 2.0 protocol stable.
 
 The consistency revision adds final-belief guarantees, immutable procedural
-records and a separately versioned memory package (2.1.0), with executable contract
+records and a separately versioned memory package (2.2.0), with executable contract
 checks and bounded models. The [Rust](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus)
 and [Cloudflare Durable Object](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do)
 engines target KIP 2.0 drafts; their coverage of this revision must be established
@@ -19,6 +19,13 @@ remains `2.0-draft`, independently of published tooling versions; no real Brain
 learning result is claimed by these structural tests.
 
 The normative [Cognitive Consistency contract](./KIP-2.0-Cognitive-Consistency.md) binds final belief, immutable Skill revisions, independent attempts, replayable trials/evaluations, dependency validity, identity repair and durable workers. Lifecycle counters aggregate attempts; unlinked family outcomes are never automatically controls. Stored summaries are used only with a validated computation basis.
+
+The 2026-09-23 reliability revision uses memory package **2.2.0** and revisioned
+Schema identities. It adds selection dependencies, recording repair, causal
+formation, prospective enrollment, explicit dispatch guarantees and recall plans.
+The existing 2.1.0 package and schema pins remain unchanged.
+[Resolution and validation](KIP-2.0-Reliability-Resolution.md) distinguishes protocol
+work, the inspected Anda Brain implementation and unexecuted deployment/learning gates.
 
 ## Start here
 

@@ -37,8 +37,8 @@ for (const entry of cases.projection) test(entry.id + ': ' + entry.name, () => {
 
 test('MEM-007: unanchored times and empty/reversed intervals fail instead of becoming absence', () => {
   assert.throws(()=>model.project([],{valid_at:'2026-09-06'}),/timestamp/)
-  for (const until of ['2026-09-06T12:00:00Z','2026-09-05T12:00:00Z']) {
-    const candidate={id:'P',value:'value',assertions:[{from:'2026-09-06T12:00:00Z',until}]}
+  for (const until of ['2026-09-06T12:00:00.000Z','2026-09-05T12:00:00.000Z']) {
+    const candidate={id:'P',value:'value',assertions:[{from:'2026-09-06T12:00:00.000Z',until}]}
     assert.throws(()=>model.project([candidate],{valid_at:cases.basis.valid_at}),/interval/)
   }
 })
@@ -199,17 +199,17 @@ test('MEM-012: schema locks follow transitive references, terminate cycles and r
 })
 
 test('MEM-012: manifest pins alone compile every validation schema, including Capsule dependencies', async () => {
-  const pkg=await json('profiles/cognitive-memory-2.1.0.schema.json')
+  const pkg=await json('profiles/cognitive-memory-2.2.0.schema.json')
   const isolated=new Ajv2020({strict:false,allErrors:true})
   addFormats(isolated)
   for (const pin of pkg.manifest.validation_schemas) isolated.addSchema(schemaCatalog.get(pin.id))
   for (const pin of pkg.manifest.validation_schemas) assert.ok(isolated.getSchema(pin.id),pin.id)
   const capsule=await json('conformance/fixtures/capsules/valid-snapshot.json')
-  assert.ok(isolated.validate('urn:kip:2.0:schema:capsule',capsule),JSON.stringify(isolated.errors))
+  assert.ok(isolated.validate('urn:kip:2.0:2026-09-23:schema:capsule',capsule),JSON.stringify(isolated.errors))
 })
 
 test('MEM-018: EvaluationRecord distinguishes promotion from monitoring and withdrawal', () => {
-  const validate=ajv.getSchema('urn:kip:2.0:schema:cognitive-records#/$defs/EvaluationRecord')
+  const validate=ajv.getSchema('urn:kip:2.0:2026-09-23:schema:cognitive-records#/$defs/EvaluationRecord')
   const evaluation=cases.records.EvaluationRecord
   const allowed={proposed:['proposed','trialed','revoked'],trialed:['trialed','adopted','revoked'],
     adopted:['adopted','trialed','revoked'],revoked:['revoked','trialed']}
@@ -233,9 +233,9 @@ test('MEM-018: EvaluationRecord distinguishes promotion from monitoring and with
 })
 
 test('MEM-011/012: published shapes and pinned package schemas validate independently', async () => {
-  for (const name of ['cognitive-memory-2.1.0.schema.json']) {
+  for (const name of ['cognitive-memory-2.2.0.schema.json']) {
     const pkg=await json('profiles/'+name)
-    assert.ok(ajv.validate('urn:kip:2.0:schema:schema-package',pkg),JSON.stringify(ajv.errors))
+    assert.ok(ajv.validate('urn:kip:2.0:2026-09-23:schema:schema-package',pkg),JSON.stringify(ajv.errors))
     for (const pin of pkg.manifest.validation_schemas) {
       assert.ok(schemaCatalog.has(pin.id),pin.id)
       assert.equal(hash(schemaCatalog.get(pin.id)),pin.content_digest,pin.id)
@@ -249,20 +249,20 @@ test('MEM-011/012: published shapes and pinned package schemas validate independ
     }
   }
   const capsule=await json('conformance/fixtures/capsules/valid-snapshot.json')
-  assert.ok(ajv.validate('urn:kip:2.0:schema:capsule',capsule),JSON.stringify(ajv.errors))
+  assert.ok(ajv.validate('urn:kip:2.0:2026-09-23:schema:capsule',capsule),JSON.stringify(ajv.errors))
   const illegal=structuredClone(capsule);illegal.payload.records[0].confidence=1
-  assert.equal(ajv.validate('urn:kip:2.0:schema:capsule',illegal),false)
+  assert.equal(ajv.validate('urn:kip:2.0:2026-09-23:schema:capsule',illegal),false)
   for (const [name,value] of Object.entries(cases.records)) {
-    assert.ok(ajv.validate('urn:kip:2.0:schema:cognitive-records#/$defs/'+name,value),name+JSON.stringify(ajv.errors))
+    assert.ok(ajv.validate('urn:kip:2.0:2026-09-23:schema:cognitive-records#/$defs/'+name,value),name+JSON.stringify(ajv.errors))
   }
   const fake=structuredClone(cases.records.EvaluationRecord);fake.attempt_refs=['A1','A1']
-  assert.equal(ajv.validate('urn:kip:2.0:schema:cognitive-records#/$defs/EvaluationRecord',fake),false)
+  assert.equal(ajv.validate('urn:kip:2.0:2026-09-23:schema:cognitive-records#/$defs/EvaluationRecord',fake),false)
   const forget=structuredClone(cases.records.ErasurePlan);forget.status='completed'
-  assert.equal(ajv.validate('urn:kip:2.0:schema:cognitive-records#/$defs/ErasurePlan',forget),false)
+  assert.equal(ajv.validate('urn:kip:2.0:2026-09-23:schema:cognitive-records#/$defs/ErasurePlan',forget),false)
   const unrun=await json('conformance/fixtures/brain-evaluation-not-run.json')
-  assert.ok(ajv.validate('urn:kip:2.0:schema:brain-evaluation',unrun))
-  assert.equal(ajv.validate('urn:kip:2.0:schema:brain-evaluation',{...unrun,learning_gate:'passed'}),false)
-  assert.equal(ajv.validate('urn:kip:2.0:schema:brain-evaluation',{...unrun,metrics:[{name:'score',estimate:1,lower:1,upper:1,unit:'rate',attempts:1}]}),false)
+  assert.ok(ajv.validate('urn:kip:2.0:2026-09-23:schema:brain-evaluation',unrun))
+  assert.equal(ajv.validate('urn:kip:2.0:2026-09-23:schema:brain-evaluation',{...unrun,learning_gate:'passed'}),false)
+  assert.equal(ajv.validate('urn:kip:2.0:2026-09-23:schema:brain-evaluation',{...unrun,metrics:[{name:'score',estimate:1,lower:1,upper:1,unit:'rate',attempts:1}]}),false)
 })
 
 test('updated formation/maintenance recipes remain executable command text', async () => {

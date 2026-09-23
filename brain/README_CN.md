@@ -279,6 +279,10 @@ LLM + Experience + Skill consolidation
 - 可转化为工作流、启发式、提示词、代码或工具策略的**程序性记忆**。
 - 在按 MemorySpace 与 Governance 限定记忆归属的前提下**支持多智能体**。
 
+## 参考实现
+
+[实现指南 (ImplementationGuide_CN.md)](./ImplementationGuide_CN.md) 规定了具体的最小参考策略、懒维护机制与宿主交互细节。生产级服务实现位于 [Anda Brain](https://github.com/ldclabs/anda-brain)；[已验证的实现凭证](../conformance/Brain-Implementation-Evidence.md) 记录了其实测版本，并将机制测试与尚未测量的行为学习收益明确区分开来。
+
 ## 相关文档
 
 - [ExperienceLearningArchitecture_CN.md](./ExperienceLearningArchitecture_CN.md) —— 本大脑所实现的学习闭环

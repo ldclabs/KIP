@@ -8,6 +8,8 @@
 
 Version: **2.0-draft**
 
+Contract revision: **2026-09-23**
+
 This document is the normative consolidation of the KIP 2.0 design.
 
 The following KIP 2.0 design documents are informative references and design rationale. The ten `design/` notes are **frozen** as of 2026-09-02: they are the pre-consolidation drafts, are no longer maintained, and their Chinese twins are no longer synchronized; where they differ from this Specification they are out of date.
@@ -28,13 +30,14 @@ The following artifacts are normative companions to this Specification:
 
 - `KIP-2.0-Memory-Interface.md`, `schemas/kip-memory.schema.json` and `profiles/memory-bundles.json` — optional Agent-to-Brain intents, processing barriers and composable memory capability bundles
 - `conformance/KIP-2.0-Memory-Interface-Tests.md` — acceptance scenarios for the optional binding
+- `schemas/kip-common.schema.json` — shared strict UTC-millisecond timestamps and artifact pins
 - `KIP-2.0-Cognitive-Consistency.md` — conflict-complete belief, computation bases, dependency validity, identity repair and reliable learning/worker contracts
 - `schemas/kip-projection.schema.json`, `schemas/kip-cognitive-records.schema.json`, `schemas/kip-element.schema.json`, `schemas/kip-capsule.schema.json`, `schemas/kip-schema-package.schema.json` — normative result and artifact shapes
 - `conformance/KIP-2.0-Cognitive-Tests.md` — cross-cutting Core/Profile acceptance vectors
 
 - `grammar/KIP-2.0-KQL.ebnf`, `grammar/KIP-2.0-KML.ebnf`, `grammar/KIP-2.0-META.ebnf` — normative syntax
 - `schemas/kip-request.schema.json`, `schemas/kip-response.schema.json`, `schemas/kip-change-envelope.schema.json` — normative wire shapes
-- `profiles/cognitive-memory-2.1.0.schema.json` and `profiles/CognitiveMemoryProfile-2.0.md` — the standard Profile package
+- `profiles/cognitive-memory-2.2.0.schema.json` and `profiles/CognitiveMemoryProfile-2.0.md` — the standard Profile package
 - `conformance/KIP-2.0-Conformance-Tests.md`, `conformance/conformance-test-vector.schema.json`, `conformance/conformance-report.schema.json`, `conformance/conformance-state-fixture.schema.json`, `conformance/conformance-governance-policy.schema.json` and `conformance/fixtures/` — the conformance suite
 - `KIP-2.0-Capsule-Specification.md` — §37–§41 and §95 of this Specification, the Cognitive Capsule, carried in a companion under the same numbering
 - `KIP-2.0-Optional-Profiles-and-Migration.md` — §100, §101, §103 and Appendix I of this Specification: historical reads, high-assurance hardening, and KIP 1.x migration — each a capability (§67.4), not a profile
@@ -1537,7 +1540,7 @@ Example:
 ```json
 {
   "facets": {
-    "kip://profiles/cognitive-memory@2.1.0/MnemonicState": {
+    "kip://profiles/cognitive-memory@2.2.0/MnemonicState": {
       "memory_strength": 0.8,
       "salience": 0.9
     }
@@ -1683,7 +1686,7 @@ Examples:
 ```text
 kip://core@2.0.0
 kip://core@2.0.0/Assertion
-kip://profiles/cognitive-memory@2.1.0/Experience
+kip://profiles/cognitive-memory@2.2.0/Experience
 kip://ldclabs/organization@1.3.0/works_for
 ```
 
@@ -1739,6 +1742,13 @@ IDs use HTTPS rather than URNs. All locked schemas must compile using only those
 verified resources and the validator's JSON Schema meta-schema. An unresolved or
 unpinned resource fails activation; a previously cached or network-fetched schema
 cannot silently supply it.
+
+Package definitions may declare typed `reference_paths` for nested element references
+(Cognitive Consistency §8.3). These paths and their namespace are binding for closure
+validation and Capsule mapping; a loader unable to honor them rejects activation
+rather than treating IDs as arbitrary text. Optional absent/null references remain
+absent/null. Timestamp format validation must include real calendar values even
+when the JSON Schema validator treats `format` as annotation only.
 
 ## 20.6 Local names
 
@@ -2595,6 +2605,7 @@ The Extended permissions exist only where the capability that gates them is adve
 ```text
 derive            derive_permission
 record_outcome    record_outcome_permission
+repair_recording  recording_repair
 manage_trust      weighted_projection
 ```
 
@@ -3178,7 +3189,7 @@ Normative shape (`schemas/kip-change-envelope.schema.json`):
       "op": "update",
       "kind": "concept",
       "id": "C-7",
-      "schema_ref": "kip://profiles/cognitive-memory@2.1.0/Commitment",
+      "schema_ref": "kip://profiles/cognitive-memory@2.2.0/Commitment",
       "old_version": 4,
       "new_version": 5,
       "touched": ["attributes.status", "facets.MnemonicState"],
@@ -3194,7 +3205,7 @@ Existence protection (§30.4) applies per entry: an element the consumer may not
 
 ---
 
-Control-plane commits carry governed `control_changes` entries (`trust`, `policy`, `schema`, `identity`, `authorization`) with opaque version identities; they allocate a Space sequence and invalidate relevant bases. They never masquerade as Cognitive Elements or Evidence. Complete/filtered stream consumers receive a governed coverage watermark and authorization-view binding; missing entries or sequence gaps alone do not prove silence (Consistency §7).
+Control-plane commits carry governed `control_changes` entries (`trust`, `policy`, `schema`, `identity`, `authorization`, `recording`) with opaque version identities; they allocate a Space sequence and invalidate relevant bases. They never masquerade as Cognitive Elements or Evidence. Complete/filtered stream consumers receive a governed coverage watermark and authorization-view binding; missing entries or sequence gaps alone do not prove silence (Consistency §7).
 
 ## 36.2 Atomicity
 
@@ -4309,6 +4320,7 @@ confidence  OPTIONAL                         → confidence
 at          OPTIONAL   default engine
                        transaction time      → asserted_at
 valid       OPTIONAL   {from, until}         → valid_time
+context     OPTIONAL   exact reference array → context_refs
 evidence    OPTIONAL   reference or array    → role "support" Evidence citations
 key         OPTIONAL                         → Assertion client_key
 ```
@@ -4353,6 +4365,7 @@ Rules:
 - `by` decides the permission exactly as `asserted_by` does on `CREATE ASSERTION` (§28.4): an actor the caller is bound to needs `assert`; any other actor needs `record_attributed_assertion`; an actor the policy reserves for its bound Principals needs `assert_as_actor` and fails `ActorBindingRequired` without the binding.
 - `SUPERSEDING` is revision (§14.2): it says the old Assertion was wrong. A change in the world is not written with it; see Appendix F.2.
 - `ASSERT` without `key` has no retry safety of its own: a retried request is deduplicated only by the envelope's `idempotency_key` (§34). With `key`, the created Assertion carries that `client_key` and the creation itself is replay-safe.
+- `context` lowers exactly to immutable `context_refs`; omission is the existing general scope, never inferred task scope. Adapters pass their canonical context set. Scoped supersession preserves the compatible context lineage.
 - Sugar support belongs to the full KIP-KML conformance profile (§97).
 
 ---
@@ -4975,7 +4988,7 @@ A result row SHOULD carry the dependent's exact id, kind, distance, and the Acti
 Rules:
 
 - `LIST DEPENDENTS` is a read; it MUST NOT change any element.
-- Governance applies per row: an element the caller may not discover is omitted, and omission is indistinguishable from absence (§30.4). Traversal does not pass through an element the caller may not discover; when that cuts a path short the result carries `truncated: true`, without identifying where. A Principal charged with derivation review (§57.5) SHOULD therefore hold `discover` over the Space's provenance topology.
+- Governance applies per row: an element the caller may not discover is omitted, and omission is indistinguishable from absence (§30.4). Traversal does not pass through an element the caller may not discover. `truncated` describes only incomplete traversal of the authorized visible graph (such as a page/depth/resource bound); its value MUST NOT depend on whether an undiscoverable element exists. Results identify `coverage_scope: "authorized_view"`. This is not a global-closure attestation. Global review/erasure requires a separately authorized internal traversal; callers without that authority receive the same scope limitation whether or not hidden dependents exist.
 - The traversal is bounded: a runtime MAY cap `DEPTH` and pages results through `LIMIT` / `CURSOR` like other `LIST` targets.
 - Reachability is provenance topology, not judgment: a listed dependent is not thereby stale, wrong, or in need of change (§57.5).
 
@@ -5229,6 +5242,10 @@ watch_evaluation            runtime-evaluated Watch conditions (Cognitive Memory
 list_dependents             §63.5
 payload_purge               §60.6
 identity_repair             Cognitive Consistency §4
+recording_repair            Cognitive Consistency §4.1
+prospective_trials         Cognitive Consistency §5.1
+receiver_fencing           Cognitive Consistency §7.1
+lazy_mnemonic_strength      Brain Implementation Guide; read-only effective strength
 dependency_validity         Cognitive Consistency §3 (required by the standard memory Profile)
 durable_brain_runtime       Cognitive Consistency §7
 capsule_export              §63.4

@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-REL-001",
+  "title": "Canonical timestamp agreement",
+  "description": "Reject missing/finer fractions, offsets, lowercase separators, leap seconds and invalid calendar dates through commands, bound values, wire records and imported artifacts; accept leap-day UTC milliseconds.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "capabilities": [],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Cognitive-Consistency.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_reliability_scenario",
+      "args": {
+        "id": "KIP2-REL-001"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/noncanonical_accepted",
+      "operator": "equals",
+      "expected": false
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/invalid_calendar_accepted",
+      "operator": "equals",
+      "expected": false
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/rejected_input_writes",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

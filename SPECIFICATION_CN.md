@@ -33,7 +33,7 @@
 - `conformance/KIP-2.0-Cognitive-Tests.md` —— 横跨 Core/Profile 的验收向量
 - `grammar/KIP-2.0-KQL.ebnf`、`grammar/KIP-2.0-KML.ebnf`、`grammar/KIP-2.0-META.ebnf` —— 规范性语法定义
 - `schemas/kip-request.schema.json`、`schemas/kip-response.schema.json`、`schemas/kip-change-envelope.schema.json` —— 规范性传输层信封结构
-- `profiles/cognitive-memory-2.1.0.schema.json` 与 `profiles/CognitiveMemoryProfile-2.0_CN.md` —— 标准认知记忆 Profile 包
+- `profiles/cognitive-memory-2.2.0.schema.json` 与 `profiles/CognitiveMemoryProfile-2.0_CN.md` —— 标准认知记忆 Profile 包
 - `conformance/KIP-2.0-Conformance-Tests.md`、`conformance/conformance-test-vector.schema.json`、`conformance/conformance-report.schema.json`、`conformance/conformance-state-fixture.schema.json`、`conformance/conformance-governance-policy.schema.json` 与 `conformance/fixtures/` —— 一致性测试套件
 - `KIP-2.0-Capsule-Specification_CN.md` —— 本规范的 §37–§41 与 §95，即认知胶囊（Cognitive Capsule），以相同的章节编号独立成伴随规范维护
 - `KIP-2.0-Optional-Profiles-and-Migration_CN.md` —— 本规范的 §100、§101、§103 及附录 I：历史读取、高保证加固与 KIP 1.x 迁移 —— 每一项均为一项能力（§67.4），而非 Profile
@@ -1491,7 +1491,7 @@ UNSET STRUCTURAL { (field, target) }              移除该条引用
 ```json
 {
   "facets": {
-    "kip://profiles/cognitive-memory@2.1.0/MnemonicState": {
+    "kip://profiles/cognitive-memory@2.2.0/MnemonicState": {
       "memory_strength": 0.8,
       "salience": 0.9
     }
@@ -1635,7 +1635,7 @@ kip://<package-path>@<exact-version>[/<symbol>]
 ```text
 kip://core@2.0.0
 kip://core@2.0.0/Assertion
-kip://profiles/cognitive-memory@2.1.0/Experience
+kip://profiles/cognitive-memory@2.2.0/Experience
 kip://ldclabs/organization@1.3.0/works_for
 ```
 
@@ -1684,6 +1684,8 @@ model hints (模型提示)
 模式包字段或切面（Facet）定义**可以**携带 `value_schema`，即 JSON Schema 2020-12 约束。合规的加载器**必须**解析其钉固的 Schema 依赖项，并在字段可变性与引用约束之外对其进行校验；不支持的契约将导致激活失败，绝不能被静默忽略。标准 Profile 在其 `validation_schemas` 清单中按摘要钉固了伴随 Schema。切面的 `attachment` 约束（`activity_classes` / `terminal_only`）与 `applicable_to` 一道具有强制约束力；终态记录字段绝不能通过修改 Activity 类别、UPDATE 或 UNSET 来绕过。
 
 验证 Schema 锁定**必须**包含 `$ref` 与 `$dynamicRef` 的可传递 Schema 资源闭包，以实际的 Schema `$id` 为键，包括使用 HTTPS 而非 URN 标识的依赖项。所有锁定的 Schema 必须仅使用这些经校验的资源以及验证器的 JSON Schema 元模式完成编译。任何未解析或未钉固的资源均会导致激活失败；先前缓存的或通过网络拉取的 Schema 绝不能暗中提供支持。
+
+模式包定义可以为嵌套元素引用声明具型的 `reference_paths`（[认知一致性 §8.3](./KIP-2.0-Cognitive-Consistency_CN.md#83-数据交换与可重建状态-exchange-and-rebuildable-state)）。这些路径及其命名空间对闭包校验和 Capsule 映射具有约束力；无法支持这些路径的加载器必须拒绝激活，严禁将 ID 视为任意文本处理。可选的缺失/null 引用保持缺失/null。即使 JSON Schema 校验器仅将 `format` 视为纯注解，时间戳格式校验也必须包含真实的日历合法性校验。
 
 ---
 
@@ -2509,6 +2511,7 @@ read_raw_origin (读取原始来源)
 ```text
 derive (衍生)               derive_permission
 record_outcome (记录后果)    record_outcome_permission
+repair_recording (记录修复)  recording_repair
 manage_trust (管理信任)      weighted_projection
 ```
 
@@ -3076,7 +3079,7 @@ schema_environment_version
       "op": "update",
       "kind": "concept",
       "id": "C-7",
-      "schema_ref": "kip://profiles/cognitive-memory@2.1.0/Commitment",
+      "schema_ref": "kip://profiles/cognitive-memory@2.2.0/Commitment",
       "old_version": 4,
       "new_version": 5,
       "touched": ["attributes.status", "facets.MnemonicState"],
@@ -3092,7 +3095,7 @@ schema_environment_version
 
 ---
 
-控制平面提交携带受治理的 `control_changes` 条目（`trust`、`policy`、`schema`、`identity`、`authorization`），并具有不透明的版本标识；它们分配空间序列号（Space sequence）并使相关的计算基线失效。它们绝不伪装成认知元素或证据。完整/过滤流消费者接收受治理的覆盖范围水位线与授权视图绑定；仅凭缺失条目或序列号间隙无法证明为静默无事（[认知一致性 §7](./KIP-2.0-Cognitive-Consistency_CN.md#7-持久化注意力工作与外部行动-durable-attention-work-and-external-actions)）。
+控制平面提交携带受治理的 `control_changes` 条目（`trust`、`policy`、`schema`、`identity`、`authorization`、`recording`），并具有不透明的版本标识；它们分配空间序列号（Space sequence）并使相关的计算基线失效。它们绝不伪装成认知元素或证据。完整/过滤流消费者接收受治理的覆盖范围水位线与授权视图绑定；仅凭缺失条目或序列号间隙无法证明为静默无事（[认知一致性 §7](./KIP-2.0-Cognitive-Consistency_CN.md#7-持久化注意力工作与外部行动-durable-attention-work-and-external-actions)）。
 
 ---
 
@@ -4155,6 +4158,7 @@ stance      可选 (OPTIONAL)   默认 "support"    → stance
 confidence  可选 (OPTIONAL)                     → confidence
 at          可选 (OPTIONAL)   默认引擎事务时间  → asserted_at
 valid       可选 (OPTIONAL)   {from, until}     → valid_time
+context     可选 (OPTIONAL)   确切引用数组      → context_refs
 evidence    可选 (OPTIONAL)   引用或数组        → role "support" 证据引用
 key         可选 (OPTIONAL)                     → 断言 client_key
 ```
@@ -4194,6 +4198,7 @@ SUPERSEDE ASSERTION :old_assertion BY ?a
 - 句柄是可选的；一旦指定，它将绑定新创建的断言。
 - `ASSERT` **可以**作为独立语句出现，也可在 `MUTATE` 块内部使用。
 - 脱糖后的各子句构成一个变更计划，而非彼此独立的多条命令：独立使用的 `ASSERT` **必须**如同这些子句同处于一个 `MUTATE` 块中一样整体提交 (§53.1)；位于 `MUTATE` 内部时，它们并入外层计划。
+- `context` 精确脱糖为不可变的 `context_refs`；缺省时保持既有的通用作用域，绝不能自动推断任务作用域。适配器传入规范的上下文集合。带作用域的废弃替代保留兼容的上下文谱系。
 - 语法糖支持属于完整的 KIP-KML 合规 Profile (§97)。
 
 ---
@@ -4753,7 +4758,7 @@ X ∈ Activity.inputs
 规则：
 
 - `LIST DEPENDENTS` 是读取操作；**严禁**改变任何元素。
-- 治理逐行生效：调用方无权发现的元素被省略，且省略与不存在不可区分 (§30.4)。
+- 治理逐行生效：调用方无权发现（discover）的元素被省略，且省略与不存在不可区分 (§30.4)。遍历不会穿透调用方无权发现的元素。`truncated` 仅描述授权可见图的不完整遍历（如受限于分页、深度或资源上限）；其值**严禁**取决于是否存在不可发现的元素。返回结果标明 `coverage_scope: "authorized_view"`。这不构成全局闭包证明。全局复审或擦除需要经独立授权的内部遍历；未获该授权的调用方无论是否存在隐藏依赖方，均收到相同的作用域限制。
 - 遍历有界：运行时**可以**限定 `DEPTH` 上限，并像其他 `LIST` 目标一样通过 `LIMIT` / `CURSOR` 分页。
 - 可达性只是溯源拓扑，不是判断：被列出的依赖方并不因此就是过期的、错误的或需要修改的 (§57.5)。
 
@@ -5003,6 +5008,10 @@ watch_evaluation            运行时求值的 Watch 条件（认知记忆 Profi
 list_dependents             §63.5
 payload_purge               §60.6
 identity_repair             认知一致性 §4
+recording_repair            认知一致性 §4.1
+prospective_trials          认知一致性 §5.1
+receiver_fencing            认知一致性 §7.1
+lazy_mnemonic_strength      Brain 实现指南；只读有效强度计算
 dependency_validity         认知一致性 §3（标准记忆 Profile 强制要求）
 durable_brain_runtime       认知一致性 §7
 capsule_export              §63.4
