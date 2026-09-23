@@ -659,9 +659,9 @@ describe('lower: META', () => {
 
   test('SEARCH keeps every modifier distinct', () => {
     const cmd = lowerOne(
-      'SEARCH COGNITION :term WITH TYPE :t MODE "hybrid" THRESHOLD 0.5 AS OF SEQ :s LIMIT 10'
+      'SEARCH EVIDENCE :term WITH TYPE :t MODE "hybrid" THRESHOLD 0.5 AS OF SEQ :s LIMIT 10'
     )
-    assert.equal(cmd.Meta.Search.target, 'Cognition')
+    assert.equal(cmd.Meta.Search.target, 'Evidence')
     assert.deepEqual(cmd.Meta.Search.mode, { Literal: { String: 'hybrid' } })
     assert.deepEqual(cmd.Meta.Search.as_of_seq, { Param: 's' })
   })
@@ -854,5 +854,26 @@ describe('TRANSITION lowering enforces the BY and finalize rules (Spec §52.5)',
 
   test('a parameter state defers the rules to the engine', () => {
     assert.ok('Transition' in lowerOne('TRANSITION :a TO :state').Kml.clauses[0])
+  })
+})
+
+describe('lower: draft vocabulary and search patterns', () => {
+  test('DEFINE lowers to one standalone Define clause', () => {
+    const cmd = lowerOne('DEFINE PREDICATE "lives_in" {description: "home", functional: true}')
+    assert.equal(cmd.Kml.explicit_transaction, false)
+    assert.equal(cmd.Kml.clauses.length, 1)
+    assert.deepEqual(cmd.Kml.clauses[0].Define.kind, 'Predicate')
+    assert.deepEqual(cmd.Kml.clauses[0].Define.name, { Name: 'lives_in' })
+    assert.deepEqual(cmd.Kml.clauses[0].Define.definition.functional, { Value: { Bool: true } })
+    assert.equal(lowerOne('DEFINE CONCEPT TYPE "Place" {description: "p"}').Kml.clauses[0].Define.kind, 'ConceptType')
+  })
+
+  test('a Search Pattern lowers to a bounded Search where-clause', () => {
+    const cmd = lowerOne('FIND(?x) WHERE { ?x SEARCH PROPOSITION :q WITH PREDICATE "lives_in" MODE "keyword" LIMIT 7 }')
+    const search = cmd.Kql.where_clauses[0].Search
+    assert.equal(search.variable, 'x')
+    assert.equal(search.target, 'Proposition')
+    assert.deepEqual(search.limit, { Literal: { Number: 7 } })
+    assert.deepEqual(search.with_predicate, { Literal: { String: 'lives_in' } })
   })
 })

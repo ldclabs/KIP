@@ -44,6 +44,7 @@ export type MutationClause =
   | PurgeStatement
   | PurgePayloadStatement
   | MergeConceptStatement
+  | DefineStatement
 
 /** META — introspection, grounding, verification, history, export. */
 export type MetaStatement =
@@ -150,6 +151,7 @@ export type WherePattern =
   | StructuralPattern
   | BeliefPattern
   | BeliefSlotPattern
+  | SearchPattern
   | FilterClause
   | NotClause
   | OptionalClause
@@ -621,6 +623,18 @@ export interface PurgePayloadStatement extends BaseNode {
 }
 
 /** Non-destructive: the source stays addressable as merged history. */
+/**
+ * `DEFINE PREDICATE "name" {...}` / `DEFINE CONCEPT TYPE "name" {...}`
+ * (Spec §20.16): adds one symbol to the Space's draft vocabulary. It is a
+ * standalone operation, never a clause of MUTATE.
+ */
+export interface DefineStatement extends BaseNode {
+  kind: 'DefineStatement'
+  defineKind: 'PREDICATE' | 'CONCEPT_TYPE'
+  name: SchemaSymbol
+  definition: ObjectLiteral
+}
+
 export interface MergeConceptStatement extends BaseNode {
   kind: 'MergeConceptStatement'
   source: TargetRef
@@ -703,7 +717,6 @@ export type SearchKind =
   | 'ASSERTION'
   | 'EVIDENCE'
   | 'ACTIVITY'
-  | 'COGNITION'
 
 /**
  * Grounding only: a SEARCH score is not confidence, and a miss is not absence.
@@ -721,6 +734,24 @@ export interface SearchStatement extends BaseNode {
   asOfSeq?: ScalarValue
   limit?: LimitClause
   cursor?: CursorClause
+}
+
+/**
+ * `?x SEARCH <KIND> <term> ... LIMIT <k>` inside WHERE (Spec §43.8): the same
+ * retrieval as the META statement, binding each hit so a query can filter,
+ * project and order it against one snapshot. The LIMIT bounds the candidate
+ * set and is required; paging belongs to the enclosing FIND.
+ */
+export interface SearchPattern extends BaseNode {
+  kind: 'SearchPattern'
+  variable: VariableRef
+  searchKind: SearchKind
+  term: ScalarValue
+  withType?: ScalarValue
+  withPredicate?: ScalarValue
+  mode?: ScalarValue
+  threshold?: ScalarValue
+  limit?: LimitClause
 }
 
 // ─── META: VERIFY / VALIDATE / PREVIEW ───────────────────────────────

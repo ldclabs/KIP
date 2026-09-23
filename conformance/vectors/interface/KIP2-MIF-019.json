@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MIF-019",
+  "title": "A due Commitment reaches attention recall",
+  "description": "Observe \"remind me to call Bob if he has not replied by Thursday\". After the silence deadline passes with complete coverage and no reply, recall with mode attention returns one watch_fired item and a new cursor; repeating the recall with that cursor returns nothing new. Consuming the item changes no memory, and the item authorizes nothing.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Core",
+    "KIP-Runtime"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "core-basic",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Memory-Interface.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_interface_scenario",
+      "args": {
+        "id": "KIP2-MIF-019"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/items_first",
+      "operator": "equals",
+      "expected": 1
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/items_after_cursor",
+      "operator": "equals",
+      "expected": 0
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/item_kind",
+      "operator": "equals",
+      "expected": "watch_fired"
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/recall_writes",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

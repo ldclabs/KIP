@@ -15,8 +15,8 @@
     },
     "schema_dependencies": [
       {
-        "package_ref": "kip://profiles/cognitive-memory@2.2.0",
-        "content_digest": "sha256:53502fb158173f2d50e60318ad5bdfdf7ec87eb5d013cc9d7a2eae7bf15ff99c"
+        "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+        "content_digest": "sha256:2d514bea7d32b9b33e7121f3e52c142f22a7263ac4f04070d3df3ce9a0abcd4b"
       }
     ],
     "records": [
@@ -24,7 +24,7 @@
         "id": "C1",
         "kind": "concept",
         "space_id": "S",
-        "schema_ref": "kip://profiles/cognitive-memory@2.2.0/Person",
+        "schema_ref": "kip://profiles/cognitive-memory@2.0.0/Person",
         "name": "Alice",
         "attributes": {},
         "_system": {
@@ -44,7 +44,7 @@
   },
   "integrity": {
     "digest_profile": "kip-jcs-safe-v1",
-    "content_digest": "sha256:a4eb1d516d9bd6c1b05f1ffc66a9f0fd3abf1a2f5ef42db40eee5d68961a9913",
+    "content_digest": "sha256:d7b14e3ba711287dd4e0ced70b66cba969f27bafc74f29d40ff7d9b1d809a599",
     "signatures": []
   }
 }

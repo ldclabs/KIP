@@ -2,6 +2,8 @@
 
 **Normative for an advertised Memory Interface binding.** These scenarios test the
 five intents through the real Brain Adapter, not only underlying transaction state.
+MIF-013–020 are positive memory-quality scenarios: they check that the memory
+answers correctly, not only that it refuses to lie.
 They add no Core kind and do not claim the full Cognitive Memory Profile.
 
 Use the core-basic fixture in an isolated Space. The harness captures immutable
@@ -117,3 +119,69 @@ Fail processing after source intake; an after recall reports failure/pending cov
 Expected observations: failed_receipt_satisfied=false, unknown_progress_satisfied=false, old_availability_bypasses_current_checks=false.
 
 Durable postconditions: erased_content_recreated=false.
+
+## Positive memory scenarios
+
+## KIP2-MIF-013 — A new fact becomes recallable
+
+Observe a user statement of a new durable fact. Once its receipt is available, an answer recall states the fact as accepted, cites the source, and satisfies the after barrier. Before availability the same recall is pending, never an answer without the fact presented as complete.
+
+Expected observations: accepted_after_available=true, cited_source="source-13", pending_before_available=true.
+
+Durable postconditions: fact_assertions=1.
+
+## KIP2-MIF-014 — A correction changes the answer
+
+Observe "my timezone is +08:00", then revise with change_kind correction ("I meant +07:00"). Recall answers +07:00; the old Assertion is superseded by the same actor and remains in history; FOR TIME queries also answer +07:00 because the old claim was never true.
+
+Expected observations: answer="+07:00", old_lifecycle="superseded", historical_answer="+07:00".
+
+Durable postconditions: supersession_count=1.
+
+## KIP2-MIF-015 — A world change answers old and new times
+
+Observe "I live in Beijing", then revise with change_kind world_change ("I moved to Shanghai on 2026-09-01"). The Brain writes one Assertion from the move; recall now answers Shanghai, recall with time.valid_at before the move answers Beijing, and nothing is superseded or retracted. Then observe a late-processed old message ("I live in Beijing", said in 2026-03) after the move: the Adapter writes it with the time it was said as `asserted_at`, so recall still answers Shanghai — recording order never decides.
+
+Expected observations: answer_now="shanghai", answer_before_move="beijing", assertions_written_by_revise=1, late_history_displaces=false.
+
+Durable postconditions: supersession_count=0.
+
+## KIP2-MIF-016 — A preference changes within its kind
+
+Observe "I prefer dark mode" and "I use vim", then "I prefer light mode now". The options are Concepts typed by their kind (a color scheme, an editor) from a domain package or the draft vocabulary, never a catch-all type. Recall reports light mode and vim as current preferences; dark mode is a past preference, not a contradiction, and the editor preference is untouched.
+
+Expected observations: current_preferences=["light", "vim"], contested_count=0.
+
+Durable postconditions: retracted_count=0.
+
+## KIP2-MIF-017 — A misrecording is repaired, never an actor withdrawal
+
+The Brain recorded that Alice is vegetarian from a message that said nothing of the kind. Revise with change_kind misrecorded. Where recording_repair is advertised the extraction is invalidated through recording repair and recall no longer states it; Alice's history shows no retraction or supersession. Where it is not advertised the request fails UnsupportedCapability (or is quarantined under a quarantine grant) and is never mapped to a correction.
+
+Expected observations: actor_withdrawal_recorded=false, recall_states_misrecording=false, without_capability="UnsupportedCapability".
+
+Durable postconditions: source_bytes_preserved=true.
+
+## KIP2-MIF-018 — An unasked constraint surfaces
+
+Observe "never deploy on Fridays" in a task scope. Later ask, in the same task and with mode action, for help scheduling a deployment on 2026-09-25 (a Friday) without mentioning the constraint. The briefing includes the constraint as a critical warning with complete constraints coverage; with its channel truncated, action_eligible is false.
+
+Expected observations: constraint_surfaced=true, constraints_channel="complete", truncated_action_eligible=false.
+
+Durable postconditions: recall_writes=0.
+
+## KIP2-MIF-019 — A due Commitment reaches attention recall
+
+Observe "remind me to call Bob if he has not replied by Thursday". After the silence deadline passes with complete coverage and no reply, recall with mode attention returns one watch_fired item and a new cursor; repeating the recall with that cursor returns nothing new. Consuming the item changes no memory, and the item authorizes nothing.
+
+Expected observations: items_first=1, items_after_cursor=0, item_kind="watch_fired".
+
+Durable postconditions: recall_writes=0.
+
+## KIP2-MIF-020 — Unknown is not no
+
+Recall a fact that was never observed ("Is Alice vegetarian?"). The answer discloses insufficient basis rather than a negative, and a stated rejection by Alice is reported as rejected. The two are never conflated.
+
+Expected observations: never_observed_status="insufficient", stated_rejection_status="rejected".
+
+Durable postconditions: recall_writes=0.

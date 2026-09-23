@@ -1,7 +1,7 @@
 # KIP 2.0 Architecture — A Cognitive State Protocol for Agent Memory Brains
 
 
-The normative [Cognitive Consistency contract](./KIP-2.0-Cognitive-Consistency.md) binds final belief, immutable Skill revisions, independent attempts, replayable trials/evaluations, dependency validity, identity repair and durable workers. Lifecycle counters aggregate attempts; unlinked family outcomes are never automatically controls. Stored summaries are used only with a validated computation basis.
+This rationale is informative. The normative contracts are the [Specification](./SPECIFICATION.md), the [Cognitive Memory Profile](./profiles/CognitiveMemoryProfile-2.0.md), the [Memory Interface](./KIP-2.0-Memory-Interface.md) and the optional [Validated Learning](./brain/KIP-2.0-Validated-Learning.md) and [Brain Runtime](./brain/KIP-2.0-Brain-Runtime.md) companions.
 
 **[English](./KIP-2.0-Architecture.md) | [中文](./KIP-2.0-Architecture_CN.md)**
 
@@ -99,7 +99,7 @@ A second reading of the same architecture: agent memory is a compiler, not an ar
 | Current belief | Epistemic Projection — belief is derived, not stored, so a reversal needs no cleanup; materialized views disclose their basis |
 | Working state | the `WorkingState` digest with its `basis_seq`; wake = Primer + WorkingState + changes since basis |
 | Commitments and waiting | `Commitment` for the obligation, `Watch` for the trigger — delta or silence — evaluated against the Change Stream |
-| Invalidation | provenance topology + `LIST DEPENDENTS` + `DerivationState`, so a revised root reaches its derivations instead of leaving ghosts |
+| Invalidation | provenance topology + `LIST DEPENDENTS` + computed dependency validity, so a revised root reaches its derivations instead of leaving ghosts |
 | Restraint | the action gate records act / ask / defer / silence, so deliberate silence stays explainable |
 
 The compiled state stays inspectable and portable (Capsule, Governance): the value lies in the compilation, not in a lock on the raw data. Aggressive payload minimization after digestion is a feature of this design, not a loss — the durable facts are the asset; the uncompressed exhaust is a liability.
@@ -1430,7 +1430,7 @@ Example logical identifiers:
 
 ```text
 kip://core@2.0.0
-kip://profiles/cognitive-memory@2.2.0
+kip://profiles/cognitive-memory@2.0.0
 kip://ldclabs/organization@1.0.0
 ```
 
@@ -1724,7 +1724,7 @@ WorkingState
 memory_strength
 salience
 utility
-DerivationState
+dependency review queues
 profile-specific lifecycle
 ```
 
@@ -1816,8 +1816,8 @@ if new incompatible proposition:
     supersede or contest Assertion A as justified
 
 if the world changed rather than the claim being wrong:
-    keep A true for its interval (re-assert it closed)
-    assert B from the change date; nothing is superseded for being wrong
+    assert B from the change date; temporal succession ends A there
+    A stays active and true for its interval; nothing is superseded
 ```
 
 No proposition needs to be deleted merely because belief changed.
@@ -2497,18 +2497,18 @@ External Skill Sx
   authority: descriptive only
 
 Local Skill S1
-  compiled_from: E1, E2
+  compiled_from: E1, E2           (computed from its compilation Activity)
   task_family: deploy/service
   status: proposed
   authority: advisory
 ```
 
-After a trial in which independent attempts applying S1's exact revision were compared against the explicitly selected `deploy/service` baseline frozen in TrialRecord, and a deterministic verdict retained as an EvaluationRecord on a `lifecycle_verdict` Activity (TrialState only points to that trial):
+After a trial in which independent attempts applying S1's exact revision were compared against the explicitly selected `deploy/service` baseline frozen in TrialRecord, and a deterministic verdict retained as an EvaluationRecord on a `lifecycle_verdict` Activity (the Skill's `current_trial` only points to that trial):
 
 ```text
 S1
   status: adopted                 (provisional — the stream keeps grading)
-  GradingState: 9 / 2 of 12       (linked outcomes only; family-mates grade nothing)
+  GradingState: 9 / 2 of 12       (computed view of the evaluation; linked outcomes only)
   MnemonicState.utility: 0.87     (the admission bet, revised by the verdict)
   authority: behavioral           (a separate Governance decision, not the verdict's doing)
 ```
@@ -2616,14 +2616,13 @@ Preference
 Insight
 Commitment
 Skill
+SkillRevision
 SleepTask
 SelfModel
 Watch
 WorkingState
 MnemonicState
-GradingState
-TrialState
-DerivationState
+GradingState (computed)
 DecisionRecord
 OutcomeRecord
 ```
@@ -2633,7 +2632,7 @@ The Profile is separate from Core because KIP permits other cognitive taxonomies
 A machine-readable Package should be published independently, for example:
 
 ```text
-kip://profiles/cognitive-memory@2.2.0
+kip://profiles/cognitive-memory@2.0.0
 ```
 
 The Profile defines portable structures and invariants. It does not mandate formation frequency, ranking formulas, forgetting thresholds, Skill compilation algorithms, or reflection schedules. Those are Brain policy.
@@ -2770,7 +2769,7 @@ KIP/
 │   └── KIP-2.0-Migration-from-1.x.md
 ├── profiles/
 │   ├── CognitiveMemoryProfile-2.0.md
-│   └── cognitive-memory-2.2.0.schema.json
+│   └── cognitive-memory-2.0.0.schema.json
 ├── brain/
 │   ├── ExperienceLearningArchitecture.md
 │   ├── BrainFormation.md

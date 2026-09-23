@@ -1,6 +1,6 @@
 # Memory reliability acceptance scenarios
 
-These scenarios bind the 2026-09-23 contract and package 2.2.0. They are separate from the earlier memory/interface suites. Optional cases become required when their capability is advertised. The local reference functions are contract models; engine adapters must execute real paths and retain raw responses and independently inspected postconditions.
+These scenarios bind the current draft and the `cognitive-memory@2.0.0` package. They are separate from the earlier memory/interface suites. Optional cases become required when their capability is advertised. The local reference functions are contract models; engine adapters must execute real paths and retain raw responses and independently inspected postconditions.
 
 Run `node conformance/run.mjs --suite reliability --list` or supply an engine adapter. Existing Anda Brain tests establish mechanism evidence for its pinned implementation, not a PASS for these new scenarios.
 
@@ -84,9 +84,9 @@ Expected observations: `{"visible_results_equal": true}`.
 
 Durable postconditions: `{"hidden_identity_disclosed": false}`.
 
-## KIP2-REL-011 — Read-only lazy strength
+## KIP2-REL-011 — Read-only computed strength
 
-For an advertised lazy mnemonic policy, evaluate one and two half-lives, repeat recall, then restart. Effective strength changes with declared time; no cognitive write, confidence change or synthetic reinforcement occurs.
+With a pinned half-life `strength_policy`, evaluate one and two half-lives, repeat recall, then restart. Effective strength changes with declared time; no cognitive write, confidence change or synthetic reinforcement occurs.
 
 Expected observations: `{"one_half_life": 0.4, "two_half_lives": 0.2}`.
 
@@ -116,11 +116,11 @@ Expected observations: `{"desugared_state_equal": true, "scope_preserved": true}
 
 Durable postconditions: `{"extra_elements": 0}`.
 
-## KIP2-REL-015 — Immutable package resource closure
+## KIP2-REL-015 — Digest-pinned package resource closure
 
-Activate the current package only from its digest-pinned schema closure, then separately verify the retained 2.1.0 package against its original resources. A shared cache must not substitute resources with different digests.
+Activate the current package only from its digest-pinned schema closure. A cached or substituted resource whose digest differs from its pin is refused, never loaded.
 
-Expected observations: `{"current_lock_complete": true, "legacy_digests_unchanged": true}`.
+Expected observations: `{"current_lock_complete": true, "substituted_resource_rejected": true}`.
 
 Durable postconditions: `{"unverified_schema_loads": 0}`.
 

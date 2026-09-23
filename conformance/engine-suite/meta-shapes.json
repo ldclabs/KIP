@@ -1,0 +1,294 @@
+{
+  "name": "meta-shapes",
+  "description": "The shape a META read answers in, which is a contract and not an engine choice. A client that talks to both engines parses one answer, and a divergence here is the most expensive kind to find: a reader written for one shape gets an empty result from the other, and an empty result reads as an empty Space rather than as a wrong shape — no error, no clue. So the `LIST` families pin their row shape and their order here rather than in either engine's own tests, which is where the two drifted apart in the first place. The Primer is not pinned whole here: most of it is deployment fact — a Space's name, its sequence, how many packages a host installed — and the fixtures are for behaviour, not for one engine's bootstrap. Its key structure is asserted in each engine's own tests instead.",
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://test/meta-shapes",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Widget": {
+            "kind": "ConceptType",
+            "description": "Something to list."
+          }
+        },
+        "predicates": {
+          "fits_in": {
+            "kind": "PredicateType",
+            "description": "Where a Widget fits.",
+            "subject": {
+              "kinds": [
+                "Concept"
+              ]
+            },
+            "object": {
+              "kinds": [
+                "Concept"
+              ]
+            }
+          }
+        },
+        "facets": {
+          "Fit": {
+            "kind": "FacetDefinition",
+            "description": "How well it fits.",
+            "fields": {
+              "snug": {
+                "type": "boolean",
+                "required": false,
+                "mutable": true
+              }
+            }
+          }
+        },
+        "structural_fields": {
+          "packed_with": {
+            "kind": "StructuralFieldDefinition",
+            "description": "Other Widgets in the same box.",
+            "source": {
+              "kinds": [
+                "Concept"
+              ]
+            },
+            "target": {
+              "kinds": [
+                "Concept"
+              ]
+            },
+            "ordered": false
+          }
+        }
+      }
+    }
+  ],
+  "setup": [],
+  "cases": [
+    {
+      "name": "a listed symbol is a row, not a bare reference",
+      "command": "LIST PREDICATES",
+      "ordered": true,
+      "expect": {
+        "result": [
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/caused_by",
+            "local_name": "caused_by",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/prefers",
+            "local_name": "prefers",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/same_as",
+            "local_name": "same_as",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://test/meta-shapes@1.0.0/fits_in",
+            "local_name": "fits_in",
+            "package_ref": "kip://test/meta-shapes@1.0.0",
+            "status": "active"
+          }
+        ]
+      }
+    },
+    {
+      "name": "the row carries both names because they answer different questions",
+      "command": "LIST FACETS",
+      "ordered": true,
+      "expect": {
+        "result": [
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/AttemptRecord",
+            "local_name": "AttemptRecord",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/CompressionRecord",
+            "local_name": "CompressionRecord",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/DecisionRecord",
+            "local_name": "DecisionRecord",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/DependencyBasis",
+            "local_name": "DependencyBasis",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/EvaluationRecord",
+            "local_name": "EvaluationRecord",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/GradingState",
+            "local_name": "GradingState",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/LeaseState",
+            "local_name": "LeaseState",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/MemoryScope",
+            "local_name": "MemoryScope",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/MnemonicState",
+            "local_name": "MnemonicState",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/OutcomeRecord",
+            "local_name": "OutcomeRecord",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/ProcedureAssessment",
+            "local_name": "ProcedureAssessment",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/RecallCoverage",
+            "local_name": "RecallCoverage",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/RecordingRepair",
+            "local_name": "RecordingRepair",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/RestoreReport",
+            "local_name": "RestoreReport",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/TrialRecord",
+            "local_name": "TrialRecord",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/WatchState",
+            "local_name": "WatchState",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          },
+          {
+            "ref": "kip://test/meta-shapes@1.0.0/Fit",
+            "local_name": "Fit",
+            "package_ref": "kip://test/meta-shapes@1.0.0",
+            "status": "active"
+          }
+        ]
+      }
+    },
+    {
+      "name": "the list is ordered by ref, so a LIMIT cuts the same rows twice",
+      "command": "LIST PREDICATES LIMIT 1",
+      "ordered": true,
+      "expect": {
+        "result": [
+          {
+            "ref": "kip://profiles/cognitive-memory@2.0.0/caused_by",
+            "local_name": "caused_by",
+            "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+            "status": "active"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a policy list carries the policy, in the wire names both engines write",
+      "command": "LIST EPISTEMIC POLICIES",
+      "ordered": true,
+      "expect": {
+        "result": [
+          {
+            "id": "kip:policy:baseline",
+            "version": 2,
+            "eligible_modes": [
+              "observed",
+              "stated",
+              "inferred",
+              "imported"
+            ],
+            "accept_threshold": 0.7,
+            "material_threshold": 0.3,
+            "unstated_confidence_weight": 0.5,
+            "conflict_set_expansion": true,
+            "notes": [
+              "mode gates eligibility and never weights a claim: a mode does not grant trust",
+              "corroboration groups are counted once; repetition is not evidence"
+            ]
+          },
+          {
+            "id": "kip:policy:forecast",
+            "version": 2,
+            "eligible_modes": [
+              "predicted",
+              "inferred"
+            ],
+            "accept_threshold": 0.7,
+            "material_threshold": 0.3,
+            "unstated_confidence_weight": 0.5,
+            "conflict_set_expansion": true,
+            "notes": [
+              "mode gates eligibility and never weights a claim: a mode does not grant trust",
+              "corroboration groups are counted once; repetition is not evidence"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "and DESCRIBE answers about one in exactly the same shape",
+      "command": "DESCRIBE EPISTEMIC POLICY \"kip:policy:forecast\"",
+      "expect": {
+        "result": {
+          "id": "kip:policy:forecast",
+          "version": 2,
+          "eligible_modes": [
+            "predicted",
+            "inferred"
+          ],
+          "accept_threshold": 0.7,
+          "material_threshold": 0.3,
+          "unstated_confidence_weight": 0.5,
+          "conflict_set_expansion": true,
+          "notes": [
+            "mode gates eligibility and never weights a claim: a mode does not grant trust",
+            "corroboration groups are counted once; repetition is not evidence"
+          ]
+        }
+      }
+    }
+  ]
+}

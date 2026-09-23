@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "id": "KIP2-MEM-005",
   "title": "Re-trial, delayed outcome and retained replay",
-  "description": "Retain TrialRecord T1 and EvaluationRecord E1; re-trial the same revision as T2.\nA late T1 outcome cannot fill T2 quota. New outcome correction changes only new\naggregates/evaluations. Replaying E1 uses its retained exact rule, parameters,\nbaseline, samples and cutoff, not the mutable TrialState pointer. Missing or\nmismatched replay bytes prevent a recomputability claim. Ordinary current reads\nsuffice while the replay artifact is retained; no historical_reads dependency.",
+  "description": "Retain TrialRecord T1 and EvaluationRecord E1; re-trial the same revision as T2.\nA late T1 outcome cannot fill T2 quota. New outcome correction changes only new\naggregates/evaluations. Replaying E1 uses its retained exact rule, parameters,\nbaseline, samples and cutoff, not the mutable the current trial pointer. Missing or\nmismatched replay bytes prevent a recomputability claim. Ordinary current reads\nsuffice while the replay artifact is retained; no historical_reads dependency.",
   "level": "MUST",
   "class": "black_box",
   "profiles": [
@@ -13,7 +13,7 @@
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "brain/KIP-2.0-Validated-Learning.md#4-trials-and-evaluations"
   ],
   "steps": [
     {

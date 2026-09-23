@@ -23,8 +23,8 @@ LIST DEPENDENTS :revised_root DEPTH 2 LIMIT 100
 ```
 
 Follow continuation pages/depths as required. This first page is not a complete
-review. Stored DerivationState is a review record, never an override of computed
-validity or of the action gate's current checks.
+review. Queue the affected artifacts as `review_derived` SleepTasks; their computed
+dependency validity, not the queue, decides whether recall may apply them.
 
 Mnemonic state can change without changing truth confidence:
 

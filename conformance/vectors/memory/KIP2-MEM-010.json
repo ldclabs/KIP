@@ -13,7 +13,9 @@
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "profiles/CognitiveMemoryProfile-2.0.md#101-encoding-records",
+    "profiles/CognitiveMemoryProfile-2.0.md#202-recall-coverage-and-plans",
+    "SPECIFICATION.md#607-semantic-erasure"
   ],
   "steps": [
     {

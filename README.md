@@ -9,23 +9,9 @@ contains the current protocol and tooling. KIP [v1.0-RC11](./v1/README.md) is fr
 for historical reference and migration; changing the default does not upgrade
 existing deployments or declare the 2.0 protocol stable.
 
-The consistency revision adds final-belief guarantees, immutable procedural
-records and a separately versioned memory package (2.2.0), with executable contract
-checks and bounded models. The [Rust](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus)
-and [Cloudflare Durable Object](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do)
-engines target KIP 2.0 drafts; their coverage of this revision must be established
-by fresh adapter results, not inferred from earlier conformance. The protocol
-remains `2.0-draft`, independently of published tooling versions; no real Brain
-learning result is claimed by these structural tests.
+The 2.0 scope is frozen. This revision made the draft a better memory rather than a larger contract: a world change is one Assertion (temporal succession), coarse dates are time bounds instead of invented instants, preferences change within their kind, a standard policy (`kip:memory-default`) resolves everyday conflicts the same way on every engine, a Brain can add a relation it meets through the Space's draft vocabulary (`DEFINE`), retrieval composes with belief in one query (the Search Pattern), and fired Watches reach the business Agent through attention recall. It also took things away: draft packages are not retained (one `cognitive-memory@2.0.0`), writable caches became computed views, the Cognitive Consistency companion was folded into the Specification, trials and durable workers moved into optional `brain/` companions, and the Preference type is gone — a preference is a claim. A second review pass closed the edges of the new semantics: a claim with no stated start began no later than it was made, `asserted_at` is when the claim was made rather than when it was recorded, two inferences never succeed one another, and the standard policy decides remaining conflicts by recency. See the [revision record](./KIP-2.0-Memory-Brain-Resolution.md).
 
-The normative [Cognitive Consistency contract](./KIP-2.0-Cognitive-Consistency.md) binds final belief, immutable Skill revisions, independent attempts, replayable trials/evaluations, dependency validity, identity repair and durable workers. Lifecycle counters aggregate attempts; unlinked family outcomes are never automatically controls. Stored summaries are used only with a validated computation basis.
-
-The 2026-09-23 reliability revision uses memory package **2.2.0** and revisioned
-Schema identities. It adds selection dependencies, recording repair, causal
-formation, prospective enrollment, explicit dispatch guarantees and recall plans.
-The existing 2.1.0 package and schema pins remain unchanged.
-[Resolution and validation](KIP-2.0-Reliability-Resolution.md) distinguishes protocol
-work, the inspected Anda Brain implementation and unexecuted deployment/learning gates.
+The [Rust](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) and [Cloudflare Durable Object](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do) engines target KIP 2.0 drafts. Their shared suite now lives here as the [executable engine suite](./conformance/engine-suite/README.md); both passed it on the previous draft, and their coverage of this revision is established only by running it again. The protocol remains `2.0-draft`, independently of tooling versions, and no real Brain learning result is claimed by structural tests.
 
 ## Start here
 
@@ -77,7 +63,7 @@ A memory that only answers when asked is half a memory. The other half is what t
 | [`LIST DEPENDENTS`](./SPECIFICATION.md#635-list-dependents) | Bounded reverse traversal of provenance. Revise a root and the cognition compiled from it — insights, preference summaries, skills, the self-model — becomes discoverable in one operation instead of quietly stale. [§57.5](./SPECIFICATION.md#575-revision-and-derived-cognition) makes the rule explicit: a revised root **must not** auto-retract its dependents, and **must** leave them reviewable. Whether one survives is a review decision, not a protocol rule. |
 | [`PURGE PAYLOAD`](./SPECIFICATION.md#606-payload-purge) | Destroy an Evidence element's observed bytes while keeping the record: its digest, class, observation time, source, and the citations that depend on it. Data minimization that costs no provenance — [corroboration and independence counting](./SPECIFICATION.md#23-epistemic-independence) keep working on the surviving digest. Distinct from element [purge](./SPECIFICATION.md#603-purge), which destroys the record itself. |
 
-Supporting state lives in the [Cognitive Memory Profile](./profiles/CognitiveMemoryProfile-2.0.md): [`WorkingState`](./profiles/CognitiveMemoryProfile-2.0.md#512-workingstate) is the consolidated resume digest stamped with its `basis_seq`, so a Brain wakes from compiled state plus a delta rather than re-reading scrollback; [`DerivationState`](./profiles/CognitiveMemoryProfile-2.0.md#6-standard-facets) carries the `current | stale | under_review` flag that a dependent review writes back; and `MnemonicState.utility` holds the admission bet — how useful this memory is expected to be — kept deliberately separate from `salience`, from `memory_strength`, and from epistemic `confidence`.
+Supporting state lives in the [Cognitive Memory Profile](./profiles/CognitiveMemoryProfile-2.0.md): [`WorkingState`](./profiles/CognitiveMemoryProfile-2.0.md#512-workingstate) is the consolidated resume digest stamped with its `basis_seq`, so a Brain wakes from compiled state plus a delta rather than re-reading scrollback; computed [dependency validity](./SPECIFICATION.md#576-dependency-validity) makes a revised root visible at the next read; and `MnemonicState.utility` holds the admission bet — how useful this memory is expected to be — kept deliberately separate from `salience`, from `memory_strength`, and from epistemic `confidence`.
 
 ## The consequence channel
 
@@ -85,13 +71,13 @@ Everything above makes the system watch the world better. The consequence channe
 
 [Outcome Evidence](./SPECIFICATION.md#157-outcome-evidence) records what actually happened after a decision, action, or trialed procedure — written by instrumentation (telemetry, verifiers, test harnesses, human review), **never by the actor whose action it grades**. An actor's own account is `agent_statement`, citable as context only; the separation is a conformance invariant, enforced as auditability — engine origin always records who wrote what, and Governance can restrict who may write outcomes — because an open protocol can make self-grading visible even where it cannot make it impossible.
 
-Each outcome carries a **task family** that selects candidate consequences. Sharing the family establishes neither attribution nor baseline membership: TrialRecord explicitly freezes comparable baseline attempts and outcomes. Treatment observations link through the instrument's `outcome_observation` Activity to an attempt and the [`action_gate`](./profiles/CognitiveMemoryProfile-2.0.md#9-activities) decision that applied the exact Skill revision. Its [`DecisionRecord`](./profiles/CognitiveMemoryProfile-2.0.md#66-decisionrecord) distinguishes retrieval from actual use, and grading counts independent attempts assigned before execution. A [SkillRevision](./profiles/CognitiveMemoryProfile-2.0.md#58-skill) must name its task family before trial; a pattern that nothing could prove wrong is not procedural memory. On the channel sits the [Skill lifecycle](./profiles/CognitiveMemoryProfile-2.0.md#14-skill-lifecycle):
+Each outcome carries a **task family** that selects candidate consequences. Sharing the family establishes neither attribution nor baseline membership: under the optional [Validated Learning companion](./brain/KIP-2.0-Validated-Learning.md), TrialRecord explicitly freezes comparable baseline attempts and outcomes. Treatment observations link through the instrument's `outcome_observation` Activity to an attempt and the [`action_gate`](./profiles/CognitiveMemoryProfile-2.0.md#9-activities) decision that applied the exact Skill revision. Its [`DecisionRecord`](./profiles/CognitiveMemoryProfile-2.0.md#64-decisionrecord) distinguishes retrieval from actual use, and grading counts independent attempts assigned before execution. A [SkillRevision](./profiles/CognitiveMemoryProfile-2.0.md#58-skill) must name its task family before trial; a pattern that nothing could prove wrong is not procedural memory. On the channel sits the [Skill lifecycle](./profiles/CognitiveMemoryProfile-2.0.md#14-skill-lifecycle):
 
 ```text
 proposed → trialed → adopted → revoked
 ```
 
-Lifecycle changes and grading refreshes commit with a validated immutable EvaluationRecord on a [`lifecycle_verdict`](./profiles/CognitiveMemoryProfile-2.0.md#9-activities) Activity and [guarded updates](./SPECIFICATION.md#f6-outcome-grading-and-a-lifecycle-verdict). Auditors replay exact inputs against the immutable TrialRecord; [`TrialState`](./profiles/CognitiveMemoryProfile-2.0.md#65-trialstate) only selects the current trial. Only `trialed → adopted` promotes through a comparative verdict, and revocation is never harder than adoption. Same-state monitoring may retain standing under authorized policy without claiming new improvement; policy withdrawal may have zero outcomes. Imported Skills enter `proposed` without local grades and remain recallable as unproven candidates. Revoked Skills must enter a new trial before adoption can recur.
+Lifecycle changes commit with a validated immutable EvaluationRecord on a [`lifecycle_verdict`](./profiles/CognitiveMemoryProfile-2.0.md#9-activities) Activity and a guarded update ([Validated Learning §7](./brain/KIP-2.0-Validated-Learning.md#7-the-verdict-as-kml)). Auditors replay exact inputs against the immutable TrialRecord; a Skill's `current_trial` only selects it, and its GradingState is a computed view. Without the companion, Skills stay unproven candidates — useful, recallable, never promoted. Only `trialed → adopted` promotes through a comparative verdict, and revocation is never harder than adoption. Same-state monitoring may retain standing under authorized policy without claiming new improvement; policy withdrawal may have zero outcomes. Imported Skills enter `proposed` without local grades and remain recallable as unproven candidates. Revoked Skills must enter a new trial before adoption can recur.
 
 ## Protocol provides signals; the Brain owns policy
 
@@ -113,27 +99,28 @@ If memory is what makes an agent valuable, the natural move is to make it imposs
 
 | Document | Description |
 | --- | --- |
-| [Memory Interface](./KIP-2.0-Memory-Interface.md) | Five Agent intents, processing receipts, scoped recall and composable capability bundles |
+| [Memory Interface](./KIP-2.0-Memory-Interface.md) | Five Agent intents, processing receipts, scoped and attention recall, and composable levels |
 | [Agent memory card](./brain/MemoryInterface.md) | The small everyday Interface; direct KIP role cards live alongside it |
-| [Cognitive consistency](./KIP-2.0-Cognitive-Consistency.md) | Final belief, revisions, independent attempts, replay, dependencies and durable runtime contracts |
-| [Review resolution](./KIP-2.0-Review-Resolution.md) | All 12 review items, implementation locations and verification scope |
-| [Brain evaluation](./brain/BrainEvaluation.md) | Separate protocol, reliability and behavioral-learning release gates |
 | [📖 Specification 2.0](./SPECIFICATION.md) | The normative draft ([中文](./SPECIFICATION_CN.md)) |
+| [🧩 Cognitive Memory Profile 2.0](./profiles/CognitiveMemoryProfile-2.0.md) | Experience, Skill, Commitment, Watch, WorkingState, and the rest ([中文](./profiles/CognitiveMemoryProfile-2.0_CN.md)) |
+| [🎓 Validated Learning](./brain/KIP-2.0-Validated-Learning.md) | Optional companion: revisions, attempts, trials, evaluations and validated Skill standing |
+| [⚙️ Brain Runtime](./brain/KIP-2.0-Brain-Runtime.md) | Optional companion: durable attention, leases, dispatch and receiver fencing |
 | [📦 Capsule Specification 2.0](./KIP-2.0-Capsule-Specification.md) | Specification §37–§41 and §95: the portable, verifiable memory artifact ([中文](./KIP-2.0-Capsule-Specification_CN.md)) |
 | [🧭 Optional Profiles & Migration](./KIP-2.0-Optional-Profiles-and-Migration.md) | Specification §100, §101, §103 and Appendix I: Historical, High-Assurance, and KIP 1.x migration ([中文](./KIP-2.0-Optional-Profiles-and-Migration_CN.md)) |
-| [📜 Invariant Registry](./KIP-2.0-Invariants.md) | The 43 Core and 46 Profile invariants in one list, each with the section that establishes it and the vectors that pin it ([中文](./KIP-2.0-Invariants_CN.md)) |
+| [📜 Invariant Registry](./KIP-2.0-Invariants.md) | The 49 Core and 49 Profile invariants in one list, each with the section that establishes it and the vectors that pin it ([中文](./KIP-2.0-Invariants_CN.md)) |
 | [🏛 Architecture 2.0](./KIP-2.0-Architecture.md) | Design rationale behind the Specification ([中文](./KIP-2.0-Architecture_CN.md)) |
 | [📐 Syntax Reference 2.0](./KIPSyntax.md) | LLM-facing KQL / KML / META card ([中文](./KIPSyntax_CN.md)) |
-| [🧩 Cognitive Memory Profile 2.0](./profiles/CognitiveMemoryProfile-2.0.md) | Experience, Skill, Commitment, Watch, WorkingState, and the rest ([中文](./profiles/CognitiveMemoryProfile-2.0_CN.md)) |
 | [🧠 Brain 2.0](./brain/README.md) | Formation / Recall / Maintenance ([中文](./brain/README_CN.md)) |
+| [Brain evaluation](./brain/BrainEvaluation.md) | Separate protocol, reliability and behavioral-learning release gates |
 | [🤖 `$self` / ⚙️ `$system`](./SelfInstructions.md) | Single-agent prompt pair, a delta over Brain 2.0 ([`$system`](./SystemInstructions.md)) |
-| [🗂 Design Notes](./design/) | Ten pre-consolidation rationale documents, frozen 2026-09-02 |
 | [🔤 Grammars & Schemas](./grammar/) | Normative EBNF, plus the [wire schemas](./schemas/) |
-| [🧪 Conformance Suite](./conformance/KIP-2.0-Conformance-Tests.md) | 356 state/consistency vectors plus 12 optional Memory Interface scenarios and executable contract models |
-| [🔬 Formal Verification](./formal/README.md) | Alloy and TLA+ models, and what they proved |
+| [🧪 Conformance](./conformance/README.md) | 362 executable engine cases, 341 parent vectors, 29 cognitive, 20 Memory Interface and 17 reliability scenarios, and executable contract models |
+| [🔬 Formal Verification](./formal/README.md) | Alloy, TLA+ and Python models, including world-time succession, and what they proved |
 | [🔀 Migration from 1.x](./migration/KIP-2.0-Migration-from-1.x.md) | What changes, and what legacy meaning must not be invented |
+| [Revision records](./KIP-2.0-Memory-Brain-Resolution.md) | This revision's checklist and validation; earlier: [reliability](./KIP-2.0-Reliability-Resolution.md), [review](./KIP-2.0-Review-Resolution.md) |
+| [🗂 Design Notes](./design/) | Ten pre-consolidation rationale documents, frozen 2026-09-02 |
 
-Existing Chinese mirrors are retained. This consistency revision updates English normative sources only; mirrors are not an alternative semantic contract.
+Existing Chinese mirrors are retained but lag this revision, which updated English sources only; mirrors are not an alternative semantic contract.
 
 Project terminology lives in [CONTEXT.md](./CONTEXT.md); essays remain in [post/](./post/).
 

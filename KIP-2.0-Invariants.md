@@ -6,7 +6,7 @@
 
 **Normative companion to [SPECIFICATION.md](./SPECIFICATION.md) and [profiles/CognitiveMemoryProfile-2.0.md](./profiles/CognitiveMemoryProfile-2.0.md), version 2.0-draft**
 
-This is the one list of the invariants KIP 2.0 requires. Part A carries the 43 cross-cutting Core invariants that Specification §102 requires of every conforming implementation; Part B carries the 46 invariants of the Cognitive Memory Profile (Profile §23), binding on an implementation that claims the Profile. Numbering is stable: a Core invariant keeps the number §102 gave it, so `§102 invariant 17` and the conformance suite's coverage matrix (§27) keep resolving; a Profile invariant is `P` plus the number Profile §23 gave it.
+This is the one list of the invariants KIP 2.0 requires. Part A carries the 49 cross-cutting Core invariants that Specification §102 requires of every conforming implementation; Part B carries the 49 invariants of the Cognitive Memory Profile (Profile §23), binding on an implementation that claims the Profile. Numbering is stable: a Core invariant keeps the number §102 gave it, so `§102 invariant 17` and the conformance suite's coverage matrix (§27) keep resolving; a Profile invariant is `P` plus the number Profile §23 gave it.
 
 Each row names the section that establishes the invariant — a bare `§` is the Core Specification, `Profile §` the Cognitive Memory Profile — and the conformance vectors that pin it. A Core invariant without a vector does not exist: the coverage matrix in [conformance/KIP-2.0-Conformance-Tests.md](./conformance/KIP-2.0-Conformance-Tests.md) §27 is authoritative for Part A and is repeated here only for reading. Every Profile invariant now has a portable vector; MEM vectors live in `conformance/KIP-2.0-Cognitive-Tests.md`. A vector is an acceptance obligation, not evidence that an engine has run it.
 
@@ -58,11 +58,17 @@ A conforming native KIP 2.0 implementation MUST preserve these cross-cutting inv
 | 36 | An actor's self-report about its own action's result is never Outcome Evidence. | §15.7 | X-017, GOV-026, CAP-023 |
 | 37 | A task family finds comparable consequences; only a provenance link from the decision to the outcome attributes one, and a grading tally changes only through that link. | §15.7, §29.8 | X-016 |
 | 38 | Schema symbol identity is lineage: elements written under different versions of one package remain one population for matching, keys, and Proposition identity, while each validates against its exact version. | §20.14 | SCHEMA-017, SCHEMA-018, SCHEMA-019 |
-| 39 | Final BELIEF includes relevant slot conflicts; query shape cannot hide them. | Consistency §1 | MEM-001 |
-| 40 | ProjectionBasis binds context, trust, policy, authorization and time; world intervals are half-open. | Consistency §2 | MEM-007 |
+| 39 | Final BELIEF includes relevant slot conflicts; query shape cannot hide them. | §21.11 | MEM-001 |
+| 40 | ProjectionBasis binds context, trust, policy, authorization and time; world intervals are half-open. | §21.12, §25.2 | MEM-007 |
 | 41 | Portable numbers and canonical artifacts reject silent numeric loss and ambiguous JSON. | §9.3, Capsule §37.7 | MEM-011 |
-| 42 | Identity decisions preserve input bindings; supported repair retains raw history and exposes unresolved attribution. | Consistency §4 | MEM-008 |
-| 43 | Governed control changes invalidate dependent computation bases; incomplete stream coverage is not silence. | §36.1, Consistency §2, §7 | MEM-007, MEM-009 |
+| 42 | Identity decisions preserve input bindings; supported repair retains raw history and exposes unresolved attribution. | §11.5 | MEM-008 |
+| 43 | Governed control changes invalidate dependent computation bases; incomplete stream coverage is not silence. | §36.1, §21.12; Brain Runtime §2 | MEM-007, MEM-009 |
+| 44 | A world change is one new Assertion: an open-ended claim ends only at a later start on the same actor's own line — stated or observed, or with a written start — and no one is recorded as having been wrong; two inferences never succeed one another. | §14.2, §25.4 | EPI-031, MEM-026 |
+| 45 | Coarse time is a bound, never an invented instant; a claim with no stated start began no later than it was made, and indeterminate support never decides a status. | §25.2, §25.5 | EPI-032, MEM-026, MEM-027 |
+| 46 | A projection policy resolves a conflict only by its declared rules and discloses the rule; the structural baseline resolves none, and recency compares when values were claimed to hold, never when they were recorded. | §21.10, §21.13 | EPI-033, MEM-029 |
+| 47 | Draft vocabulary only adds, commits alone and confers no Schema authority. | §20.16, §29 | SCHEMA-022, GOV-031 |
+| 48 | A search hit never proves absence and never selects a mutation or export target. | §43.8, §66.6 | KQL-032, KQL-033 |
+| 49 | A misrecording is repaired, never written as the actor's retraction, supersession or correction; exposure is never cognition. | §57.8, §66.8 | REL-004, MIF-017, RT-035 |
 
 ---
 
@@ -93,8 +99,8 @@ An implementation that claims the Cognitive Memory Profile MUST additionally pre
 | P19 | Profile Facets cannot override Core fields. | Profile §6 | CORE-017 |
 | P20 | Brain algorithms remain outside Profile conformance. | Profile §22 | MEM-019 |
 | P21 | A fired Watch grants nothing; it creates attention, not action. | Profile §5.11 | X-019 |
-| P22 | Deliberate silence at the action gate is a recordable outcome. | Profile §6.6, §9 | MEM-014 |
-| P23 | DerivationState is review state; stale is not retracted. | Profile §6.3, §8.2 | EPI-028 |
+| P22 | Deliberate silence at the action gate is a recordable outcome. | Profile §6.4, §9 | MEM-014 |
+| P23 | Computed views — GradingState and the lineage fields — are never written; each has one authoritative source. | Profile §6.2, §7 | MEM-020, REL-017 |
 | P24 | WorkingState is a derived view; it is never Evidence and never corroborates its inputs. | Profile §5.12, §8.2 | MEM-017 |
 | P25 | utility is the admission bet, revised by outcomes; it is not truth, salience, or permission. | Profile §6.1, §8.1 | MEM-014 |
 | P26 | The acting model never writes the Outcome Evidence that grades its own action. | Profile §8.1 | GOV-026, X-017 |
@@ -105,29 +111,26 @@ An implementation that claims the Cognitive Memory Profile MUST additionally pre
 | P31 | Lifecycle standing does not survive import; an imported Skill enters proposed. | Profile §14, §21 | GOV-021, CAP-023, REL-016 |
 | P32 | A task family finds comparable consequences; it never attributes one. | Profile §8.1 | X-016 |
 | P33 | A tally, a verdict, or a utility calibration changes only through an outcome linked to the decision that applied the cognition. | Profile §8.1 | X-016, GOV-026 |
-| P34 | A trial's immutable TrialRecord basis is fixed before enrollment; TrialState only selects it. | Profile §6.5, §14 | MEM-005, MEM-018 |
-| P35 | A DecisionRecord records what the gate decided; it is never authorization to act. | Profile §6.6 | MEM-014 |
-| P36 | Behavior, standing and authority bind an immutable SkillRevision. | Consistency §5 | MEM-002 |
-| P37 | Independent attempts, not observation count, are the learning sampling unit. | Consistency §5 | MEM-003 |
-| P38 | Baseline membership, comparability, coverage and uncertainty are explicit before learning claims. | Consistency §6 | MEM-004, REL-006 |
-| P39 | Every trial and verdict retains immutable, governed replay inputs; re-trials have fresh identities. | Consistency §5 | MEM-005, REL-015, REL-017 |
-| P40 | Dependency validity is computed before Recall independently of stored reviewer flags. | Consistency §3 | MEM-006, REL-002, REL-003 |
-| P41 | Advertised durable workers enforce arm generations, watermarks, leases and fenced recovery. | Consistency §7 | MEM-009, REL-007 |
-| P42 | Lossy encoding and incomplete required recall coverage are disclosed before automatic use. | Consistency §8 | MEM-010, MEM-023, REL-008 |
-| P43 | Semantic erasure cannot complete with retained in-scope controlled copies. | Consistency §8 | MEM-010, MEM-024 |
-| P44 | Typed process records match their Activity class, topology and immutable terminal state. | Profile §6.7, Consistency §5 | MEM-021 |
-| P45 | Erased replay inputs make historical replay unavailable, never reconstructed or fabricated. | Consistency §8 | MEM-024 |
-| P46 | Conformance models and runtime checks do not substitute for measured behavioral learning. | Consistency §9 | MEM-012, MEM-025 |
+| P34 | A trial's immutable TrialRecord basis is fixed before enrollment; current_trial only selects it. | Profile §14; Validated Learning §4 | MEM-005, MEM-018 |
+| P35 | A DecisionRecord records what the gate decided; it is never authorization to act. | Profile §6.4 | MEM-014 |
+| P36 | Behavior, standing and authority bind an immutable SkillRevision. | Validated Learning §2 | MEM-002 |
+| P37 | Independent attempts, not observation count, are the learning sampling unit. | Validated Learning §3 | MEM-003 |
+| P38 | Baseline membership, comparability, coverage and uncertainty are explicit before learning claims. | Validated Learning §5–§6 | MEM-004, REL-006 |
+| P39 | Every trial and verdict retains immutable, governed replay inputs; re-trials have fresh identities. | Validated Learning §4 | MEM-005, REL-017 |
+| P40 | Dependency validity is computed before Recall independently of stored reviewer flags. | §57.6–§57.7 | MEM-006, REL-002, REL-003, EPI-028 |
+| P41 | Advertised durable workers enforce arm generations, watermarks, leases and fenced recovery. | Brain Runtime §2–§4 | MEM-009, REL-007 |
+| P42 | Lossy encoding and incomplete required recall coverage are disclosed before automatic use. | Profile §10.1, §20.2 | MEM-010, MEM-023, REL-008, MIF-018 |
+| P43 | Semantic erasure cannot complete with retained in-scope controlled copies. | §60.7 | MEM-010, MEM-024 |
+| P44 | Typed process records match their Activity class, topology and immutable terminal state. | Profile §6.5; Validated Learning §2 | MEM-021 |
+| P45 | Erased replay inputs make historical replay unavailable, never reconstructed or fabricated. | §60.7; Validated Learning §4 | MEM-024 |
+| P46 | Conformance models and runtime checks do not substitute for measured behavioral learning. | BrainEvaluation | MEM-012, MEM-025 |
+| P47 | A preference is among options of one kind: a newer one succeeds the older within its kind, and kinds coexist. | Profile §7, §15 | MEM-028, MIF-016 |
+| P48 | Decay is computed and a read never writes it back; a missing strength is unknown, never a default. | Profile §6.1, §18 | REL-011 |
+| P49 | Raised attention reaches the business Agent through attention recall and grants nothing. | Profile §5.11; Memory Interface §4 | MIF-019, X-019 |
 
 ---
 
-The 2026-09-23 reliability scenarios refine existing invariants and add binding
-checks for canonical timestamps (REL-001), authorized recording repair (REL-004),
-causal formation (REL-005), uniform scope (REL-009), existence-neutral dependency
-traversal (REL-010), lazy read-only ranking (REL-011), non-promoting applicability
-assessment (REL-012), session barriers (REL-013), and scoped sugar (REL-014). See
-[the reliability suite](conformance/KIP-2.0-Reliability-Tests.md); optional capability
-checks apply only when advertised. Existing invariant numbering remains stable.
+The reliability scenarios refine existing invariants and add binding checks for canonical timestamps (REL-001), authorized recording repair (REL-004), causal formation (REL-005), uniform scope (REL-009), existence-neutral dependency traversal (REL-010), read-only computed strength (REL-011), non-promoting applicability assessment (REL-012), session barriers (REL-013) and scoped sugar (REL-014). See [the reliability suite](conformance/KIP-2.0-Reliability-Tests.md); optional capability checks apply only when advertised. Existing invariant numbering remains stable.
 
 ## Reading the two parts together
 

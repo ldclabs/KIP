@@ -1,5 +1,7 @@
 # Anda Brain implementation evidence — 2026-09-23
 
+> **Historical record.** It describes the revision it names. The later [memory-brain revision](../KIP-2.0-Memory-Brain-Resolution.md) removed the retained draft packages (a single `cognitive-memory@2.0.0` remains), dissolved the Cognitive Consistency companion into the Specification and the `brain/` companions, and replaced TrialState and DerivationState.
+
 The earlier design review was based on this protocol repository. Reading the actual
 Brain changes the implementation assessment: a complete service already exists.
 This report separates that evidence from the new KIP contracts.

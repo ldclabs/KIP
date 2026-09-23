@@ -44,6 +44,7 @@ const grammarCoverage = [
       structural_pattern: 'STRUCTURAL (',
       belief_slot_pattern: ' BELIEF SLOT (',
       belief_pattern: ' BELIEF (',
+      search_pattern: ' SEARCH CONCEPT :query',
       filter_clause: 'FILTER(',
       not_clause: 'NOT {',
       optional_clause: 'OPTIONAL {',
@@ -67,7 +68,8 @@ const grammarCoverage = [
       set_retention: 'SET RETENTION',
       purge_statement: 'PURGE ',
       purge_payload_statement: 'PURGE PAYLOAD ',
-      merge_concept: 'MERGE CONCEPT'
+      merge_concept: 'MERGE CONCEPT',
+      define_statement: 'DEFINE PREDICATE'
     }
   },
   {

@@ -1,0 +1,253 @@
+{
+  "name": "epistemic-projection",
+  "description": "Belief is projected from the Assertions on record. Silence is insufficient and never rejection; repetition is not corroboration; material disagreement is contested rather than decided.",
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://conformance/status",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Service": {
+            "kind": "ConceptType",
+            "description": "A service."
+          },
+          "Status": {
+            "kind": "ConceptType",
+            "description": "A status value."
+          }
+        },
+        "predicates": {
+          "status": {
+            "kind": "PredicateType",
+            "description": "Single-valued current status.",
+            "functional": true
+          }
+        }
+      }
+    },
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://conformance/options",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Option": {
+            "kind": "ConceptType",
+            "description": "A preference option used by these fixtures. A real Space types each option by its kind (Profile §5.5, §7), because prefers partitions by the option's Concept Type; one catch-all type is one partition."
+          }
+        }
+      }
+    }
+  ],
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?alice { TYPE \"Person\" NAME \"Alice\" }\n  CREATE CONCEPT ?bob { TYPE \"Person\" NAME \"Bob\" }\n  CREATE CONCEPT ?carol { TYPE \"Person\" NAME \"Carol\" }\n  CREATE CONCEPT ?quiet { TYPE \"Option\" NAME \"Quiet\" }\n  CREATE CONCEPT ?loud { TYPE \"Option\" NAME \"Loud\" }\n  ENSURE PROPOSITION ?unspoken (?alice, \"prefers\", ?quiet)\n  ENSURE PROPOSITION ?repeated (?alice, \"prefers\", ?loud)\n}",
+    "MUTATE {\n  CREATE CONCEPT ?svc { TYPE \"Service\" NAME \"api\" }\n  CREATE CONCEPT ?healthy { TYPE \"Status\" NAME \"healthy\" }\n  CREATE CONCEPT ?degraded { TYPE \"Status\" NAME \"degraded\" }\n  ENSURE PROPOSITION ?ok (?svc, \"status\", ?healthy)\n  ENSURE PROPOSITION ?bad (?svc, \"status\", ?degraded)\n}",
+    "MUTATE {\n  CREATE CONCEPT ?dave { TYPE \"Person\" NAME \"Dave\" }\n  CREATE CONCEPT ?warm { TYPE \"Option\" NAME \"Warm\" }\n  ENSURE PROPOSITION ?p (?dave, \"prefers\", ?warm)\n  CREATE EVIDENCE ?seen { SET FIELDS { evidence_class: \"observation\", payload: \"one observation\" } }\n  CREATE ASSERTION ?a1 {\n    SET FIELDS { proposition: ?p, asserted_by: ?dave, stance: \"support\", mode: \"stated\", confidence: 0.6 }\n    SET STRUCTURAL { (\"evidence\", ?seen) { role: \"support\" } }\n  }\n  CREATE ASSERTION ?a2 {\n    SET FIELDS { proposition: ?p, asserted_by: ?dave, stance: \"support\", mode: \"stated\", confidence: 0.6 }\n    SET STRUCTURAL { (\"evidence\", ?seen) { role: \"support\" } }\n  }\n}"
+  ],
+  "cases": [
+    {
+      "name": "nothing on record is insufficient, not rejected",
+      "command": "FIND(?b.status) WHERE {\n  ?s CONCEPT {name: \"Alice\"}\n  ?o CONCEPT {name: \"Quiet\"}\n  ?p PROPOSITION (?s, \"prefers\", ?o)\n  ?b BELIEF (?p)\n}",
+      "expect": {
+        "result": [
+          "insufficient"
+        ]
+      },
+      "vectors": [
+        "EPI-001",
+        "EPI-025"
+      ]
+    },
+    {
+      "name": "an unsupported Proposition has no support and no opposition",
+      "command": "FIND(?b.support.score, ?b.opposition.score) WHERE {\n  ?s CONCEPT {name: \"Alice\"}\n  ?o CONCEPT {name: \"Quiet\"}\n  ?p PROPOSITION (?s, \"prefers\", ?o)\n  ?b BELIEF (?p)\n}",
+      "expect": {
+        "result": [
+          [
+            0.0,
+            0.0
+          ]
+        ]
+      }
+    },
+    {
+      "name": "a projection declares that its score is not a probability",
+      "command": "FIND(?b.support.score_semantics) WHERE {\n  ?s CONCEPT {name: \"Alice\"}\n  ?o CONCEPT {name: \"Quiet\"}\n  ?p PROPOSITION (?s, \"prefers\", ?o)\n  ?b BELIEF (?p)\n}",
+      "expect": {
+        "result": [
+          "normalized_support_not_probability"
+        ]
+      },
+      "vectors": [
+        "EPI-007"
+      ]
+    },
+    {
+      "name": "a projection reports the policy it ran under",
+      "command": "FIND(?b.policy.id) WHERE {\n  ?s CONCEPT {name: \"Alice\"}\n  ?o CONCEPT {name: \"Quiet\"}\n  ?p PROPOSITION (?s, \"prefers\", ?o)\n  ?b BELIEF (?p)\n}",
+      "expect": {
+        "result": [
+          "kip:policy:baseline"
+        ]
+      }
+    },
+    {
+      "name": "BELIEF over an unbound variable is refused, not guessed",
+      "command": "FIND(?b) WHERE { ?b BELIEF (?nothing) }",
+      "expect": {
+        "error": "ProjectionTargetUnbound"
+      }
+    },
+    {
+      "name": "BELIEF SLOT over an unbound subject is refused",
+      "command": "FIND(?slot) WHERE { ?slot BELIEF SLOT (?anything, \"prefers\") }",
+      "expect": {
+        "error": "ProjectionTargetUnbounded"
+      }
+    },
+    {
+      "name": "an unknown epistemic policy is named rather than defaulted",
+      "command": "FIND(?b) WHERE {\n  ?s CONCEPT {name: \"Alice\"}\n  ?o CONCEPT {name: \"Quiet\"}\n  ?p PROPOSITION (?s, \"prefers\", ?o)\n  ?b BELIEF (?p)\n} WITH EPISTEMIC {policy: \"strict\"}",
+      "expect": {
+        "error": "ProjectionPolicyUnavailable"
+      }
+    },
+    {
+      "name": "repetition is one voice: a side reports its roots, not its rows",
+      "command": "FIND(?b.support.root_groups) WHERE {\n  ?s CONCEPT {name: \"Dave\"}\n  ?o CONCEPT {name: \"Warm\"}\n  ?p PROPOSITION (?s, \"prefers\", ?o)\n  ?b BELIEF (?p)\n}",
+      "expect": {
+        "result": [
+          [
+            {
+              "actors": [
+                {
+                  "id": "C:<1>"
+                }
+              ],
+              "assertion_ids": [
+                "A:<2>",
+                "A:<3>"
+              ],
+              "contribution": 0.6,
+              "evidence": [
+                "E:<4>"
+              ]
+            }
+          ]
+        ]
+      },
+      "vectors": [
+        "EPI-015"
+      ]
+    },
+    {
+      "name": "two claims relaying one observation score as one",
+      "command": "FIND(?b.support.score) WHERE {\n  ?s CONCEPT {name: \"Dave\"}\n  ?o CONCEPT {name: \"Warm\"}\n  ?p PROPOSITION (?s, \"prefers\", ?o)\n  ?b BELIEF (?p)\n}",
+      "expect": {
+        "result": [
+          0.6
+        ]
+      },
+      "vectors": [
+        "EPI-018"
+      ]
+    },
+    {
+      "name": "a fully grounded BELIEF about a Proposition nobody created still answers",
+      "command": "FIND(?b.status, ?b.proposition_id) WHERE { ?b BELIEF (:bob, \"prefers\", :quiet) }",
+      "params": {
+        "bob": {
+          "id": "C-2"
+        },
+        "quiet": {
+          "id": "C-4"
+        }
+      },
+      "expect": {
+        "result": [
+          [
+            "insufficient",
+            null
+          ]
+        ]
+      }
+    },
+    {
+      "name": "explanation: none returns no ledger rather than an empty one",
+      "command": "FIND(?b.explanation) WHERE {\n  ?s CONCEPT {name: \"Dave\"}\n  ?o CONCEPT {name: \"Warm\"}\n  ?p PROPOSITION (?s, \"prefers\", ?o)\n  ?b BELIEF (?p)\n} WITH EPISTEMIC { explanation: \"none\" }",
+      "expect": {
+        "result": [
+          null
+        ]
+      }
+    },
+    {
+      "name": "a setting WITH EPISTEMIC does not implement is refused, never ignored",
+      "command": "FIND(?b.status) WHERE {\n  ?s CONCEPT {name: \"Dave\"}\n  ?o CONCEPT {name: \"Warm\"}\n  ?p PROPOSITION (?s, \"prefers\", ?o)\n  ?b BELIEF (?p)\n} WITH EPISTEMIC { curiosity: 0.5 }",
+      "expect": {
+        "error": "SchemaFieldNotFound"
+      }
+    },
+    {
+      "name": "BELIEF SLOT takes a subject an earlier pattern bound",
+      "command": "FIND(?slot.status) WHERE {\n  ?s CONCEPT {name: \"Alice\"}\n  ?slot BELIEF SLOT (?s, \"prefers\")\n}",
+      "expect": {
+        "result": [
+          "insufficient"
+        ]
+      }
+    },
+    {
+      "name": "a bound BELIEF SLOT stays joined to the row it came from",
+      "command": "FIND(?s.name, ?slot.status) WHERE {\n  ?s CONCEPT {type: \"Person\", name: \"Alice\"}\n  ?slot BELIEF SLOT (?s, \"prefers\")\n}",
+      "expect": {
+        "result": [
+          [
+            "Alice",
+            "insufficient"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "a BELIEF triple stays joined to the row its endpoints came from",
+      "command": "FIND(?s.name, ?o.name, ?b.status) WHERE {\n  ?s CONCEPT {name: \"Alice\"}\n  ?o CONCEPT {name: \"Quiet\"}\n  ?b BELIEF (?s, \"prefers\", ?o)\n}",
+      "expect": {
+        "result": [
+          [
+            "Alice",
+            "Quiet",
+            "insufficient"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "a BELIEF triple with an open object answers one belief per Proposition",
+      "command": "FIND(?o.name) WHERE {\n  ?s CONCEPT {name: \"Alice\"}\n  ?b BELIEF (?s, \"prefers\", ?o)\n}",
+      "expect": {
+        "result": [
+          "Loud",
+          "Quiet"
+        ]
+      }
+    },
+    {
+      "name": "a BELIEF SLOT subject bound to a Literal answers insufficient, and keeps its row",
+      "command": "FIND(?n, ?slot.status) WHERE {\n  ?c CONCEPT {type: \"Person\", name: ?n}\n  FILTER(?n == \"Carol\")\n  ?slot BELIEF SLOT (?n, \"prefers\")\n}",
+      "expect": {
+        "result": [
+          [
+            "Carol",
+            "insufficient"
+          ]
+        ]
+      }
+    }
+  ]
+}

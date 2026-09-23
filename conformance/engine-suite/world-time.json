@@ -1,0 +1,366 @@
+{
+  "name": "world-time",
+  "status": "pending_engine",
+  "description": "This revision's memory behavior, written before an engine implements it (Specification Status: a case may enter marked pending_engine; the release requires every case verified). Temporal succession (§25.4): a world change is one Assertion, the old value answers for its time, nothing is superseded; a claim with no stated start is indeterminate before it was made (§25.2); time bounds are three-valued (§25.5); functional_by partitions preferences by option kind (§20.15); kip:memory-default decides by context specificity, first-person testimony and recency, and discloses the rule (§21.13); two inferences without a written start never succeed one another; DEFINE adds to the draft vocabulary (§20.16); the Search Pattern is bounded and never inside NOT (§43.8).",
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://conformance/world-time",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Place": {
+            "kind": "ConceptType",
+            "description": "A place."
+          },
+          "ColorScheme": {
+            "kind": "ConceptType",
+            "description": "A color scheme: one kind of preference option."
+          },
+          "Editor": {
+            "kind": "ConceptType",
+            "description": "An editor: another kind of preference option."
+          }
+        },
+        "predicates": {
+          "lives_in": {
+            "kind": "PredicateType",
+            "description": "Primary residence; one at a time.",
+            "functional": true
+          },
+          "located_in": {
+            "kind": "PredicateType",
+            "description": "The smaller place lies within the larger.",
+            "functional": true
+          },
+          "timezone": {
+            "kind": "PredicateType",
+            "description": "Current timezone as a UTC offset string.",
+            "functional": true
+          }
+        }
+      }
+    }
+  ],
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?alice { TYPE \"Person\" NAME \"Alice\" }\n  CREATE CONCEPT ?bob { TYPE \"Person\" NAME \"Bob\" }\n  CREATE CONCEPT ?carol { TYPE \"Person\" NAME \"Carol\" }\n  CREATE CONCEPT ?dave { TYPE \"Person\" NAME \"Dave\" }\n  CREATE CONCEPT ?sensor { TYPE \"Person\" NAME \"Sensor\" }\n  CREATE CONCEPT ?brain { TYPE \"Person\" NAME \"Brain\" }\n  CREATE CONCEPT ?beijing { TYPE \"Place\" NAME \"Beijing\" }\n  CREATE CONCEPT ?shanghai { TYPE \"Place\" NAME \"Shanghai\" }\n  CREATE CONCEPT ?berlin { TYPE \"Place\" NAME \"Berlin\" }\n  CREATE CONCEPT ?austin { TYPE \"Place\" NAME \"Austin\" }\n  CREATE CONCEPT ?dallas { TYPE \"Place\" NAME \"Dallas\" }\n  CREATE CONCEPT ?campus { TYPE \"Place\" NAME \"Acme campus\" }\n  CREATE CONCEPT ?dark { TYPE \"ColorScheme\" NAME \"Dark\" }\n  CREATE CONCEPT ?light { TYPE \"ColorScheme\" NAME \"Light\" }\n  CREATE CONCEPT ?vim { TYPE \"Editor\" NAME \"Vim\" }\n  ENSURE PROPOSITION ?p_bj (?alice, \"lives_in\", ?beijing)\n  ENSURE PROPOSITION ?p_sh (?alice, \"lives_in\", ?shanghai)\n  ENSURE PROPOSITION ?p_be (?carol, \"lives_in\", ?berlin)\n  ENSURE PROPOSITION ?p_dark (?alice, \"prefers\", ?dark)\n  ENSURE PROPOSITION ?p_light (?alice, \"prefers\", ?light)\n  ENSURE PROPOSITION ?p_vim (?alice, \"prefers\", ?vim)\n  ENSURE PROPOSITION ?p_tz8 (?alice, \"timezone\", \"+08:00\")\n  ENSURE PROPOSITION ?p_tz9 (?alice, \"timezone\", \"+09:00\")\n  ENSURE PROPOSITION ?p_d1 (?dave, \"timezone\", \"+01:00\")\n  ENSURE PROPOSITION ?p_d2 (?dave, \"timezone\", \"+02:00\")\n  ENSURE PROPOSITION ?p_au (?campus, \"located_in\", ?austin)\n  ENSURE PROPOSITION ?p_da (?campus, \"located_in\", ?dallas)\n  CREATE ASSERTION ?a1 { SET FIELDS { proposition: ?p_bj, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-01-10T00:00:00.000Z\" } }\n  CREATE ASSERTION ?a2 { SET FIELDS { proposition: ?p_sh, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-09-10T00:00:00.000Z\", valid_time: { from: \"2026-09-01T00:00:00.000Z\" } } }\n  CREATE ASSERTION ?a3 { SET FIELDS { proposition: ?p_be, asserted_by: ?carol, stance: \"support\", mode: \"stated\", asserted_at: \"2026-03-01T00:00:00.000Z\", valid_time: { from: { earliest: \"2026-01-01T00:00:00.000Z\", latest: \"2026-12-31T23:59:59.999Z\" } } } }\n  CREATE ASSERTION ?a4 { SET FIELDS { proposition: ?p_dark, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-01-01T00:00:00.000Z\", valid_time: { from: \"2026-01-01T00:00:00.000Z\" } } }\n  CREATE ASSERTION ?a5 { SET FIELDS { proposition: ?p_light, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-09-01T00:00:00.000Z\", valid_time: { from: \"2026-09-01T00:00:00.000Z\" } } }\n  CREATE ASSERTION ?a6 { SET FIELDS { proposition: ?p_vim, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-02-01T00:00:00.000Z\", valid_time: { from: \"2026-02-01T00:00:00.000Z\" } } }\n  CREATE ASSERTION ?a7 { SET FIELDS { proposition: ?p_tz8, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-01-01T00:00:00.000Z\" } }\n  CREATE ASSERTION ?a8 { SET FIELDS { proposition: ?p_tz9, asserted_by: ?bob, stance: \"support\", mode: \"stated\", asserted_at: \"2026-09-01T00:00:00.000Z\" } }\n  CREATE ASSERTION ?a9 { SET FIELDS { proposition: ?p_d1, asserted_by: ?dave, stance: \"support\", mode: \"stated\", asserted_at: \"2026-01-01T00:00:00.000Z\" } }\n  CREATE ASSERTION ?a10 { SET FIELDS { proposition: ?p_d2, asserted_by: ?sensor, stance: \"support\", mode: \"observed\", asserted_at: \"2026-09-05T00:00:00.000Z\" } }\n  CREATE ASSERTION ?a11 { SET FIELDS { proposition: ?p_au, asserted_by: ?brain, stance: \"support\", mode: \"inferred\", asserted_at: \"2026-01-10T00:00:00.000Z\" } }\n  CREATE ASSERTION ?a12 { SET FIELDS { proposition: ?p_da, asserted_by: ?brain, stance: \"support\", mode: \"inferred\", asserted_at: \"2026-09-10T00:00:00.000Z\" } }\n}"
+  ],
+  "cases": [
+    {
+      "name": "a world change is one Assertion: the new value holds from its start",
+      "command": "FIND(?b.status) WHERE { ?s CONCEPT {name: \"Alice\"} ?o CONCEPT {name: \"Shanghai\"} ?b BELIEF (?s, \"lives_in\", ?o) } FOR TIME \"2026-09-20T00:00:00.000Z\"",
+      "expect": {
+        "result": [
+          "accepted"
+        ]
+      },
+      "vectors": [
+        "EPI-031",
+        "MEM-026"
+      ]
+    },
+    {
+      "name": "the succeeded value is outside its effective interval after the change",
+      "command": "FIND(?b.status) WHERE { ?s CONCEPT {name: \"Alice\"} ?o CONCEPT {name: \"Beijing\"} ?b BELIEF (?s, \"lives_in\", ?o) } FOR TIME \"2026-09-20T00:00:00.000Z\"",
+      "expect": {
+        "result": [
+          "insufficient"
+        ]
+      },
+      "vectors": [
+        "EPI-031",
+        "MEM-026"
+      ]
+    },
+    {
+      "name": "the succeeded value still answers for its time",
+      "command": "FIND(?b.status) WHERE { ?s CONCEPT {name: \"Alice\"} ?o CONCEPT {name: \"Beijing\"} ?b BELIEF (?s, \"lives_in\", ?o) } FOR TIME \"2026-06-01T00:00:00.000Z\"",
+      "expect": {
+        "result": [
+          "accepted"
+        ]
+      },
+      "vectors": [
+        "EPI-031",
+        "MEM-026"
+      ]
+    },
+    {
+      "name": "and the successor is not yet valid then",
+      "command": "FIND(?b.status) WHERE { ?s CONCEPT {name: \"Alice\"} ?o CONCEPT {name: \"Shanghai\"} ?b BELIEF (?s, \"lives_in\", ?o) } FOR TIME \"2026-06-01T00:00:00.000Z\"",
+      "expect": {
+        "result": [
+          "insufficient"
+        ]
+      },
+      "vectors": [
+        "EPI-031"
+      ]
+    },
+    {
+      "name": "nothing was superseded or retracted",
+      "command": "FIND(?a.lifecycle.status) WHERE { ?s CONCEPT {name: \"Alice\"} ?o CONCEPT {name: \"Beijing\"} ?p PROPOSITION (?s, \"lives_in\", ?o) ?a ASSERTION {proposition: ?p} }",
+      "expect": {
+        "result": [
+          "active"
+        ]
+      },
+      "vectors": [
+        "EPI-031",
+        "MEM-026"
+      ]
+    },
+    {
+      "name": "a claim with no stated start is indeterminate before it was made",
+      "command": "FIND(?b.status, ?b.uncertainty.reasons) WHERE { ?s CONCEPT {name: \"Alice\"} ?o CONCEPT {name: \"Beijing\"} ?b BELIEF (?s, \"lives_in\", ?o) } FOR TIME \"2026-01-05T00:00:00.000Z\"",
+      "expect": {
+        "result": [
+          [
+            "uncertain",
+            [
+              "temporal_indeterminate"
+            ]
+          ]
+        ]
+      },
+      "vectors": [
+        "EPI-032",
+        "MEM-026"
+      ]
+    },
+    {
+      "name": "a coarse start is indeterminate inside its range",
+      "command": "FIND(?b.status) WHERE { ?s CONCEPT {name: \"Carol\"} ?o CONCEPT {name: \"Berlin\"} ?b BELIEF (?s, \"lives_in\", ?o) } FOR TIME \"2026-06-01T00:00:00.000Z\"",
+      "expect": {
+        "result": [
+          "uncertain"
+        ]
+      },
+      "vectors": [
+        "EPI-032",
+        "MEM-027"
+      ]
+    },
+    {
+      "name": "and certain after it",
+      "command": "FIND(?b.status) WHERE { ?s CONCEPT {name: \"Carol\"} ?o CONCEPT {name: \"Berlin\"} ?b BELIEF (?s, \"lives_in\", ?o) } FOR TIME \"2027-01-01T00:00:00.000Z\"",
+      "expect": {
+        "result": [
+          "accepted"
+        ]
+      },
+      "vectors": [
+        "EPI-032",
+        "MEM-027"
+      ]
+    },
+    {
+      "name": "functional_by: the newer preference of one kind succeeds the older",
+      "command": "FIND(?b.status) WHERE { ?s CONCEPT {name: \"Alice\"} ?o CONCEPT {name: \"Dark\"} ?b BELIEF (?s, \"prefers\", ?o) } FOR TIME \"2026-09-20T00:00:00.000Z\"",
+      "expect": {
+        "result": [
+          "insufficient"
+        ]
+      },
+      "vectors": [
+        "SCHEMA-021",
+        "MEM-028"
+      ]
+    },
+    {
+      "name": "the newer preference is accepted",
+      "command": "FIND(?b.status) WHERE { ?s CONCEPT {name: \"Alice\"} ?o CONCEPT {name: \"Light\"} ?b BELIEF (?s, \"prefers\", ?o) } FOR TIME \"2026-09-20T00:00:00.000Z\"",
+      "expect": {
+        "result": [
+          "accepted"
+        ]
+      },
+      "vectors": [
+        "SCHEMA-021",
+        "MEM-028"
+      ]
+    },
+    {
+      "name": "a preference of another kind coexists",
+      "command": "FIND(?b.status) WHERE { ?s CONCEPT {name: \"Alice\"} ?o CONCEPT {name: \"Vim\"} ?b BELIEF (?s, \"prefers\", ?o) } FOR TIME \"2026-09-20T00:00:00.000Z\"",
+      "expect": {
+        "result": [
+          "accepted"
+        ]
+      },
+      "vectors": [
+        "SCHEMA-021",
+        "MEM-028"
+      ]
+    },
+    {
+      "name": "memory-default: the subject's own statement outranks hearsay",
+      "command": "FIND(?b.status) WHERE { ?s CONCEPT {name: \"Alice\"} ?b BELIEF (?s, \"timezone\", \"+08:00\") } FOR TIME \"2026-09-20T00:00:00.000Z\" WITH EPISTEMIC {policy: \"kip:memory-default\"}",
+      "expect": {
+        "result": [
+          "accepted"
+        ]
+      },
+      "vectors": [
+        "EPI-033",
+        "MEM-029"
+      ]
+    },
+    {
+      "name": "the outranked hearsay is uncertain and names the rule",
+      "command": "FIND(?b.status, ?b.uncertainty.reasons, ?b.precedence.rule) WHERE { ?s CONCEPT {name: \"Alice\"} ?b BELIEF (?s, \"timezone\", \"+09:00\") } FOR TIME \"2026-09-20T00:00:00.000Z\" WITH EPISTEMIC {policy: \"kip:memory-default\"}",
+      "expect": {
+        "result": [
+          [
+            "uncertain",
+            [
+              "outranked"
+            ],
+            "first_person_testimony"
+          ]
+        ]
+      },
+      "vectors": [
+        "EPI-033",
+        "MEM-029"
+      ]
+    },
+    {
+      "name": "memory-default: a newer observation prevails over older testimony by recency",
+      "command": "FIND(?b.status) WHERE { ?s CONCEPT {name: \"Dave\"} ?b BELIEF (?s, \"timezone\", \"+02:00\") } FOR TIME \"2026-09-20T00:00:00.000Z\" WITH EPISTEMIC {policy: \"kip:memory-default\"}",
+      "expect": {
+        "result": [
+          "accepted"
+        ]
+      },
+      "vectors": [
+        "EPI-033",
+        "MEM-029"
+      ]
+    },
+    {
+      "name": "the older testimony is outranked by recency, never rejected",
+      "command": "FIND(?b.status, ?b.uncertainty.reasons, ?b.precedence.rule) WHERE { ?s CONCEPT {name: \"Dave\"} ?b BELIEF (?s, \"timezone\", \"+01:00\") } FOR TIME \"2026-09-20T00:00:00.000Z\" WITH EPISTEMIC {policy: \"kip:memory-default\"}",
+      "expect": {
+        "result": [
+          [
+            "uncertain",
+            [
+              "outranked"
+            ],
+            "recency"
+          ]
+        ]
+      },
+      "vectors": [
+        "EPI-033",
+        "MEM-029"
+      ]
+    },
+    {
+      "name": "two inferences never succeed one another: the older is still eligible and outranked, not expired",
+      "command": "FIND(?b.status, ?b.uncertainty.reasons, ?b.precedence.rule) WHERE { ?s CONCEPT {name: \"Acme campus\"} ?o CONCEPT {name: \"Austin\"} ?b BELIEF (?s, \"located_in\", ?o) } FOR TIME \"2026-09-20T00:00:00.000Z\" WITH EPISTEMIC {policy: \"kip:memory-default\"}",
+      "expect": {
+        "result": [
+          [
+            "uncertain",
+            [
+              "outranked"
+            ],
+            "recency"
+          ]
+        ]
+      },
+      "vectors": [
+        "EPI-031",
+        "MEM-026"
+      ]
+    },
+    {
+      "name": "the newer inference prevails by recency, not by an invented world change",
+      "command": "FIND(?b.status) WHERE { ?s CONCEPT {name: \"Acme campus\"} ?o CONCEPT {name: \"Dallas\"} ?b BELIEF (?s, \"located_in\", ?o) } FOR TIME \"2026-09-20T00:00:00.000Z\" WITH EPISTEMIC {policy: \"kip:memory-default\"}",
+      "expect": {
+        "result": [
+          "accepted"
+        ]
+      },
+      "vectors": [
+        "EPI-031",
+        "MEM-026"
+      ]
+    },
+    {
+      "name": "DEFINE adds a Predicate to the draft vocabulary",
+      "command": "DEFINE PREDICATE \"mentors\" {\n  description: \"The subject mentors the object.\",\n  subject: {concept_types: [\"Person\"]},\n  object: {concept_types: [\"Person\"]}\n}",
+      "expect": {},
+      "vectors": [
+        "SCHEMA-022",
+        "GOV-031"
+      ]
+    },
+    {
+      "name": "the draft symbol resolves for the next operation",
+      "command": "FIND(?p) WHERE { ?p (?x, \"mentors\", ?y) }",
+      "expect": {
+        "result": []
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "a name that already resolves fails SchemaSymbolConflict",
+      "command": "DEFINE PREDICATE \"prefers\" {\n  description: \"already a Profile Predicate\"\n}",
+      "expect": {
+        "error": "SchemaSymbolConflict"
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "a draft Predicate cannot claim a closed world",
+      "command": "DEFINE PREDICATE \"closed_relation\" {\n  description: \"authority over the data belongs to installed packages\",\n  open_world: false\n}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "a Search Pattern binds hits with a bounded candidate set",
+      "command": "FIND(?x.name) WHERE { ?x SEARCH CONCEPT \"Alice\" WITH TYPE \"Person\" MODE \"keyword\" LIMIT 5 }",
+      "expect": {
+        "result": [
+          "Alice"
+        ]
+      },
+      "vectors": [
+        "KQL-032"
+      ]
+    },
+    {
+      "name": "a Search Pattern requires LIMIT",
+      "command": "FIND(?x) WHERE { ?x SEARCH CONCEPT \"Alice\" }",
+      "expect": {
+        "error": "InvalidSyntax"
+      },
+      "vectors": [
+        "KQL-032"
+      ]
+    },
+    {
+      "name": "a Search Pattern never proves absence",
+      "command": "FIND(?x) WHERE { ?x CONCEPT {name: \"Alice\"} NOT { ?y SEARCH CONCEPT \"Bob\" LIMIT 5 } }",
+      "expect": {
+        "error": "InvalidSyntax"
+      },
+      "vectors": [
+        "KQL-033"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,155 @@
+{
+  "name": "retention",
+  "description": "`SET RETENTION` writes storage lifecycle and nothing else (§19). The judgement calls pinned here are the ones an engine gets to make wrong quietly: the block replaces rather than patches, a member outside §19.1's shape is refused rather than stored and lost, and a lapsed `expires_at` changes what a sweep may collect without changing what recall returns — retention says how long the record is kept, never whether the claim still holds.",
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?alice { TYPE \"Person\" NAME \"Alice\" }\n  CREATE CONCEPT ?bob { TYPE \"Person\" NAME \"Bob\" }\n  CREATE CONCEPT ?dark { TYPE \"Option\" NAME \"Dark\" }\n}"
+  ],
+  "cases": [
+    {
+      "name": "a retention block is written onto the element the target names",
+      "command": "SET RETENTION ?c {retention_class: \"short\", expires_at: \"2030-01-01T00:00:00.000Z\"} WHERE { ?c CONCEPT {name: \"Alice\"} }",
+      "expect": {}
+    },
+    {
+      "name": "and reads back through the element's retention hook",
+      "command": "FIND(?c.retention.retention_class) WHERE { ?c CONCEPT {name: \"Alice\"} }",
+      "expect": {
+        "result": [
+          "short"
+        ]
+      }
+    },
+    {
+      "name": "storage lifecycle is not content: the Concept still says what it said",
+      "command": "FIND(?c.name) WHERE { ?c CONCEPT {name: \"Alice\"} }",
+      "expect": {
+        "result": [
+          "Alice"
+        ]
+      }
+    },
+    {
+      "name": "an element the selection block did not reach carries no retention",
+      "command": "FIND(?c.retention.retention_class) WHERE { ?c CONCEPT {name: \"Bob\"} }",
+      "expect": {
+        "result": [
+          null
+        ]
+      }
+    },
+    {
+      "name": "a member outside the hook's shape is refused, not stored and lost",
+      "command": "SET RETENTION ?c {retention_class: \"standard\", review_at: \"2030-01-01T00:00:00.000Z\"} WHERE { ?c CONCEPT {name: \"Alice\"} }",
+      "expect": {
+        "error": "SchemaFieldNotFound"
+      }
+    },
+    {
+      "name": "a retention_class that is not a string is refused",
+      "command": "SET RETENTION ?c {retention_class: 7} WHERE { ?c CONCEPT {name: \"Alice\"} }",
+      "expect": {
+        "error": "TypeMismatch"
+      }
+    },
+    {
+      "name": "an expires_at that is not a timestamp is refused",
+      "command": "SET RETENTION ?c {expires_at: \"whenever\"} WHERE { ?c CONCEPT {name: \"Alice\"} }",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "the refused blocks left the recorded one alone",
+      "command": "FIND(?c.retention.retention_class) WHERE { ?c CONCEPT {name: \"Alice\"} }",
+      "expect": {
+        "result": [
+          "short"
+        ]
+      }
+    },
+    {
+      "name": "the block replaces rather than patches",
+      "command": "SET RETENTION ?c {expires_at: \"2031-01-01T00:00:00.000Z\"} WHERE { ?c CONCEPT {name: \"Alice\"} }",
+      "expect": {}
+    },
+    {
+      "name": "so a member the new block omits is cleared, not carried forward",
+      "command": "FIND(?c.retention.retention_class) WHERE { ?c CONCEPT {name: \"Alice\"} }",
+      "expect": {
+        "result": [
+          null
+        ]
+      }
+    },
+    {
+      "name": "a lapsed retention is a sweep's business, not recall's",
+      "command": "SET RETENTION ?c {retention_class: \"short\", expires_at: \"2020-01-01T00:00:00.000Z\"} WHERE { ?c CONCEPT {name: \"Bob\"} }",
+      "expect": {}
+    },
+    {
+      "name": "the element is still active and still recalled until a Principal asks",
+      "command": "FIND(?c.name) WHERE { ?c CONCEPT {name: \"Bob\"} }",
+      "expect": {
+        "result": [
+          "Bob"
+        ]
+      }
+    },
+    {
+      "name": "a direct target needs no selection block",
+      "command": "SET RETENTION :target {retention_class: \"standard\"}",
+      "params": {
+        "target": "C-3"
+      },
+      "expect": {}
+    },
+    {
+      "name": "and writes the block it was given",
+      "command": "FIND(?c.retention.retention_class) WHERE { ?c CONCEPT {name: \"Dark\"} }",
+      "expect": {
+        "result": [
+          "standard"
+        ]
+      }
+    },
+    {
+      "name": "a bounded sweep takes as many as LIMIT allows and no more",
+      "command": "SET RETENTION ?c {retention_class: \"capped\"} WHERE { ?c CONCEPT {type: \"Person\"} } LIMIT 1",
+      "expect": {}
+    },
+    {
+      "name": "LIMIT cuts in ascending element id, so the cut is repeatable",
+      "command": "FIND(?c.name, ?c.retention.retention_class) WHERE { ?c CONCEPT {type: \"Person\"} } ORDER BY ?c.name",
+      "ordered": true,
+      "expect": {
+        "result": [
+          [
+            "Alice",
+            "capped"
+          ],
+          [
+            "Bob",
+            "short"
+          ]
+        ]
+      }
+    }
+  ],
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://conformance/options",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Option": {
+            "kind": "ConceptType",
+            "description": "A preference option used by these fixtures. A real Space types each option by its kind (Profile §5.5, §7), because prefers partitions by the option's Concept Type; one catch-all type is one partition."
+          }
+        }
+      }
+    }
+  ]
+}

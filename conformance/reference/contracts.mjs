@@ -6,40 +6,176 @@ export function dependencyValidity(groups, current) {
   return validateDependencies({ groups }, { elements: current })
 }
 
-export function project(candidates, { functional = false, context_refs = [], valid_at }) {
-  const instant = parseTimestamp
-  const time = instant(valid_at)
-  const rows = candidates.map(candidate => {
-    for (const a of candidate.assertions) {
-      const from=a.from ? instant(a.from) : -Infinity, until=a.until ? instant(a.until) : Infinity
-      if (from >= until) throw new Error('empty or reversed valid interval')
+/* ------------------------------------------------------------------------ *
+ * Projection oracle (Spec §21.10–§21.13, §25.2–§25.5).
+ *
+ * A time point is an exact Timestamp, a time bound {earliest?, latest?}, or
+ * null. Internally every endpoint becomes a closed range [lo, hi] of possible
+ * instants: an exact instant is [x, x]; a missing side of a bound is infinite.
+ * ------------------------------------------------------------------------ */
+const INF = Infinity
+
+function point(value, side, assertedAt) {
+  if (value === undefined || value === null) {
+    if (side !== 'from') return [INF, INF]
+    // A missing from means "no later than the claim": the bound {latest: asserted_at} (§25.2).
+    if (assertedAt === undefined || assertedAt === null) throw new Error('asserted_at is required when from is absent')
+    return [-INF, parseTimestamp(assertedAt)]
+  }
+  if (typeof value === 'string') { const x = parseTimestamp(value); return [x, x] }
+  if (typeof value !== 'object' || Array.isArray(value) ||
+      Object.keys(value).some(k => k !== 'earliest' && k !== 'latest') ||
+      (value.earliest === undefined && value.latest === undefined)) throw new Error('invalid time bound')
+  const lo = value.earliest === undefined ? -INF : parseTimestamp(value.earliest)
+  const hi = value.latest === undefined ? INF : parseTimestamp(value.latest)
+  if (lo > hi) throw new Error('invalid time bound: earliest after latest')
+  return [lo, hi]
+}
+const exact = value => typeof value === 'string'
+const strictSuperset = (a = [], b = []) => { const A = new Set(a), B = new Set(b); return A.size > B.size && [...B].every(v => A.has(v)) }
+
+/** Start key (§25.4): exact from, else the bound's latest, else asserted_at. Every Assertion has one. */
+function startKey(a) {
+  if (exact(a.from)) return parseTimestamp(a.from)
+  if (a.from && typeof a.from === 'object' && a.from.latest !== undefined) return parseTimestamp(a.from.latest)
+  return a.asserted_at ? parseTimestamp(a.asserted_at) : -INF
+}
+
+/** Who takes part in succession (§25.4): the actor's own account — stated or
+ *  observed — or any Assertion that writes its start. An inference with no
+ *  written from is on no line. */
+const takesPart = a => ['stated', 'observed'].includes(a.mode) || (a.from !== undefined && a.from !== null)
+
+/** Effective [start, end] ranges after temporal succession (§25.4). */
+export function effectiveIntervals(rows, { functional = false, functional_by = false } = {}) {
+  for (const r of rows) {
+    r.start = point(r.a.from, 'from', r.a.asserted_at); r.end = point(r.a.until, 'until')
+    const lowestStart = r.start[0], highestEnd = r.end[1]
+    if (lowestStart >= highestEnd) throw new Error('empty or reversed valid interval')
+    r.sk = startKey(r.a)
+  }
+  const lines = new Map()
+  const add = (key, row) => { if (!lines.has(key)) lines.set(key, []); lines.get(key).push(row) }
+  for (const r of rows) {
+    if (!r.a.actor || !takesPart(r.a)) continue
+    const ctx = [...new Set(r.a.context_refs ?? [])].sort().join('\u0000')
+    add(`prop|${r.a.actor}|${ctx}|${r.candidate}`, r)
+    if (r.a.stance === 'support' && (functional || functional_by))
+      add(`slot|${r.a.actor}|${ctx}|${functional_by ? r.partition : ''}`, r)
+  }
+  const starts = new Map(rows.map(r => [r, [...r.start]]))
+  const ends = new Map(rows.map(r => [r, [...r.end]]))
+  const lineStart = new Map()
+  for (const [key, line] of lines) {
+    const slot = key.startsWith('slot|')
+    const disagree = (x, y) => slot ? x.candidate !== y.candidate : x.a.stance !== y.a.stance
+    for (const r of line) {
+      const preds = line.filter(q => disagree(q, r) && q.sk < r.sk)
+      let s = r.start
+      if (!exact(r.a.from) && preds.length) {
+        const q = preds.reduce((m, x) => x.sk > m.sk ? x : m)
+        s = [Math.max(r.start[0], q.sk), r.sk]
+      }
+      lineStart.set(key + '#' + rows.indexOf(r), s)
+      const cur = starts.get(r); starts.set(r, [Math.max(cur[0], s[0]), Math.max(cur[1], s[1])])
     }
-    const assertions = candidate.assertions.filter(a =>
-      a.status === 'active' && a.visible !== false &&
-      !['hypothetical', 'predicted', 'imported'].includes(a.mode) &&
-      (a.context_refs ?? []).every(ref => context_refs.includes(ref)) &&
-      (!a.from || Date.parse(a.from) <= time) && (!a.until || time < Date.parse(a.until)))
-    const roots = stance => new Set(assertions.filter(a => a.stance === stance && a.trusted).map(a => a.root))
-    const support = roots('support').size, opposition = roots('reject').size
-    const candidate_status = support && opposition ? 'contested' : support ? 'accepted' :
-      opposition ? 'rejected' : assertions.length ? 'uncertain' : 'insufficient'
-    const invalid = candidate.dependency_validity && candidate.dependency_validity !== 'current'
-    return { id: candidate.id, value: candidate.value, support, opposition, candidate_status,
-      status: invalid && candidate_status === 'accepted' ? 'uncertain' : candidate_status,
-      conflict_refs: [] }
-  })
-  const supported = rows.filter(row => row.support > 0 && row.status !== 'uncertain')
-  if (functional && new Set(supported.map(r => canonicalize(r.value))).size > 1) {
-    for (const row of supported) {
-      row.status = 'contested'
-      row.conflict_refs = supported.filter(other => canonicalize(other.value) !== canonicalize(row.value)).map(r => r.id)
+    for (const r of line) {
+      if (r.a.until !== undefined && r.a.until !== null) continue
+      const succ = line.filter(n => disagree(n, r) && n.sk > r.sk)
+      if (!succ.length) continue
+      // The nearest successors; a start-key tie combines their starts bound by bound.
+      const nearest = Math.min(...succ.map(n => n.sk))
+      for (const n of succ.filter(n => n.sk === nearest)) {
+        const e = lineStart.get(key + '#' + rows.indexOf(n))
+        const cur = ends.get(r); ends.set(r, [Math.min(cur[0], e[0]), Math.min(cur[1], e[1])])
+      }
     }
   }
-  const slot_status = rows.some(r => r.status === 'contested') ? 'contested' :
-    rows.some(r => r.status === 'accepted') ? 'accepted' :
-    rows.some(r => r.status === 'uncertain') ? 'uncertain' : 'insufficient'
-  return { status: slot_status, accepted_values: rows.filter(r => r.status === 'accepted').map(r => r.value),
-    candidates: rows.map(row => ({ ...row, slot_status })) }
+  for (const r of rows) { r.start = starts.get(r); r.end = ends.get(r) }
+  return rows
+}
+
+/** inside | outside | indeterminate at instant t (§25.5). */
+export function classify(start, end, t) {
+  const [slo, shi] = start, [elo, ehi] = end
+  if (slo > t || ehi <= t) return 'outside'
+  if (shi <= t && elo > t) return 'inside'
+  return 'indeterminate'
+}
+
+export function project(candidates, { functional = false, functional_by = false, context_refs = [], valid_at,
+  policy = 'structural', subject } = {}) {
+  const time = parseTimestamp(valid_at)
+  const rows = []
+  for (const candidate of candidates) {
+    for (const a of candidate.assertions) {
+      // Written intervals are validated whether or not the Assertion is eligible.
+      const [slo] = point(a.from, 'from', a.asserted_at), [, ehi] = point(a.until, 'until')
+      if (slo >= ehi) throw new Error('empty or reversed valid interval')
+      const eligible = a.status === 'active' && a.visible !== false &&
+        !['hypothetical', 'predicted', 'imported'].includes(a.mode) &&
+        (a.context_refs ?? []).every(ref => context_refs.includes(ref))
+      if (eligible) rows.push({ a, candidate: candidate.id, partition: candidate.partition ?? '' })
+    }
+  }
+  effectiveIntervals(rows, { functional, functional_by })
+  for (const r of rows) r.at = classify(r.start, r.end, time)
+
+  const out = candidates.map(candidate => {
+    const mine = rows.filter(r => r.candidate === candidate.id && r.at !== 'outside')
+    const inside = mine.filter(r => r.at === 'inside')
+    const roots = stance => new Set(inside.filter(r => r.a.stance === stance && r.a.trusted).map(r => r.a.root))
+    const support = roots('support').size, opposition = roots('reject').size
+    const reasons = mine.some(r => r.at === 'indeterminate') ? ['temporal_indeterminate'] : []
+    const candidate_status = support && opposition ? 'contested' : support ? 'accepted' :
+      opposition ? 'rejected' : mine.length ? 'uncertain' : 'insufficient'
+    const invalid = candidate.dependency_validity && candidate.dependency_validity !== 'current'
+    return { id: candidate.id, value: candidate.value, partition: candidate.partition ?? '', support, opposition,
+      candidate_status, status: invalid && candidate_status === 'accepted' ? 'uncertain' : candidate_status,
+      conflict_refs: [], reasons, precedence: null,
+      support_rows: inside.filter(r => r.a.stance === 'support') }
+  })
+
+  if (functional || functional_by) {
+    for (const partition of new Set(out.map(r => r.partition))) {
+      const supported = out.filter(r => (functional || r.partition === partition) &&
+        r.support > 0 && r.status !== 'uncertain')
+      if (new Set(supported.map(r => canonicalize(r.value))).size <= 1) continue
+      const winner = policy === 'memory-default' ? precedenceWinner(supported, subject) : null
+      for (const row of supported) {
+        if (winner && row === winner.row) { row.precedence = { rule: winner.rule, prevailed_over: supported.filter(x => x !== row).map(x => x.id) }; continue }
+        if (winner) { row.status = 'uncertain'; row.reasons = [...row.reasons, 'outranked']; row.precedence = { rule: winner.rule, outranked_by: winner.row.id }; continue }
+        row.status = 'contested'
+        row.conflict_refs = supported.filter(o => canonicalize(o.value) !== canonicalize(row.value)).map(r => r.id)
+      }
+      if (functional) break
+    }
+  }
+  const slot_status = out.some(r => r.status === 'contested') ? 'contested' :
+    out.some(r => r.status === 'accepted') ? 'accepted' :
+    out.some(r => r.status === 'uncertain') ? 'uncertain' : 'insufficient'
+  return { status: slot_status, accepted_values: out.filter(r => r.status === 'accepted').map(r => r.value),
+    candidates: out.map(({ support_rows, ...row }) => ({ ...row, slot_status })) }
+}
+
+/** kip:memory-default precedence (§21.13): the first rule under which one
+ *  candidate prevails over every other candidate of the conflict set decides. */
+function precedenceWinner(set, subject) {
+  const newest = row => Math.max(...row.support_rows.map(x => x.sk))
+  const rules = [
+    ['context_specificity', (a, b) => a.support_rows.some(x => b.support_rows.every(y =>
+      strictSuperset(x.a.context_refs, y.a.context_refs)))],
+    ['first_person_testimony', (a, b) => subject !== undefined &&
+      a.support_rows.some(x => x.a.actor === subject && ['stated', 'observed'].includes(x.a.mode)) &&
+      !b.support_rows.some(y => y.a.actor === subject || y.a.mode === 'observed')],
+    // Recency compares start keys — when values were claimed to hold, never when they were recorded.
+    ['recency', (a, b) => newest(a) > newest(b)],
+  ]
+  for (const [rule, prevails] of rules) {
+    const winners = set.filter(a => set.every(b => b === a || prevails(a, b)))
+    if (winners.length === 1) return { rule, row: winners[0] }
+  }
+  return null
 }
 
 export function sameBasis(a, b) {

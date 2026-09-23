@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MIF-015",
+  "title": "A world change answers old and new times",
+  "description": "Observe \"I live in Beijing\", then revise with change_kind world_change (\"I moved to Shanghai on 2026-09-01\"). The Brain writes one Assertion from the move; recall now answers Shanghai, recall with time.valid_at before the move answers Beijing, and nothing is superseded or retracted. Then observe a late-processed old message (\"I live in Beijing\", said in 2026-03) after the move: the Adapter writes it with the time it was said, so recall still answers Shanghai — recording order never decides.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Core",
+    "KIP-Runtime"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "core-basic",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Memory-Interface.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_interface_scenario",
+      "args": {
+        "id": "KIP2-MIF-015"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/answer_now",
+      "operator": "equals",
+      "expected": "shanghai"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/answer_before_move",
+      "operator": "equals",
+      "expected": "beijing"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/assertions_written_by_revise",
+      "operator": "equals",
+      "expected": 1
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/late_history_displaces",
+      "operator": "equals",
+      "expected": false
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/supersession_count",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

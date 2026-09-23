@@ -1,0 +1,235 @@
+{
+  "name": "derivation",
+  "description": "What a Space can find out about cognition it built on something else, and what byte destruction may and may not take with it. LIST DEPENDENTS walks provenance in the derived direction so a revised root's downstream artifacts can be reviewed instead of guessed at (Spec §57.5, §63.5); reachability is topology, not a verdict. PURGE PAYLOAD destroys Evidence bytes while the record, its digest, its citations and its provenance role survive (§60.6) — the data-minimization instrument, which is a different promise from element purge.",
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?event {\n    TYPE \"Event\"\n    NAME \"Migration meeting\"\n    SET ATTRIBUTES {summary: \"The team agreed to migrate on Friday\"}\n  }\n  CREATE CONCEPT ?insight {\n    TYPE \"Insight\"\n    NAME \"Migrations need a rollback plan\"\n    SET ATTRIBUTES {summary: \"Every migration ships with a rollback\"}\n  }\n  CREATE ACTIVITY ?consolidate {\n    SET FIELDS {activity_class: \"semantic_consolidation\", status: \"completed\"}\n    SET STRUCTURAL {\n      (\"inputs\", ?event)\n      (\"outputs\", ?insight)\n    }\n  }\n}",
+    "MUTATE {\n  CREATE CONCEPT ?skill {\n    TYPE \"Insight\"\n    NAME \"Plan a migration\"\n    SET ATTRIBUTES {\n      summary: \"Write the rollback first\"\n    }\n  }\n  CREATE ACTIVITY ?compile {\n    SET FIELDS {activity_class: \"procedural_consolidation\", status: \"completed\"}\n    SET STRUCTURAL {\n      (\"inputs\", \"C-2\")\n      (\"outputs\", ?skill)\n    }\n  }\n}",
+    "MUTATE {\n  CREATE CONCEPT ?alice { TYPE \"Person\" NAME \"Alice\" }\n  CREATE CONCEPT ?dark { TYPE \"Option\" NAME \"Dark\" }\n  ENSURE PROPOSITION ?p (?alice, \"prefers\", ?dark)\n  CREATE EVIDENCE ?e {\n    SET FIELDS {\n      evidence_class: \"user_statement\",\n      payload: \"I prefer dark mode, and my address is 12 Elm Street.\",\n      content_digest: \"sha3-256:d1ge5t\",\n      media_type: \"text/plain\",\n      observed_at: \"2026-08-16T09:00:00.000Z\"\n    }\n  }\n  CREATE ASSERTION ?a {\n    SET FIELDS { proposition: ?p, asserted_by: ?alice, stance: \"support\", mode: \"stated\", confidence: 0.9 }\n    SET STRUCTURAL { (\"evidence\", ?e) {role: \"support\"} }\n  }\n}"
+  ],
+  "cases": [
+    {
+      "name": "one hop of provenance runs inputs to outputs, and names the Activity it came through",
+      "command": "LIST DEPENDENTS \"C-1\"",
+      "ordered": true,
+      "expect": {
+        "result": [
+          {
+            "id": "C:<1>",
+            "kind": "concept",
+            "distance": 1,
+            "via": {
+              "activity": "X:<2>"
+            }
+          }
+        ]
+      },
+      "vectors": [
+        "META-025"
+      ]
+    },
+    {
+      "name": "DEPTH is what turns one hop into the closure",
+      "command": "LIST DEPENDENTS \"C-1\" DEPTH 2",
+      "ordered": true,
+      "expect": {
+        "result": [
+          {
+            "id": "C:<1>",
+            "kind": "concept",
+            "distance": 1,
+            "via": {
+              "activity": "X:<2>"
+            }
+          },
+          {
+            "id": "C:<3>",
+            "kind": "concept",
+            "distance": 2,
+            "via": {
+              "activity": "X:<4>"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "the closure pages like every other LIST",
+      "command": "LIST DEPENDENTS \"C-1\" DEPTH 2 LIMIT 1",
+      "ordered": true,
+      "expect": {
+        "result": [
+          {
+            "id": "C:<1>",
+            "kind": "concept",
+            "distance": 1,
+            "via": {
+              "activity": "X:<2>"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "reachability is topology, not a verdict: the listed artifact is untouched",
+      "command": "FIND(?c._system.state, ?c._system.version) WHERE { ?c CONCEPT {id: \"C-2\"} }",
+      "expect": {
+        "result": [
+          [
+            "active",
+            1
+          ]
+        ]
+      },
+      "vectors": [
+        "EPI-028"
+      ]
+    },
+    {
+      "name": "a transformation that recorded no Activity lineage is not discoverable",
+      "command": "LIST DEPENDENTS \"C-3\" DEPTH 4",
+      "expect": {
+        "result": []
+      }
+    },
+    {
+      "name": "an unknown root is answered exactly as an absent one",
+      "command": "LIST DEPENDENTS \"C-999\"",
+      "expect": {
+        "result": []
+      }
+    },
+    {
+      "name": "DEPTH 0 asks for the element itself, which is not one of its dependents",
+      "command": "LIST DEPENDENTS \"C-1\" DEPTH 0",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "a DEPTH that is not a non-negative integer is a type error, not a bound",
+      "command": "LIST DEPENDENTS \"C-1\" DEPTH :n",
+      "params": {
+        "n": -1
+      },
+      "expect": {
+        "error": "TypeMismatch"
+      }
+    },
+    {
+      "name": "and neither is a word that happens to sit where a number goes",
+      "command": "LIST DEPENDENTS \"C-1\" DEPTH :n",
+      "params": {
+        "n": "deep"
+      },
+      "expect": {
+        "error": "TypeMismatch"
+      }
+    },
+    {
+      "name": "the root operand is a string, not whatever coerces to one",
+      "command": "LIST DEPENDENTS :root",
+      "params": {
+        "root": 1
+      },
+      "expect": {
+        "error": "TypeMismatch"
+      }
+    },
+    {
+      "name": "a payload purge is confirmed with the exact literal, or it is not a purge",
+      "command": "PURGE PAYLOAD \"E-1\" CONFIRM \"purge\"",
+      "expect": {
+        "error": "InvalidSyntax"
+      }
+    },
+    {
+      "name": "only Evidence has a payload to purge",
+      "command": "PURGE PAYLOAD \"C-1\" CONFIRM \"PURGE\"",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "and the refusal erased nothing on the way to refusing",
+      "command": "FIND(?e.payload.mode) WHERE { ?e EVIDENCE {} }",
+      "expect": {
+        "result": [
+          "inline"
+        ]
+      }
+    },
+    {
+      "name": "a payload purge destroys the bytes",
+      "command": "PURGE PAYLOAD \"E-1\" CONFIRM \"PURGE\"",
+      "expect": {},
+      "vectors": [
+        "KML-034"
+      ]
+    },
+    {
+      "name": "the payload reports that it was purged, rather than reporting nothing",
+      "command": "FIND(?e.payload) WHERE { ?e EVIDENCE {} }",
+      "expect": {
+        "result": [
+          {
+            "mode": "purged"
+          }
+        ]
+      }
+    },
+    {
+      "name": "the record survives with its digest, class and observation time",
+      "command": "FIND(?e.content_digest, ?e.evidence_class, ?e.media_type, ?e.observed_at, ?e._system.state) WHERE { ?e EVIDENCE {} }",
+      "expect": {
+        "result": [
+          [
+            "sha3-256:d1ge5t",
+            "user_statement",
+            "text/plain",
+            "2026-08-16T09:00:00.000Z",
+            "active"
+          ]
+        ]
+      },
+      "vectors": [
+        "KML-034"
+      ]
+    },
+    {
+      "name": "and so does the citation that pointed at it",
+      "command": "FIND(?a.evidence) WHERE { ?a ASSERTION {} }",
+      "expect": {
+        "result": [
+          [
+            {
+              "id": "E:<1>",
+              "role": "support"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "purging an already-purged payload is a no-op, not an error",
+      "command": "PURGE PAYLOAD \"E-1\" CONFIRM \"PURGE\"",
+      "expect": {}
+    }
+  ],
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://conformance/options",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Option": {
+            "kind": "ConceptType",
+            "description": "A preference option used by these fixtures. A real Space types each option by its kind (Profile §5.5, §7), because prefers partitions by the option's Concept Type; one catch-all type is one partition."
+          }
+        }
+      }
+    }
+  ]
+}

@@ -40,6 +40,7 @@ import type {
   PurgeStatement,
   PurgePayloadStatement,
   MergeConceptStatement,
+  DefineStatement,
   DescribeStatement,
   ListStatement,
   SearchStatement,
@@ -242,6 +243,9 @@ class Formatter {
       case 'MergeConceptStatement':
         this.formatMerge(stmt)
         break
+      case 'DefineStatement':
+        this.formatDefine(stmt)
+        break
     }
   }
 
@@ -434,6 +438,17 @@ class Formatter {
         this.write(
           `${pattern.variable.name} BELIEF SLOT (${this.term(pattern.subject)}, ${this.predAtom(pattern.predicate)})`
         )
+        this.newline()
+        break
+
+      case 'SearchPattern':
+        this.writeIndent()
+        this.write(`${pattern.variable.name} SEARCH ${pattern.searchKind} ${this.scalar(pattern.term)}`)
+        if (pattern.withType) this.write(` WITH TYPE ${this.scalar(pattern.withType)}`)
+        if (pattern.withPredicate) this.write(` WITH PREDICATE ${this.scalar(pattern.withPredicate)}`)
+        if (pattern.mode) this.write(` MODE ${this.scalar(pattern.mode)}`)
+        if (pattern.threshold) this.write(` THRESHOLD ${this.scalar(pattern.threshold)}`)
+        if (pattern.limit) this.write(` LIMIT ${this.scalar(pattern.limit.value)}`)
         this.newline()
         break
 
@@ -838,6 +853,14 @@ class Formatter {
     this.newline()
     if (stmt.where) this.formatWhere(stmt.where, 'WHERE')
     this.formatExpectVersions(stmt.expectVersions)
+  }
+
+  private formatDefine(stmt: DefineStatement): void {
+    this.writeIndent()
+    const word = stmt.defineKind === 'PREDICATE' ? 'PREDICATE' : 'CONCEPT TYPE'
+    this.write(`DEFINE ${word} ${this.symbol(stmt.name)} `)
+    this.formatObjectBlock(stmt.definition, false)
+    this.newline()
   }
 
   // ────────────────────────────────────────────────────────────────────

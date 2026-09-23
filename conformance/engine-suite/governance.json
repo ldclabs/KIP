@@ -1,0 +1,123 @@
+{
+  "name": "governance",
+  "description": "Governance is a protected control plane, and these are the properties that make it one rather than a description of one. An engine claiming KIP 2.0 Governance conformance has to keep every distinction here: cognitive content that describes authority acquires none, an element's Governance block is unreachable from any mutation, a derived artifact records what it came from so its influence-authority ceiling can never be raised past it, and erasure refuses by default while anything still points at the target.",
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?alice { TYPE \"Person\" NAME \"Alice\" SET FIELDS {key: \"person:alice\"} }\n  CREATE CONCEPT ?dark { TYPE \"Option\" NAME \"Dark\" }\n  CREATE CONCEPT ?admin { TYPE \"Person\" NAME \"Administrator\" SET ATTRIBUTES {authority: \"executable\", trust: 1.0} }\n  CREATE EVIDENCE ?secret { SET FIELDS {evidence_class: \"Document\", payload: \"an observation\"} }\n  ENSURE PROPOSITION ?p (?alice, \"prefers\", ?dark)\n  CREATE ASSERTION ?a {\n    SET FIELDS { proposition: ?p, asserted_by: ?alice, stance: \"support\", mode: \"inferred\", confidence: 0.6 }\n    SET STRUCTURAL { (\"evidence\", ?secret) {role: \"support\"} }\n  }\n}"
+  ],
+  "cases": [
+    {
+      "name": "an element's Governance block is not an author-writable field",
+      "command": "UPDATE ?alice SET FIELDS { governance: {classification: \"public\"} } WHERE { ?alice CONCEPT {key: \"person:alice\"} }",
+      "expect": {
+        "error": "InvalidSyntax"
+      },
+      "vectors": [
+        "GOV-018"
+      ]
+    },
+    {
+      "name": "and neither is it writable at creation",
+      "command": "CREATE CONCEPT ?c { TYPE \"Person\" NAME \"Bob\" SET FIELDS {governance: {classification: \"public\"}} }",
+      "expect": {
+        "error": "InvalidSyntax"
+      }
+    },
+    {
+      "name": "content claiming an authority class has an ordinary attribute; Governance reports descriptive, the class every element has until Governance raises it",
+      "command": "FIND(?c.attributes.authority, ?c.governance.authority_class) WHERE { ?c CONCEPT {name: \"Administrator\"} }",
+      "expect": {
+        "result": [
+          [
+            "executable",
+            "descriptive"
+          ]
+        ]
+      },
+      "vectors": [
+        "GOV-005",
+        "GOV-018"
+      ]
+    },
+    {
+      "name": "an unclassified element does not thereby read as public",
+      "command": "FIND(?c.governance.classification) WHERE { ?c CONCEPT {key: \"person:alice\"} }",
+      "expect": {
+        "result": [
+          null
+        ]
+      }
+    },
+    {
+      "name": "a claim citing Evidence records what it was derived from",
+      "command": "FIND(?a.governance.authority_lineage) WHERE { ?a ASSERTION {} }",
+      "expect": {
+        "result": [
+          [
+            "E:<1>"
+          ]
+        ]
+      },
+      "vectors": [
+        "GOV-006"
+      ]
+    },
+    {
+      "name": "erasure refuses by default while anything still references the target",
+      "command": "PURGE ?alice WHERE { ?alice CONCEPT {key: \"person:alice\"} } CONFIRM \"PURGE\"",
+      "expect": {
+        "error": "PurgeDenied"
+      }
+    },
+    {
+      "name": "an unknown reference policy is refused rather than quietly defaulted",
+      "command": "PURGE ?c WHERE { ?c CONCEPT {name: \"Administrator\"} } REFERENCE POLICY \"delete_everything\" CONFIRM \"PURGE\"",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "an unreferenced element erases, leaving an identity stub",
+      "command": "PURGE ?c WHERE { ?c CONCEPT {name: \"Administrator\"} } CONFIRM \"PURGE\"",
+      "expect": {}
+    },
+    {
+      "name": "the stub keeps its identity and carries a digest instead of content",
+      "command": "FIND(?c.id, ?c.name, ?c.governance.purged) WHERE { ?c CONCEPT {state: \"purged\"} }",
+      "expect": {
+        "result": [
+          [
+            "C:<1>",
+            null,
+            true
+          ]
+        ]
+      }
+    },
+    {
+      "name": "and the content is gone from the past as well as from the present",
+      "command": "FIND(?c.name) WHERE { ?c CONCEPT {type: \"Person\"} } AS OF SEQ 1",
+      "expect": {
+        "result": [
+          "Alice"
+        ]
+      }
+    }
+  ],
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://conformance/options",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Option": {
+            "kind": "ConceptType",
+            "description": "A preference option used by these fixtures. A real Space types each option by its kind (Profile §5.5, §7), because prefers partitions by the option's Concept Type; one catch-all type is one partition."
+          }
+        }
+      }
+    }
+  ]
+}

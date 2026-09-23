@@ -1,0 +1,212 @@
+{
+  "name": "core-truth-neutrality",
+  "description": "The distinction the version exists for: a Proposition existing is not the Proposition being true. A tuple carries no confidence, the same tuple resolves to one Proposition, and a raw read reports claims rather than beliefs.",
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?alice { TYPE \"Person\" NAME \"Alice\" }\n  CREATE CONCEPT ?dark { TYPE \"Option\" NAME \"Dark\" }\n  ENSURE PROPOSITION ?p (?alice, \"prefers\", ?dark)\n  CREATE EVIDENCE ?e {\n    SET FIELDS { evidence_class: \"user_statement\", payload: \"I prefer dark mode\" }\n  }\n  CREATE ASSERTION ?a {\n    SET FIELDS { proposition: ?p, asserted_by: ?alice, stance: \"support\", mode: \"stated\", confidence: 0.9 }\n    SET STRUCTURAL { (\"evidence\", ?e) { role: \"support\" } }\n  }\n}",
+    "CREATE EVIDENCE ?e {\n  CLIENT KEY \"message:42:evidence\"\n  SET FIELDS { evidence_class: \"user_statement\", payload: \"I prefer dark mode\" }\n}",
+    "CREATE EVIDENCE ?e {\n  CLIENT KEY \"message:42:evidence\"\n  SET FIELDS { evidence_class: \"user_statement\", payload: \"I prefer dark mode\" }\n}"
+  ],
+  "cases": [
+    {
+      "name": "a Proposition carries no confidence",
+      "command": "FIND(?p.confidence) WHERE { ?p PROPOSITION (?s, \"prefers\", ?o) }",
+      "expect": {
+        "result": [
+          null
+        ]
+      },
+      "vectors": [
+        "CORE-001"
+      ]
+    },
+    {
+      "name": "the Assertion about it does",
+      "command": "FIND(?a.confidence, ?a.stance, ?a.mode) WHERE { ?a ASSERTION {} }",
+      "expect": {
+        "result": [
+          [
+            0.9,
+            "support",
+            "stated"
+          ]
+        ]
+      },
+      "vectors": [
+        "CORE-006"
+      ]
+    },
+    {
+      "name": "a local predicate name is persisted as its exact symbol",
+      "command": "FIND(?p.predicate_ref) WHERE { ?p PROPOSITION (?s, \"prefers\", ?o) }",
+      "expect": {
+        "result": [
+          "kip://profiles/cognitive-memory@2.0.0/prefers"
+        ]
+      }
+    },
+    {
+      "name": "a Concept's type is persisted as its exact symbol",
+      "command": "FIND(?c.schema_ref) WHERE { ?c CONCEPT {name: \"Alice\"} }",
+      "expect": {
+        "result": [
+          "kip://profiles/cognitive-memory@2.0.0/Person"
+        ]
+      }
+    },
+    {
+      "name": "ENSURE resolves the same tuple rather than duplicating it",
+      "command": "FIND(COUNT(?p)) WHERE { ?p PROPOSITION (?s, \"prefers\", ?o) }",
+      "expect": {
+        "result": [
+          1
+        ]
+      },
+      "vectors": [
+        "CORE-002"
+      ]
+    },
+    {
+      "name": "a new element starts at version 1",
+      "command": "FIND(?c._system.version) WHERE { ?c CONCEPT {name: \"Alice\"} }",
+      "expect": {
+        "result": [
+          1
+        ]
+      }
+    },
+    {
+      "name": "an unknown type is refused, never invented",
+      "command": "CREATE CONCEPT ?x { TYPE \"Spaceship\" NAME \"Enterprise\" }",
+      "expect": {
+        "error": "SchemaSymbolNotFound"
+      }
+    },
+    {
+      "name": "an Assertion's epistemic payload cannot be edited",
+      "command": "UPDATE ?a SET FIELDS { confidence: 0.1 } WHERE { ?a ASSERTION {} }",
+      "expect": {
+        "error": "InvalidSyntax"
+      },
+      "vectors": [
+        "CORE-007"
+      ]
+    },
+    {
+      "name": "a reference slot carries the name and the shape the Specification fixes",
+      "command": "FIND(?a.proposition.id, ?a.asserted_by.id) WHERE { ?a ASSERTION {} }",
+      "expect": {
+        "result": [
+          [
+            "P:<1>",
+            "C:<2>"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "a citation is {id, role}, under the slot named evidence",
+      "command": "FIND(?a.evidence) WHERE { ?a ASSERTION {} }",
+      "expect": {
+        "result": [
+          [
+            {
+              "id": "E:<1>",
+              "role": "support"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "a Proposition carries no author-writable attribute bag",
+      "command": "UPDATE ?p SET ATTRIBUTES { note: \"about the tuple\" } WHERE { ?p PROPOSITION (?s, \"prefers\", ?o) }",
+      "expect": {
+        "error": "ImmutableField"
+      }
+    },
+    {
+      "name": "a stance the Core Package does not name is refused, bound parameter or not",
+      "command": "MUTATE {\n  ENSURE PROPOSITION ?p (:alice, \"prefers\", :dark)\n  CREATE ASSERTION ?a {\n    SET FIELDS { proposition: ?p, asserted_by: :alice, stance: :stance, mode: \"stated\" }\n  }\n}",
+      "params": {
+        "alice": {
+          "id": "C-1"
+        },
+        "dark": {
+          "id": "C-2"
+        },
+        "stance": "maybe"
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "confidence is epistemic support in [0, 1] at both ends",
+      "command": "MUTATE {\n  ENSURE PROPOSITION ?p (:alice, \"prefers\", :dark)\n  CREATE ASSERTION ?a {\n    SET FIELDS { proposition: ?p, asserted_by: :alice, stance: \"support\", mode: \"stated\", confidence: :c }\n  }\n}",
+      "params": {
+        "alice": {
+          "id": "C-1"
+        },
+        "dark": {
+          "id": "C-2"
+        },
+        "c": -0.5
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "an Evidence citation role comes from the Core registry",
+      "command": "MUTATE {\n  ENSURE PROPOSITION ?p (:alice, \"prefers\", :dark)\n  CREATE EVIDENCE ?e { SET FIELDS { evidence_class: \"user_statement\", payload: \"x\" } }\n  CREATE ASSERTION ?a {\n    SET FIELDS { proposition: ?p, asserted_by: :alice, stance: \"support\", mode: \"stated\" }\n    SET STRUCTURAL { (\"evidence\", ?e) { role: :role } }\n  }\n}",
+      "params": {
+        "alice": {
+          "id": "C-1"
+        },
+        "dark": {
+          "id": "C-2"
+        },
+        "role": "vouches"
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "and so does an Activity status, whether it is written or bound",
+      "command": "CREATE ACTIVITY ?a { SET FIELDS {activity_class: \"test\", status: :s} }",
+      "params": {
+        "s": "banana"
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "a CLIENT KEY makes a resend a retry rather than a second creation",
+      "command": "FIND(COUNT(?e)) WHERE { ?e EVIDENCE {evidence_class: \"user_statement\"} }",
+      "expect": {
+        "result": [
+          2
+        ]
+      }
+    }
+  ],
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://conformance/options",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Option": {
+            "kind": "ConceptType",
+            "description": "A preference option used by these fixtures. A real Space types each option by its kind (Profile §5.5, §7), because prefers partitions by the option's Concept Type; one catch-all type is one partition."
+          }
+        }
+      }
+    }
+  ]
+}

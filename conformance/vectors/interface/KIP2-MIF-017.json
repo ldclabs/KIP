@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MIF-017",
+  "title": "A misrecording is repaired, never an actor withdrawal",
+  "description": "The Brain recorded that Alice is vegetarian from a message that said nothing of the kind. Revise with change_kind misrecorded. Where recording_repair is advertised the extraction is invalidated through recording repair and recall no longer states it; Alice's history shows no retraction or supersession. Where it is not advertised the request fails UnsupportedCapability (or is quarantined under a quarantine grant) and is never mapped to a correction.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Core",
+    "KIP-Runtime"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "core-basic",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Memory-Interface.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_interface_scenario",
+      "args": {
+        "id": "KIP2-MIF-017"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/actor_withdrawal_recorded",
+      "operator": "equals",
+      "expected": false
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/recall_states_misrecording",
+      "operator": "equals",
+      "expected": false
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/without_capability",
+      "operator": "equals",
+      "expected": "UnsupportedCapability"
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/source_bytes_preserved",
+      "operator": "equals",
+      "expected": true
+    }
+  ]
+}

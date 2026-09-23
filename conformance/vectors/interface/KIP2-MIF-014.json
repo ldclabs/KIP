@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MIF-014",
+  "title": "A correction changes the answer",
+  "description": "Observe \"my timezone is +08:00\", then revise with change_kind correction (\"I meant +07:00\"). Recall answers +07:00; the old Assertion is superseded by the same actor and remains in history; FOR TIME queries also answer +07:00 because the old claim was never true.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Core",
+    "KIP-Runtime"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "core-basic",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Memory-Interface.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_interface_scenario",
+      "args": {
+        "id": "KIP2-MIF-014"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/answer",
+      "operator": "equals",
+      "expected": "+07:00"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/old_lifecycle",
+      "operator": "equals",
+      "expected": "superseded"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/historical_answer",
+      "operator": "equals",
+      "expected": "+07:00"
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/supersession_count",
+      "operator": "equals",
+      "expected": 1
+    }
+  ]
+}

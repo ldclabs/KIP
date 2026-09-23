@@ -5,7 +5,7 @@ import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import { parseCanonicalJson, parse, lower } from '../dist/index.js'
 import { IntakeLedger, advanceProgress, processingBarrier, recallEligibility, scopeMatches,
-  validateBundles, channels } from '../../../conformance/reference/memory-interface.mjs'
+  validateBundles, channels, routeRevision, attentionAfter } from '../../../conformance/reference/memory-interface.mjs'
 
 const base = new URL('../../../', import.meta.url)
 const json = async path => parseCanonicalJson(await readFile(new URL(path, base), 'utf8'))
@@ -14,7 +14,7 @@ const ajv = new Ajv2020({ strict: false, allErrors: true })
 addFormats(ajv)
 for (const name of await readdir(new URL('schemas/', base)))
   if (name.endsWith('.json')) ajv.addSchema(await json('schemas/' + name))
-const validate = name => ajv.getSchema('urn:kip:2.0:2026-09-23:schema:memory#/$defs/' + name)
+const validate = name => ajv.getSchema('urn:kip:2.0:schema:memory#/$defs/' + name)
 const context = { principal: 'alice-runtime', space_id: 'personal', accepted_seq: 10 }
 const source = { ref: 'source-77', identity: 'event-77', digest: 'sha256:' + 'a'.repeat(64) }
 const request = { kip_memory: '2.0', operation: 'observe', idempotency_key: 'observe:77',
@@ -230,7 +230,7 @@ test('MIF: portable binding vectors are independently asserted and schema-valid'
   vectorAjv.addSchema(vectorSchema)
   vectorAjv.addSchema(reportSchema)
   const files = (await readdir(new URL('conformance/vectors/interface/', base))).filter(name => name.endsWith('.json'))
-  assert.equal(files.length, 12)
+  assert.equal(files.length, 20)
   const ids = new Set()
   for (const name of files) {
     const vector = await json('conformance/vectors/interface/' + name)
@@ -265,4 +265,37 @@ test('MIF: an after barrier cannot silently move a requested historical snapshot
   assert.equal(processingBarrier(ledger, context, [receipt.receipt_ref], 13, { fixed: true }).satisfied, true)
   assert.ok(validate('Request')({ kip_memory: '2.0', operation: 'recall',
     input: { query: 'What did we believe then?', time: { as_of_seq: 13, valid_at: '2026-09-06T00:00:00.000Z' } } }))
+})
+
+test('MIF-014/015/017: each revision kind keeps its own history and misrecorded never becomes a correction', () => {
+  assert.equal(routeRevision('correction').history, 'supersession')
+  assert.deepEqual(routeRevision('world_change'), { history: 'succession', assertions: 1, actor_withdrawal: false })
+  assert.equal(routeRevision('misrecorded', ['recording_repair']).history, 'recording_repair')
+  assert.equal(routeRevision('misrecorded', [], ['quarantine']).status, 'partial')
+  assert.throws(() => routeRevision('misrecorded'), /UnsupportedCapability/)
+  for (const kind of ['correction', 'world_change', 'misrecorded', 'unspecified'])
+    assert.ok(validate('Request')({ kip_memory: '2.0', operation: 'revise', idempotency_key: 'revise:' + kind,
+      input: { source_ref: 'source-1', change_kind: kind } }), JSON.stringify(validate('Request').errors))
+  assert.equal(validate('Request')({ kip_memory: '2.0', operation: 'revise', idempotency_key: 'r',
+    input: { source_ref: 'source-1', change_kind: 'retract_for_them' } }), false)
+})
+
+test('MIF-019: attention recall is read-only, cursor-ordered and repeatable', () => {
+  const items = [
+    { ref: 'watch-2', kind: 'watch_fired', summary: 'No reply from Bob by Thursday', raised_seq: 41, target_refs: ['commitment-7'] },
+    { ref: 'watch-1', kind: 'commitment_due', summary: 'Send the report', raised_seq: 40, target_refs: ['commitment-3'] }]
+  const before = JSON.stringify(items)
+  const first = attentionAfter(items)
+  assert.deepEqual(first.attention.map(i => i.ref), ['watch-1', 'watch-2'])
+  assert.equal(first.attention_cursor, 'attention:41')
+  assert.deepEqual(attentionAfter(items, first.attention_cursor).attention, [])
+  assert.equal(JSON.stringify(items), before)
+  assert.ok(validate('Request')({ kip_memory: '2.0', operation: 'recall',
+    input: { mode: 'attention', attention_cursor: first.attention_cursor } }), JSON.stringify(validate('Request').errors))
+  assert.equal(validate('Request')({ kip_memory: '2.0', operation: 'recall', input: { mode: 'answer' } }), false)
+  const briefing = { summary: 'Attention', items: [], uncertainties: [], basis_ref: 'basis-1',
+    coverage: { complete: true, scope: {}, channels: Object.fromEntries(channels.map(c => [c, 'complete'])),
+      pending_receipts: [], unverified_preconditions: [], action_eligible: true },
+    after: [], attention: first.attention, attention_cursor: first.attention_cursor }
+  assert.ok(validate('Briefing')(briefing), JSON.stringify(validate('Briefing').errors))
 })

@@ -8,7 +8,7 @@
     "id": "schema_env:memory-v2",
     "packages": [
       "kip://test/core-domain@1.0.0",
-      "kip://profiles/cognitive-memory@2.2.0"
+      "kip://profiles/cognitive-memory@2.0.0"
     ],
     "version": 18
   },

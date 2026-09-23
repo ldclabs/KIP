@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "id": "KIP2-MEM-004",
   "title": "Comparable baselines and missingness",
-  "description": "Use the 90\u219280 / 40\u219230, aggregate 45\u219275 example in the machine-readable fixture.\nA fixed-weight stratified rule returns not_improved, never adopted. Missing strata,\nmissing observer assurance, failed comparability or uncertainty criteria produce\ninsufficient. Unlinked family outcomes are not automatically controls. Account for\nall enrolled attempts and declared missingness before computing success rates.",
+  "description": "Use the 90→80 / 40→30, aggregate 45→75 example in the machine-readable fixture.\nA fixed-weight stratified rule returns not_improved, never adopted. Missing strata,\nmissing observer assurance, failed comparability or uncertainty criteria produce\ninsufficient. Unlinked family outcomes are not automatically controls. Account for\nall enrolled attempts and declared missingness before computing success rates.",
   "level": "MUST",
   "class": "black_box",
   "profiles": [
@@ -13,7 +13,7 @@
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "brain/KIP-2.0-Validated-Learning.md#6-comparable-learning"
   ],
   "steps": [
     {

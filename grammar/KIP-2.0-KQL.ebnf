@@ -182,6 +182,7 @@ where_clause     = concept_pattern
                  | structural_pattern
                  | belief_slot_pattern
                  | belief_pattern
+                 | search_pattern
                  | filter_clause
                  | not_clause
                  | optional_clause
@@ -212,6 +213,28 @@ belief_pattern   = variable, "BELIEF", "(",
 belief_slot_pattern
                  = variable, "BELIEF", "SLOT", "(",
                    term, ",", predicate_atom, ")" ;
+
+(* A Search Pattern binds each hit of associative retrieval (Spec §43.8).
+   Its LIMIT bounds the candidate set and is required; it takes no CURSOR
+   and no AS OF (the enclosing FIND supplies both). A Search Pattern inside
+   NOT is a semantic error: a miss never proves absence (Spec §66.6). *)
+search_pattern   = variable, "SEARCH", search_kind, scalar_value,
+                   [ "WITH", "TYPE", scalar_value ],
+                   [ "WITH", "PREDICATE", scalar_value ],
+                   [ "MODE", search_mode ],
+                   [ "THRESHOLD", scalar_value ],
+                   limit_clause ;
+
+search_kind      = "CONCEPT"
+                 | "PROPOSITION"
+                 | "ASSERTION"
+                 | "EVIDENCE"
+                 | "ACTIVITY" ;
+
+search_mode      = '"keyword"'
+                 | '"semantic"'
+                 | '"hybrid"'
+                 | parameter ;
 
 filter_clause    = "FILTER", "(", expression, ")" ;
 not_clause       = "NOT", where_block ;

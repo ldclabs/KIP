@@ -1,22 +1,10 @@
-# KIP 2.0 Cognitive Consistency Conformance
+# KIP 2.0 Cognitive Conformance
 
-**Normative companion, 2.0-draft.** These vectors bind the features established by
-`KIP-2.0-Cognitive-Consistency.md`. MEM-001/007/011/012 extend Core/Epistemic/artifact
-requirements; remaining memory vectors bind the standard Profile. MEM-008/009
-are OPTIONAL until identity_repair/durable_brain_runtime is advertised, then MUST.
-A missing required Profile dependency is a failed claim, not a passing skip.
+**Normative companion, 2.0-draft.** These vectors bind cross-cutting Core and Profile contracts: final belief and ProjectionBasis (Specification §21.11–§21.13), world time (§25.2–§25.5), dependency validity (§57.6), identity repair (§11.5), semantic erasure (§60.7), the Cognitive Memory Profile, and the two `brain/` companions (Validated Learning, Brain Runtime). MEM-001/007/011/012 and MEM-026–029 extend Core/Epistemic/artifact requirements; the remaining vectors bind the standard Profile. MEM-008 and MEM-009 are OPTIONAL until `identity_repair` or `durable_brain_runtime` is advertised, then MUST. A missing required Profile dependency is a failed claim, not a passing skip.
 
-The 25 vectors below supplement the existing 331. The original vectors remain
-binding except where their acceptance text is explicitly revised in the parent
-suite. Historical test reports do not attest to this revision.
+The 29 vectors below supplement the parent suite. The original vectors remain binding except where their acceptance text is explicitly revised in the parent suite. Historical test reports do not attest to this revision.
 
-`vectors/cognitive-contracts.json` contains independent oracle cases and valid
-record values; `vectors/memory/*.json` contains portable engine adapter vectors.
-The JavaScript oracles and the Python lifecycle model are test models, not engines.
-The runner reports partial-suite coverage, never full-profile conformance from this
-subset. An adapter's exercise methods MUST run the scenario below through the
-actual engine's mutations/reads/control binding, retain raw receipts/responses,
-and independently inspect durable postconditions; they cannot simply call an oracle.
+`vectors/cognitive-contracts.json` contains independent oracle cases and valid record values; `vectors/memory/*.json` contains portable engine adapter vectors. The JavaScript oracles and the Python models are test models, not engines. The runner reports partial-suite coverage, never full-profile conformance from this subset. An adapter's exercise methods MUST run the scenario below through the actual engine's mutations, reads and control binding, retain raw receipts and responses, and independently inspect durable postconditions; they cannot simply call an oracle.
 
 ## KIP2-MEM-001 — Single-candidate and slot conflict agreement
 
@@ -60,7 +48,7 @@ all enrolled attempts and declared missingness before computing success rates.
 Retain TrialRecord T1 and EvaluationRecord E1; re-trial the same revision as T2.
 A late T1 outcome cannot fill T2 quota. New outcome correction changes only new
 aggregates/evaluations. Replaying E1 uses its retained exact rule, parameters,
-baseline, samples and cutoff, not the mutable TrialState pointer. Missing or
+baseline, samples and cutoff, not the Skill's `current_trial` pointer. Missing or
 mismatched replay bytes prevent a recomputability claim. Ordinary current reads
 suffice while the replay artifact is retained; no historical_reads dependency.
 
@@ -198,12 +186,13 @@ same invariants. A valid alternative algorithm is not rejected for differing
 weights. An algorithm failing comparability/coverage cannot label its output as
 validated improvement. Cognitive utility is never an execution Grant.
 
-## KIP2-MEM-020 — Mutable cache planes are all guarded
+## KIP2-MEM-020 — Every written mutable plane of a verdict is guarded
 
-Race a verdict with a GradingState/TrialState/MnemonicState update. A verdict that
-read-modify-writes those planes guards all of them and either commits once or
-refreshes on conflict. Guarding only ATTRIBUTES cannot justify overwriting a
-concurrently changed grading or utility cache. No partial verdict/status commit.
+Race a verdict with a concurrent status, current_evaluation or MnemonicState update.
+A verdict that read-modify-writes those planes guards all of them and either commits
+once or refreshes on conflict. The GradingState view is computed and can never be
+written, so no verdict can overwrite a concurrently changed grade. No partial
+verdict/status commit.
 
 ## KIP2-MEM-021 — Record topology and facet attachment enforcement
 
@@ -228,7 +217,7 @@ adopted Skill that would violate it. With a small briefing budget, the constrain
 must survive, or coverage/action eligibility must say incomplete/false. Candidate
 exposure alone updates no utility. Test the constraint without explicitly asking
 about it in the final user question.
-In procedural recall, relevant proposed/trialed Skills with no GradingState remain
+In procedural recall, relevant proposed/trialed Skills with no evaluation remain
 visible as unproven candidates. Grades from another revision or an unavailable
 evaluation must not be borrowed; a claimed adopted Skill lacking matching validated
 evidence is surfaced as unverifiable, never a validated recommendation.
@@ -248,3 +237,19 @@ A Brain evaluation report states budgets, model/tool versions, seeds, holdout an
 ablations, outcome uncertainty, cost and negative transfer. Without real runs,
 status is not_run, never pass or a fabricated score. Different benchmark tasks
 measure recall, application, reliability and learning separately.
+
+## KIP2-MEM-026 — A world change is one Assertion
+
+Alice states `+08:00` from 2026-01-01, then `+01:00` from 2026-09-01; both open-ended, both by Alice, no supersession. At 2026-09-20 the slot accepts `+01:00` and the old value is outside its effective interval; at 2026-06-01 it accepts `+08:00`. Both Assertions stay `active` and nothing is recorded as retracted or superseded. Repeat with present-tense statements carrying `{latest: stated_at}` bounds: the current value is certain, the window between the statements is `uncertain` (`temporal_indeterminate`). A second actor's later value never ends Alice's (the slot is `contested` under the structural baseline). Retracting the successor restores the predecessor's open end. A late historical value that starts earlier and ends before now never displaces the current one. Repeating the current value never opens a gap. An ended value — the same actor's `reject` stance from the end date — makes the value `rejected` after it and leaves it `accepted` before. Two `inferred` claims without a written `from` never succeed one another: under the structural baseline they stay `contested`, under `kip:memory-default` the newer prevails by recency with the older still eligible and `outranked`; an inference that writes its `from` takes part but cannot end one that does not. A claim with no `from` is `uncertain` before it was made. Oracle: MEM-026a–n. Model: `formal/temporal`.
+
+## KIP2-MEM-027 — Coarse time is never an invented instant
+
+An interval written with time bounds (`{earliest, latest}`) is inside, outside or indeterminate at an instant. A candidate whose only eligible support is indeterminate is `uncertain` with `temporal_indeterminate`, never `accepted`. A bound with `earliest` after `latest`, a bound with neither member, and an interval whose earliest possible start is not before its latest possible end are rejected. Oracle: MEM-027a.
+
+## KIP2-MEM-028 — Preference among options of one kind
+
+`prefers` declares `functional_by: "object_type"`. Alice prefers `dark` (a ColorScheme) from 2026-01-01, `light` (a ColorScheme) from 2026-09-01 and `vim` (an Editor) from 2026-02-01. At 2026-09-20 `light` and `vim` are accepted and `dark` is outside; no conflict is reported between the ColorScheme and the Editor. Options are typed by their kind, never by a catch-all type. A package declaring both `functional: true` and `functional_by`, or `functional_by` on a Literal-valued Predicate, fails validation. Oracle: MEM-028a.
+
+## KIP2-MEM-029 — The standard memory policy
+
+Under `kip:memory-default`, a task-scoped `tabs` prevails over a general `spaces` in a request whose context includes the task; `spaces` is `uncertain` with reason `outranked`, and the precedence rule is disclosed. Under the structural baseline the same state is `contested`. Alice's own statement of her timezone prevails over Bob's, even when Bob's is newer; an observation by a device is never outranked by Alice's statement through rule 2, so with equal start keys that conflict stays `contested`. A newer observation prevails over older testimony by `recency`, as does the newer of two observations, and a late-recorded old claim never wins because recency compares start keys. Two runtimes return the same statuses, `leading` and ledger for the same visible state. Oracle: MEM-029a–g.

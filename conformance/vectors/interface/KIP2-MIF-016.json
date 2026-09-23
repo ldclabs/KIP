@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MIF-016",
+  "title": "A preference changes within its kind",
+  "description": "Observe \"I prefer dark mode\" and \"I use vim\", then \"I prefer light mode now\". Recall reports light mode and vim as current preferences; dark mode is a past preference, not a contradiction, and the editor preference is untouched.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Core",
+    "KIP-Runtime"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "core-basic",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Memory-Interface.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_interface_scenario",
+      "args": {
+        "id": "KIP2-MIF-016"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/current_preferences",
+      "operator": "equals",
+      "expected": [
+        "light",
+        "vim"
+      ]
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/contested_count",
+      "operator": "equals",
+      "expected": 0
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/retracted_count",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

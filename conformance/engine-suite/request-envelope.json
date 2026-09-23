@@ -1,0 +1,377 @@
+{
+  "name": "request-envelope",
+  "description": "Two things the envelope decides rather than the command (§71, §26, §33). `ingest` mints Evidence from the payload the transport carried, so the observation never passes through model-generated command text — the fidelity risk §88.12 names, where a model retyping what it saw truncates or paraphrases it and the record then says the source said something it did not. `execution.idempotency_key` makes a lost response recoverable: a timeout is not an abort, so a resend replays the outcome the first attempt produced rather than writing a second time. Both are envelope contracts, so both are pinned through the envelope. `requires` is the third: §67.4 fixes the capability names, so a fail-fast precondition written once must get the same answer from either engine — including for an entry whose value is a detail object rather than a bare `true`, and for a name no registry knows, which fails exactly as an unsupported one does. And an `ingest` block is minted inside the request's transaction, so a request that carries only reads opens no scope to mint into: refused, because minting nothing while answering `succeeded` leaves the caller believing the observation was recorded. And `extensions` is the fourth: a block marked `critical` is a precondition the runtime must honor or refuse, never one it may silently drop.",
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?alice { TYPE \"Person\" NAME \"Alice\" SET FIELDS {canonical_id: \"urn:x:alice\"} }\n  CREATE CONCEPT ?dark { TYPE \"Option\" NAME \"Dark\" }\n  ENSURE PROPOSITION ?p (?alice, \"prefers\", ?dark)\n}"
+  ],
+  "cases": [
+    {
+      "name": "an ingested payload reaches a command without passing through its text",
+      "command": "CREATE ASSERTION ?a {\n  SET FIELDS { proposition: \"P-1\", asserted_by: \"C-1\", stance: \"support\", mode: \"observed\" }\n  SET STRUCTURAL { (\"evidence\", :msg) {role: \"support\"} }\n}",
+      "envelope": {
+        "ingest": {
+          "evidence": [
+            {
+              "key": "msg",
+              "evidence_class": "user_statement",
+              "payload": "I prefer   dark mode.",
+              "media_type": "text/plain",
+              "source_actor": {
+                "id": "C-1"
+              }
+            }
+          ]
+        }
+      },
+      "expect": {},
+      "vectors": [
+        "RT-031"
+      ]
+    },
+    {
+      "name": "and arrives byte for byte, whitespace and all",
+      "command": "FIND(?e.payload.inline) WHERE { ?e EVIDENCE {} }",
+      "expect": {
+        "result": [
+          "I prefer   dark mode."
+        ]
+      },
+      "vectors": [
+        "RT-031"
+      ]
+    },
+    {
+      "name": "the source actor is resolved to something a reader can follow",
+      "command": "FIND(?c.name) WHERE { STRUCTURAL (?e, \"source\", ?c) ?c CONCEPT {} }",
+      "expect": {
+        "result": [
+          "Alice"
+        ]
+      }
+    },
+    {
+      "name": "an ingest key a request parameter already claims is refused",
+      "command": "CREATE CONCEPT ?c { TYPE \"Person\" NAME \"Bob\" }",
+      "params": {
+        "msg": "a plain value"
+      },
+      "envelope": {
+        "ingest": {
+          "evidence": [
+            {
+              "key": "msg",
+              "evidence_class": "user_statement",
+              "payload": "hi"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "error": "InvalidRequestEnvelope"
+      }
+    },
+    {
+      "name": "an ingest entry that names neither a payload nor a handle is refused",
+      "command": "CREATE CONCEPT ?c { TYPE \"Person\" NAME \"Bob\" }",
+      "envelope": {
+        "ingest": {
+          "evidence": [
+            {
+              "key": "msg",
+              "evidence_class": "user_statement"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "error": "InvalidRequestEnvelope"
+      }
+    },
+    {
+      "name": "a source actor that resolves to nothing is refused rather than stored as a name",
+      "command": "CREATE CONCEPT ?c { TYPE \"Person\" NAME \"Bob\" }",
+      "envelope": {
+        "ingest": {
+          "evidence": [
+            {
+              "key": "msg",
+              "evidence_class": "user_statement",
+              "payload": "hi",
+              "source_actor": {
+                "id": "C-999"
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "error": "NotFoundOrNotVisible"
+      }
+    },
+    {
+      "name": "a first write under an idempotency key commits",
+      "command": "CREATE CONCEPT ?c { TYPE \"Person\" NAME \"Cass\" }",
+      "envelope": {
+        "execution": {
+          "mode": "independent",
+          "idempotency_key": "key-1"
+        }
+      },
+      "expect": {}
+    },
+    {
+      "name": "a resend under the same key replays rather than writing again",
+      "command": "CREATE CONCEPT ?c { TYPE \"Person\" NAME \"Cass\" }",
+      "envelope": {
+        "execution": {
+          "mode": "independent",
+          "idempotency_key": "key-1"
+        }
+      },
+      "expect": {},
+      "vectors": [
+        "RT-015",
+        "TX-015"
+      ]
+    },
+    {
+      "name": "so there is one Cass, not two",
+      "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {type: \"Person\", name: \"Cass\"} }",
+      "expect": {
+        "result": [
+          1
+        ]
+      }
+    },
+    {
+      "name": "a different key is a different write, which is why the caller chooses it",
+      "command": "CREATE CONCEPT ?c { TYPE \"Person\" NAME \"Cass\" }",
+      "envelope": {
+        "execution": {
+          "mode": "independent",
+          "idempotency_key": "key-2"
+        }
+      },
+      "expect": {}
+    },
+    {
+      "name": "and that one landed",
+      "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {type: \"Person\", name: \"Cass\"} }",
+      "expect": {
+        "result": [
+          2
+        ]
+      }
+    },
+    {
+      "name": "the same key on different work is a caller bug, not a retry",
+      "command": "CREATE CONCEPT ?x { TYPE \"Person\" NAME \"Someone Else\" }",
+      "envelope": {
+        "execution": {
+          "mode": "independent",
+          "idempotency_key": "key-1"
+        }
+      },
+      "expect": {
+        "error": "IdempotencyConflict"
+      },
+      "vectors": [
+        "TX-014"
+      ]
+    },
+    {
+      "name": "so the key still names the work it was spent on",
+      "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {type: \"Person\", name: \"Someone Else\"} }",
+      "expect": {
+        "result": [
+          0
+        ]
+      }
+    },
+    {
+      "name": "an isolation this engine cannot provide is refused, never accepted by ignoring it",
+      "command": "FIND(?c.name) WHERE { ?c CONCEPT {type: \"Person\"} } LIMIT 1",
+      "envelope": {
+        "execution": {
+          "mode": "independent",
+          "isolation": "snapshot"
+        }
+      },
+      "expect": {
+        "error": "UnsupportedIsolation"
+      }
+    },
+    {
+      "name": "and the one it does provide is accepted",
+      "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {type: \"Person\"} }",
+      "envelope": {
+        "execution": {
+          "mode": "independent",
+          "isolation": "serializable"
+        }
+      },
+      "expect": {
+        "result": [
+          3
+        ]
+      }
+    },
+    {
+      "name": "a capability name from the shared vocabulary answers rather than reporting itself unknown",
+      "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {type: \"Person\"} }",
+      "envelope": {
+        "requires": {
+          "version_planes": true,
+          "transition": true,
+          "symbol_lineage": true
+        }
+      },
+      "expect": {
+        "result": [
+          3
+        ]
+      }
+    },
+    {
+      "name": "a source actor is an element reference, never a name: a bare string is refused at the envelope",
+      "command": "CREATE CONCEPT ?c { TYPE \"Person\" NAME \"Bob\" }",
+      "envelope": {
+        "ingest": {
+          "evidence": [
+            {
+              "key": "msg",
+              "evidence_class": "user_statement",
+              "payload": "hi",
+              "source_actor": "urn:x:alice"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "error": "InvalidRequestEnvelope"
+      }
+    },
+    {
+      "name": "a supported capability lets the request through",
+      "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {type: \"Person\"} }",
+      "envelope": {
+        "requires": {
+          "change_stream": true
+        }
+      },
+      "expect": {
+        "result": [
+          3
+        ]
+      },
+      "vectors": [
+        "RT-008"
+      ]
+    },
+    {
+      "name": "an entry that carries a detail object still answers as supported",
+      "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {type: \"Person\"} }",
+      "envelope": {
+        "requires": {
+          "idempotency_retention": true
+        }
+      },
+      "expect": {
+        "result": [
+          3
+        ]
+      }
+    },
+    {
+      "name": "a capability the engine does not have is refused before the command runs",
+      "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {type: \"Person\"} }",
+      "envelope": {
+        "requires": {
+          "semantic_search": true
+        }
+      },
+      "expect": {
+        "error": "UnsupportedCapability"
+      }
+    },
+    {
+      "name": "a name no registry knows fails the same way, never by passing unrecognized",
+      "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {type: \"Person\"} }",
+      "envelope": {
+        "requires": {
+          "telepathy": true
+        }
+      },
+      "expect": {
+        "error": "UnsupportedCapability"
+      }
+    },
+    {
+      "name": "an ingest block on a read-only request is refused, never silently dropped",
+      "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {type: \"Person\"} }",
+      "envelope": {
+        "ingest": {
+          "evidence": [
+            {
+              "key": "msg",
+              "evidence_class": "user_statement",
+              "payload": "I prefer dark mode."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "error": "InvalidRequestEnvelope"
+      }
+    },
+    {
+      "name": "a critical extension this engine does not implement fails the request rather than being ignored",
+      "command": "FIND(?c.name) WHERE { ?c CONCEPT {name: \"Alice\"} }",
+      "envelope": {
+        "extensions": {
+          "acme/redaction": {
+            "critical": true,
+            "mode": "strict"
+          }
+        }
+      },
+      "expect": {
+        "error": "UnsupportedCapability"
+      }
+    },
+    {
+      "name": "and a non-critical one is carried past without effect",
+      "command": "FIND(?c.name) WHERE { ?c CONCEPT {name: \"Alice\"} }",
+      "envelope": {
+        "extensions": {
+          "acme/tracing": {
+            "critical": false,
+            "trace_id": "t-1"
+          }
+        }
+      },
+      "expect": {
+        "result": [
+          "Alice"
+        ]
+      }
+    }
+  ],
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://conformance/options",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Option": {
+            "kind": "ConceptType",
+            "description": "A preference option used by these fixtures. A real Space types each option by its kind (Profile §5.5, §7), because prefers partitions by the option's Concept Type; one catch-all type is one partition."
+          }
+        }
+      }
+    }
+  ]
+}

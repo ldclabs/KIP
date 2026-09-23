@@ -1,0 +1,66 @@
+{
+  "format": "KIP-Engine-Suite",
+  "version": "2.0-draft",
+  "description": "Cross-engine conformance cases: one command, one expected result or error. Imported from the suite both reference engines run, then kept here as the canonical executable suite.",
+  "source": {
+    "repository": "https://github.com/ldclabs/anda-db",
+    "path": "fixtures/kip-conformance-2.0",
+    "head": "e54e927c6c754967000b7b9619e3f53b39ead4fa",
+    "fixtures_commit": "5901527bf06eec111bc97b6656079b2522d85b99",
+    "verified_by": [
+      "rs/anda_cognitive_nexus tests/conformance.rs",
+      "ts/kip-do test/conformance.test.ts"
+    ],
+    "verified_against": "the draft before this revision; engines have not yet run the revised cases or the pending fixture"
+  },
+  "fixtures": 22,
+  "cases": 386,
+  "revised_on_import": [
+    {
+      "fixture": "core-truth-neutrality.json",
+      "change": "package refs renamed from cognitive-memory@2.1.0 to cognitive-memory@2.0.0 (draft packages are not retained)"
+    },
+    {
+      "fixture": "history.json",
+      "change": "package refs renamed from cognitive-memory@2.1.0 to cognitive-memory@2.0.0 (draft packages are not retained)"
+    },
+    {
+      "fixture": "meta-shapes.json",
+      "change": "package refs renamed from cognitive-memory@2.1.0 to cognitive-memory@2.0.0 (draft packages are not retained)"
+    },
+    {
+      "fixture": "meta-shapes.json",
+      "case": 1,
+      "name": "the row carries both names because they answer different questions",
+      "change": "expected facet list regenerated from the current package: TrialState and DerivationState removed, GradingState is a computed view (Spec §18.2)"
+    },
+    {
+      "fixtures": [
+        "core-truth-neutrality.json",
+        "derivation.json",
+        "epistemic-projection.json",
+        "governance.json",
+        "history.json",
+        "lifecycle.json",
+        "merge-identity.json",
+        "mutation-selection.json",
+        "query-scope-contracts.json",
+        "reads.json",
+        "request-envelope.json",
+        "retention.json",
+        "structural-core-fields.json",
+        "transactions.json"
+      ],
+      "change": "option Concepts typed Option through an inline kip://conformance/options package instead of the removed Preference type (Profile §5.5); the fixtures' options remain one partition, as before"
+    },
+    {
+      "fixture": "cognitive-consistency.json",
+      "name": "until is excluded exactly at the boundary",
+      "change": "expected status insufficient instead of rejected: an Assertion outside its effective interval contributes nothing, and rejected is never produced from absent support (Spec §14.3, §21.5)"
+    }
+  ],
+  "not_yet_covered": "world-time.json pins this revision's new behavior (temporal succession, the missing-from default, time bounds, functional_by, kip:memory-default with recency, non-succession of inferences, DEFINE, the Search Pattern) and is marked pending_engine: written from the Specification and the oracle cases, verified by no engine yet. The exposure log and attention recall have oracle and Memory Interface vectors only.",
+  "pending_engine": [
+    "world-time.json"
+  ]
+}

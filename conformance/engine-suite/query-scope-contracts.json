@@ -1,0 +1,244 @@
+{
+  "name": "query-scope-contracts",
+  "description": "KIP 2.0 §§42.4–45: correlated scopes, independent union, complete-solution identity, null logic and empty aggregates, exercised identically by both engines.",
+  "setup": [
+    "MUTATE { CREATE CONCEPT ?alice {TYPE \"Person\" NAME \"Alice\"} CREATE CONCEPT ?bob {TYPE \"Person\" NAME \"Bob\"} CREATE CONCEPT ?tea {TYPE \"Option\" NAME \"Tea\"} CREATE CONCEPT ?coffee {TYPE \"Option\" NAME \"Coffee\"} ENSURE PROPOSITION ?t (?alice,\"prefers\",?tea) ENSURE PROPOSITION ?c (?alice,\"prefers\",?coffee) }"
+  ],
+  "cases": [
+    {
+      "name": "NOT filters each incoming binding",
+      "command": "FIND(?p.name) WHERE { ?p {type:\"Person\"} NOT { FILTER(?p.name == \"Alice\") } }",
+      "expect": {
+        "result": [
+          "Bob"
+        ]
+      }
+    },
+    {
+      "name": "OPTIONAL preserves Bob and every compatible Alice match",
+      "command": "FIND(?p.name, ?t.name) WHERE { ?p {type:\"Person\"} OPTIONAL { FILTER(?p.name == \"Alice\") (?p,\"prefers\",?t) } }",
+      "expect": {
+        "result": [
+          [
+            "Alice",
+            "Tea"
+          ],
+          [
+            "Alice",
+            "Coffee"
+          ],
+          [
+            "Bob",
+            null
+          ]
+        ]
+      }
+    },
+    {
+      "name": "NOT locals are not optional outputs",
+      "command": "FIND(?t) WHERE { ?p {type:\"Person\"} NOT { (?p,\"prefers\",?t) } }",
+      "expect": {
+        "error": "InvalidSyntax"
+      }
+    },
+    {
+      "name": "an unmatched optional variable can be bound by a later pattern",
+      "command": "FIND(?p.name,?t.name) WHERE { ?p {name:\"Bob\"} OPTIONAL { (?p,\"prefers\",?t) } ?t {name:\"Tea\"} }",
+      "expect": {
+        "result": [
+          [
+            "Bob",
+            "Tea"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "UNION branches do not unify same-named bindings",
+      "command": "FIND(?p.name) WHERE { ?p {name:\"Alice\"} UNION { ?p {name:\"Bob\"} } }",
+      "expect": {
+        "result": [
+          "Alice",
+          "Bob"
+        ]
+      }
+    },
+    {
+      "name": "UNION executes after an empty left branch",
+      "command": "FIND(?p.name) WHERE { ?p {name:\"Nobody\"} UNION { ?p {name:\"Bob\"} } }",
+      "expect": {
+        "result": [
+          "Bob"
+        ]
+      }
+    },
+    {
+      "name": "branch-only variables project as null",
+      "command": "FIND(?p.name,?t.name) WHERE { ?p {name:\"Alice\"} UNION { ?t {name:\"Tea\"} } }",
+      "expect": {
+        "result": [
+          [
+            "Alice",
+            null
+          ],
+          [
+            null,
+            "Tea"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "filters after UNION apply to all accumulated rows",
+      "command": "FIND(?p.name) WHERE { ?p {name:\"Alice\"} UNION { ?p {name:\"Bob\"} } FILTER(?p.name == \"Bob\") }",
+      "expect": {
+        "result": [
+          "Bob"
+        ]
+      }
+    },
+    {
+      "name": "the right branch needs its own expression binding sites",
+      "command": "FIND(?p.name) WHERE { ?p {name:\"Alice\"} UNION { FILTER(?p.name == \"Alice\") } }",
+      "expect": {
+        "error": "InvalidSyntax"
+      }
+    },
+    {
+      "name": "nested UNION cannot overwrite an OPTIONAL input",
+      "command": "FIND(?p.name,?t.name) WHERE { ?p {name:\"Alice\"} OPTIONAL { ?t {name:\"Nobody\"} UNION { ?p {name:\"Bob\"} ?t {name:\"Tea\"} } } }",
+      "expect": {
+        "result": [
+          [
+            "Alice",
+            null
+          ]
+        ]
+      }
+    },
+    {
+      "name": "compatible independent nested UNION extends the OPTIONAL input",
+      "command": "FIND(?p.name,?t.name) WHERE { ?p {name:\"Alice\"} OPTIONAL { ?t {name:\"Nobody\"} UNION { ?t {name:\"Tea\"} } } }",
+      "expect": {
+        "result": [
+          [
+            "Alice",
+            "Tea"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "identical complete UNION solutions count once",
+      "command": "FIND(COUNT(?p)) WHERE { ?p {name:\"Alice\"} UNION { ?p {name:\"Alice\"} } }",
+      "expect": {
+        "result": [
+          1
+        ]
+      }
+    },
+    {
+      "name": "nonprojected bindings keep complete solutions distinct",
+      "command": "FIND(COUNT(?p),COUNT(DISTINCT ?p)) WHERE { ?p {name:\"Alice\"} ?link (?p,\"prefers\",?t) }",
+      "expect": {
+        "result": [
+          [
+            2,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "name": "empty global group counts zero and has no numeric sum",
+      "command": "FIND(COUNT(?p),SUM(?p.attributes.display_name),AVG(?p.attributes.display_name)) WHERE { ?p {name:\"Nobody\"} }",
+      "expect": {
+        "result": [
+          [
+            0,
+            null,
+            null
+          ]
+        ]
+      }
+    },
+    {
+      "name": "empty grouped query produces no groups",
+      "command": "FIND(?p.name,COUNT(?p)) WHERE { ?p {name:\"Nobody\"} }",
+      "expect": {
+        "result": []
+      }
+    },
+    {
+      "name": "numeric aggregates cannot silently ignore a string",
+      "command": "FIND(SUM(?p.name)) WHERE { ?p {name:\"Alice\"} }",
+      "expect": {
+        "error": "TypeMismatch"
+      }
+    },
+    {
+      "name": "negating a null string test stays unknown",
+      "command": "FIND(?p.name) WHERE { ?p {name:\"Bob\"} OPTIONAL { (?p,\"prefers\",?t) } FILTER(!CONTAINS(?t.name,\"Tea\")) }",
+      "expect": {
+        "result": []
+      }
+    },
+    {
+      "name": "unknown OR true retains the fallback row",
+      "command": "FIND(?p.name) WHERE { ?p {name:\"Bob\"} OPTIONAL { (?p,\"prefers\",?t) } FILTER(?t.name == \"Tea\" || ?p.name == \"Bob\") }",
+      "expect": {
+        "result": [
+          "Bob"
+        ]
+      }
+    },
+    {
+      "name": "missing parameters fail even when prior matches are empty",
+      "command": "FIND(?p.name) WHERE { ?p {name:\"Nobody\"} FILTER(?p.name == :missing) }",
+      "expect": {
+        "error": "ReferenceError"
+      }
+    },
+    {
+      "name": "invalid constant regex is rejected before matching",
+      "command": "FIND(?p.name) WHERE { ?p {name:\"Nobody\"} FILTER(REGEX(?p.name,\"[\")) }",
+      "expect": {
+        "error": "InvalidSyntax"
+      }
+    },
+    {
+      "name": "name equality cannot deduplicate separate identities",
+      "command": "MUTATE {CREATE CONCEPT ?a {TYPE \"Person\" NAME \"Same\"} CREATE CONCEPT ?b {TYPE \"Person\" NAME \"Same\"}}",
+      "expect": {
+        "result": null
+      }
+    },
+    {
+      "name": "equal projected names remain two rows",
+      "command": "FIND(?p.name) WHERE { ?p {name:\"Same\"} }",
+      "expect": {
+        "result": [
+          "Same",
+          "Same"
+        ]
+      }
+    }
+  ],
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://conformance/options",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Option": {
+            "kind": "ConceptType",
+            "description": "A preference option used by these fixtures. A real Space types each option by its kind (Profile §5.5, §7), because prefers partitions by the option's Concept Type; one catch-all type is one partition."
+          }
+        }
+      }
+    }
+  ]
+}

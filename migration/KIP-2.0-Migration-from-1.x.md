@@ -69,7 +69,7 @@ metadata keys
 reserved `_` metadata
 Domains
 Person/$self/$system structures
-Event/Preference/Insight/Commitment/SleepTask
+Event/Insight/Commitment/SleepTask (legacy Preference, §24)
 Experience/Skill extension structures
 access_level usage
 confidence usage
@@ -163,7 +163,7 @@ Do not place arbitrary legacy application types into `kip://core`.
 Where semantics match standard cognitive memory, migrate toward:
 
 ```text
-kip://profiles/cognitive-memory@2.2.0
+kip://profiles/cognitive-memory@2.0.0
 ```
 
 # 9. Concept Migration
@@ -332,23 +332,24 @@ metadata.memory_strength   → MnemonicState.memory_strength
 metadata.confidence        → classify; never blindly keep as Profile metadata
 has_step + index attribute → ordered has_step topology (edge order; no step ordinal attribute)
 caused_by predicate        → Profile caused_by Proposition + migrated positive Assertion
-derived_insight            → derived_from structural lineage (Insight → Experience) where recoverable
-compiled_to/derived_from   → compiled_from + compilation Activity where recoverable
+derived_insight            → a consolidation Activity with the Experience among its inputs, where recoverable (derived_from is computed from it)
+compiled_to/derived_from   → a compilation Activity with the Experiences as inputs, where recoverable (compiled_from is computed from it)
 ```
 
 Preserve raw legacy representation as provenance when exact conversion is uncertain.
 
 # 24. Preference Migration
 
-Legacy Preference often combines claim, pattern summary, evidence counters, confidence, and first/last observed times.
+Legacy Preference often combines claim, pattern summary, evidence counters, confidence, and first/last observed times. KIP 2.0 has no Preference type: a preference is a `prefers` claim whose option is a Concept typed by its kind (Profile §5.5), and a pattern summary is an Insight.
 
 Separate:
 
 ```text
-truth-sensitive preference → Proposition + Assertion(s)
-summary/stability           → Preference Profile Concept
+truth-sensitive preference → Proposition + Assertion(s); asserted_at = when it was
+                              stated (Spec §13.2), the option typed by its kind
+summary/stability           → Insight about the option kind, derived through an Activity
 observations                → Evidence where recoverable
-mnemonic state              → MnemonicState
+mnemonic state              → MnemonicState on the Insight
 ```
 
 # 25. Insight Migration
@@ -672,14 +673,15 @@ If `_merged_from`/logs exist, preserve alias/history annotation and future canon
 > **Migration is successful when the KIP 2.0 Brain can explain where its cognition came from without claiming that the old Brain knew more precisely than it actually did.**
 
 
-# 52. Consistency revision migration
+# 52. Skills, numbers, attention and time
 
-For the normative consistency revision, split a legacy Skill into a stable Skill
-and immutable SkillRevision with current_revision/revision_of links. Old behavior
-fields move to the revision; compute its behavior_digest with kip-jcs-safe-v1. Old
-status/counters remain legacy audit, never verified local standing. Preserve source
-provenance, create DependencyBasis where known, and mark incomplete lineage
-unverifiable rather than inventing it. New trials enroll new independent attempts.
+Split a legacy Skill into a stable Skill and an immutable SkillRevision with
+`current_revision`/`revision_of` links. Old behavior fields move to the revision;
+compute its `behavior_digest` with kip-jcs-safe-v1. Old status and counters remain
+legacy audit, never verified local standing: migrated Skills enter `proposed`.
+Preserve source provenance, create a DependencyBasis where it is known, and leave
+incomplete lineage `unverifiable` rather than inventing it. Validated standing is
+earned only by new trials under the Validated Learning companion.
 
 Validate numeric source tokens before conversion; quarantine or encode out-of-range
 exact values with a declared string/value-object schema. Do not round them. Verify
@@ -690,10 +692,11 @@ Restart Watches with fresh arm generations and declared observation coverage;
 rebuild WorkingState with a complete basis. Earlier ambiguous identity resolutions
 remain reviewable but cannot gain a fabricated original referent.
 
-The consistency package is `kip://profiles/cognitive-memory@2.2.0`. The prior
-2.0.0 artifact remains byte-for-byte unchanged and is legacy, not the current
-standard Profile contract. Install 2.1.0 under manage_schema and migrate old Skill
-records with schema_migration provenance. Readable old type lineages retain identity,
-but without current_revision and retained validated records they have no current
-2.1.0 standing. Never replace an installed artifact with a different digest at the
-same exact package reference.
+A 1.x fact that was overwritten in place carries no history of when it changed.
+Migrate the surviving value as one Assertion with the time it is known from as a
+time bound (`{latest: <last update>}`), never as an invented start instant; later
+changes then follow by temporal succession. A 1.x relation type that no package
+names can be migrated into the Space's draft vocabulary, for an owner to promote.
+
+The standard package is `kip://profiles/cognitive-memory@2.0.0`. Install it under
+`manage_schema` and migrate with `schema_migration` provenance.

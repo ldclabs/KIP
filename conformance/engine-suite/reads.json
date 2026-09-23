@@ -1,0 +1,231 @@
+{
+  "name": "reads",
+  "description": "The read language: joins on shared variables, OPTIONAL pads rather than drops, NOT asks about the record and never about the world, typed comparison, nulls last, deterministic paging.",
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?alice { TYPE \"Person\" NAME \"Alice\" SET ATTRIBUTES { display_name: \"Alice A\" } }\n  CREATE CONCEPT ?bob { TYPE \"Person\" NAME \"Bob\" }\n  CREATE CONCEPT ?dark { TYPE \"Option\" NAME \"Dark\" }\n  ENSURE PROPOSITION ?p (?alice, \"prefers\", ?dark)\n}"
+  ],
+  "cases": [
+    {
+      "name": "a pattern finds by type",
+      "command": "FIND(?c.name) WHERE { ?c CONCEPT {type: \"Person\"} } ORDER BY ?c.name",
+      "ordered": true,
+      "expect": {
+        "result": [
+          "Alice",
+          "Bob"
+        ]
+      }
+    },
+    {
+      "name": "a tuple pattern binds both ends and joins on them",
+      "command": "FIND(?person.name, ?thing.name) WHERE { ?p PROPOSITION (?person, \"prefers\", ?thing) }",
+      "expect": {
+        "result": [
+          [
+            "Alice",
+            "Dark"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "NOT keeps what the pattern could not extend",
+      "command": "FIND(?c.name) WHERE {\n  ?c CONCEPT {type: \"Person\"}\n  NOT { ?p PROPOSITION (?c, \"prefers\", ?o) }\n}",
+      "expect": {
+        "result": [
+          "Bob"
+        ]
+      },
+      "vectors": [
+        "KQL-009"
+      ]
+    },
+    {
+      "name": "OPTIONAL pads rather than drops",
+      "command": "FIND(COUNT(?c)) WHERE {\n  ?c CONCEPT {type: \"Person\"}\n  OPTIONAL { ?p PROPOSITION (?c, \"prefers\", ?o) }\n}",
+      "expect": {
+        "result": [
+          2
+        ]
+      }
+    },
+    {
+      "name": "UNION widens rather than filtering",
+      "command": "FIND(?c.name) WHERE {\n  ?c CONCEPT {name: \"Alice\"}\n  UNION { ?c CONCEPT {name: \"Dark\"} }\n} ORDER BY ?c.name",
+      "ordered": true,
+      "expect": {
+        "result": [
+          "Alice",
+          "Dark"
+        ]
+      }
+    },
+    {
+      "name": "a comparison between unlike types decides nothing",
+      "command": "FIND(?c.name) WHERE { ?c CONCEPT {type: \"Person\"} FILTER(?c.name > 5) }",
+      "expect": {
+        "result": []
+      }
+    },
+    {
+      "name": "nulls sort last under ASC",
+      "command": "FIND(?c.name) WHERE { ?c CONCEPT {type: \"Person\"} } ORDER BY ?c.attributes.display_name ASC",
+      "ordered": true,
+      "expect": {
+        "result": [
+          "Alice",
+          "Bob"
+        ]
+      }
+    },
+    {
+      "name": "nulls sort last under DESC too, because absent is not a large value",
+      "command": "FIND(?c.name) WHERE { ?c CONCEPT {type: \"Person\"} } ORDER BY ?c.attributes.display_name DESC",
+      "ordered": true,
+      "expect": {
+        "result": [
+          "Alice",
+          "Bob"
+        ]
+      }
+    },
+    {
+      "name": "a missing attribute reads as null, not as an error",
+      "command": "FIND(?c.attributes.display_name) WHERE { ?c CONCEPT {name: \"Bob\"} }",
+      "expect": {
+        "result": [
+          null
+        ]
+      }
+    },
+    {
+      "name": "COUNT over nothing is zero, and zero is not a falsehood",
+      "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {name: \"Nobody\"} }",
+      "expect": {
+        "result": [
+          0
+        ]
+      },
+      "vectors": [
+        "KQL-013"
+      ]
+    },
+    {
+      "name": "an archived element is out of recall by default",
+      "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {type: \"Person\", state: \"archived\"} }",
+      "expect": {
+        "result": [
+          0
+        ]
+      }
+    },
+    {
+      "name": "a bare variable projects the whole element",
+      "command": "FIND(?c.id, ?c.kind) WHERE { ?c CONCEPT {name: \"Bob\"} }",
+      "expect": {
+        "result": [
+          [
+            "C:<1>",
+            "concept"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "a cursor a caller invented is malformed, whatever it is spelled as",
+      "command": "FIND(?c.name) WHERE { ?c CONCEPT {} } LIMIT 1 CURSOR :c",
+      "params": {
+        "c": "not-a-cursor"
+      },
+      "expect": {
+        "error": "CursorInvalid"
+      },
+      "vectors": [
+        "KQL-017"
+      ]
+    },
+    {
+      "name": "and a number is the same refusal: a cursor is opaque, never a position a caller can type",
+      "command": "FIND(?c.name) WHERE { ?c CONCEPT {} } LIMIT 1 CURSOR :c",
+      "params": {
+        "c": 1
+      },
+      "expect": {
+        "error": "CursorInvalid"
+      },
+      "vectors": [
+        "KQL-018"
+      ]
+    },
+    {
+      "name": "grouping is implicit: the non-aggregated projected expressions are the key",
+      "command": "FIND(?c.name, COUNT(?p)) WHERE { ?c CONCEPT {type: \"Person\"}  ?p (?c, \"prefers\", ?o) } ORDER BY ?c.name",
+      "ordered": true,
+      "expect": {
+        "result": [
+          [
+            "Alice",
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "name": "and a FIND of aggregates alone is one global group",
+      "command": "FIND(COUNT(?c), COUNT(DISTINCT ?c.name)) WHERE { ?c CONCEPT {type: \"Person\"} }",
+      "expect": {
+        "result": [
+          [
+            2,
+            2
+          ]
+        ]
+      }
+    },
+    {
+      "name": "ORDER BY rejects an aggregate that is not projected",
+      "command": "FIND(?c.name) WHERE { ?c CONCEPT {type: \"Person\"} } ORDER BY COUNT(?c) DESC, ?c.name",
+      "ordered": true,
+      "expect": {
+        "error": "InvalidSyntax"
+      }
+    },
+    {
+      "name": "but a sort key that varies inside a group has no value to sort by",
+      "command": "FIND(?c.name, COUNT(?c)) WHERE { ?c CONCEPT {type: \"Person\"} } ORDER BY ?c.attributes.display_name",
+      "expect": {
+        "error": "InvalidSyntax"
+      }
+    },
+    {
+      "name": "a bounded aggregate takes groups in a repeatable order, so the cut is the same twice",
+      "command": "FIND(?c.name, COUNT(?c)) WHERE { ?c CONCEPT {type: \"Person\"} } ORDER BY ?c.name LIMIT 1",
+      "ordered": true,
+      "expect": {
+        "result": [
+          [
+            "Alice",
+            1
+          ]
+        ]
+      }
+    }
+  ],
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://conformance/options",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Option": {
+            "kind": "ConceptType",
+            "description": "A preference option used by these fixtures. A real Space types each option by its kind (Profile §5.5, §7), because prefers partitions by the option's Concept Type; one catch-all type is one partition."
+          }
+        }
+      }
+    }
+  ]
+}

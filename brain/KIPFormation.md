@@ -7,10 +7,12 @@ source bytes, source identities, authorized task scope and retry identity. Obtai
 exact Schema/element refs from the live Primer; do not invent a predicate or actor.
 
 For a general, unscoped attributed claim, runtime-ingested :evidence can be cited
-without re-typing its payload. Missing confidence is allowed.
+without re-typing its payload. Missing confidence is allowed. `at` is when the actor
+made the claim — the source's observed time — never when this write runs: it is the
+claim's start key, so a late-processed old message must carry its old time.
 
 ```kip
-ASSERT (:subject, :predicate, :object) {by: :actor, mode: "stated", evidence: :evidence}
+ASSERT (:subject, :predicate, :object) {by: :actor, mode: "stated", at: :observed_at, evidence: :evidence}
 ```
 
 For a scoped claim use `ASSERT ... {context: :contexts}`. It lowers exactly to
@@ -24,7 +26,7 @@ MUTATE {
     CLIENT KEY :assertion_key
     SET FIELDS {
       proposition: ?p, asserted_by: :actor, stance: "support", mode: "stated",
-      context_refs: :contexts
+      asserted_at: :observed_at, context_refs: :contexts
     }
     SET STRUCTURAL { ("evidence", :evidence) {role: "support"} }
   }
@@ -33,27 +35,39 @@ MUTATE {
 
 Create Activity provenance and its real DependencyBasis where a transformation
 occurred. The host captures actual read pins and digests; it cannot guess which
-sources you used. Unknown actor/Schema material can remain Evidence-only and must
-remain reachable through recall with the unresolved interpretation disclosed.
+sources you used. A fact taken from a document whose author is not a resolvable
+actor is your inference: `by: :self, mode: "inferred"`, citing the Evidence — never
+a `stated` claim by an actor you invented. Two such inferences never end one another;
+the person's own statement outranks them. Unknown Schema material can remain
+Evidence-only and must remain reachable through recall with the unresolved
+interpretation disclosed.
 
-A correction replaces an actor's mistaken assertion; a world change closes the
-previous valid interval and creates the new one. Do not supersede another actor's
-claim because you disagree. Keep each coherent revision in one MUTATE.
+Three revisions look alike and are written differently. A correction — the actor's
+earlier claim was wrong — supersedes it. A world change — the claim was true for its
+time — is one new Assertion from when the change began; temporal succession ends the
+old one and it still answers for its time. A misrecording — you wrote down what the
+actor never said — is a recording repair, never a retraction on their behalf. Do not
+supersede another actor's claim because you disagree.
 
 ```kip
-MUTATE {
-  ASSERT ?closed (:subject, :predicate, :old_value) {
-    by: :actor, mode: "stated", evidence: :evidence,
-    valid: {from: :old_from, until: :changed_at}
-  } SUPERSEDING :old_assertion
-  ASSERT (:subject, :predicate, :new_value) {
-    by: :actor, mode: "stated", evidence: :evidence, valid: {from: :changed_at}
-  }
+ASSERT (:subject, :predicate, :new_value) {
+  by: :actor, mode: "stated", at: :observed_at, evidence: :evidence, valid: {from: :changed_at}
 }
 ```
 
-This example is unscoped. Scoped revisions retain `context: :contexts` on each ASSERT (or equivalent
-explicit context_refs). Unknown change time remains unknown; do not invent an instant.
+Unknown change time stays unknown: write no `valid` at all — a missing start already
+means "no later than the claim" — and let `at` carry the statement's time; never an
+invented instant. A value that simply stopped is the same actor's `stance: "reject"`
+from the end. Scoped revisions keep `context: :contexts` on the ASSERT.
+
+A preference is a `prefers` claim whose option is a Concept typed by its kind
+(`ColorScheme`, `Editor`): a newer preference of one kind succeeds the older. When no
+installed type names the kind, `DEFINE CONCEPT TYPE` it first; never type options with
+a catch-all such as `Topic`, under which every preference would compete with every other.
+
+A relation no package names is added once with `DEFINE PREDICATE` (Spec §20.16) when
+the deployment grants `propose_schema`; otherwise keep the material Evidence-only and
+queue a `review_schema` SleepTask. Never bend an unrelated Predicate to fit.
 
 Only observed, supplied process is recorded. Feedback has its actual origin:
 self-report is never a gradable outcome. Ordinary facts and feedback need no trial.

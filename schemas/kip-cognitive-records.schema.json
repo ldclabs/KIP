@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:kip:2.0:2026-09-23:schema:cognitive-records",
+  "$id": "urn:kip:2.0:schema:cognitive-records",
   "$defs": {
     "SkillRevision": {
       "type": "object",
@@ -88,7 +88,7 @@
           "minItems": 0
         },
         "policy_basis": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
+          "$ref": "urn:kip:2.0:schema:projection#/$defs/ProjectionBasis"
         },
         "queries": {
           "type": "array",
@@ -167,7 +167,7 @@
           "minItems": 0
         },
         "basis": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
+          "$ref": "urn:kip:2.0:schema:projection#/$defs/ProjectionBasis"
         }
       },
       "required": [
@@ -225,7 +225,7 @@
           }
         },
         "selection_policy": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/ArtifactPin"
         },
         "preconditions_satisfied": {
           "type": "string",
@@ -236,7 +236,7 @@
           ]
         },
         "started_at": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Timestamp"
         },
         "assignment": {
           "$ref": "#/$defs/TrialAssignment"
@@ -341,13 +341,13 @@
           "minItems": 1
         },
         "basis": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
+          "$ref": "urn:kip:2.0:schema:projection#/$defs/ProjectionBasis"
         },
         "rule": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/ArtifactPin"
         },
         "parameters": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/ArtifactPin"
         },
         "baseline_attempt_refs": {
           "type": "array",
@@ -444,7 +444,7 @@
           "minLength": 1
         },
         "replay_artifact": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/ArtifactPin"
         },
         "evaluation_policy": {
           "type": "object",
@@ -476,7 +476,7 @@
           ]
         },
         "enrollment": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/ArtifactPin"
         }
       },
       "required": [
@@ -572,7 +572,7 @@
           "pattern": "^sha256:[0-9a-f]{64}$"
         },
         "cutoff": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Timestamp"
         },
         "attempt_refs": {
           "type": "array",
@@ -657,10 +657,10 @@
           "additionalProperties": false
         },
         "replay_artifact": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/ArtifactPin"
         },
         "cohort_artifact": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/ArtifactPin"
         }
       },
       "required": [
@@ -847,7 +847,7 @@
           "maximum": 9007199254740991
         },
         "expires_at": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Timestamp"
         },
         "attempt_count": {
           "type": "integer",
@@ -916,7 +916,7 @@
       "type": "object",
       "properties": {
         "basis": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
+          "$ref": "urn:kip:2.0:schema:projection#/$defs/ProjectionBasis"
         },
         "channels": {
           "type": "object",
@@ -1108,13 +1108,13 @@
           ]
         },
         "selector": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/ArtifactPin"
         },
         "result_digest": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Digest"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Digest"
         },
         "change_token": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Ref"
         },
         "expectation": {
           "enum": [
@@ -1125,7 +1125,7 @@
           ]
         },
         "authorization_view": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Ref"
         }
       },
       "required": [
@@ -1144,7 +1144,7 @@
         "task_ref": {
           "anyOf": [
             {
-              "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+              "$ref": "urn:kip:2.0:schema:common#/$defs/Ref"
             },
             {
               "type": "null"
@@ -1154,7 +1154,7 @@
         "context_refs": {
           "type": "array",
           "items": {
-            "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+            "$ref": "urn:kip:2.0:schema:common#/$defs/Ref"
           },
           "minItems": 0,
           "uniqueItems": true
@@ -1170,18 +1170,18 @@
       "type": "object",
       "properties": {
         "source_ref": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Ref"
         },
         "source_digest": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Digest"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Digest"
         },
         "source_locator": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Ref"
         },
         "invalidated_refs": {
           "type": "array",
           "items": {
-            "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+            "$ref": "urn:kip:2.0:schema:common#/$defs/Ref"
           },
           "minItems": 1,
           "uniqueItems": true
@@ -1189,7 +1189,7 @@
         "replacement_refs": {
           "type": "array",
           "items": {
-            "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+            "$ref": "urn:kip:2.0:schema:common#/$defs/Ref"
           },
           "minItems": 0
         },
@@ -1223,10 +1223,10 @@
       "type": "object",
       "properties": {
         "stream_ref": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Ref"
         },
         "event_ref": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Ref"
         },
         "ordinal": {
           "type": "integer",
@@ -1236,7 +1236,7 @@
         "predecessor_receipts": {
           "type": "array",
           "items": {
-            "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+            "$ref": "urn:kip:2.0:schema:common#/$defs/Ref"
           },
           "minItems": 0,
           "uniqueItems": true
@@ -1254,10 +1254,10 @@
       "type": "object",
       "properties": {
         "enrollment": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/ArtifactPin"
         },
         "unit_id": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Ref"
         },
         "arm": {
           "enum": [
@@ -1266,7 +1266,7 @@
           ]
         },
         "assigned_at": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Timestamp"
         }
       },
       "required": [
@@ -1281,7 +1281,7 @@
       "type": "object",
       "properties": {
         "selector": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/ArtifactPin"
         },
         "scope": {
           "$ref": "#/$defs/MemoryScope"
@@ -1315,7 +1315,7 @@
           "maximum": 9007199254740991
         },
         "authorization_view": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Ref"
         },
         "complete": {
           "type": "boolean"
@@ -1387,7 +1387,7 @@
         "receiver_binding": {
           "anyOf": [
             {
-              "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+              "$ref": "urn:kip:2.0:schema:common#/$defs/ArtifactPin"
             },
             {
               "type": "null"
@@ -1416,7 +1416,7 @@
                 "const": "receiver_acceptance"
               },
               "receiver_binding": {
-                "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+                "$ref": "urn:kip:2.0:schema:common#/$defs/ArtifactPin"
               }
             }
           },
@@ -1434,18 +1434,18 @@
       "type": "object",
       "properties": {
         "revision_ref": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Ref"
         },
         "basis": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
+          "$ref": "urn:kip:2.0:schema:projection#/$defs/ProjectionBasis"
         },
         "criterion": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/ArtifactPin"
         },
         "evidence_refs": {
           "type": "array",
           "items": {
-            "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+            "$ref": "urn:kip:2.0:schema:common#/$defs/Ref"
           },
           "minItems": 1
         },
@@ -1478,7 +1478,7 @@
       "type": "object",
       "properties": {
         "source_capsule": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/ArtifactPin"
         },
         "mode": {
           "enum": [
@@ -1491,7 +1491,7 @@
           "type": "boolean"
         },
         "mapping_artifact": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/ArtifactPin"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/ArtifactPin"
         },
         "current_validation": {
           "enum": [
@@ -1506,7 +1506,7 @@
         "missing_artifacts": {
           "type": "array",
           "items": {
-            "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Ref"
+            "$ref": "urn:kip:2.0:schema:common#/$defs/Ref"
           },
           "minItems": 0
         }
@@ -1519,6 +1519,61 @@
         "current_validation",
         "authority_transferred",
         "missing_artifacts"
+      ],
+      "additionalProperties": false
+    },
+    "ExposureRecord": {
+      "type": "object",
+      "description": "Non-cognitive, append-only exposure log entry (Spec §66.8). Never a Cognitive Element, never Evidence; readable under read_audit.",
+      "properties": {
+        "space_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "element_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exposure": {
+          "enum": [
+            "retrieved",
+            "used"
+          ]
+        },
+        "snapshot_seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "recorded_at": {
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Timestamp"
+        },
+        "principal_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decision_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "recall_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        }
+      },
+      "required": [
+        "space_id",
+        "element_id",
+        "exposure",
+        "snapshot_seq",
+        "recorded_at",
+        "principal_id"
       ],
       "additionalProperties": false
     }

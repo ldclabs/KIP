@@ -1,5 +1,7 @@
 # KIP v2 Design Review Resolution
 
+> **Historical record.** It describes the revision it names. The later [memory-brain revision](./KIP-2.0-Memory-Brain-Resolution.md) removed the retained draft packages (a single `cognitive-memory@2.0.0` remains), dissolved the Cognitive Consistency companion into the Specification and the `brain/` companions, and replaced TrialState and DerivationState.
+
 **2026-09-06 — all twelve review items addressed in this repository.**
 
 Scope: current English normative documents, standard Profile package, reference
@@ -13,7 +15,7 @@ an empirical claim that a Brain has learned.
 | Item | Resolution | Primary artifacts | Acceptance |
 | --- | --- | --- | --- |
 | R1 | Final BELIEF incorporates applicable slot conflicts; candidate status is diagnostic | [Consistency §1](./KIP-2.0-Cognitive-Consistency.md#1-conflict-complete-belief), [projection schema](./schemas/kip-projection.schema.json) | MEM-001; SCHEMA-020 revised; grounded/non-functional oracle cases |
-| R2 | Stable Skill selects immutable SkillRevision; standing, grades and authority bind revision/digest | [Profile](./profiles/CognitiveMemoryProfile-2.0.md), [package 2.1.0](./profiles/cognitive-memory-2.1.0.schema.json) | MEM-002; revision-reset and authorized-rule checks |
+| R2 | Stable Skill selects immutable SkillRevision; standing, grades and authority bind revision/digest | [Profile](./profiles/CognitiveMemoryProfile-2.0.md), `profiles/cognitive-memory-2.1.0.schema.json` (removed; see git history) | MEM-002; revision-reset and authorized-rule checks |
 | R3 | Decisions, attempts and observations have distinct identities; quota counts independent attempt aggregates | [Consistency §5](./KIP-2.0-Cognitive-Consistency.md#5-revision-attempt-trial-and-evaluation-identities), [record schemas](./schemas/kip-cognitive-records.schema.json) | MEM-003; observation-fan-out fault injection |
 | R4 | Protected evaluation policy; explicit comparable controls, sampling/correlation, missingness and uncertainty | [Consistency §6](./KIP-2.0-Cognitive-Consistency.md#6-comparable-learning-not-just-repeatable-arithmetic) | MEM-004/019/022; aggregate-reversal, missing-stratum and unauthorized-rule tests |
 | R5 | Immutable TrialRecord/EvaluationRecord and retained exact replay artifacts; mutable states are pointers/caches | [Profile §6](./profiles/CognitiveMemoryProfile-2.0.md#6-standard-facets) | MEM-005/020; late-outcome, re-trial, correction and retained-replay checks |

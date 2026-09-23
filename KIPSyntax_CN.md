@@ -190,6 +190,20 @@ UNION { ... }                      // 分支选择（作用域相互独立）
 
 游标是不透明的、锁定快照的、绑定于操作族的；游标继续翻页时当前 Governance 权限依然生效。
 
+**检索模式（Search Pattern）**：`?person SEARCH CONCEPT :query WITH TYPE "Person" LIMIT 10` 在查询内部完成检索并绑定命中项，使接地、过滤与信念投影在同一快照上完成。模式内的 `LIMIT` 限定候选集且为必填；`?x.retrieval.score` 可用于过滤与排序，但绝不是置信度。它不能出现在 `NOT` 内（未命中不证明不存在），也不能出现在变更语句的 `WHERE` 中：
+
+```kip
+FIND(?person.name, ?home)
+WHERE {
+  ?person SEARCH CONCEPT :query WITH TYPE "Person" MODE "hybrid" LIMIT 20
+  ?home BELIEF SLOT (?person, "lives_in")
+}
+ORDER BY ?person.retrieval.score DESC
+LIMIT 5
+```
+
+**时间与策略**：开放的 `until` 表示“未陈述结束时间”，而非“永远有效”：同一行动者在函数型槽位上更晚开始的值会在其起点处结束旧值（时间继承，temporal succession），因此变化之前的 `FOR TIME` 仍返回旧值。召回默认使用标准策略 `kip:memory-default`：任务限定的值在该任务内优先于通用值；本人关于自身的陈述优先于他人转述（但绝不优先于观测）；被压过的值为 `uncertain`，原因 `outranked`。
+
 ---
 
 ### 3. KML — 写入
@@ -223,12 +237,19 @@ ASSERT ?a (:alice, "timezone", "+01:00") {   // 句柄 ?a 是可选的
 } SUPERSEDING :old_assertion
 ```
 
-世界变迁——世界本身发生了变化，旧断言在当时是正确的。绝不能因其过时而将其作为错误标记为 superseded；应通过重新断言关闭其开放区间，并在其结束处开启新断言的有效区间（两者均保持 active 状态；在变迁之前的 `FOR TIME` 查询仍返回旧值）：
+世界变迁——世界本身发生了变化，旧断言在当时是正确的。只需写**一条**新值断言并注明其开始时间；时间继承会在该时刻结束旧断言，不废弃任何断言，变迁之前的 `FOR TIME` 查询仍返回旧值。变化日期未知时写 `valid: {from: {latest: :stated_at}}`：
 
-```text
-ASSERT (:alice, "timezone", "+08:00") {by: :alice, mode: "stated", valid: {from: :since, until: :moved_at}, evidence: :msg} SUPERSEDING :old_assertion
+```kip
 ASSERT (:alice, "timezone", "+01:00") {by: :alice, mode: "stated", valid: {from: :moved_at}, evidence: :msg}
 ```
+
+终止——该值单纯停止（离职且没有新雇主）：由同一行动者从终止日起对同一命题作出相反立场：
+
+```kip
+ASSERT (:alice, "works_for", :acme) {by: :alice, mode: "stated", stance: "reject", valid: {from: :left_at}, evidence: :msg}
+```
+
+误录——大脑记下了行动者从未说过的内容（“你听错了”）：既不是更正也不是变迁，而是受保护的录入修复（规范 §57.8，Memory Interface `revise` 的 `change_kind: "misrecorded"`）；绝不能代替行动者废弃或撤回。
 
 该语法糖精确脱糖为 `ENSURE PROPOSITION` + `CREATE ASSERTION`（+ 通过新断言 `TRANSITION ... TO "superseded" BY` 旧断言）。绝不无端捏造额外状态。三元组必须是结构化的 `(s, "p", o)`：`(id: …)` 仅用于读取匹配，在写入时会被拒绝。用于 `challenge` / `context` 证据引用或精细控制的完整写法：
 
@@ -249,7 +270,7 @@ MUTATE {
 立场规则：
 
 - 他人告知事实 → `ASSERT ... {by: <them>, mode: "stated"}`。记录“Alice 说了 X”不需要拥有*代表* Alice 的权限：`by` 指向未绑定的行动者需要 `record_attributed_assertion` 权限；`by` 指向自己需要 `assert` 权限；以受保护行动者的名义*代理*发言则需要 `assert_as_actor` 及绑定。
-- `SUPERSEDING` 意味着“原陈述是错的”。不再适用的事实并不是错误的：应通过重新断言为旧断言补充 `valid.until`，并为新断言标明 `valid.from`。
+- `SUPERSEDING` 意味着“原陈述是错的”。不再适用的事实并不是错误的：用 `valid.from` 断言新值（或自终止日起的相反立场），由时间继承结束旧值。
 - 大脑自身推理得出 → `by: <self>, mode: "inferred"`，将前提作为证据引用。
 - 行动者之间意见不合 → 两条断言共存（产生争议 contested），**绝不能**废弃替代或删除。
 - 否定事实 → 对正面肯定命题表达 `stance: "reject"`，而不是捏造 `false` 对象。
@@ -315,11 +336,11 @@ MUTATE {
 ```kip
 UPDATE ?m
 SET FACET "MnemonicState" {
-  memory_strength: CLAMP(MUL(?m.facets["MnemonicState"].memory_strength, :decay), 0, 1)
+  salience: :salience
 }
 WHERE {
-  ?m {type: "Experience"}
-  FILTER(?m.facets["MnemonicState"].memory_strength > 0)
+  ?m {type: "Commitment", attributes: {status: "pending"}}
+  FILTER(?m.facets["MnemonicState"].salience < :salience)
 }
 LIMIT :n
 EXPECT VERSION :v OF FACET "MnemonicState"
@@ -360,6 +381,20 @@ MERGE CONCEPT ?src INTO ?tgt [WHERE {...}] [EXPECT VERSION :v]
 
 所有其 `WHERE` 块可能选中无界集合的变更语句，都支持紧随其后的可选 `LIMIT`（`UPDATE`, `TRANSITION`, `SET RETENTION`, `PURGE`, `PURGE PAYLOAD`）——对批处理维护操作进行范围限制。`LIMIT` 仅限制受影响的最大数量，不保证特定顺序：除非运行时显式声明，否则不要假设特定顺序。`MERGE CONCEPT` 不接受 `LIMIT`。
 
+#### 3.7. `DEFINE` — 没有任何包命名的关系
+
+需要的关系或类型缺失时，不要硬塞进错误的谓词，也不要让它只停留在 Evidence：把它加入 Space 的草稿词汇（需要 `propose_schema` 权限与 `draft_vocabulary` 能力）。`DEFINE` 只新增、从不修改，单独提交（不能放进 `MUTATE`），新符号对后续操作生效：
+
+```kip
+DEFINE PREDICATE "mentors" {
+  description: "The subject mentors the object person.",
+  subject: {concept_types: ["Person"]},
+  object: {concept_types: ["Person"]}
+}
+```
+
+`DEFINE CONCEPT TYPE "Place" {description: "..."}` 用于新增类型。草稿谓词是开放世界的，可声明 `functional` 或 `functional_by: "object_type"`，不能声明封闭世界或 `complete`。名称已存在时返回 `SchemaSymbolConflict`。提升为正式包是所有者的 Schema 迁移。
+
 `MERGE CONCEPT` 属于非破坏性操作：源实体作为历史合并记录依然保持可寻址；未来的写入将自动规范化指向目标实体。导致环状依赖的合并（目标已解析回源实体）将被拒绝。
 
 前置条件：`EXPECT VERSION :n [OF ATTRIBUTES | STRUCTURAL | RETENTION | FACET "X"]`（乐观并发控制；`0` = 仅新建；指定平面仅守卫该平面自身的版本计数器，使状态裁决与切面扫描互不抢锁）始终位于变更语句的**最后**——排在 `WHERE` 和 `LIMIT` 之后、`UPSERT` 大括号闭合之后、`ENSURE PROPOSITION` 元组之后——并且可以重复声明，每个平面限守卫一条。
@@ -397,7 +432,7 @@ SEARCH <KIND> :term
   [MODE "keyword" | "semantic" | "hybrid" | :mode]
   [THRESHOLD :t] [AS OF SEQ :s] [LIMIT :n] [CURSOR :c]
 
-KIND = CONCEPT | PROPOSITION | ASSERTION | EVIDENCE | ACTIVITY | COGNITION
+KIND = CONCEPT | PROPOSITION | ASSERTION | EVIDENCE | ACTIVITY
 ```
 
 SEARCH 的所有修饰子句必须严格遵循上述顺序。`WITH TYPE` / `WITH PREDICATE` 仅在对所选类型有意义时使用；由运行时语义校验决定其适用性。`AS OF SEQ` 要求运行时声明具备 `historical_search` 能力。

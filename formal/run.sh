@@ -2,7 +2,7 @@
 # Run the complete KIP 2.0 formal verification suite.
 #
 # Requirements:
-#   - Python 3.10+                                  (suites 3–7)
+#   - Python 3.10+                                  (suites 3–8)
 #   - Java 17+ on PATH (or set JAVA)                (suites 1–2)
 #   - org.alloytools.alloy.dist.jar (Alloy 6.2+)  — set ALLOY_JAR
 #   - tla2tools.jar (TLA+ tools / TLC)            — set TLA_JAR
@@ -119,7 +119,7 @@ echo "==================== 5. Skill lifecycle / consequence channel ============
 run_py "$HERE/lifecycle/check_lifecycle.py" "spec"
 run_py "$HERE/lifecycle/check_lifecycle.py" "self-graded deployment (variant)" --self-graded
 run_py "$HERE/lifecycle/check_lifecycle.py" "bug: family join"        --family-join
-run_py "$HERE/lifecycle/check_lifecycle.py" "bug: no TrialState"      --skip-trialstate
+run_py "$HERE/lifecycle/check_lifecycle.py" "bug: verdict without its trial record" --skip-trial
 run_py "$HERE/lifecycle/check_lifecycle.py" "bug: imported counted"   --count-imported
 run_py "$HERE/lifecycle/check_lifecycle.py" "bug: no gate, no flag"   --no-gate
 run_py "$HERE/lifecycle/check_lifecycle.py" "bug: observation fan-out" --observation-count
@@ -141,13 +141,24 @@ run_py "$HERE/purge/check_purge.py" "bug: hold after policy"        --hold-after
 run_py "$HERE/purge/check_purge.py" "bug: no stub"                  --no-stub
 run_py "$HERE/purge/check_purge.py" "bug: payload purge drops citations" --payload-drops-citations
 
-echo "==================== 8. Cognitive consistency and artifact contracts ===================="
+echo "==================== 8. World time: succession, time bounds, memory-default ===================="
+run_py "$HERE/temporal/check_temporal.py" "spec"
+run_py "$HERE/temporal/check_temporal.py" "bug: succession across actors"     --cross-actor
+run_py "$HERE/temporal/check_temporal.py" "bug: agreeing re-assertion cuts"   --agreeing-cuts
+run_py "$HERE/temporal/check_temporal.py" "bug: successor keeps unknown start" --no-start-bound
+run_py "$HERE/temporal/check_temporal.py" "bug: order by arrival, not start"  --arrival-order
+run_py "$HERE/temporal/check_temporal.py" "bug: testimony outranks observation" --outrank-observation
+run_py "$HERE/temporal/check_temporal.py" "bug: inferences succeed one another" --infer-succeeds
+run_py "$HERE/temporal/check_temporal.py" "bug: recency before the other rules" --recency-first
+
+echo "==================== 9. Contracts, artifacts and the engine-suite shape ===================="
 if command -v node >/dev/null 2>&1 && [ -f "$HERE/../packages/kip-lang/dist/index.js" ]; then
   node "$HERE/../conformance/update-digests.mjs" || fail=1
   node --test "$HERE/../packages/kip-lang/test/canonical.test.mjs" \
     "$HERE/../packages/kip-lang/test/contracts.test.mjs" \
     "$HERE/../packages/kip-lang/test/memory-interface.test.mjs" \
-    "$HERE/../packages/kip-lang/test/reliability.test.mjs" || fail=1
+    "$HERE/../packages/kip-lang/test/reliability.test.mjs" \
+    "$HERE/../packages/kip-lang/test/engine-suite.test.mjs" || fail=1
 else
   echo "SKIPPED — install workspace dependencies and build packages/kip-lang"; skipped=1
 fi

@@ -13,7 +13,7 @@
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "SPECIFICATION.md#2112-projectionbasis"
   ],
   "steps": [
     {

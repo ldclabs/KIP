@@ -21,17 +21,20 @@ when they are included in the requested scope.
 
 ## Sources of truth and layout
 
-- `SPECIFICATION.md`: normative Core and runtime semantics. Read its Status
-  section for the current contract revision and normative companion list.
-- `KIP-2.0-Cognitive-Consistency.md`: belief, dependency, identity, learning,
-  durable execution and memory reliability contracts.
+- `SPECIFICATION.md`: normative Core and runtime semantics, including final
+  belief, temporal succession, dependency validity and recording repair. Read its
+  Status section for the draft-identity rule, the scope gate and the companion list.
 - `KIP-2.0-Memory-Interface.md`: optional five-intent Agent-to-Brain binding.
+- `brain/KIP-2.0-Validated-Learning.md` and `brain/KIP-2.0-Brain-Runtime.md`:
+  normative optional companions for Skill trials/evaluations and for durable
+  workers, leases and dispatch. `KIP-2.0-Cognitive-Consistency.md` is only a
+  redirect table to where its former sections now live.
 - `KIP-2.0-Capsule-Specification.md`,
   `KIP-2.0-Optional-Profiles-and-Migration.md` and `KIP-2.0-Invariants.md`:
   additional normative contracts and the stable invariant registry.
 - `grammar/`, `schemas/`, `profiles/`: normative syntax, wire/artifact shapes,
-  versioned memory packages and capability bundles. The current memory package
-  is 2.2.0; protocol, package and tooling versions are independent.
+  the memory package (`cognitive-memory@2.0.0`), the general domain package,
+  the `kip:memory-default` policy artifact and the Memory Interface levels.
 - `KIPSyntax.md`: informative model-facing syntax card. Its executable examples
   must agree with the grammar and toolkit.
 - `brain/`, `SelfInstructions.md`, `SystemInstructions.md`: reference cognitive
@@ -40,8 +43,9 @@ when they are included in the requested scope.
   executable AST lowering, canonical JSON and host helpers. It does not execute
   KIP or supply an authorization boundary.
 - `packages/vscode-kip/`: editor integration consuming `kip-lang`.
-- `conformance/`: fixtures, portable vectors, reference models, adapter runner
-  and digest tooling. See `conformance/README.md` before changing these.
+- `conformance/`: the executable engine suite, fixtures, portable vectors,
+  reference models, adapter runners and digest tooling. See
+  `conformance/README.md` before changing these.
 - `formal/`: bounded verification models and reports with explicit proof limits.
 - `KIP-2.0-Architecture.md`: informative rationale; normative contracts take
   precedence. Resolution/evidence reports describe their recorded revisions,
@@ -93,12 +97,13 @@ and conformance cases. A state-contract change may affect prose, shared schemas,
 the Profile package, fixtures, models, portable vectors and downstream guidance.
 Test observable behavior and meaningful failure cases, not only field presence.
 
-Preserve exact versioned artifact identities. The retained memory packages
-`profiles/cognitive-memory-2.0.0.schema.json` and
-`profiles/cognitive-memory-2.1.0.schema.json`, and the six
-`schemas/legacy-2.1-*.json` resources, must remain byte-identical. Do not republish
-different content under an existing immutable identity. Use a new package/schema
-identity for an incompatible revision and document its implementation boundary.
+During the 2.0 draft, artifact identities are stable names
+(`kip://profiles/cognitive-memory@2.0.0`, `urn:kip:2.0:schema:*`) and a draft
+revision is identified by its content digest; earlier draft packages are not
+retained and there is no draft-to-draft compatibility. Do not add a new package
+version or a dated schema ID for a draft change: edit the artifact, regenerate
+digests and let the pins show the change. At release, names and digests freeze
+together and an incompatible change needs a new identity.
 
 Reuse shared Timestamp, ProjectionBasis and ArtifactPin definitions rather than
 copying them. Schema locks must cover the complete transitive reference closure,
@@ -116,6 +121,18 @@ node conformance/update-digests.mjs
 
 Do not regenerate digests merely to hide an unexplained integrity failure. Do not
 hand-edit `dist/`, packaged VSIX files or other build output.
+
+## Scope gate
+
+The 2.0 scope is frozen. A new contract (a new statement, field, capability or
+normative behavior) enters the draft only together with engine evidence: an
+executable case in `conformance/engine-suite/`, or a measured result under
+`brain/BrainEvaluation.md`. During the draft the case may enter with the fixture
+marked `"status": "pending_engine"` and listed in the suite manifest, so that a
+correction is not blocked until an engine has implemented the uncorrected
+behavior; the release requires every fixture verified by a real engine.
+Corrections, simplifications, clarifications and new evidence do not need that
+gate. When in doubt, prefer removing or merging a contract over adding one.
 
 ## Documentation and translations
 
@@ -171,6 +188,8 @@ skips explicitly and never describe exit 3 as a complete formal-verification pas
 Portable adapter suites are selected independently:
 
 ```sh
+node conformance/run.mjs --suite engine --list
+node conformance/run.mjs --suite engine --adapter /absolute/path/to/adapter.mjs
 node conformance/run.mjs --suite memory --list
 node conformance/run.mjs --suite interface --list
 node conformance/run.mjs --suite reliability --list

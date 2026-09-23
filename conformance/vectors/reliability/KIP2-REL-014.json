@@ -14,7 +14,7 @@
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "SPECIFICATION.md#551-the-assert-sugar-form"
   ],
   "steps": [
     {

@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "id": "KIP2-MEM-023",
   "title": "Required coverage outranks similarity",
-  "description": "Provide an applicable constraint in a low-similarity source and a high-similarity\nadopted Skill that would violate it. With a small briefing budget, the constraint\nmust survive, or coverage/action eligibility must say incomplete/false. Candidate\nexposure alone updates no utility. Test the constraint without explicitly asking\nabout it in the final user question.\nIn procedural recall, relevant proposed/trialed Skills with no GradingState remain\nvisible as unproven candidates. Grades from another revision or an unavailable\nevaluation must not be borrowed; a claimed adopted Skill lacking matching validated\nevidence is surfaced as unverifiable, never a validated recommendation.",
+  "description": "Provide an applicable constraint in a low-similarity source and a high-similarity\nadopted Skill that would violate it. With a small briefing budget, the constraint\nmust survive, or coverage/action eligibility must say incomplete/false. Candidate\nexposure alone updates no utility. Test the constraint without explicitly asking\nabout it in the final user question.\nIn procedural recall, relevant proposed/trialed Skills with no evaluation remain\nvisible as unproven candidates. Grades from another revision or an unavailable\nevaluation must not be borrowed; a claimed adopted Skill lacking matching validated\nevidence is surfaced as unverifiable, never a validated recommendation.",
   "level": "MUST",
   "class": "black_box",
   "profiles": [
@@ -13,7 +13,7 @@
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "profiles/CognitiveMemoryProfile-2.0.md#202-recall-coverage-and-plans"
   ],
   "steps": [
     {

@@ -4,44 +4,33 @@
 
 ## Status
 
-**Normative Draft / Protocol Consolidation Candidate**
+**Normative Draft / Protocol Consolidation Candidate — scope frozen**
 
 Version: **2.0-draft**
 
-Contract revision: **2026-09-23**
-
 This document is the normative consolidation of the KIP 2.0 design.
 
-The following KIP 2.0 design documents are informative references and design rationale. The ten `design/` notes are **frozen** as of 2026-09-02: they are the pre-consolidation drafts, are no longer maintained, and their Chinese twins are no longer synchronized; where they differ from this Specification they are out of date.
+During the draft, artifact identities are stable names — `kip://profiles/cognitive-memory@2.0.0`, `urn:kip:2.0:schema:*` — and a draft revision is identified by its content digest, not by a new version number or a dated identifier. Earlier draft packages are not retained. The release freezes names and digests together.
 
-- `KIP-2.0-Architecture.md`
-- `design/KIP-2.0-Core-Data-Model.md`
-- `design/KIP-2.0-Epistemic-Model.md`
-- `design/KIP-2.0-Governance.md`
-- `design/KIP-2.0-Schema-Packages.md`
-- `design/KIP-2.0-Transactions.md`
-- `design/KIP-2.0-Capsule.md`
-- `design/KIP-2.0-KQL.md`
-- `design/KIP-2.0-KML.md`
-- `design/KIP-2.0-META.md`
-- `design/KIP-2.0-Protocol-Runtime.md`
+The scope of 2.0 is frozen: a new contract enters this draft only together with engine evidence for it — an executable case in `conformance/engine-suite/` — or a measured Brain result under `brain/BrainEvaluation.md`. During the draft the case MAY enter marked `pending_engine` in the suite manifest, so that a correction is not blocked until an engine has implemented the uncorrected behavior; the release requires every case verified by a real engine. Corrections, simplifications and evidence do not need that gate.
+
+The ten `design/` notes and `KIP-2.0-Architecture.md` are informative. The `design/` notes are **frozen** as of 2026-09-02: they are the pre-consolidation drafts, are no longer maintained, and where they differ from this Specification they are out of date.
 
 The following artifacts are normative companions to this Specification:
 
-- `KIP-2.0-Memory-Interface.md`, `schemas/kip-memory.schema.json` and `profiles/memory-bundles.json` — optional Agent-to-Brain intents, processing barriers and composable memory capability bundles
-- `conformance/KIP-2.0-Memory-Interface-Tests.md` — acceptance scenarios for the optional binding
-- `schemas/kip-common.schema.json` — shared strict UTC-millisecond timestamps and artifact pins
-- `KIP-2.0-Cognitive-Consistency.md` — conflict-complete belief, computation bases, dependency validity, identity repair and reliable learning/worker contracts
-- `schemas/kip-projection.schema.json`, `schemas/kip-cognitive-records.schema.json`, `schemas/kip-element.schema.json`, `schemas/kip-capsule.schema.json`, `schemas/kip-schema-package.schema.json` — normative result and artifact shapes
-- `conformance/KIP-2.0-Cognitive-Tests.md` — cross-cutting Core/Profile acceptance vectors
-
 - `grammar/KIP-2.0-KQL.ebnf`, `grammar/KIP-2.0-KML.ebnf`, `grammar/KIP-2.0-META.ebnf` — normative syntax
 - `schemas/kip-request.schema.json`, `schemas/kip-response.schema.json`, `schemas/kip-change-envelope.schema.json` — normative wire shapes
-- `profiles/cognitive-memory-2.2.0.schema.json` and `profiles/CognitiveMemoryProfile-2.0.md` — the standard Profile package
-- `conformance/KIP-2.0-Conformance-Tests.md`, `conformance/conformance-test-vector.schema.json`, `conformance/conformance-report.schema.json`, `conformance/conformance-state-fixture.schema.json`, `conformance/conformance-governance-policy.schema.json` and `conformance/fixtures/` — the conformance suite
-- `KIP-2.0-Capsule-Specification.md` — §37–§41 and §95 of this Specification, the Cognitive Capsule, carried in a companion under the same numbering
-- `KIP-2.0-Optional-Profiles-and-Migration.md` — §100, §101, §103 and Appendix I of this Specification: historical reads, high-assurance hardening, and KIP 1.x migration — each a capability (§67.4), not a profile
-- `KIP-2.0-Invariants.md` — the invariant registry: §102's 43 Core invariants (Part A) and the Cognitive Memory Profile's 46 (Part B), one list
+- `schemas/kip-common.schema.json`, `schemas/kip-projection.schema.json`, `schemas/kip-cognitive-records.schema.json`, `schemas/kip-element.schema.json`, `schemas/kip-capsule.schema.json`, `schemas/kip-schema-package.schema.json` — shared definitions, result and artifact shapes
+- `profiles/CognitiveMemoryProfile-2.0.md` and `profiles/cognitive-memory-2.0.0.schema.json` — the standard Profile and its package
+- `profiles/general-domain-1.0.0.schema.json` — a minimal general-purpose domain package (people, places, organizations)
+- `profiles/policy-memory-default.json` — the `kip:memory-default` Projection Policy (§21.13)
+- `KIP-2.0-Memory-Interface.md`, `schemas/kip-memory.schema.json` and `profiles/memory-bundles.json` — the optional Agent-to-Brain binding and its levels
+- `KIP-2.0-Capsule-Specification.md` — §37–§41 and §95 of this Specification, carried in a companion under the same numbering
+- `KIP-2.0-Optional-Profiles-and-Migration.md` — §100, §101, §103 and Appendix I: historical reads, high-assurance hardening and KIP 1.x migration, each a capability (§67.4)
+- `brain/KIP-2.0-Validated-Learning.md` — Skill trials, evaluations and validated standing (capability bundle `memory_learning`)
+- `brain/KIP-2.0-Brain-Runtime.md` — durable attention, leases, dispatch and receiver fencing (capability `durable_brain_runtime`)
+- `KIP-2.0-Invariants.md` — the invariant registry: §102's Core invariants (Part A) and the Profile's (Part B)
+- `conformance/` — the engine suite, vectors, fixtures, reference models and their schemas (`conformance/README.md`)
 
 `KIPSyntax.md` is an informative LLM-facing syntax card, not a normative artifact.
 
@@ -53,9 +42,9 @@ KIP 1.x remains a compatibility/migration source, not a normative definition of 
 
 # 0. Normative Language
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and **OPTIONAL** are to be interpreted as normative requirement levels.
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and **OPTIONAL** are to be interpreted as described in BCP 14 (RFC 2119, RFC 8174) when, and only when, they appear in all capitals. The same rule binds every normative companion.
 
-Unless explicitly marked otherwise, protocol invariants stated with these terms are normative.
+Unless explicitly marked otherwise, protocol invariants stated with these terms are normative. Lowercase words such as "must", "never" and "cannot" carry their ordinary English meaning; a requirement is stated with a capitalized keyword.
 
 Examples, rationale, explanatory diagrams, and non-normative implementation notes do not override normative requirements.
 
@@ -502,7 +491,6 @@ Profile objects such as:
 Experience
 ExperienceStep
 Skill
-Preference
 Commitment
 Insight
 SelfModel
@@ -655,7 +643,7 @@ version: a Concept keyed `"alice"` under `Person@1.0.0` and an upsert of
 identity, so a package upgrade never mints a second `"alice"`.
 
 A `key` is therefore identity within its Concept Type, not across types: a
-`Person` and a `Preference` may both be keyed `"alice"` and they are two
+`Person` and a `Topic` may both be keyed `"alice"` and they are two
 identities, which is what lets a 1.x database whose identity was `(type, name)`
 migrate those names into keys without merging unrelated Concepts.
 
@@ -936,7 +924,7 @@ Ordinary new writes resolve identity through `B`, while engine audit MUST retain
 the as-supplied endpoint and the resolution decision/version used. An ASSERT or
 creation that resolves an existing canonical Proposition still retains its own
 input-reference binding; the canonical tuple alone cannot recover that intent.
-See the Cognitive Consistency companion §4 for identity repair.
+See §11.5 for identity repair.
 
 ---
 
@@ -955,7 +943,32 @@ historical queryability
 
 ## 11.5 Identity repair
 
-A runtime advertising `identity_repair` MUST implement the protected resolution-withdrawal and affected-write review contract in [Cognitive Consistency §4](./KIP-2.0-Cognitive-Consistency.md#4-repairable-identity-and-portable-keys). It never rewrites old tuples, invents lost attribution, or gains authority through `same_as`.
+Every merge is a protected, immutable identity-resolution decision carrying an id, source, target, actor origin, basis and resolution version. Engine audit MUST preserve the references a write actually supplied and their canonical resolution, including an `ASSERT`'s endpoints. For a reference a caller had already canonicalized, the engine records only what it received and MUST NOT claim knowledge of an earlier referent it never saw.
+
+A runtime advertising `identity_repair` (§67.4) provides one protected operation under `merge_identity`, carried by the same protected control binding as other Governance operations (ordinary KML cannot set `merged_into`):
+
+```text
+{decision_id, expected_identity_version, action: "withdraw", reason_evidence}
+```
+
+The operation MUST, atomically:
+
+```text
+withdraw the named resolution for current reads
+verify acyclicity and identity constraints (conflicting keys or canonical IDs fail IdentityConflict)
+advance the identity version and emit an identity control change (§36.1)
+retain the withdrawn decision for AS OF and HISTORY
+```
+
+The source becomes independently resolvable again; raw Proposition tuples and old Assertions are not moved or rewritten. The repair yields a review set of the writes made under the withdrawn resolution: writes whose as-supplied references are unambiguous guide new, explicitly corrected Assertions; writes whose intended referent is lost remain `needs_review` (§57.6) and are excluded from automatic application. Dependents, cached projections and imported mappings under the old resolution are invalidated.
+
+Repair is a correction of the current interpretation, never a claim to split data perfectly when attribution was not retained, and it never grants trust or authority — `same_as` (Profile §7) feeds review, not repair. A runtime without this capability MUST reject the operation rather than delete and recreate the merged source.
+
+---
+
+## 11.6 Portable keys
+
+A Concept `key` (§7.3) is Space-local unless its package declares portable identity with `issuer_namespace`, `key_scope` and normalization rules. Capsule identity mapping by key (§38.2) MUST match lineage, verified issuer, scope and normalized key together. Equal local keys in different owners' Spaces otherwise denote separate identities.
 
 ---
 
@@ -1099,6 +1112,10 @@ An **Assertion** is a historically attributable epistemic commitment toward exac
 
 plus common envelope.
 
+Each `valid_time` endpoint is an exact Timestamp (§6.5), `null`, or a **time bound** `{earliest, latest}` for an instant known only within a range (§25.5). A missing `from` means the value began no later than the claim was made — projection reads it as the bound `{latest: asserted_at}` — and an open `until` means the Assertion states no end, not that the value holds forever (§25.2, §25.4).
+
+`asserted_at` is the instant the actor made the claim, never the instant the Brain recorded it. For a claim extracted from captured source material it is the source's `observed_at` or the instant the source itself records. It is the claim's start key when no `from` is written (§25.4), so a claim recorded later than it was made MUST carry its original time: written with the recording time, an old claim would take today's start key and end a current value it actually predates.
+
 ---
 
 ## 13.3 `asserted_by`
@@ -1113,7 +1130,7 @@ _system.origin.principal_id
 
 which identifies the authenticated execution origin.
 
-`context_refs` is OPTIONAL: references to Concepts that scope the Assertion — the situation, purpose, or domain under which the stance holds (§25.3). It is set at creation through `SET FIELDS` and is part of the immutable payload (§13.7); context matching MUST follow the set-inclusion baseline in Cognitive Consistency §2; an explicitly versioned policy may add declared inheritance. A scoped Assertion is ineligible for a context-free request (`context_mismatch`).
+`context_refs` is OPTIONAL: references to Concepts that scope the Assertion — the situation, purpose, or domain under which the stance holds (§25.3). It is set at creation through `SET FIELDS` and is part of the immutable payload (§13.7); context matching MUST follow the set-inclusion baseline in §25.3; an explicitly versioned policy MAY add declared inheritance. A scoped Assertion is ineligible for a context-free request (`context_mismatch`).
 
 ---
 
@@ -1220,15 +1237,17 @@ Supersession means a newer Assertion replaces the older Assertion in a compatibl
 
 Supersession is **revision**: the superseding Assertion says the superseded one was wrong — in its value, or in the interval it claimed — for the time it covered. Projection therefore drops a superseded Assertion for every `FOR TIME`, not only for the present.
 
-Supersession is not generic disagreement, and it is not how the world changing over time is recorded. A value that held and then stopped holding is two `active` Assertions with complementary `valid_time` intervals (§25.2), and the Brain keeps answering "what was true then" from the earlier one (§48.4, Appendix G.4). When the earlier Assertion was written open-ended, the change is recorded by a superseding re-assertion of the same value with its interval closed, plus a new Assertion for the new value from the change date (Appendix F.2). Superseding a claim that was true for its time erases history the protocol exists to keep.
+Supersession is not generic disagreement, and it is not how the world changing over time is recorded. A value that held and then stopped holding is recorded by a new `active` Assertion that begins where the change happened: the earlier open-ended Assertion is ended by its successor through temporal succession (§25.4), stays `active`, and keeps answering "what was true then" (§48.4, Appendix G.4). A value that simply stopped, with no successor value, is ended by a same-actor Assertion of the opposite stance from the change date (Appendix F.2). A runtime and a Brain MUST NOT use supersession to record a world change: superseding a claim that was true for its time rewrites an actor's history into an error the actor never made, and erases history the protocol exists to keep.
+
+Supersession, world change (§25.4) and recording repair (§57.8) are three different histories. Supersession says the actor's claim was wrong; succession says the world moved on; recording repair says the Brain recorded something the actor never claimed.
 
 ---
 
 ## 14.3 Expired
 
-`expired` is a **computed** status, never a stored one: an Assertion whose `valid_time.until` is at or before a projection's `valid_at` (`FOR TIME`) is `expired` for that projection. No KML statement produces it, a Change Envelope never carries it, and the stored lifecycle status remains `active`, `retracted`, or `superseded`. `HISTORY` shows no transition to `expired`, because none is committed.
+`expired` is a **computed** status, never a stored one: an Assertion whose effective interval (§25.2, §25.4) ends at or before a projection's `valid_at` (`FOR TIME`) is `expired` for that projection, whether its own `until` or a successor ended it. No KML statement produces it, a Change Envelope never carries it, and the stored lifecycle status remains `active`, `retracted`, or `superseded`. `HISTORY` shows no transition to `expired`, because none is committed.
 
-This status is computed from world valid time, and is distinct from storage retention. Intervals are half-open `[from, until)`; equal finite bounds are invalid (Cognitive Consistency §2).
+This status is computed from world valid time, and is distinct from storage retention. Intervals are half-open `[from, until)` (§25.2).
 
 ---
 
@@ -1343,8 +1362,9 @@ attempt, the decision and the Outcome Evidence. The standard Profile binds the
 attempt to exact Skill revisions and a trial before execution. Multiple observations
 of one attempt remain one sampling unit per metric/window. Unlinked outcomes stay
 stream material until an explicit comparable baseline selection admits them.
-Cognitive Consistency §5–§6 defines independent attempts, comparability and retained
-replay inputs; a shared family or a rule digest alone proves none of these.
+The [Validated Learning companion](./brain/KIP-2.0-Validated-Learning.md) defines
+independent attempts, comparability and retained replay inputs; a shared family or
+a rule digest alone proves none of these.
 
 Writing `outcome`-class Evidence, and the observation Activity that links it, requires `record_outcome` (§29.8).
 
@@ -1452,7 +1472,7 @@ Assertion → Evidence
 Evidence → Activity
 Activity → inputs/outputs
 Experience → ExperienceStep
-Skill → compiled_from Experience
+Skill → current_revision SkillRevision
 ```
 
 ---
@@ -1540,7 +1560,7 @@ Example:
 ```json
 {
   "facets": {
-    "kip://profiles/cognitive-memory@2.2.0/MnemonicState": {
+    "kip://profiles/cognitive-memory@2.0.0/MnemonicState": {
       "memory_strength": 0.8,
       "salience": 0.9
     }
@@ -1561,6 +1581,8 @@ origin
 epistemic distinctions
 ```
 
+A package MAY declare a Facet, a Facet field or a Structural Field **computed**: the engine derives its value from other state when a read is evaluated. A computed member is read-only — a write to it fails `ConstraintViolation` — has no version plane, is never exported as state, and never becomes Evidence. It exists so that a value with one authoritative source (an immutable record, Activity provenance, a decay policy) can be read conveniently without a second writable copy that could disagree with it.
+
 ---
 
 ## 18.3 Cognitive Memory Profile
@@ -1571,18 +1593,14 @@ A Cognitive Memory Profile SHOULD define types/facets/structural fields for at l
 Event
 Experience
 ExperienceStep
-Preference
 Insight
 Commitment
 Watch
-Skill
+Skill / SkillRevision
 SleepTask
 SelfModel
 WorkingState
 MnemonicState
-GradingState
-TrialState
-DerivationState
 DecisionRecord
 OutcomeRecord
 ```
@@ -1686,7 +1704,7 @@ Examples:
 ```text
 kip://core@2.0.0
 kip://core@2.0.0/Assertion
-kip://profiles/cognitive-memory@2.2.0/Experience
+kip://profiles/cognitive-memory@2.0.0/Experience
 kip://ldclabs/organization@1.3.0/works_for
 ```
 
@@ -1744,7 +1762,7 @@ unpinned resource fails activation; a previously cached or network-fetched schem
 cannot silently supply it.
 
 Package definitions may declare typed `reference_paths` for nested element references
-(Cognitive Consistency §8.3). These paths and their namespace are binding for closure
+(Capsule companion §41.7). These paths and their namespace are binding for closure
 validation and Capsule mapping; a loader unable to honor them rejects activation
 rather than treating IDs as arbitrary text. Optional absent/null references remain
 absent/null. Timestamp format validation must include real calendar values even
@@ -1937,6 +1955,12 @@ object                {concept_types: [...]} | {kinds: [...]} | {literal_types: 
                       timestamp follows §6.5
 functional            true  → at most one accepted object per subject at one valid time;
                               more form a conflict set (§25.1)
+functional_by         "object_type" → functional within each partition of candidate
+                              objects that share a Concept Type lineage: at most one
+                              accepted object per subject and partition at one valid time
+                              (§25.1); MUST NOT be combined with functional: true, and the
+                              object MUST be declared as Concepts ({kinds: ["Concept"]} or
+                              concept_types): a Literal has no Concept Type to partition by
 open_world            true  → absence of a Proposition means insufficient (§24)
                       false → the Space's snapshot is authoritative for this Predicate
                               and absence may be read as closed-world (§24.2)
@@ -1950,7 +1974,41 @@ temporal_conflict     "overlapping_valid_time" → two accepted values conflict 
                       "none" → values never conflict on time
 ```
 
-Defaults when a field is absent: `functional: false`, `open_world: true`, `complete: false`, `boolean_completeness: false`, `temporal_conflict: "overlapping_valid_time"`. A Projection Policy MAY be stricter than a declaration, never looser: it cannot treat an `open_world: true` Predicate as closed.
+Defaults when a field is absent: `functional: false`, `functional_by` absent, `open_world: true`, `complete: false`, `boolean_completeness: false`, `temporal_conflict: "overlapping_valid_time"`. A Projection Policy MAY be stricter than a declaration, never looser: it cannot treat an `open_world: true` Predicate as closed.
+
+A **slot** is the subject–predicate pair of a functional Predicate; for a `functional_by` Predicate it is the subject–predicate–partition triple. Every rule this Specification states about a functional slot — conflict sets (§25.1), `complete`, temporal succession (§25.4), `BELIEF SLOT` (§47) — applies per partition. `functional_by` exists for relations such as a preference among alternatives: two options of one kind compete, while preferences over different kinds coexist. The partition is the option's Concept Type, so an option Concept MUST be typed by its kind (a color scheme, an editor), never by a catch-all type: options that share a catch-all type are one partition, and the newer would end the older whatever they are about. Where no installed package names the kind, the draft vocabulary supplies it (§20.16).
+
+---
+
+## 20.16 Draft vocabulary
+
+A Brain meets relations that no installed package names. Forcing that cognition to stay Evidence-only loses it; granting the Brain `manage_schema` gives ordinary cognition control-plane authority. A Space that advertises `draft_vocabulary` (§67.4) instead keeps one **draft vocabulary**: a Space-local Schema Package at the reserved path `kip://local/draft`, extended only through the KML statement `DEFINE` under the permission `propose_schema` (§29).
+
+```prolog
+DEFINE CONCEPT TYPE "Place" {
+  description: "A named geographic location."
+}
+
+DEFINE PREDICATE "lives_in" {
+  description: "The subject's primary place of residence.",
+  subject: {concept_types: ["Person"]},
+  object: {concept_types: ["Place"]},
+  functional: true
+}
+```
+
+Rules:
+
+- The package path prefix `local/` is reserved for Space-local packages. A draft lineage is qualified by its home Space: Capsule identity mapping (§38.2) keeps a source's `kip://local/...` symbols source-namespaced and MUST NOT merge them by name with the destination's draft symbols.
+- `DEFINE` only adds. A local name that already resolves in the Schema Environment — from Core, a Profile, an installed package or an earlier draft symbol — fails `SchemaSymbolConflict`. A draft symbol never shadows another symbol and never changes after it is defined.
+- A draft Predicate uses the fields of §20.15 with their defaults. It MUST NOT declare `open_world: false` or `complete: true`: a closed-world reading and exclusive-value completeness are claims about authority over the data, which only an installed package makes.
+- A draft Concept Type declares `description` and MAY declare open, optional `attributes` with `type` names from §9.2; it declares no required attributes, Facets or Structural Fields.
+- `DEFINE` is a standalone operation. It MUST NOT appear inside `MUTATE` or in an `atomic` request with other operations (§75.3). It commits as its own transaction, advances `schema_environment_version`, publishes a `schema` control change (§36.1) and makes the symbol resolvable for later operations.
+- The draft package has one fixed version, `kip://local/draft@0.0.0`: a draft symbol never changes after it is defined, so a version number would carry no information, and one version keeps every draft symbol out of Capsule embeddings, Schema Locks and `DESCRIBE PACKAGE` as a growing list of versions. Elements persist that exact reference (§20.4). Each `DEFINE` still advances `schema_environment_version`, which is what caches and bases key on.
+- Promotion is a Schema migration under `manage_schema`, recorded in the Space's Schema Environment: a lineage mapping from the draft symbol to a symbol of an installed package, with the rename semantics of §20.14. It is never declared inside a package artifact — a portable package cannot name one Space's draft symbols. Nothing is promoted implicitly, and elements written under a draft symbol remain readable through its lineage.
+- `propose_schema` never confers `manage_schema`, `manage_policy` or any authority over existing symbols. A runtime that does not advertise `draft_vocabulary` rejects `DEFINE` with `UnsupportedCapability`.
+
+The Cognitive Memory Profile's `review_schema` SleepTask class queues draft symbols for review and promotion.
 
 ---
 
@@ -2018,7 +2076,7 @@ Meaning:
 
 > eligible support is sufficient under the Projection Policy, dependencies are valid, and unresolved direct or slot-constraint opposition is below the policy boundary.
 
-This is the final result, not merely candidate-local support. Cognitive Consistency §1 requires single BELIEF and BELIEF SLOT to agree on final acceptance.
+This is the final result, not merely candidate-local support. Single BELIEF and BELIEF SLOT MUST agree on final acceptance (§21.11).
 
 ---
 
@@ -2062,14 +2120,12 @@ This is the open-world unknown state.
 
 ## 21.9 Materialized Projection
 
-Projection remains read-only. A runtime MAY cache it only under the complete
-ProjectionBasis defined in Cognitive Consistency §2: Space snapshot, Schema and
-identity versions, policy/trust versions, current authorization view, context,
-purpose/risk and valid time. Results disclose this basis and next invalidation
-instant. Reuse requires validation of all computation dependencies; policy-only
-and time-only changes count even without a new Assertion. A stale result may be
-served explicitly as historical, never as current. Caches never become Evidence
-or self-corroborating Assertions.
+Projection remains read-only. A runtime MAY cache it only under its complete
+ProjectionBasis (§21.12) and MUST disclose that basis and the next invalidation
+instant with every served result. Reuse requires validation of all computation
+dependencies; policy-only and time-only changes count even without a new
+Assertion. A stale result MAY be served explicitly as historical, never as
+current. A cache never becomes Evidence or a self-corroborating Assertion.
 
 ---
 
@@ -2078,6 +2134,62 @@ or self-corroborating Assertions.
 The minimal conforming Projection Policy uses only structural material: Assertion lifecycle, world-time validity, caller visibility, `mode`, `stance`, and provenance-root independence (§23). It weighs nothing — no trust scores, no confidence arithmetic, no numeric output (`score: null`) — and it is fully determined by the visible state, so two runtimes given the same state and policy produce the same status, `leading` and ledger. The conformance suite's `test-deterministic` policy is such a policy.
 
 Every KIP-Epistemic implementation MUST be able to run a structural policy (§92). Trust-weighted policies (§22, §27.3) build on it and are advertised through `weighted_projection` (§67.4); a runtime that offers only the structural baseline still conforms.
+
+Temporal succession (§25.4) and time bounds (§25.5) are part of world-time validity, so every policy — the structural baseline included — applies them.
+
+---
+
+## 21.11 Final belief and slot conflicts
+
+Projection has two stages. The first computes `candidate_status` from one candidate's eligible support and opposition. The second evaluates the visible, eligible candidates of the same slot (§20.15) under the same ProjectionBasis.
+
+A functional or exclusive-value conflict between materially supported candidates MUST be reflected in the final `status` of every involved candidate, including a grounded single-Proposition `BELIEF` and `BELIEF (id: ...)`. Under the structural baseline those candidates are `contested`, their `slot_status` is `contested`, and they are absent from `accepted_values`. A policy MAY resolve a conflict only through its declared rules, recorded in the ledger (§21.13); the shape of the query MUST NOT resolve it. A multi-valued slot of a non-functional Predicate is not contested merely because it has several supported values.
+
+`candidate_status` is diagnostic and never an action verdict; `status` is the consumer-facing result. `conflict_refs` contains only references the caller may discover (§30.4), and `conflict_reasons` names the constraint, for example `functional_value`. That constraint is opposition to accepting a candidate; it does not convert an object `false` into a stored `reject` Assertion, and direct stance conflicts remain representable. A candidate with no eligible support does not become accepted because another candidate exists. `leading` is recomputed over the final conflict set with the policy's tie-break; a structural tie reports `none`. Slot and candidate queries evaluated at the same basis MUST agree on final acceptance.
+
+---
+
+## 21.12 ProjectionBasis
+
+Every projected result MUST carry `basis`, conforming to `schemas/kip-projection.schema.json#/$defs/ProjectionBasis`:
+
+```text
+space_id and the cognitive snapshot sequence
+Schema Environment version and identity-resolution version (§11.5)
+Projection Policy id/version and the protected trust-state version (§22.5)
+an opaque current authorization-view identity — never a Grant list or a hidden count
+the canonical sorted context reference set (§25.3), purpose and risk
+valid_at, and next_invalid_at: the next known temporal invalidation instant, or null
+```
+
+A cache key MUST include every basis member except the computed `next_invalid_at`. Reuse requires current authorization and validation of every basis dependency: trust, identity, Schema, policy or authorization changes invalidate the relevant cached results even when no Assertion changed, and a result reaching `next_invalid_at` MUST be recomputed or served explicitly as historical. An engine MAY use dependency-specific invalidation instead of discarding every result on each Space commit, provided the reused result equals a fresh computation; it then issues the reused result under a fresh basis and never relabels an old snapshot as a new read. WorkingState and other compiled views carry the same basis where applicable. Strength decay (§59.1) is not a belief input and never invalidates a basis.
+
+---
+
+## 21.13 The standard memory policy
+
+The structural baseline (§21.10) resolves no conflict: two eligible, materially supported values of one functional slot are `contested` whoever stated them. That is the right floor, but a memory Brain also needs a standard answer to the everyday questions — does a task-specific instruction override a general preference, and does a person's own statement about themselves override hearsay? Leaving those to each engine would make the same memory answer differently on two engines.
+
+`kip:memory-default` (version `1`) is the standard deterministic policy for memory recall. It is the structural baseline plus three precedence rules, applied in order when two or more candidates of one slot are in conflict at the basis:
+
+```text
+1. context specificity   candidate A prevails over candidate B when some eligible
+                         support of A has a context set that strictly contains the
+                         context set of every eligible support of B
+2. first-person          candidate A prevails over candidate B when A has eligible
+   testimony             support stated or observed by the slot's subject itself,
+                         and no eligible support of B is by the subject or has
+                         mode observed
+3. recency               candidate A prevails over candidate B when the greatest
+                         start key (§25.4) among A's eligible support is greater
+                         than the greatest start key among B's eligible support
+```
+
+The rules apply in order: the first rule under which one candidate prevails over every other candidate of the conflict set decides it. A candidate that prevails receives its candidate status as its final status; each candidate it prevails over becomes `uncertain` with the uncertainty reason `outranked` and a ledger entry naming the rule, never `rejected`, because no opposition was asserted. When no candidate prevails over all others — under rule 3, when the greatest start keys tie — the conflict stands and every candidate in it remains `contested`. The policy uses no numbers: `score` is `null`, and two runtimes given the same visible state produce the same status, `leading` and ledger.
+
+Rule 3 is the cross-actor counterpart of temporal succession: succession lets an actor's later value end that actor's earlier one, and recency lets the value most recently claimed to hold prevail when different actors' values conflict — a device's old observation against the person's newer statement, or two instruments' readings. It compares when values were claimed to hold, never when the Brain wrote them (§13.2), so a late-recorded old claim never wins by being recorded last. Rules 1 and 2 come first, so a person's own statement still prevails over newer hearsay and a task instruction over a newer general one.
+
+The rules are deliberately few. Mode ranking beyond rule 2 and trust are policy choices a deployment makes through its own versioned policy (`weighted_projection`). The machine-readable policy artifact is `profiles/policy-memory-default.json`. A Memory Interface binding (companion) uses `kip:memory-default` unless the request or the deployment names another policy, and discloses the policy in every basis.
 
 ---
 
@@ -2174,7 +2286,7 @@ Trust state introspection (`DESCRIBE TRUST`) is governed like other control-plan
 
 Changing trust state requires `manage_trust`.
 
-Trust changes MUST be auditable, advance their protected version and appear as control-plane transitions on the change/audit stream. They invalidate dependent ProjectionBasis views (Cognitive Consistency §2).
+Trust changes MUST be auditable, advance their protected version and appear as control-plane transitions on the change/audit stream. They invalidate dependent ProjectionBasis views (§21.12).
 
 A Brain MAY implement outcome-driven trust calibration — prediction error and outcome Evidence raising or lowering contextual trust. The calibration algorithm is Brain policy, but each revision SHOULD be recorded with provenance (for example a trust-revision Activity referencing the outcome Evidence) so the Brain can later answer **why it trusts a source**.
 
@@ -2284,21 +2396,106 @@ declared causal/logical conflict
 
 ## 25.1 Functional Predicate
 
-A Schema may declare a Predicate functional for a given context.
+A Schema may declare a Predicate functional (§20.15), or functional within partitions of its objects (`functional_by`).
 
-Multiple overlapping accepted candidate values then form a conflict set.
-
----
-
-## 25.2 Temporal non-conflict
-
-Two values valid over non-overlapping world intervals need not contradict.
+Multiple overlapping accepted candidate values of one slot then form a conflict set (§21.11).
 
 ---
 
-## 25.3 Contextual non-conflict
+## 25.2 World intervals
 
-Different contexts MAY make apparently different Assertions non-conflicting.
+`valid_time` is a half-open interval `[from, until)`:
+
+```text
+from   null or absent   no start stated: the value began no later than the claim was
+                        made, so projection reads the bound {latest: asserted_at} (§25.5)
+until  null or absent   open: the Assertion states no end
+at t = until            the Assertion is excluded; a value beginning at t is eligible
+exact finite bounds     MUST satisfy from < until
+```
+
+A missing `from` is not a claim that the value held since the beginning of time: a claim made at T says the value holds at T and says nothing certain about earlier instants, so a projection before T finds it indeterminate (§25.5) unless a predecessor narrows it (§25.4). An open `until` is not a claim that the value holds forever. It holds until the same actor ends it or a successor begins (§25.4); an open Assertion with no successor remains eligible for every later instant. Two values valid over non-overlapping effective intervals need not contradict.
+
+Protocol timestamps use the strict format of §6.5; noncanonical input is rejected, not normalized. Source-local or coarse dates stay source data until a host explicitly converts them to an exact Timestamp or a time bound (§25.5), retaining the original text and its precision in Evidence. Formation MUST NOT invent an exact instant. A missing interval follows §25.2 and §25.4, never retention expiry (§19.2).
+
+---
+
+## 25.3 Context matching
+
+Core context matching is set inclusion: an Assertion is eligible for a request only when its `context_refs` is a subset of the request's canonical context set. An Assertion with empty context is general and eligible in every context; a scoped Assertion is ineligible for an empty request context and is reported `context_mismatch` where the caller may see exclusions. Context identity uses the identity resolution at the basis (§11.5), never name similarity or an asserted `same_as` claim. Additional inheritance between contexts requires an explicitly versioned policy; conflicting context dimensions declared by a package MUST fail validation, and unknown context is not an invented universal scope. `WITH EPISTEMIC {context_refs: [...]}` supplies the request set.
+
+Different contexts MAY make apparently different Assertions non-conflicting: a context-scoped Assertion that is ineligible in a request cannot conflict in it. When both are eligible, the structural baseline leaves the conflict standing and `kip:memory-default` resolves it by specificity (§21.13).
+
+---
+
+## 25.4 Temporal succession
+
+The world changes more often than actors are wrong, so recording a change takes one write: the new value, from the time it began. Earlier open-ended claims are ended by their successors at projection time, deterministically and without rewriting anything.
+
+**Start key.** Every Assertion has a start key: the latest instant by which it claims to have begun — an exact `from`; else the `latest` of a time-bound `from` (§25.5); else its `asserted_at`, because a claim with no stated start, made at time T, says the value held at T (§25.2).
+
+**Who takes part.** Succession is an actor's own account of what they witnessed changing. An Assertion takes part in succession — lies on lines, ends predecessors and is ended by successors — when its mode is `stated` or `observed`, or when it writes an explicit `from`. An `inferred` Assertion with no written `from` is on no line: the Brain concluding a value at T is not the Brain witnessing that an earlier conclusion stopped holding, and letting one inference end another would turn every disagreement between two sources into an invented world change. Such an Assertion keeps its written interval, stays eligible, and its disagreement with an earlier one is a conflict for the policy (§21.11, §21.13); a Brain that has decided its earlier inference was wrong supersedes it (§14.2), and one that has learned when the world changed writes the `from`.
+
+**Succession lines.** Two active Assertions are on one succession line when they take part in succession, have the same canonical `asserted_by` actor, the same canonical `context_refs` set, and either
+
+```text
+proposition line   the same Proposition, whatever their stances
+slot line          stance support, distinct Propositions of one functional slot (§20.15):
+                   same subject, same Predicate lineage and, for functional_by,
+                   the same partition
+```
+
+**Succession.** Two Assertions on a line **disagree** when they are on a slot line, or when they are on a proposition line with different stances. A later Assertion that agrees with an earlier one — the same Proposition and stance — neither ends nor narrows it. For an Assertion P on a line, its **successors** are the eligible Assertions on the line that disagree with P and have a greater start key; its **predecessor** is the disagreeing eligible Assertion on the line with the greatest start key smaller than P's. Equal start keys are simultaneous: neither succeeds the other, and a disagreement between them stays a conflict.
+
+```text
+start    if P's from is not exact and P has a predecessor Q, P's effective start is
+             {earliest: max(P.from.earliest, start key of Q), latest: start key of P}
+         otherwise P's written from
+end      if P's until is open and P has successors, P's effective until is the
+             effective start of the successor with the smallest start key — when
+             several share that key, their effective starts combined bound by
+             bound, taking the earliest of each
+         otherwise P's written until
+```
+
+An Assertion on several lines combines them bound by bound: its effective start takes the latest `earliest` and the latest `latest` any line gives it, and its effective end the earliest of each (an exact instant counts as a bound whose `earliest` and `latest` are equal). Effective intervals only ever narrow written ones: succession never makes an Assertion eligible where its written interval excludes it, never changes stored state, and is recomputed from the eligible set at every basis. An Assertion that is not eligible for the projection — retracted, superseded, quarantined, invisible to the caller, excluded by mode or context — is on no line, so withdrawing a successor restores its predecessor's open end, and a hidden Assertion never changes a visible one's interval.
+
+Consequences:
+
+```text
+world change          one ASSERT of the new value; the old value is expired from
+                      the new value's start and still answers FOR TIME before it
+value simply ended    one ASSERT by the same actor, opposite stance, same Proposition,
+                      from the time it ended (Appendix F.2)
+late history          an Assertion whose start key precedes the current value's never
+                      displaces the current value; a late-recorded claim carries the
+                      time it was made (§13.2), so recording order never decides
+different actors      never succeed one another: their disagreement stays a conflict
+                      (§21.11) for the policy to handle (§21.13)
+two inferences        never succeed one another unless they write their start: the
+                      disagreement stays a conflict, never an invented change
+```
+
+Succession applies to every Projection Policy, including the structural baseline. It is not supersession (§14.2): no one is recorded as having been wrong.
+
+---
+
+## 25.5 Time bounds
+
+An instant known only within a range is written as a **time bound** — an object with at least one of `earliest` and `latest`, both Timestamps (§6.5), with `earliest <= latest` — meaning the true instant lies in `[earliest, latest]`. Either `valid_time` endpoint MAY be a time bound. A host converting "in 2019" writes `{earliest: "2019-01-01T00:00:00.000Z", latest: "2019-12-31T23:59:59.999Z"}` and keeps the source text as Evidence; it never picks an instant inside the range. An interval is invalid when its earliest possible start is not before its latest possible end.
+
+At a projection instant `t`, an Assertion's effective interval is **inside**, **outside** or **indeterminate**:
+
+```text
+inside         start certainly <= t   (exact <= t, or latest <= t; a missing from is the
+                                       bound {latest: asserted_at}, §25.2)
+               and end certainly > t  (open with no successor, exact > t, or earliest > t)
+outside        start certainly > t    (exact > t, or earliest > t)
+               or end certainly <= t  (exact <= t, or latest <= t)
+indeterminate  otherwise
+```
+
+An indeterminate Assertion is material but cannot decide a status by itself: a candidate whose only eligible support or opposition at `t` is indeterminate is `uncertain`, with the uncertainty reason `temporal_indeterminate`. An indeterminate competitor does not form a functional conflict with a candidate whose support is inside; it is listed in the ledger. `FOR TIME` itself is always an exact Timestamp.
 
 ---
 
@@ -2367,7 +2564,7 @@ explanation level
 
 ---
 
-`context_refs` is a sorted set of exact context references (Consistency §2). All resolved coordinates are returned as `basis`; `schemas/kip-projection.schema.json` defines the wire contract.
+`context_refs` is a sorted set of exact context references (§25.3). All resolved coordinates are returned as `basis`; `schemas/kip-projection.schema.json` defines the wire contract.
 
 ## 27.2 Projection output
 
@@ -2415,7 +2612,7 @@ Conceptual output:
 }
 ```
 
-The conceptual example above elides `basis` for space; actual results MUST include the full ProjectionBasis. `candidate_status` is diagnostic; consumers use final `status`. Functional conflicts are included even for a single grounded candidate (Consistency §1).
+The conceptual example above elides `basis` for space; actual results MUST include the full ProjectionBasis. `candidate_status` is diagnostic; consumers use final `status`. Functional conflicts are included even for a single grounded candidate (§21.11).
 
 `leading` names the side the policy would favor if it were forced to choose: `support` under `accepted`, `opposition` under `rejected`, and under `contested` the side with more eligible independent trusted roots, using the tie-break the policy declares (§27.1); an exact tie, `uncertain` and `insufficient` report `none`. `leading` is disclosure for a consumer that must act anyway (Brain Recall surfaces both sides and names the heavier one); it never changes `status`.
 
@@ -2607,6 +2804,7 @@ derive            derive_permission
 record_outcome    record_outcome_permission
 repair_recording  recording_repair
 manage_trust      weighted_projection
+propose_schema    draft_vocabulary       DEFINE in the Space's draft vocabulary (§20.16)
 ```
 
 Implementations MAY refine names/scopes but MUST preserve equivalent semantic distinctions when claiming full Governance conformance.
@@ -2778,6 +2976,36 @@ origin
 ```
 
 not only payload fields.
+
+---
+
+## 30.5 Single-agent preset
+
+Most deployments are one Agent with one memory. Designing Grants from thirty permissions is where such a deployment goes wrong, so this preset is the RECOMMENDED starting policy for a Space with one acting Agent. It binds four Principals; a deployment that merges any two of them MUST say so, because the separations below are what make the channel auditable:
+
+```text
+agent         the acting Agent (waking Brain, Formation, Recall)
+              discover, read, search, project, create, update, assert,
+              record_attributed_assertion, retract_own, supersede_own, archive,
+              export; propose_schema where draft_vocabulary is advertised;
+              repair_recording where recording_repair is advertised, which §57.8
+              limits to this Principal's own source-backed outputs — "you misheard
+              me" is the Agent's own mistake to repair, not the owner's
+              ActorBinding: the Space's $self (§5.6)
+maintenance   the sleeping Brain ($system)
+              the agent's read permissions, create, update, assert (as $self),
+              maintain, merge_identity, manage_retention, tombstone,
+              read_history, read_audit; derive where advertised
+instrument    telemetry, verifiers, test harnesses, human review tooling
+              discover, read, create, record_outcome where advertised
+              no ActorBinding to $self: it never grades its own actions
+owner         the human the memory belongs to
+              every Core permission, including purge, manage_legal_hold,
+              manage_schema, manage_policy, manage_grants, quarantine, declassify,
+              approve and elevate_authority; the approver of RequiresApproval
+```
+
+Everything not granted is denied (§30.2). `purge`, legal holds, Schema installation, trust and authority elevation stay with the owner: the Agent can forget through archive and tombstone, and asks the owner for erasure (Memory Interface `forget`). A deployment in which one Principal is both `agent` and `instrument` runs a self-graded channel and is visible as such from `_system.origin` (§29.8).
 
 ---
 
@@ -3189,7 +3417,7 @@ Normative shape (`schemas/kip-change-envelope.schema.json`):
       "op": "update",
       "kind": "concept",
       "id": "C-7",
-      "schema_ref": "kip://profiles/cognitive-memory@2.2.0/Commitment",
+      "schema_ref": "kip://profiles/cognitive-memory@2.0.0/Commitment",
       "old_version": 4,
       "new_version": 5,
       "touched": ["attributes.status", "facets.MnemonicState"],
@@ -3205,7 +3433,7 @@ Existence protection (§30.4) applies per entry: an element the consumer may not
 
 ---
 
-Control-plane commits carry governed `control_changes` entries (`trust`, `policy`, `schema`, `identity`, `authorization`, `recording`) with opaque version identities; they allocate a Space sequence and invalidate relevant bases. They never masquerade as Cognitive Elements or Evidence. Complete/filtered stream consumers receive a governed coverage watermark and authorization-view binding; missing entries or sequence gaps alone do not prove silence (Consistency §7).
+Control-plane commits carry governed `control_changes` entries (`trust`, `policy`, `schema`, `identity`, `authorization`, `recording`) with opaque version identities; they allocate a Space sequence and invalidate relevant bases. They never masquerade as Cognitive Elements or Evidence. Complete/filtered stream consumers receive a governed coverage watermark and authorization-view binding; missing entries or sequence gaps alone do not prove silence (Brain Runtime companion §2).
 
 ## 36.2 Atomicity
 
@@ -3364,6 +3592,7 @@ Activity Pattern
 Structural Reference Pattern
 Belief Pattern
 Belief Slot Pattern
+Search Pattern
 ```
 
 ---
@@ -3495,6 +3724,36 @@ For an ordered Structural Field, `?edge.index` exposes the reference's current z
 ```prolog
 ORDER BY ?edge.index ASC
 ```
+
+---
+
+## 43.8 Search Pattern
+
+A Search Pattern runs associative retrieval (§66) inside a query and binds each hit:
+
+```prolog
+FIND(?person, ?home)
+WHERE {
+  ?person SEARCH CONCEPT :query WITH TYPE "Person" MODE "hybrid" LIMIT 20
+  ?home BELIEF SLOT (?person, "lives_in")
+}
+ORDER BY ?person.retrieval.score DESC
+LIMIT 5
+```
+
+Syntax:
+
+```text
+?var SEARCH <KIND> <term> [WITH TYPE <t>] [WITH PREDICATE <p>] [MODE <m>] [THRESHOLD <x>] LIMIT <k>
+```
+
+Rules:
+
+- The pattern binds `?var` to each hit, an element of the named kind (§66.2), and exposes the transient virtual members `?var.retrieval.score` and `?var.retrieval.mode` (§66.4). They MAY be used in `FILTER` and `ORDER BY`; they MUST NOT be written, persisted or read as confidence (§2.10).
+- `LIMIT <k>` is REQUIRED and bounds the candidate set: the pattern yields at most the `k` highest-ranked visible hits after Governance filtering and `THRESHOLD`. Pagination belongs to the enclosing `FIND` (§44.8); the pattern takes no `CURSOR`.
+- Retrieval runs against the query's snapshot. Under `AS OF SEQ` it is historical search and requires `historical_search` (§66.1). Modes, modifiers, freshness and existence protection follow §66.1–§66.5 exactly.
+- A Search Pattern MUST NOT appear inside `NOT`: a search miss never proves absence (§66.6). It MAY appear inside `OPTIONAL` and `UNION`.
+- A result that used a Search Pattern is approximate in the sense of §66.6: it is complete for its declared bound, never semantically exhaustive.
 
 ---
 
@@ -3913,6 +4172,12 @@ Historical state MUST NOT be used to bypass current secrecy.
 
 ---
 
+## 48.6 Historical control state
+
+Historical cognition uses the Schema, identity, trust and Projection Policy versions in force at its cognitive snapshot by default; current authorization always controls disclosure (§48.5). A request to reinterpret old data under a current policy MUST select that policy explicitly and disclose it in the basis (§21.12); the result is then not "what was believed then". When the historical control state is not retained, the read fails `HistoricalSnapshotUnavailable` rather than substituting today's trust or policy silently.
+
+---
+
 # 49. WITH EPISTEMIC
 
 Recommended:
@@ -3953,7 +4218,7 @@ The result SHOULD disclose when explanation/evidence is redacted.
 
 # 50. KQL Result Context
 
-A KQL response MUST identify its Space and snapshot; projected results additionally MUST expose the complete ProjectionBasis (Consistency §2), including:
+A KQL response MUST identify its Space and snapshot; projected results additionally MUST expose the complete ProjectionBasis (§21.12), including:
 
 ```text
 space_id
@@ -4004,6 +4269,8 @@ PURGE
 PURGE PAYLOAD
 
 MERGE CONCEPT
+
+DEFINE            (draft vocabulary, standalone only, §20.16)
 ```
 
 ---
@@ -4364,6 +4631,7 @@ Rules:
 - The desugared clauses are one mutation plan, not separate commands: a standalone `ASSERT` commits them exactly as if they appeared together in a single `MUTATE` block (§53.1); inside `MUTATE` they join the enclosing plan.
 - `by` decides the permission exactly as `asserted_by` does on `CREATE ASSERTION` (§28.4): an actor the caller is bound to needs `assert`; any other actor needs `record_attributed_assertion`; an actor the policy reserves for its bound Principals needs `assert_as_actor` and fails `ActorBindingRequired` without the binding.
 - `SUPERSEDING` is revision (§14.2): it says the old Assertion was wrong. A change in the world is not written with it; see Appendix F.2.
+- `at` defaults to the engine's transaction time, which is right only for a claim made at the moment of the write. A claim taken from captured source material — a message, a document, a trace — SHOULD carry `at` set to the source's observed time (§13.2): without it a late-recorded old claim takes today's start key (§25.4) and can end a current value it predates.
 - `ASSERT` without `key` has no retry safety of its own: a retried request is deduplicated only by the envelope's `idempotency_key` (§34). With `key`, the created Assertion carries that `client_key` and the creation itself is replay-safe.
 - `context` lowers exactly to immutable `context_refs`; omission is the existing general scope, never inferred task scope. Adapters pass their canonical context set. Scoped supersession preserves the compatible context lineage.
 - Sugar support belongs to the full KIP-KML conformance profile (§97).
@@ -4483,23 +4751,70 @@ Retraction preserves historical payload. The move is legal only from `active`; f
 TRANSITION :old TO "superseded" BY ?new
 ```
 
-Supersession MUST NOT be used merely because another actor disagrees, and it MUST NOT be used to record that the world changed: that is two `active` Assertions with complementary `valid_time` (§14.2, F.2).
+Supersession MUST NOT be used merely because another actor disagrees, and it MUST NOT be used to record that the world changed: that is one new Assertion from the time of the change, which ends its predecessor through temporal succession (§14.2, §25.4, F.2).
 
 ---
 
 ## 57.5 Revision and derived cognition
 
-Superseding or retracting an Assertion, or correcting Evidence, changes what Projection reports. It does not automatically change cognition that was derived from the revised root: an Insight, a Preference summary, a compiled Skill, or a SelfModel built while the old claim stood is still active state.
+Superseding or retracting an Assertion, or correcting Evidence, changes what Projection reports. It does not automatically change cognition that was derived from the revised root: an Insight, a compiled Skill, a WorkingState, or a SelfModel built while the old claim stood is still active state.
 
 A runtime MUST NOT auto-retract, auto-archive, or auto-rewrite derived cognition because one of its provenance roots was revised. Whether a derived element survives its root is a review decision, not a protocol rule.
 
-A runtime MUST make required derivation dependencies reviewable. `LIST DEPENDENTS`
-provides paged traversal; the standard Profile also requires virtual dependency
-validation before Recall (Cognitive Consistency §3). A root change leaves stored
-artifacts intact while their computed validity may immediately become needs_review.
-This is not an author-written stale flag or an automatic retraction. Inferred
-Assertions are checked too. Maintenance records DerivationState and completes the
-bounded review with an explicit coverage watermark.
+A runtime MUST make derivation dependencies reviewable: `LIST DEPENDENTS` (§63.5) provides paged traversal, and the computed `_system.dependency_validity` (§57.6) makes a changed root visible at the next read, before any review runs. A root change leaves stored artifacts intact while their computed validity immediately becomes `needs_review`. That is neither an author-written stale flag nor an automatic retraction. Review resolves each affected artifact by revalidation (a `dependency_validation` Activity), replacement (a new artifact with its own lineage) or an ordinary lifecycle action, and records the bounded traversal it completed with an explicit coverage watermark.
+
+---
+
+## 57.6 Dependency validity
+
+A derived Assertion or Profile artifact MUST carry an immutable input contract on its producing Activity: a `DependencyBasis` Facet with its basis sequence and groups of pinned source references. Each pin names the element, the version or plane counters it read (§6.3), and any temporal or policy dependency. The engine validates supplied read pins against retained source versions, or against same-transaction inputs under read-your-writes (§32.6); it MUST NOT restamp an old read with current versions at commit. Committing an honestly older derivation is allowed only with that disclosed basis and the resulting computed validity. A group's role is:
+
+```text
+all_of    every pinned prerequisite is necessary
+any_of    the pins are alternative support
+context   disclosure only; never epistemic support
+```
+
+Group membership is fixed for a derivation; a changed derivation is a new record.
+
+The engine exposes the read-only virtual field `_system.dependency_validity` — `current | needs_review | unverifiable` — with the visible reasons, the checked basis and `action_eligible`. It is computed, never persisted or written by a reviewer:
+
+```text
+needs_review   a changed necessary pin; loss of all alternative support in an any_of
+               group; a corrected, retracted or superseded root; an identity repair
+               (§11.5); a recording repair (§57.8); an expired prerequisite
+unverifiable   the DependencyBasis is missing; traversal is incomplete; a source is
+               unavailable or hidden from the caller; a cycle has no external basis
+current        otherwise
+```
+
+An unchanged alternative MAY keep an `any_of` group valid, and changed context is disclosed without alone rejecting the derivation. A numeric version mismatch is a conservative review trigger, not proof the derived claim is false. When a pin names planes, only those plane counters are compared; the pin's `version` records the original read coordinate and is not an additional whole-element guard. Lifecycle, recording validity, Governance and the validity of prerequisites are always checked, recursively, for derived Assertions as well as Concepts. Governance MAY authorize validation without revealing sources; without that authorization the result is `unverifiable`, with no hidden-source identities or counts. An ungraded legacy artifact without a DependencyBasis is therefore never `current`.
+
+Every Profile Recall and every Projection of an inferred derivation MUST perform this check at its read basis. A supported derivation that is not `current` is at most `uncertain` (it remains `contested` or `rejected` where that is already warranted); it is never silently accepted. Raw history stays readable, and an action briefing cannot recommend automatic application while `action_eligible` is false. Revalidation creates a terminal `dependency_validation` Activity with a new DependencyBasis and the validated element among its outputs; its engine-captured output version binds it to that exact artifact version. Revalidation cannot substitute new premises for an old Assertion — that requires a new Assertion.
+
+Producing and validation Activities record the planes of each output they certify in engine-captured `_system.output_plane_versions`, keyed by output ID and plane name. A later change outside those planes (for example `MnemonicState`) preserves the certification; a change inside them conservatively requires validation unless the engine proves semantic equivalence. Changed behavior never inherits a certification.
+
+`LIST DEPENDENTS` review traverses every page and depth the task requires, records its processed watermark, and never marks a truncated scan complete. The engine traverses required dependency links independently of any optional lineage fields. An action gate pins the dependencies it checked; the executor revalidates them and Governance immediately before acting, and a detected change defers or re-plans rather than authorizing execution.
+
+---
+
+## 57.7 Selection dependencies
+
+An element pin records consumption of a retained record. It does not record that a Proposition was accepted, that a functional slot had no competitor, or that a query or absence test covered an entire selection. A derivation that relies on such a judgment MUST also capture a query dependency in `DependencyBasis.queries`: the normalized selector artifact (with its bound parameters, scope and basis), the result digest, the authorization view, the expectation, and an engine-issued selection change token. The host captures the selector from the actual read; it is never reconstructed from an author's later account.
+
+Insertions, removals and eligibility changes that affect the selection — including a new opposing Assertion or a previously absent Commitment — MUST invalidate the token. A changed token requires complete re-evaluation at the current read basis; if the re-evaluated result is unchanged, the derivation MAY remain `current`. A missing, incomplete or unauthorized selection proof is `unverifiable`. An engine without precise selection tracking MUST conservatively re-evaluate after any possibly relevant Space change; unchanged positive pins alone cannot discharge a selection dependency.
+
+---
+
+## 57.8 Recording repair
+
+Extraction or attribution can be wrong while the captured source is right: the Brain recorded that Alice said something she never said. That is neither Alice's retraction nor a correction of sound Evidence, and it MUST NOT be written as either.
+
+A runtime advertising `recording_repair` (§67.4) provides a protected operation with the `RecordingRepair` input shape (`schemas/kip-cognitive-records.schema.json`). It requires `repair_recording` (§29) plus the ordinary permissions for any replacement Assertions; neither recording attribution nor `update` confers repair authority. By default it is limited to the authenticated recorder's own source-backed outputs; broader review requires an explicit protected grant.
+
+In one transaction the engine MUST verify the immutable source identity and digest, the source locator, the recorder's origin, the expected versions, the replacement's reference closure and the actor/context bindings; it then appends a terminal `recording_repair` Activity and a protected invalidation of the wrong extraction, exposed as the governed virtual field `_system.recording_validity` (`valid | invalidated`, with a discoverable `repair_ref` or `null`). The invalidation advances the affected element's version without rewriting its epistemic payload; the source bytes, the original Assertion payload and the actor's lifecycle are preserved. Current projection excludes the invalidated extraction and its dependents become `needs_review` (§57.6); raw history identifies the repair, and historical reads use the repair state at their snapshot under current authorization. Repair advances the Space sequence and the relevant control coordinates (§36.1).
+
+A source locator — a digest-bound byte range, JSON Pointer or format-specific selector — helps review extraction fidelity; it never proves semantic entailment. A runtime without this capability rejects the operation. It MAY quarantine the extraction under separate authority (§31.6), but MUST NOT forge an actor's withdrawal or correct sound Evidence.
 
 ---
 
@@ -4676,43 +4991,25 @@ expression.
 
 ## 59.1 Mnemonic decay
 
-Memory metabolism MAY reduce:
+Memory metabolism MAY lower `memory_strength`; it MUST NOT periodically decay Assertion confidence merely because time passed. Temporal relevance belongs in Projection.
 
-```text
-memory_strength
-```
+Decay is computed, not written. With the Cognitive Memory Profile, `MnemonicState.memory_strength` is the last explicitly written base, `last_metabolized_at` its anchor and `strength_policy` a pinned policy artifact (for example a half-life); the read-only virtual member `effective_strength` is computed from them when a read is evaluated (Profile §18). A read never writes it back. When the base, anchor or policy is missing, effective strength is `null` — unknown — and a runtime or Brain MUST NOT substitute a default such as `0.5`. Idle memory therefore costs no writes, no Change Envelopes and no invalidations.
 
-but SHOULD NOT periodically decay historical Assertion confidence merely because time passed.
-
-Temporal relevance belongs in Projection.
-
-With the Cognitive Memory Profile's `MnemonicState` Facet, a bounded cycle may
-use:
+Reinforcement is an explicit mutation that writes a new base and anchor:
 
 ```prolog
 UPDATE ?memory
 SET FACET "MnemonicState" {
-  memory_strength: CLAMP(
-    MUL(COALESCE(?memory.facets["MnemonicState"].memory_strength, 0.5), :decay_factor),
-    0, 1
-  ),
+  memory_strength: :reinforced_strength,
   last_metabolized_at: :cycle_start
 }
 WHERE {
-  ?memory {type: "Experience"}
-  FILTER(IS_NULL(?memory.facets["MnemonicState"].last_metabolized_at) ||
-         ?memory.facets["MnemonicState"].last_metabolized_at < :cycle_start)
+  ?memory {id: :memory_id}
 }
-LIMIT :chunk_size
+EXPECT VERSION :version OF FACET "MnemonicState"
 ```
 
-Bind a valid `:cycle_start` timestamp once for the entire cycle (§52.7), use a
-decay factor in `[0, 1]`, and repeat chunks until fewer than `:chunk_size`
-distinct targets are selected. The marker and strength change commit together.
-If concurrent workers can process the same shard, use serializable execution
-or appropriate concurrency guards; the marker does not replace transaction
-isolation. The marker is ordinary validated profile state, not `_system`
-metadata.
+`:reinforced_strength` is computed by the Brain from the current effective strength and its policy. Use signals come from explicit decision records and the exposure log (§66.8), folded in by Maintenance in bounded batches (§52.7), never from a read writing back. A compaction MAY rewrite a base and anchor to an equivalent pair; it MUST NOT change the effective strength it replaces.
 
 ---
 
@@ -4818,6 +5115,14 @@ Payload purge is the data-minimization instrument: a Space can discard observed 
 
 ---
 
+## 60.7 Semantic erasure
+
+Payload purge is not semantic forgetting. A user-level forgetting operation that must remove what the Brain learned from a source — not only the source bytes — runs an **ErasurePlan** (`schemas/kip-cognitive-records.schema.json`) under `purge` authority. The plan states its scope (`payload_only` or `semantic`), basis and matched source events, and enumerates the retained semantic copies, dependent summaries, replay artifacts, indexes and caches, runtime-held blobs and controlled backup copies in scope, together with holds, unavailable surfaces and prior external exports. A derived copy MAY need redaction or replacement rather than deletion of an unrelated whole record. Every step keeps enough non-content audit to prove what was done where policy allows.
+
+The executor revalidates authorization, holds and closure against concurrent writes, checkpoints bounded batches, invalidates materializations and verifies every in-scope controlled surface. Its outcome is `completed`, `partial` or `blocked`, with a coverage manifest and receipts; `completed` is forbidden while any in-scope controlled copy, pending backup erasure or unprocessed dependency remains. Erasure never claims to recall prior external exports (§60.6). Re-ingestion of an erased source event is prevented within the stated retention policy by a non-content source-event tombstone; a new authorized observation is a separate policy decision. A replay whose inputs were erased reports them unavailable and never fabricates a successful recomputation.
+
+---
+
 # 61. MERGE CONCEPT
 
 Recommended:
@@ -4879,7 +5184,7 @@ The returning half of this pattern is the consequence channel: the external resu
 
 ---
 
-A runtime claiming `durable_brain_runtime` MUST follow Cognitive Consistency §7 for outbox persistence, attempt identity, fenced takeover and outcome_unknown recovery. External systems without idempotency/lookup never acquire an exactly-once guarantee from KIP.
+How a durable runtime persists the dispatch intent, fences takeover and reconciles an outcome it never saw is execution machinery, not memory state: a runtime claiming `durable_brain_runtime` MUST follow the [Brain Runtime companion](./brain/KIP-2.0-Brain-Runtime.md). An external system without idempotency or outcome lookup never acquires an exactly-once guarantee from KIP.
 
 # 63. META — Introspection and Grounding
 
@@ -4981,9 +5286,9 @@ X ∈ Activity.inputs
     → each element in Activity.outputs
 ```
 
-Each output is a dependent of `X` at distance 1; traversal repeats from each dependent up to `DEPTH` (default 1). A runtime MAY additionally traverse Structural Fields that the active Schema Environment documents as derivation lineage. Each such field is traversed in whichever direction runs from root to derived artifact, which is not the same direction for every field: a field declared derived artifact → root (`derived_from`, `compiled_from` in the Cognitive Memory Profile) is traversed inbound — the dependents of `X` are the elements whose field references `X` — while a field declared root → derived artifact (`consolidated_to`) is traversed outbound. Traversing a lineage field in the wrong direction yields the element's sources, not its dependents.
+Each output is a dependent of `X` at distance 1; traversal repeats from each dependent up to `DEPTH` (default 1). Activity provenance is the one authority for derivation lineage: lineage fields a Profile exposes (the Cognitive Memory Profile's `derived_from`, `compiled_from`, `compiled_by`, `consolidated_to`) are read-only views over it, so traversing Activity topology already covers them.
 
-A result row SHOULD carry the dependent's exact id, kind, distance, and the Activity (or Structural Field) through which it was reached.
+A result row SHOULD carry the dependent's exact id, kind, distance, and the Activity through which it was reached.
 
 Rules:
 
@@ -5093,6 +5398,8 @@ SEARCH <KIND> :term
 correct index MUST reject it (`HistoricalSearchUnavailable`) rather than
 silently search present state; it is a capability, not baseline.
 
+The same retrieval is available inside a KQL query as a Search Pattern (§43.8), so that associative retrieval, structural filtering and belief projection run in one read against one snapshot. The META statement remains the grounding form that pages a hit list with `CURSOR`.
+
 `WITH TYPE` filters by a resolved Schema type; `WITH PREDICATE` filters by a resolved Predicate. Symbol resolution follows the active Schema Environment (§20), including ambiguity errors. A modifier MUST be meaningful for the selected kind; an unsupported combination MUST be rejected rather than ignored. In particular, the v1 spelling `SEARCH PROPOSITION ... WITH TYPE "predicate"` is a compatibility-layer convention: native v2 uses `WITH PREDICATE` for that filter and MUST NOT silently reinterpret a type as a Predicate.
 
 ---
@@ -5107,8 +5414,9 @@ PROPOSITION
 ASSERTION
 EVIDENCE
 ACTIVITY
-COGNITION
 ```
+
+A search names one kind. A result that must span kinds issues one search per kind, or one Search Pattern per kind inside a `UNION` (§44.5), so every hit keeps a declared kind and grounding fields.
 
 ---
 
@@ -5182,6 +5490,24 @@ Any derived recall surface — a search index, a materialized projection (§21.9
 
 ---
 
+## 66.8 Exposure log
+
+A read never reinforces memory (§2.13). A Brain still needs to know what it has retrieved and used, because use is the strongest signal that a memory should stay accessible. Writing a cognitive mutation for every read would turn recall into a write path; keeping the signal outside the protocol leaves every Brain to invent its own ledger.
+
+A runtime advertising `exposure_log` (§67.4) keeps an **exposure log**: an append-only record of `ExposureRecord` entries (`schemas/kip-cognitive-records.schema.json`), each naming a Space, an element, the exposure kind (`retrieved` or `used`), the read's snapshot sequence, the recording time and origin, and optionally the decision that used it. Rules:
+
+```text
+not cognitive state   no Cognitive Element, no space_seq, no Change Envelope entry
+never evidence        never cited as Evidence, never corroboration, never confidence
+governed              read only under read_audit; per-element existence protection applies
+bounded               subject to retention, and to semantic erasure plans (§60.7)
+append-only           entries are never rewritten; a host records them explicitly
+```
+
+The host or Memory Interface Adapter records `retrieved` for items it returned and `used` for the `used_refs` of a DecisionRecord (Profile §6.4). Maintenance reads the log in bounded batches and writes reinforcement explicitly (§59.1). Use reaches `memory_strength` or `utility` through two explicit channels only — a DecisionRecord's `used_refs` and this log — and a runtime MUST NOT derive either from reads it did not log; a Brain without the log still reinforces explicitly from what its own decisions record.
+
+---
+
 # 67. Capabilities
 
 `DESCRIBE CAPABILITIES` is the primary runtime feature negotiation surface.
@@ -5218,57 +5544,44 @@ Enumeration itself is governed.
 
 ## 67.4 Capability registry
 
-`DESCRIBE CAPABILITIES` reports, and a request's `requires` (§71) names, entries of this registry. A runtime MAY add entries of its own — engine-local names, reported by `DESCRIBE CAPABILITIES` beside these, that another engine answers `UnsupportedCapability` to (§67.1) — but it MUST NOT rename or redefine these:
+`DESCRIBE CAPABILITIES` reports, and a request's `requires` (§71) names, entries of this registry. A capability is a feature a conforming runtime MAY leave out; everything a conformance level requires (§89) is not a capability and is not listed here. A runtime MAY add entries of its own — engine-local names, reported beside these, that another engine answers `UnsupportedCapability` to (§67.1) — but it MUST NOT rename or redefine these:
 
 ```text
 serializable_isolation      §32.2
 atomic_batch                §75.3   several operations in one Transaction
 idempotency_retention       §34.5   value: the retention window, e.g. {"seconds": 86400}
 historical_reads            §48, §100
-historical_search           §66.1
+historical_search           §66.1, §43.8
 semantic_search             §66.3
 hybrid_search               §66.3
-search_index_freshness      §66.5
-belief_slot                 §47
-weighted_projection         §22, §27.3   trust-weighted policies beyond the structural baseline (§21.10)
-materialized_projection     §21.9
+search_index_freshness      §66.5   value: the index consistency, e.g. {"mode": "synchronous"}
+weighted_projection         §22, §27.3   trust-weighted policies beyond §21.10 and §21.13
 signed_receipts             §33.3
-ingestion_context           §71.1
 streaming                   §84
 artifacts                   §85
 change_stream               §36, §68
 filtered_delivery           §36.3
 watch_evaluation            runtime-evaluated Watch conditions (Cognitive Memory Profile §5.11)
-list_dependents             §63.5
-payload_purge               §60.6
-identity_repair             Cognitive Consistency §4
-recording_repair            Cognitive Consistency §4.1
-prospective_trials         Cognitive Consistency §5.1
-receiver_fencing           Cognitive Consistency §7.1
-lazy_mnemonic_strength      Brain Implementation Guide; read-only effective strength
-dependency_validity         Cognitive Consistency §3 (required by the standard memory Profile)
-durable_brain_runtime       Cognitive Consistency §7
+exposure_log                §66.8
+draft_vocabulary            §20.16   DEFINE and the propose_schema permission
+identity_repair             §11.5
+recording_repair            §57.8   optional for KIP-Core; required by KIP-CognitiveMemory (§89)
+derive_permission           §29.6
+record_outcome_permission   §29.8
 capsule_export              §63.4
 capsule_import              §39
 capsule_signatures          §37.8
-derive_permission           §29.6
-record_outcome_permission   §29.8
 kip1_migration              §103    KIP 1.x compatibility and `DESCRIBE COMPATIBILITY`
-memory_interface            Memory Interface companion; requires memory_basic
-memory_basic                five intents, scoped recall, processing barriers and governed erasure
-memory_experience           memory_basic + experience/procedural candidates
-memory_learning             memory_experience + validated learning contracts
-memory_durable              memory_basic + durable_brain_runtime
-memory_exchange             memory_basic + capsule_export + capsule_import
+memory_interface            the Memory Interface binding; its levels are the bundles of
+                            profiles/memory-bundles.json
+durable_brain_runtime       Brain Runtime companion (brain/KIP-2.0-Brain-Runtime.md)
+receiver_fencing            Brain Runtime companion §4
+prospective_trials          Validated Learning companion (brain/KIP-2.0-Validated-Learning.md) §5
 ```
 
 A `requires` entry that names a capability the runtime does not recognize — neither this registry nor one of its own — fails `UnsupportedCapability`, exactly as one the runtime does not support.
 
-The memory entries are additive capability bundles, defined by the Memory Interface
-companion and profiles/memory-bundles.json. They preserve existing Schema lineages
-and do not imply a claim of the full KIP-CognitiveMemory profile. A declaration must
-include its dependencies and must be backed by an available Brain binding, not only
-by installed type definitions.
+Features that earlier drafts listed here are now requirements of a level: `belief_slot`, `ingestion_context`, `list_dependents` and `payload_purge` belong to KIP-Core; dependency validity and computed mnemonic strength belong to KIP-CognitiveMemory; `materialized_projection` is the disclosure rule of §21.9, binding on any runtime that serves a cached projection. A runtime MAY keep reporting those names as engine-local entries; a request that requires one of them is satisfied by any runtime that claims the corresponding level.
 
 ---
 
@@ -6061,6 +6374,7 @@ DuplicateMutationTarget
 ```text
 SchemaSymbolNotFound
 SchemaSymbolAmbiguous
+SchemaSymbolConflict
 SchemaFieldNotFound
 SchemaPackageUnavailable
 SchemaEnvironmentChanged
@@ -6288,24 +6602,25 @@ Runtimes SHOULD provide ingestion contexts (§71.1) or artifact handles so obser
 
 # 89. Conformance Model
 
-An implementation MUST declare which KIP 2.0 conformance profiles it supports.
-
-Recommended profiles:
+An implementation claims a **conformance level**, never a subset of one:
 
 ```text
-KIP-Core
-KIP-Schema
-KIP-Epistemic
-KIP-Governance
-KIP-Transactions
-KIP-KQL
-KIP-KML
-KIP-META
-KIP-Runtime
-KIP-CognitiveMemory   (standard package plus Cognitive Consistency contracts)
+KIP-Core               every requirement of §90–§99: data model, Schema, the structural
+                       baseline and kip:memory-default policies, Governance, Transactions,
+                       KQL (including BELIEF SLOT and the Search Pattern), KML, META
+                       (including keyword SEARCH, LIST DEPENDENTS and PURGE PAYLOAD) and
+                       the Runtime (including the ingestion context)
+KIP-CognitiveMemory    KIP-Core plus the standard Profile package, dependency validity
+                       (§57.6), computed mnemonic strength (Profile §18), recording
+                       repair (§57.8) and the Profile invariants
+                       (KIP-2.0-Invariants.md Part B)
 ```
 
-A profile is a bundle of requirements over the language and the runtime. What an engine may leave out one at a time is a capability, not a profile: Capsule support (§95), historical reads (§100), high-assurance hardening (§101) and KIP 1.x migration (§103) are each advertised through the §67.4 registry — `capsule_export` / `capsule_import`, `historical_reads`, `signed_receipts` / `capsule_signatures`, `kip1_migration` — and measured against the section that defines them only where advertised.
+The areas `KIP-Schema`, `KIP-Epistemic`, `KIP-Governance`, `KIP-Transactions`, `KIP-KQL`, `KIP-KML`, `KIP-META` and `KIP-Runtime` partition the KIP-Core requirements for test selection and diagnosis. Each area's section lists what KIP-Core requires of it; features that are capabilities (§67.4) are named there only as such. A conformance report MAY list per-area results; passing an area claims nothing by itself.
+
+Everything else is a capability (§67.4), advertised and measured only where advertised: Capsule support (§95), historical reads (§100), high-assurance hardening (§101), KIP 1.x migration (§103), and the optional features of the registry. The Memory Interface binding has its own levels (companion §2) — `memory_basic`, `memory_experience` and `memory_learning` — which a Brain claims on top of the Nexus level it runs on; durable workers and Capsule exchange are capabilities a binding advertises, not levels. The Brain Runtime and Validated Learning companions define capabilities, not levels.
+
+A runtime MUST NOT claim a level on the strength of model or reference-oracle results; a claim rests on the executable engine suite (`conformance/engine-suite/`) and the applicable vectors run against the engine itself.
 
 ---
 
@@ -6350,22 +6665,25 @@ Schema META introspection
 
 # 92. KIP-Epistemic Conformance
 
-Requires at least:
+Requires:
 
 ```text
 support/reject/uncertain stances
-Assertion lifecycle
+Assertion lifecycle, with expired computed (§14.3)
 open-world insufficient
 accepted/rejected/contested/uncertain/insufficient (+ leading)
-structural projection baseline (§21.10)
+structural projection baseline (§21.10) and kip:memory-default (§21.13)
+final belief with slot conflicts (§21.11) and the complete ProjectionBasis (§21.12)
+context matching (§25.3)
+temporal succession and time bounds (§25.4, §25.5)
 direct same-Proposition conflict
-functional/exclusive conflict support
+functional, functional_by and exclusive conflict support
 hypothetical/predicted/imported distinctions
 no evidence multiplication
 auditable Projection policy identity
 ```
 
-Advanced trust learning/calibration is optional.
+Trust-weighted policies and trust calibration are the `weighted_projection` capability (§67.4).
 
 ---
 
@@ -6423,11 +6741,10 @@ Requires:
 ```text
 FIND
 WHERE
-Concept pattern
-Proposition pattern
-Assertion pattern
-Evidence pattern
-Activity pattern
+Concept, Proposition, Assertion, Evidence and Activity patterns
+Structural pattern
+BELIEF and BELIEF SLOT
+Search Pattern (§43.8)
 FILTER
 NOT
 OPTIONAL
@@ -6436,24 +6753,16 @@ aggregation
 ORDER BY
 LIMIT
 CURSOR
+FOR TIME
+WITH EPISTEMIC, including the explanation levels and the ledger (§49)
 exact Schema refs
 Governance filtering
-BELIEF
-snapshot context
+snapshot context and the ProjectionBasis (§50)
 ```
 
 Supporting the clause names alone is insufficient: conformance includes the solution-processing rules (§42.5), variable visibility and nested-block semantics (§42.4, §44.3–§44.5), null/empty-group behavior (§44.1–§44.6), and stable ordering/pagination (§44.7–§44.8). The corresponding KQL vectors exercise these boundaries as well as authorized visibility.
 
-Full profile adds:
-
-```text
-Structural pattern
-BELIEF SLOT
-AS OF
-FOR TIME
-raw path operators
-projection ledger
-```
+Capabilities, measured only where advertised (§67.4): `AS OF SEQ` (`historical_reads`), a Search Pattern under `AS OF SEQ` (`historical_search`), and raw path operators (§45), whose support and limits an implementation declares.
 
 ---
 
@@ -6462,32 +6771,24 @@ projection ledger
 Requires:
 
 ```text
-MUTATE (atomic coherent formation)
+MUTATE (atomic coherent formation) with forward local refs
 ASSERT sugar (normative desugaring)
 Concept create/upsert
 ENSURE Proposition
-Evidence create
-Assertion create
-Activity create
+Evidence, Assertion and Activity create
+Facets and Structural mutation
 immutable-field enforcement
-safe UPDATE
-Assertion lifecycle
-Evidence correction
-EXPECT VERSION
+safe UPDATE (§58)
+TRANSITION: Assertion lifecycle, Evidence correction, Activity states, archive and tombstone
+SET RETENTION
+PURGE and PURGE PAYLOAD
+MERGE CONCEPT (non-destructive)
+EXPECT VERSION, including version planes
 idempotency integration
 Governance/Schema validation
 ```
 
-Full profile adds:
-
-```text
-forward local refs
-Facets
-Structural mutation
-archive/tombstone/purge
-payload purge
-non-destructive merge
-```
+Capabilities, measured only where advertised (§67.4): `DEFINE` (`draft_vocabulary`); the update expressions of §59 are optional and, where supported, follow that section.
 
 ---
 
@@ -6496,27 +6797,17 @@ non-destructive merge
 Requires:
 
 ```text
-DESCRIBE PRIMER
-DESCRIBE PROTOCOL
-DESCRIBE CAPABILITIES
-Schema introspection
+DESCRIBE PRIMER, PROTOCOL, CAPABILITIES, SPACE, ACCESS, ERROR
+DESCRIBE TRANSACTION and SNAPSHOT (§68)
+Schema introspection (§65) and DESCRIBE EPISTEMIC POLICY
+LIST DEPENDENTS (§63.5)
 SEARCH keyword
+VERIFY RECEIPT and SCHEMA PACKAGE; VALIDATE KQL, KML and SCHEMA PACKAGE
 Governance-filtered introspection
 structured error hints
 ```
 
-Advanced profile adds:
-
-```text
-semantic/hybrid SEARCH
-transaction history
-CHANGES
-LIST DEPENDENTS
-VERIFY
-VALIDATE
-PREVIEW
-Capsule export/inspection
-```
+Capabilities, measured only where advertised (§67.4): semantic/hybrid SEARCH, historical search, `HISTORY` and `CHANGES` (`change_stream`), Capsule description, verification, validation, preview and export (`capsule_export`, `capsule_import`), `DESCRIBE COMPATIBILITY` (`kip1_migration`) and `DESCRIBE TRUST` (`weighted_projection`).
 
 ---
 
@@ -6530,23 +6821,16 @@ request/response envelope
 structural parameters
 Space resolution
 authenticated Principal context
-single-operation execution
+single-operation execution; independent and sequence modes
+readonly execution path (§76)
+idempotency and Receipts
+transaction lookup by id and by idempotency key (§68, §80.4)
+outcome_unknown and recovery (§80)
+ingestion context (§71.1)
 stable error model
 ```
 
-Full runtime adds:
-
-```text
-readonly endpoint
-independent/sequence/atomic modes
-idempotency
-Receipts
-snapshot tokens
-artifacts
-ingestion context
-streaming
-transaction lookup
-```
+Capabilities, measured only where advertised (§67.4): `atomic` mode (`atomic_batch`), streaming, artifact handles, signed receipts and filtered delivery; snapshot tokens (§78) are optional.
 
 ---
 
@@ -6564,7 +6848,7 @@ See the same companion, §101. Its requirements are additive hardening over a co
 
 # 102. Required Conformance Invariants
 
-A conforming native KIP 2.0 implementation MUST preserve the 43 cross-cutting invariants registered as Part A of [KIP-2.0-Invariants.md](./KIP-2.0-Invariants.md), the single registry this Specification and the Cognitive Memory Profile share. The registry keeps this section's numbering — `§102 invariant 17` is registry row 17 — and names, for each invariant, the section that establishes it and the conformance vectors that pin it (conformance §27). The Profile's own invariants are Part B of the same registry (Profile §23).
+A conforming native KIP 2.0 implementation MUST preserve the 49 cross-cutting invariants registered as Part A of [KIP-2.0-Invariants.md](./KIP-2.0-Invariants.md), the single registry this Specification and the Cognitive Memory Profile share. The registry keeps this section's numbering — `§102 invariant 17` is registry row 17 — and names, for each invariant, the section that establishes it and the conformance vectors that pin it (conformance §27). The Profile's own invariants are Part B of the same registry (Profile §23).
 
 ---
 
@@ -6671,6 +6955,7 @@ where_clause :=
     | structural_pattern
     | belief_pattern
     | belief_slot_pattern
+    | search_pattern
     | filter_clause
     | not_clause
     | optional_clause
@@ -6711,6 +6996,13 @@ belief_pattern :=
 belief_slot_pattern :=
     variable "BELIEF" "SLOT"
     "(" term "," predicate_term ")"
+
+search_pattern :=
+    variable "SEARCH" search_kind value
+    ("WITH TYPE" value)? ("WITH PREDICATE" value)?
+    ("MODE" value)? ("THRESHOLD" value)?
+    limit_clause
+        (* required LIMIT bounds the candidates; never inside NOT (§43.8) *)
 
 as_of_clause :=
     "AS OF SEQ" value
@@ -6758,12 +7050,14 @@ kml_statement :=
     | purge_statement
     | purge_payload_statement
     | merge_concept
+    | define_statement
 
 mutate_statement :=
     "MUTATE" "{"
       mutation_clause*
     "}"
-    (* mutation_clause: any kml_statement except mutate_statement *)
+    (* mutation_clause: any kml_statement except mutate_statement
+       and define_statement *)
 
 ensure_proposition :=
     "ENSURE PROPOSITION" handle?
@@ -6828,6 +7122,10 @@ merge_concept :=
     ("WHERE" "{" where_clause* "}")?
     expect_version_clause*
         (* no limit_clause: source and target are already named *)
+
+define_statement :=
+    "DEFINE" ("PREDICATE" | "CONCEPT TYPE") symbol object_literal
+        (* standalone only: commits alone (§20.16) *)
 ```
 
 The normative grammar MUST preserve declarative local-handle semantics and forward references within MUTATE.
@@ -7142,41 +7440,43 @@ MUTATE {
 }
 ```
 
-**Change — the world moved.** Alice lived in `+08:00` and moved to `+01:00` on `:moved_at`. Her earlier claim was true for its time, so nothing is superseded for being wrong; the open interval is closed by a re-assertion of the same value, and the new value starts where the old one ends. Both stay `active`, and `FOR TIME` before `:moved_at` still answers `+08:00` (Appendix G.4):
+**Change — the world moved.** Alice lived in `+08:00` and moved to `+01:00` on `:moved_at`. Her earlier claim was true for its time, so nothing is superseded and nothing is re-asserted. One Assertion records the new value from the change; temporal succession (§25.4) ends the earlier open-ended claim at `:moved_at`, both stay `active`, and `FOR TIME` before `:moved_at` still answers `+08:00` (Appendix G.4):
 
 ```prolog
-MUTATE {
-  ASSERT ?closed (:alice, "timezone", "+08:00") {
-    by: :alice,
-    mode: "stated",
-    valid: {from: :since, until: :moved_at},
-    evidence: :msg
-  } SUPERSEDING :a_old
-
-  ASSERT ?new (:alice, "timezone", "+01:00") {
-    by: :alice,
-    mode: "stated",
-    valid: {from: :moved_at},
-    evidence: :msg
-  }
-
-  CREATE ACTIVITY ?revision {
-    SET FIELDS {
-      activity_class: "belief_revision",
-      status: "completed"
-    }
-
-    SET STRUCTURAL {
-      ("inputs", :a_old)
-      ("inputs", :msg)
-      ("outputs", ?closed)
-      ("outputs", ?new)
-    }
-  }
+ASSERT (:alice, "timezone", "+01:00") {
+  by: :alice,
+  mode: "stated",
+  valid: {from: :moved_at},
+  evidence: :msg
 }
 ```
 
-Here `SUPERSEDING :a_old` revises only the interval: the open-ended claim was wrong about *until*, not about the value. Where both intervals are known when the claims are first written, no supersession is needed at all (Architecture Appendix B).
+When the date of the move is unknown, the host does not invent one. A present-tense statement ("I'm on +01:00 now") is written with no `from` at all: a missing start already means the value began no later than the claim (§25.2), succession places the change between Alice's two statements, and `FOR TIME` inside that window answers `uncertain`, which is what the Brain actually knows. What the write must carry is the time the claim was made, `at`, because that is its start key (§13.2, §25.4):
+
+```prolog
+ASSERT (:alice, "timezone", "+01:00") {
+  by: :alice,
+  mode: "stated",
+  at: :stated_at,
+  evidence: :msg
+}
+```
+
+A bound is written when the host knows more than that — "some time this spring" is `valid: {from: {earliest: :spring_start, latest: :stated_at}}`.
+
+**End — the value stopped with no successor.** Alice left Acme on `:left_at` and named no new employer. The same actor asserts the opposite stance on the same Proposition from that time; succession ends her open-ended support there:
+
+```prolog
+ASSERT (:alice, "works_for", :acme) {
+  by: :alice,
+  mode: "stated",
+  stance: "reject",
+  valid: {from: :left_at},
+  evidence: :msg
+}
+```
+
+Correction, change and end are three different histories (§14.2): only a correction supersedes, and neither a change nor an end records anyone as wrong. When Formation cannot tell a correction from a change, it records the new value as a change and discloses the ambiguity; it never supersedes on a guess.
 
 ---
 
@@ -7273,55 +7573,7 @@ CREATE ACTIVITY ?obs {
 }
 ```
 
-The verdict, once the trial's quota of independent eligible attempts is reached and its comparison succeeds. `:evaluation_record` pins the immutable trial, revision, selected attempts/outcomes and retained replay inputs:
-
-```prolog
-MUTATE {
-  CREATE ACTIVITY ?verdict {
-    SET FIELDS {
-      activity_class: "lifecycle_verdict",
-      status: "completed",
-      parameters_digest: :parameters_digest
-    }
-    SET FACET "EvaluationRecord" {
-      trial_ref: :trial, revision_refs: [:revision],
-      from_status: "trialed", to_status: "adopted",
-      rule_digest: :rule_digest, parameters_digest: :parameters_digest,
-      cutoff: :now, attempt_refs: [:attempt_a, :attempt_b],
-      outcome_refs: [:outcome_a, :outcome_b], excluded_samples: [],
-      missing_attempt_refs: [], comparison: :comparison, replay_artifact: :replay_artifact
-    }
-    SET STRUCTURAL {
-      ("inputs", :trial)
-      ("inputs", :revision)
-      ("inputs", :outcome_a)
-      ("inputs", :outcome_b)
-      ("outputs", :skill)
-    }
-  }
-
-  UPDATE :skill
-  SET ATTRIBUTES {status: "adopted"}
-  SET FACET "GradingState" {
-    revision_ref: :revision, evaluation_ref: ?verdict,
-    success_count: 2,
-    failure_count: 0,
-    graded_count: 2,
-    last_verdict_at: :now
-  }
-  SET FACET "MnemonicState" {utility: 0.78}
-  EXPECT VERSION :version OF ATTRIBUTES
-  EXPECT VERSION :grade_version OF FACET "GradingState"
-  EXPECT VERSION :mnemonic_version OF FACET "MnemonicState"
-}
-```
-
-The transaction validates the immutable TrialRecord/EvaluationRecord and exact
-revision, independently aggregated attempts, comparison requirements and replay
-artifact before updating current state. Every written mutable plane is guarded;
-concurrent mnemonic writes cause a refresh rather than being overwritten.
-GradingState is a cache of this evaluation. No unlinked result is automatically
-a baseline, and a rule name alone is not a replayable verdict (Consistency §5–§6).
+The verdict transaction and the rules it is validated against are in the [Validated Learning companion](./brain/KIP-2.0-Validated-Learning.md) §6. No unlinked result is automatically a baseline, and a rule name alone is not a replayable verdict.
 
 ---
 

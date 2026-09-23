@@ -6,7 +6,7 @@
 
 Target: `SPECIFICATION.md` (`2.0-draft`)
 
-The additional [Cognitive Consistency vectors](./KIP-2.0-Cognitive-Tests.md) are normative companions. Their executable contract oracles, artifact fixtures and model checks do not stand in for running a Nexus adapter. Engine results must identify the engine and capability; model results must identify themselves as models.
+The additional [cognitive vectors](./KIP-2.0-Cognitive-Tests.md) are normative companions. Their executable contract oracles, artifact fixtures and model checks do not stand in for running a Nexus adapter. Engine results must identify the engine and capability; model results must identify themselves as models.
 
 This document defines the canonical conformance-testing model for KIP 2.0.
 
@@ -1015,6 +1015,28 @@ Primary profile: `KIP-Schema`
 
 ---
 
+## KIP2-SCHEMA-021 — functional_by partitions a slot by object type
+
+**Level:** MUST
+
+**Expected semantic behavior:** A Predicate declaring `functional_by: "object_type"` treats candidate objects of one Concept Type lineage as one slot: two supported objects of the same type conflict (or succeed one another for the same actor, §25.4), while objects of different types coexist. `BELIEF SLOT` reports per-partition accepted values. A package declaring both `functional: true` and `functional_by`, or `functional_by` on a Predicate whose object is a Literal, fails validation (§20.15). Oracle: MEM-028a; engine: `world-time.json` (pending).
+
+**Forbidden outcome:** objects of different types reported as conflicting; one partition's winner suppressing another partition; a package combining `functional: true` with `functional_by` activated.
+
+---
+
+## KIP2-SCHEMA-022 — DEFINE only adds to the draft vocabulary
+
+**Level:** MUST
+
+**Expected semantic behavior:** With `draft_vocabulary` advertised and `propose_schema` granted, `DEFINE PREDICATE "mentors" {...}` commits alone, advances `schema_environment_version`, publishes a `schema` control change and makes `mentors` resolvable for the next operation under the fixed draft reference `kip://local/draft@0.0.0`. Defining a name that already resolves (a Core, Profile, installed or earlier draft symbol) fails `SchemaSymbolConflict`. A draft Predicate declaring `open_world: false` or `complete: true` fails `ConstraintViolation`. `DEFINE` inside `MUTATE`, or in an `atomic` request with another operation, fails `InvalidSyntax` / `InvalidRequestEnvelope`. Without the capability, `DEFINE` fails `UnsupportedCapability` (§20.16).
+
+**Postconditions:** the package's earlier draft symbols are unchanged; elements written under the draft reference stay readable, and promotion is a Schema Environment migration record, never a declaration in a package artifact (§20.16).
+
+**Forbidden outcome:** an existing symbol changed or shadowed; a closed-world or complete draft Predicate accepted; `DEFINE` committing inside another transaction; a draft symbol used in the same transaction that defined it.
+
+---
+
 
 # 15. Epistemic Suite
 
@@ -1293,9 +1315,9 @@ Primary profile: `KIP-Epistemic`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Given an Insight, a Preference summary, a compiled Skill and a SelfModel each derived through recorded Activity lineage from one root Assertion and its Evidence, a `TRANSITION` of that root to `superseded`, `retracted` or `corrected` each changes what Projection reports and change nothing else: every derived element stays `active`, recallable, and identical in content and lifecycle (§57.5). Marking a derivation for review — for example `DerivationState.status = "stale"` in the Cognitive Memory Profile — is an explicit write by the reviewing actor, never a runtime side effect of the revision. Where `LIST DEPENDENTS` is supported, the derived elements remain discoverable from the revised root (META-025), so review is possible without being automatic.
+**Expected semantic behavior:** Given an Insight summarizing a preference pattern, a compiled Skill, a WorkingState and a SelfModel each derived through recorded Activity lineage from one root Assertion and its Evidence, a `TRANSITION` of that root to `superseded`, `retracted` or `corrected` each changes what Projection reports and change nothing else: every derived element stays `active`, recallable, and identical in content and lifecycle (§57.5). Queuing a derivation for review — for example a `review_derived` SleepTask in the Cognitive Memory Profile — is an explicit write by the reviewing actor, never a runtime side effect of the revision. Where `LIST DEPENDENTS` is supported, the derived elements remain discoverable from the revised root (META-025), so review is possible without being automatic.
 
-**Postconditions:** the lifecycle status, version and content of each derived element are unchanged across the revision transaction; the revision's Change Envelope touches only the revised root and what the caller explicitly wrote; a raw recall of each derived element after the revision still returns it. Ordinary Profile Recall computes dependency_validity immediately and cannot recommend an invalid derivation for automatic application, even before the reviewer writes stale (Cognitive Consistency §3; MEM-006).
+**Postconditions:** the lifecycle status, version and content of each derived element are unchanged across the revision transaction; the revision's Change Envelope touches only the revised root and what the caller explicitly wrote; a raw recall of each derived element after the revision still returns it. Ordinary Profile Recall computes dependency_validity immediately and cannot recommend an invalid derivation for automatic application, even before any review is queued (§57.6; MEM-006).
 
 **Forbidden outcome:** cascading retraction, archival or tombstoning of derived artifacts; silent rewrite of a derived summary to match the new belief; removing a derived element from raw recall because one of its roots moved; a runtime-set review flag presented as the reviewing actor's own judgment.
 
@@ -1323,6 +1345,36 @@ Primary profile: `KIP-Epistemic`
 **Postconditions:** the two contested Propositions keep `status: contested`; no Assertion, Evidence or trust state changes.
 
 **Forbidden outcome:** `leading` promoting a contested Proposition to `accepted` or `rejected`; a tie reporting a side; `leading` computed from Assertion `confidence` rather than from eligible independent roots.
+
+---
+
+## KIP2-EPI-031 — A world change needs no supersession
+
+**Level:** MUST
+
+**Expected semantic behavior:** Alice's open-ended `+08:00` from T1 is followed by Alice's `+01:00` from T2 > T1. At T2 or later the slot accepts `+01:00` and the earlier Assertion is `expired` for that projection; before T2 it accepts `+08:00`. No Assertion is superseded, retracted or rewritten, and `HISTORY` shows no lifecycle transition. Bob's later value never ends Alice's. Retracting the successor restores the predecessor. A claim with no `from` is read as `{latest: asserted_at}`, so it is `uncertain` before it was made; `asserted_at` is when the claim was made, so a late-recorded old claim never displaces the current value. Two `inferred` claims without a written `from` never succeed one another: they stay a conflict. Oracle: MEM-026a–n; model: `formal/temporal`; engine: `world-time.json` (pending).
+
+**Forbidden outcome:** supersession used to record the change; the old value dropped for `FOR TIME` before T2; a different actor's value ending Alice's; stored state changed by projection.
+
+---
+
+## KIP2-EPI-032 — Time bounds are three-valued
+
+**Level:** MUST
+
+**Expected semantic behavior:** An Assertion whose `valid_time.from` is `{earliest: 2019-01-01T00:00:00.000Z, latest: 2019-12-31T23:59:59.999Z}` is outside before 2019, indeterminate inside 2019 and inside afterwards (absent an end). A candidate whose only support is indeterminate at the instant is `uncertain` with `temporal_indeterminate`. Malformed bounds (no member, `earliest` after `latest`, an interval that cannot be non-empty) fail `ConstraintViolation` (§25.5). Oracle: MEM-027a.
+
+**Forbidden outcome:** an instant chosen inside the bound; indeterminate support reported `accepted`; a malformed bound normalized instead of rejected.
+
+---
+
+## KIP2-EPI-033 — kip:memory-default resolves only by its three declared rules
+
+**Level:** MUST
+
+**Expected semantic behavior:** Under `kip:memory-default`, in a request whose context includes `task-9`, a `tabs` value scoped to `task-9` prevails over a general `spaces` value; `spaces` is `uncertain` with `outranked`, and the result discloses `precedence.rule: "context_specificity"`. Alice's statement of her own timezone prevails over Bob's (`first_person_testimony`), even when Bob's is newer. Rule 2 never lets testimony outrank an observation; when their start keys are equal that conflict stays `contested`, and when the observation is newer it prevails by `recency` (as does the newer of two observations), the older value becoming `uncertain` with `outranked`. Recency compares start keys, so a late-recorded old claim never wins. The structural baseline leaves every one of these `contested` (§21.13). Oracle: MEM-029a–g; engine: `world-time.json` (pending).
+
+**Forbidden outcome:** numeric weighting; an outranked value reported `rejected`; recency outside succession used as a tie-break; a result that does not disclose the rule and policy.
 
 ---
 
@@ -1632,6 +1684,16 @@ Primary profile: `KIP-Governance`
 **Postconditions:** `authority_class` unchanged for every element after the rejected writes; the element's `_system.version` unchanged.
 
 **Forbidden outcome:** a class inferred from cognitive content; a class written through KML; an element reporting no class at all.
+
+---
+
+## KIP2-GOV-031 — propose_schema confers no Schema authority
+
+**Level:** MUST
+
+**Expected semantic behavior:** A Principal holding only `propose_schema` can `DEFINE` new draft symbols and nothing else: installing, activating or aliasing a package fails `NotAuthorized`, and so does any attempt to change an existing symbol. A Grant naming `propose_schema` where `draft_vocabulary` is not advertised is rejected (§29). Under the single-agent preset (§30.5), `agent` holds `propose_schema` and `owner` alone holds `manage_schema`.
+
+**Forbidden outcome:** draft authority reaching installed packages; `propose_schema` accepted where nothing gates it.
 
 ---
 
@@ -2151,11 +2213,11 @@ Primary capability: `capsule_export` / `capsule_import` (Spec §95)
 
 **Level:** MUST
 
-**Expected semantic behavior:** A merge import brings in Skill S_src (`adopted` at the source, with `GradingState` and `TrialState`) and Outcome Evidence O_src in family F that was linked to one of S_src's decisions at the source. After import, S_src is `proposed` with no `GradingState` and no `TrialState`, and O_src carries `_system.origin.import_id` (§41.6). A local Skill S in family F has a locally linked outcome O_local. A deterministic verdict for S lists O_local and never O_src; a verdict for the imported S_src has nothing to grade until local decisions are linked (§15.7, Profile §21).
+**Expected semantic behavior:** A merge import brings in Skill S_src (`adopted` at the source, with `current_trial` and `current_evaluation`) and Outcome Evidence O_src in family F that was linked to one of S_src's decisions at the source. After import, S_src is `proposed` with no `current_trial`, no `current_evaluation` and so no GradingState view, and O_src carries `_system.origin.import_id` (§41.6). A local Skill S in family F has a locally linked outcome O_local. A deterministic verdict for S lists O_local and never O_src; a verdict for the imported S_src has nothing to grade until local decisions are linked (§15.7, Profile §21).
 
 **Postconditions:** `origin.import_id` set on every imported element; imported grading state absent; the local verdict's `inputs` exclude O_src.
 
-**Forbidden outcome:** an imported outcome counted toward any local tally or verdict; imported `GradingState`/`TrialState` retained; `import_id` missing on imported Evidence.
+**Forbidden outcome:** an imported outcome counted toward any local tally or verdict; imported `current_trial`/`current_evaluation` retained; `import_id` missing on imported Evidence.
 
 ---
 
@@ -2489,6 +2551,26 @@ The raw edges need no accepted Assertions. No path match creates a Proposition, 
 **Expected semantic behavior:** Issue a KQL cursor, `expire_cursor` it, continue. The runtime returns `CursorExpired` with `details.family: "kql"` and `details.reason: "expired"` and a safe recovery class (§87.7); the caller restarts the query and receives a fresh cursor and snapshot.
 
 **Forbidden outcome:** silently serving the next page from current state; the expired cursor accepted; a family-specific code.
+
+---
+
+## KIP2-KQL-032 — A Search Pattern binds hits inside one read
+
+**Level:** MUST
+
+**Expected semantic behavior:** `FIND(?p) WHERE { ?p SEARCH CONCEPT :q WITH TYPE "Person" LIMIT 5 ?b BELIEF SLOT (?p, "lives_in") } ORDER BY ?p.retrieval.score DESC` retrieves at most five visible hits against the query's snapshot, projects belief for each and orders by transient relevance. The score is in `[0,1]`, never persisted and never confidence. Hidden candidates do not affect which five are returned. Without `LIMIT` the pattern is `InvalidSyntax`; under `AS OF SEQ` it requires `historical_search` (§43.8).
+
+**Forbidden outcome:** an unbounded candidate set; the score written to state or read as confidence; a hidden element affecting rank or membership; a pattern paging with CURSOR.
+
+---
+
+## KIP2-KQL-033 — A Search Pattern never proves absence or selects mutation targets
+
+**Level:** MUST
+
+**Expected semantic behavior:** A Search Pattern inside `NOT` (directly or within `OPTIONAL`/`UNION` inside it) fails `InvalidSyntax`. A Search Pattern in the `WHERE` of `UPDATE`, `TRANSITION`, `PURGE` or `EXPORT CAPSULE` fails `InvalidSyntax`. Inside `OPTIONAL` or `UNION` at top level it is legal (§43.8, §66.6).
+
+**Forbidden outcome:** a search miss read as absence; a mutation or export whose targets depend on an index.
 
 ---
 
@@ -2839,7 +2921,7 @@ Primary profile: `KIP-KML`
 
 **Profiles:** KIP-KML (full)
 
-**Expected semantic behavior:** Two Concepts of the same type MUST NOT share a `key` in one Space. Two Concepts of *different* types MAY (§7.3), so upserting `{type: "Preference", key: "alice"}` beside an existing Person keyed `alice` creates a second, distinct Concept. Once both exist, an upsert selecting `{key: "alice"}` with no type reports `IdentityConflict`.
+**Expected semantic behavior:** Two Concepts of the same type MUST NOT share a `key` in one Space. Two Concepts of *different* types MAY (§7.3), so upserting a Concept of another type keyed `alice` (for example `{type: "Option", key: "alice"}` with the fixture's option type) beside an existing Person keyed `alice` creates a second, distinct Concept. Once both exist, an upsert selecting `{key: "alice"}` with no type reports `IdentityConflict`.
 
 **Postconditions:** the two same-key Concepts have distinct ids and distinct `schema_ref`s; the type-less selector resolves to neither.
 
@@ -3142,6 +3224,16 @@ Grounding-field and ranking/normalization disclosure are assessed at their respe
 **Expected semantic behavior:** With commits S1 at `t1` and S2 at `t2`, `DESCRIBE SNAPSHOT AT TIME :t` for `t1 <= t < t2` reports S1's `space_seq`, its `tx_id`, `committed_at` and `schema_environment_version`; for `t >= t2` it reports S2; for `t` before the first commit it reports `space_seq: 0`; for `t` before the advertised retention floor it fails `HistoricalSnapshotUnavailable` (§68). `FIND ... AS OF SEQ` with the reported sequence returns the S1 state. `AS OF TX "tx-..."` and `AS OF TIME :t` fail `InvalidSyntax`: the only historical axis is `AS OF SEQ` (§48.1).
 
 **Forbidden outcome:** a later sequence than the last committed at or before `t`; a time-addressed read that does not name its sequence.
+
+---
+
+## KIP2-META-028 — SEARCH names one of five kinds
+
+**Level:** MUST
+
+**Expected semantic behavior:** `SEARCH CONCEPT | PROPOSITION | ASSERTION | EVIDENCE | ACTIVITY` are the searchable kinds; `SEARCH COGNITION :q` fails `InvalidSyntax`. A result that must span kinds issues one search per kind or a `UNION` of Search Patterns, and every hit discloses its kind (§66.2).
+
+**Forbidden outcome:** an undefined cross-kind search accepted; a hit without a declared kind.
 
 ---
 
@@ -3500,6 +3592,16 @@ Use two operations with different overrides of the same name and confirm that ne
 **Expected semantic behavior:** A syntactically malformed cursor fails `CursorInvalid` with `details.reason: "malformed"`; a cursor whose Schema Environment has since changed fails `CursorInvalid` with `details.reason: "schema_changed"`; after the access revocation of GOV-016 a runtime that refuses the cursor outright reports `CursorInvalid` with `details.reason: "access_revoked"`. `details.family` names the cursor family in every case (§87.7).
 
 **Forbidden outcome:** `InternalError`; a malformed cursor executing as a fresh query; a family-specific code.
+
+---
+
+## KIP2-RT-035 — The exposure log is not cognitive state
+
+**Level:** MUST
+
+**Expected semantic behavior:** With `exposure_log` advertised, recording `retrieved` and `used` entries allocates no `space_seq`, emits no Change Envelope entry, creates no Cognitive Element, and changes no confidence, strength or utility. Entries are readable only under `read_audit`, omit elements the reader may not discover, and are removed by a semantic ErasurePlan that covers their element. Maintenance that reinforces strength from the log writes an explicit, guarded MnemonicState update (§59.1, §66.8).
+
+**Forbidden outcome:** a read reinforcing memory without an explicit write; exposure entries surfacing through KQL or as Evidence; exposure of undiscoverable elements.
 
 ---
 
@@ -4087,21 +4189,21 @@ no representation authority inferred
 
 **Expected semantic behavior:** S1 and S2 have distinct immutable revisions R1/R2
 whose task_family is deploy/rollback. T1 was opened for R1 before attempt A1;
-TrialState points to T1/R1, and immutable TrialRecord fixes its explicit baseline.
+S1's current_trial points to T1, and immutable TrialRecord fixes its explicit baseline.
 G1's DecisionRecord pins R1 and actual used memory M1; AttemptRecord A1 binds G1,
 R1 and T1 before dispatch. The instrument writes terminal O1 for A1 and unlinked
 family outcome O2. A validated EvaluationRecord selects O1, aggregates one failed
-attempt and updates S1's revision/evaluation-bound GradingState. O2 is not treatment
+attempt and becomes S1's current_evaluation, so S1's computed GradingState view shows it. O2 is not treatment
 or automatically baseline. S2 is unchanged. Utility calibration of M1 additionally
 records its attribution method; merely retrieved memories are not reinforced.
 
 **Postconditions:** S1 gains exactly one graded failed attempt; S2's cache is
 unchanged; the evaluation links the exact trial, revision and O1, with retained
-replay inputs. TrialState remains only a pointer. A new control selection must
+replay inputs. current_trial remains only a pointer. A new control selection must
 satisfy the recorded trial's comparability policy.
 
 **Forbidden outcome:** family-only attribution, observation fan-out counted as
-multiple attempts, O2 silently assigned as a control, old TrialState used as the
+multiple attempts, O2 silently assigned as a control, an old current_trial used as the
 historical basis, or a verdict without a validated immutable EvaluationRecord.
 
 ---
@@ -4140,7 +4242,7 @@ historical basis, or a verdict without a validated immutable EvaluationRecord.
 
 # 27. Required Invariant Coverage Matrix
 
-The Specification requires 43 cross-cutting invariants (§102), registered as Part A of [KIP-2.0-Invariants.md](../KIP-2.0-Invariants.md) under the same numbering; this matrix is the authoritative vector coverage for them. The Profile invariants (registry Part B) are pinned by the vectors the registry names.
+The Specification requires 49 cross-cutting invariants (§102), registered as Part A of [KIP-2.0-Invariants.md](../KIP-2.0-Invariants.md) under the same numbering; this matrix is the authoritative vector coverage for them. The Profile invariants (registry Part B) are pinned by the vectors the registry names.
 
 | Invariant | Required vectors |
 |---|---|
@@ -4187,6 +4289,12 @@ The Specification requires 43 cross-cutting invariants (§102), registered as Pa
 | 41. Portable numbers and canonical artifacts reject silent numeric loss and ambiguous JSON. | MEM-011 |
 | 42. Identity decisions preserve input bindings; supported repair retains raw history and exposes unresolved attribution. | MEM-008 |
 | 43. Governed control changes invalidate dependent computation bases; incomplete stream coverage is not silence. | MEM-007, MEM-009 |
+| 44. A world change is one new Assertion; no one is recorded as having been wrong | EPI-031, MEM-026 |
+| 45. Coarse time is a bound; indeterminate support never decides a status | EPI-032, MEM-027 |
+| 46. A policy resolves conflicts only by declared, disclosed rules | EPI-033, MEM-029 |
+| 47. Draft vocabulary only adds and confers no Schema authority | SCHEMA-022, GOV-031 |
+| 48. A search hit never proves absence or selects a mutation target | KQL-032, KQL-033 |
+| 49. A misrecording is repaired, never an actor withdrawal; exposure is never cognition | REL-004, MIF-017, RT-035 |
 
 ---
 
@@ -4208,6 +4316,7 @@ A full runner SHOULD exercise every reachable error in the claimed profiles.
 | DuplicateMutationTarget | KML-010 |
 | SchemaSymbolNotFound | unknown-schema-symbol vector |
 | SchemaSymbolAmbiguous | SCHEMA-003 |
+| SchemaSymbolConflict | SCHEMA-022 |
 | SchemaFieldNotFound | SCHEMA-008 |
 | SchemaPackageUnavailable | missing dependency Capsule vector |
 | SchemaEnvironmentChanged | SCHEMA-014 |

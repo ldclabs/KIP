@@ -175,7 +175,8 @@ kml_statement    = mutate_statement
                  | set_retention
                  | purge_statement
                  | purge_payload_statement
-                 | merge_concept ;
+                 | merge_concept
+                 | define_statement ;
 
 mutate_statement = "MUTATE", "{", { mutation_clause }, "}" ;
 
@@ -372,6 +373,12 @@ merge_concept    = "MERGE", "CONCEPT", target_ref,
                    "INTO", target_ref,
                    [ "WHERE", where_block ],
                    { expect_version_clause } ;
+
+(* DEFINE adds one symbol to the Space's draft vocabulary (Spec §20.16). It
+   is a statement, not a mutation_clause: it commits alone because every
+   later clause resolves against the Schema Environment it changes. *)
+define_statement = "DEFINE", ( "PREDICATE" | "CONCEPT", "TYPE" ),
+                   schema_symbol, object_literal ;
 
 (* ------------------------------------------------------------------------- *)
 (* Preconditions                                                             *)

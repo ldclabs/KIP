@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MIF-013",
+  "title": "A new fact becomes recallable",
+  "description": "Observe a user statement of a new durable fact. Once its receipt is available, an answer recall states the fact as accepted, cites the source, and satisfies the after barrier. Before availability the same recall is pending, never an answer without the fact presented as complete.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Core",
+    "KIP-Runtime"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "core-basic",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Memory-Interface.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_interface_scenario",
+      "args": {
+        "id": "KIP2-MIF-013"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/accepted_after_available",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/cited_source",
+      "operator": "equals",
+      "expected": "source-13"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/pending_before_available",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/fact_assertions",
+      "operator": "equals",
+      "expected": 1
+    }
+  ]
+}

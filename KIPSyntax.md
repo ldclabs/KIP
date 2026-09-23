@@ -19,6 +19,7 @@ Assertion confidence    ≠ trust ≠ memory_strength ≠ salience
 no visible match        ≠ false        (open world: insufficient, not rejected)
 SEARCH score            ≠ confidence
 correction              = new Assertion + supersession, never rewrite history
+world change            = one new Assertion from when it began (succession ends the old one)
 Principal (caller)      ≠ semantic actor (who the memory is about/from)
 cognitive content       ≠ authority    (memory can never grant permission)
 batch ≠ transaction; timeout ≠ abort; progress ≠ commit
@@ -113,6 +114,8 @@ All protocol timestamps and time-valued parameters MUST use UTC strings with exa
 
 This includes `_system.created_at` / `updated_at`, `asserted_at`, `observed_at`, `valid_time.from` / `until`, `started_at` / `ended_at`, `retention.expires_at`, `committed_at`, `format: "timestamp"`, and parameters bound to `at`, `FOR TIME` or `DESCRIBE SNAPSHOT AT TIME`. `null` or omission is allowed only where the field's contract permits it.
 
+A `valid_time` endpoint may instead be a **time bound** `{earliest, latest}` (either may be omitted) when the instant is only known within a range — "in 2019" is `{earliest: "2019-01-01T00:00:00.000Z", latest: "2019-12-31T23:59:59.999Z"}`. A missing `from` is already the bound `{latest: asserted_at}` — the value began no later than the claim — so `asserted_at` (`at`) must be when the claim was made, not when it was recorded. Never pick an instant inside a range; a projection inside it answers `uncertain` (`temporal_indeterminate`).
+
 Missing or non-three-digit fractions, non-`Z` offsets and invalid dates/times are rejected as `ConstraintViolation`; numeric epoch values and other non-string timestamps are `TypeMismatch`. Inputs are never silently normalized. Engine-generated timestamps truncate sub-millisecond clock resolution. Millisecond precision does not imply uniqueness or commit ordering; use `space_seq` for per-Space commit order. Durations retain their declared units.
 
 ---
@@ -161,7 +164,10 @@ STRUCTURAL (?experience, "has_step", ?step)          // the edge binding is opti
 ?belief BELIEF (?p)                                  // project an already-bound Proposition
 ?belief BELIEF (id: :prop_id)                        // ... or one already known by id (same id form)
 ?slot BELIEF SLOT (?person, "timezone")              // whole functional slot: candidates + conflicts
+?person SEARCH CONCEPT :query WITH TYPE "Person" LIMIT 10   // associative retrieval bound in the query; LIMIT required
 ```
+
+**Time and policy**: an open `until` means "no end stated", not "forever": a later same-actor value in a functional slot ends it at its own start (temporal succession) when both are that actor's own account — `stated`/`observed`, or with a written `from` — so the old value still answers `FOR TIME` before the change; two `inferred` claims without a written start never succeed one another. Recall uses the standard policy `kip:memory-default` unless told otherwise: among conflicting values a task-scoped one prevails in its task, a person's own statement about themselves prevails over hearsay (never over an observation), and otherwise the value most recently claimed to hold prevails (by start key, never by recording order); the outranked value is `uncertain` with reason `outranked`.
 
 **BELIEF output**: `status` ∈ `accepted | rejected | contested | uncertain | insufficient`, `leading` ∈ `support | opposition | none` (the heavier side under `contested`; disclosure, never a verdict), plus support/opposition, uncertainty, policy identity, temporal basis. A fully grounded BELIEF over a never-stored Proposition returns `insufficient` (not zero rows). BELIEF SLOT returns `accepted_values` + `candidate_projections`. Support and opposition scores don't sum to 1. `BELIEF` / `BELIEF SLOT` are `FIND`-only: never inside a mutation's `WHERE` or an `EXPORT` selection, and their predicate is exact (no path operators).
 
@@ -194,6 +200,18 @@ Zero hops include the same visible endpoint without requiring a self-edge. Quant
 
 Cursors are opaque, snapshot-pinned, family-specific; current Governance still applies on continuation.
 
+A **Search Pattern** runs retrieval inside the query, so grounding, filtering and belief happen against one snapshot. Its `LIMIT` bounds the candidate set and is required; `?x.retrieval.score` may be filtered and ordered but is never confidence. It may not appear inside `NOT` (a miss proves nothing) or in a mutation's `WHERE`:
+
+```kip
+FIND(?person.name, ?home)
+WHERE {
+  ?person SEARCH CONCEPT :query WITH TYPE "Person" MODE "hybrid" LIMIT 20
+  ?home BELIEF SLOT (?person, "lives_in")
+}
+ORDER BY ?person.retrieval.score DESC
+LIMIT 5
+```
+
 ---
 
 ### 3. KML — Write
@@ -211,7 +229,7 @@ ASSERT (:alice, "prefers", :dark_mode) {
   confidence: 0.95,        // optional [0,1]: strength of THIS stance, not truth probability
   evidence: :msg,          // optional: Evidence ref or array (runtime-ingested preferred)
   stance: "support",       // optional, default support (support|reject|uncertain)
-  at: :time,               // optional → asserted_at (default: engine transaction time)
+  at: :time,               // optional → asserted_at: when the actor made the claim (default: engine transaction time; set it for captured sources)
   valid: {from: :t1, until: :t2},   // optional → valid_time (world-valid interval)
   key: :client_key         // optional retry-safe identity
 }
@@ -229,12 +247,19 @@ ASSERT ?a (:alice, "timezone", "+01:00") {   // the handle ?a is optional
 } SUPERSEDING :old_assertion
 ```
 
-Change — the world moved, the old claim was true for its time. Never supersede it for being wrong; close its open interval with a re-assertion and start the new value where it ends (both stay active; `FOR TIME` before the move still answers the old value):
+Change — the world moved and the old claim was true for its time. Write **one** Assertion for the new value from when it began; temporal succession ends the old one there, nothing is superseded, and `FOR TIME` before the move still answers the old value. Unknown date → no `valid` at all (a missing start already means "no later than the claim") and `at: :stated_at`, because `asserted_at` is the start key:
 
-```text
-ASSERT (:alice, "timezone", "+08:00") {by: :alice, mode: "stated", valid: {from: :since, until: :moved_at}, evidence: :msg} SUPERSEDING :old_assertion
+```kip
 ASSERT (:alice, "timezone", "+01:00") {by: :alice, mode: "stated", valid: {from: :moved_at}, evidence: :msg}
 ```
+
+End — the value simply stopped (left a job, no new one): the same actor's opposite stance from the end date:
+
+```kip
+ASSERT (:alice, "works_for", :acme) {by: :alice, mode: "stated", stance: "reject", valid: {from: :left_at}, evidence: :msg}
+```
+
+Misrecording — the Brain wrote down what the actor never said ("you misheard me"): not a correction and not a change. It is a protected recording repair (Spec §57.8, Memory Interface `revise` with `change_kind: "misrecorded"`); never supersede or retract on the actor's behalf.
 
 Desugars exactly to `ENSURE PROPOSITION` + `CREATE ASSERTION` (+ `TRANSITION ... TO "superseded" BY` the new Assertion). Never fabricates extra state. The tuple must be a structural `(s, "p", o)`: the `(id: …)` form is match-only and rejected here. The long form — needed for `challenge` / `context` citations or fine control:
 
@@ -255,7 +280,7 @@ Append `EXPECT VERSION 0` immediately after an `ENSURE PROPOSITION` tuple only w
 Rules of stance:
 
 - Someone tells you a fact → `ASSERT ... {by: <them>, mode: "stated"}`. Recording "Alice said X" needs no permission to *be* Alice: `by` naming an actor you are not bound to needs `record_attributed_assertion`; naming yourself needs `assert`; speaking *as* a reserved actor needs `assert_as_actor` and a binding.
-- `SUPERSEDING` means "that claim was wrong". A fact that stopped being true is not wrong: give the old claim its `valid.until` by re-asserting it, and start the new one with `valid.from`.
+- `SUPERSEDING` means "that claim was wrong". A fact that stopped being true is not wrong: assert the new value with `valid.from` (or the opposite stance from the end) and let succession end the old one.
 - You (the Brain) infer something → `by: <self>, mode: "inferred"`, cite premises as evidence.
 - Disagreement between actors → two coexisting Assertions (contested), **never** supersession or deletion.
 - Denial → `stance: "reject"` toward the positive Proposition, not a fabricated `false` object.
@@ -294,7 +319,7 @@ UPSERT CONCEPT ?proj {                      // stable identity-bearing Concept
 } EXPECT VERSION :v                         // optional trailing guard; 0 = create-only
 ```
 
-Clause menus (any order inside the braces, each at most once except `SET/UNSET FACET`): `CREATE CONCEPT` — `TYPE` (required), `CLIENT KEY`, `NAME`, `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`. `UPSERT CONCEPT` — `MATCH` (required), `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`, `UNSET ATTRIBUTES | FACET | STRUCTURAL`, then `EXPECT VERSION` after the closing brace. `MATCH { type: "Person", key: "alice" }` may create; `MATCH { id: :id }` only matches. The `type` is not decoration: a key is identity *within* its type (a Person and a Preference may both be keyed `alice`), and on a create it is the only source of the new Concept's type — so an upsert that must create without one is rejected, and a bare `{key: …}` that names two Concepts is an `IdentityConflict` rather than a coin flip. Where a value goes: Core fields (`name`, `key`) → `SET FIELDS`; schema-declared attributes (`goal`, `status`, …) → `SET ATTRIBUTES`; Profile facet values → `SET FACET "Facet"`; references → `SET STRUCTURAL`.
+Clause menus (any order inside the braces, each at most once except `SET/UNSET FACET`): `CREATE CONCEPT` — `TYPE` (required), `CLIENT KEY`, `NAME`, `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`. `UPSERT CONCEPT` — `MATCH` (required), `SET FIELDS | ATTRIBUTES | FACET | STRUCTURAL`, `UNSET ATTRIBUTES | FACET | STRUCTURAL`, then `EXPECT VERSION` after the closing brace. `MATCH { type: "Person", key: "alice" }` may create; `MATCH { id: :id }` only matches. The `type` is not decoration: a key is identity *within* its type (a Person and a Topic may both be keyed `alice`), and on a create it is the only source of the new Concept's type — so an upsert that must create without one is rejected, and a bare `{key: …}` that names two Concepts is an `IdentityConflict` rather than a coin flip. Where a value goes: Core fields (`name`, `key`) → `SET FIELDS`; schema-declared attributes (`goal`, `status`, …) → `SET ATTRIBUTES`; Profile facet values → `SET FACET "Facet"`; references → `SET STRUCTURAL`.
 
 #### 3.4. `MUTATE` — one atomic cognitive transition
 
@@ -321,11 +346,11 @@ Handles (`?e`, `?a`) are block-local; forward references are allowed; the engine
 ```kip
 UPDATE ?m
 SET FACET "MnemonicState" {
-  memory_strength: CLAMP(MUL(?m.facets["MnemonicState"].memory_strength, :decay), 0, 1)
+  salience: :salience
 }
 WHERE {
-  ?m {type: "Experience"}
-  FILTER(?m.facets["MnemonicState"].memory_strength > 0)
+  ?m {type: "Commitment", attributes: {status: "pending"}}
+  FILTER(?m.facets["MnemonicState"].salience < :salience)
 }
 LIMIT :n
 EXPECT VERSION :v OF FACET "MnemonicState"
@@ -344,7 +369,7 @@ UNSET STRUCTURAL { ("has_step", :wrong_step) }
 
 Update expressions: `ADD` `MUL` `CLAMP` `COALESCE` (deterministic, per-target; operands may read only the target's own paths). UPDATE never creates. A direct target needs no `WHERE`: `UPDATE :id SET FACET "MnemonicState" {salience: 0.9}` (same rule as TRANSITION/PURGE/SET RETENTION — a `?var` target is bound by WHERE, `:id`/`"id"` already names the element).
 
-**UPDATE can never touch**: Proposition tuples, Assertion epistemic payload or citations, Evidence payload/topology, Activity topology, `_system`, Governance, Schema. A pending Activity uses `TRANSITION` to finalize fields/topology; a terminal Activity is immutable. Attempting an illegal rewrite → `EpistemicRevisionRequired` / `EvidenceCorrectionRequired` / `ImmutableField`. **Never decay Assertion confidence over time** — disuse decays `memory_strength`; staleness is Projection's job; new knowledge is a new Assertion.
+**UPDATE can never touch**: Proposition tuples, Assertion epistemic payload or citations, Evidence payload/topology, Activity topology, `_system`, Governance, Schema. A pending Activity uses `TRANSITION` to finalize fields/topology; a terminal Activity is immutable. Attempting an illegal rewrite → `EpistemicRevisionRequired` / `EvidenceCorrectionRequired` / `ImmutableField`. **Never decay Assertion confidence over time.** Decay is computed, not written: `memory_strength` is a base, `last_metabolized_at` its anchor, and the read-only `?m.facets["MnemonicState"].effective_strength` falls under the pinned `strength_policy`. Reinforce by writing a new base and anchor together from an explicit use signal; never fill a missing strength with a default. Staleness is Projection's job; new knowledge is a new Assertion.
 
 #### 3.6. Lifecycle & removal — one `TRANSITION`, the state names the move
 
@@ -365,6 +390,20 @@ MERGE CONCEPT ?src INTO ?tgt [WHERE {...}] [EXPECT VERSION :v]
 The engine checks the state against the target's kind and its current state: an Assertion goes to `retracted` or `superseded` (`BY` the newer Assertion), Evidence to `corrected` (`BY` the new Evidence), an Activity to `running` or a terminal state, and any element to `archived` or `tombstoned`. A move from the wrong state fails `InvalidLifecycleTransition`, so there is no `EXPECT STATE`.
 
 Every mutation whose `WHERE` can select an unbounded set takes an optional `LIMIT` right after it (`UPDATE`, `TRANSITION`, `SET RETENTION`, `PURGE`, `PURGE PAYLOAD`) — bound your sweeps. `LIMIT` caps how many are affected, not which: don't assume an order. `MERGE CONCEPT` takes none.
+
+#### 3.7. `DEFINE` — a relation no package names
+
+When a needed relation or type is missing, don't force it into a wrong Predicate and don't leave it Evidence-only: add it to the Space's draft vocabulary (needs `propose_schema`; `draft_vocabulary` capability). `DEFINE` only adds, never changes, commits alone (never inside `MUTATE`), and the new symbol resolves for later operations:
+
+```kip
+DEFINE PREDICATE "mentors" {
+  description: "The subject mentors the object person.",
+  subject: {concept_types: ["Person"]},
+  object: {concept_types: ["Person"]}
+}
+```
+
+`DEFINE CONCEPT TYPE "Place" {description: "..."}` adds a type. Draft Predicates are open-world, and may be `functional` or `functional_by: "object_type"`; they cannot be closed-world or `complete`. A name that already resolves fails `SchemaSymbolConflict`. Promotion into an installed package is an owner's Schema migration.
 
 `MERGE CONCEPT` is non-destructive: source stays addressable as merged history; future writes canonicalize to target. Cycle-creating merges (target already resolves back to source) are rejected.
 
@@ -403,7 +442,7 @@ SEARCH <KIND> :term
   [MODE "keyword" | "semantic" | "hybrid" | :mode]
   [THRESHOLD :t] [AS OF SEQ :s] [LIMIT :n] [CURSOR :c]
 
-KIND = CONCEPT | PROPOSITION | ASSERTION | EVIDENCE | ACTIVITY | COGNITION
+KIND = CONCEPT | PROPOSITION | ASSERTION | EVIDENCE | ACTIVITY
 ```
 
 All SEARCH modifiers use exactly that order. `WITH TYPE` / `WITH PREDICATE` are used only where meaningful for the selected kind; runtime semantic validation decides applicability. `AS OF SEQ` requires the advertised `historical_search` capability.
@@ -416,7 +455,7 @@ THRESHOLD :threshold
 LIMIT :limit
 ```
 
-SEARCH is grounding only: score ≠ confidence ≠ belief; miss ≠ absence; results disclose `index_seq` freshness. Golden path: **SEARCH → exact id → BELIEF/FIND**.
+SEARCH is grounding only: score ≠ confidence ≠ belief; miss ≠ absence; results disclose `index_seq` freshness. Golden path: **SEARCH → exact id → BELIEF/FIND**, or one `FIND` with a Search Pattern (§2) when grounding and belief belong in the same read.
 
 Five-layer discipline: `DESCRIBE/SEARCH` (find) ≠ `VERIFY` (integrity) ≠ `VALIDATE` (legality) ≠ `PREVIEW` (simulated effect) ≠ **Receipt** (what actually committed).
 
@@ -484,13 +523,13 @@ At startup or after `requires_refresh`, call `DESCRIBE PRIMER`; ground concrete 
 
 ### 6. Cognitive Memory Profile (quick reference)
 
-Types: `Person`, `Event`, `Experience`, `ExperienceStep`, `Preference`, `Insight`, `Commitment`, `Watch`, `SleepTask`, `SelfModel`, `WorkingState`, `Skill`, `SkillRevision`. Skill is stable identity; required current_revision points to immutable behavior (task_family, procedure, optional applicability/preconditions/success_criteria/recovery, behavior_digest). Grades and authority bind that revision. Selecting new behavior resets current standing to proposed; ordinary UPDATE cannot rewrite behavior. Watch firing keys include arm_generation and require complete deadline coverage. See the normative Cognitive Memory Profile and Cognitive Consistency companion.
+Types: `Person`, `Event`, `Experience`, `ExperienceStep`, `Insight`, `Commitment`, `Watch`, `SleepTask`, `SelfModel`, `WorkingState`, `Skill`, `SkillRevision` (no Preference type: a preference is a `prefers` claim, its summary an Insight). Skill is stable identity; required current_revision points to immutable behavior (task_family, procedure, optional applicability/preconditions/success_criteria/recovery, behavior_digest). Standing (`unproven | validated | unverifiable | revoked`) and authority bind that revision; only the Validated Learning companion promotes. Selecting new behavior resets current standing to proposed; ordinary UPDATE cannot rewrite behavior. See the normative Cognitive Memory Profile.
 
-Predicates: `prefers` (Person→Concept) `caused_by` (Step→Step, effect→cause, evidence-backed) `same_as` (identity claim → review)
+Predicates: `prefers` (Person→Concept, one preference per kind of option, each option typed by its kind — `ColorScheme`, `Editor`, from a domain package or `DEFINE CONCEPT TYPE`, never a catch-all — a newer one succeeds the older within its kind) `caused_by` (Step→Step, effect→cause, evidence-backed) `same_as` (identity claim → review). Everyday facts come from `kip://domains/general@1.0.0`: `lives_in` `located_in` `works_for` `member_of` `knows` `timezone` `speaks` `interested_in` over `Place` `Organization` `Topic`; anything else → `DEFINE`.
 
-Facets: `MnemonicState` (accessibility/salience/utility), `GradingState` (revision_ref + evaluation_ref + independent attempt counts), `TrialState` (trial_ref + revision_ref), `DerivationState` (review state). Immutable Activity facets: `DependencyBasis`, `DecisionRecord` (retrieved/used/applied revisions + basis), `AttemptRecord`, `TrialRecord`, `EvaluationRecord`, `CompressionRecord`, `RecallCoverage`. Immutable Evidence facet: `OutcomeRecord` (attempt/metric/window/terminal/observation identity and instrument configuration). Guarded operational facets: `WatchState`, `LeaseState`. Field shapes are defined in `schemas/kip-cognitive-records.schema.json`; a rule digest or raw outcome count is not a trial. Required dependencies are checked through virtual `_system.dependency_validity` before use, without rewriting history.
+Facets: `MnemonicState` (base `memory_strength` + anchor `last_metabolized_at` + `strength_policy` → computed `effective_strength`; `salience`; `utility`), `GradingState` (computed, read-only view of the current evaluation). Immutable Activity facets: `DependencyBasis`, `DecisionRecord` (retrieved/used/applied revisions + basis), `AttemptRecord`, `TrialRecord`, `EvaluationRecord`, `CompressionRecord`, `RecallCoverage`. Immutable Evidence facet: `OutcomeRecord`. Guarded operational facets: `WatchState`, `LeaseState`. Field shapes are in `schemas/kip-cognitive-records.schema.json`. Required dependencies are checked through the computed `_system.dependency_validity` before use, without rewriting history.
 
-Structural fields: `has_step` (ordered) `experienced_by` `involves` `mentions` `about` `derived_from` `consolidated_to` `compiled_from` `compiled_by` `committed_to` `owed_to` `assigned_to` `watches`; Core built-ins on records: `evidence` `source` `generated_by` `inputs` `outputs` `associated_actors`.
+Structural fields: `has_step` (ordered) `experienced_by` `involves` `mentions` `about` `current_revision` `revision_of` `current_trial` `current_evaluation` `committed_to` `owed_to` `assigned_to` `watches`; computed from Activity provenance (read-only): `derived_from` `compiled_from` `compiled_by` `consolidated_to`; Core built-ins on records: `evidence` `source` `generated_by` `inputs` `outputs` `associated_actors`.
 
 Invariants: failed Experience is first-class memory; one success ≠ adopted Skill; adopted Skill ≠ execution authority; your own report of how your action went is `agent_statement`, never `outcome` Evidence; SelfModel ≠ Governance; a fired Watch is attention, not permission — record the gate decision (`action_gate` Activity + `DecisionRecord`: act|ask|defer|silence, inputs = what you applied), silence included; an outcome grades a Skill only through the `outcome_observation` link to that decision, never by sharing its `task_family`; WorkingState is served with its `basis_seq` and never cited as Evidence; imported memory keeps `mode: "imported"` and never becomes local autobiography (an imported Skill re-enters at `proposed`).
 
@@ -505,7 +544,7 @@ safe_same_request | requires_refresh | requires_different_input | requires_autho
 | requires_new_snapshot | requires_reacquire_artifact | outcome_lookup_required | non_retryable
 ```
 
-Frequent codes → fix: `SchemaSymbolAmbiguous` (use exact `kip://pkg@ver/symbol`) · `SchemaSymbolNotFound` (DESCRIBE first, don't invent schema) · `EpistemicRevisionRequired` (you tried to UPDATE belief history → new Assertion + SUPERSEDING) · `EvidenceCorrectionRequired` (→ CORRECT ... BY) · `VersionConflict` (re-read, re-apply, retry with fresh EXPECT VERSION) · `IdempotencyConflict` (same key, different request — pick a new key) · `OutcomeUnknown` (→ lookup by idempotency key) · `NotFoundOrNotVisible` (may exist beyond your visibility — never conclude falsehood) · `ReadonlyViolation` / `LanguageMismatch` (actual parsed semantics rule).
+Frequent codes → fix: `SchemaSymbolAmbiguous` (use exact `kip://pkg@ver/symbol`) · `SchemaSymbolNotFound` (DESCRIBE first; if the relation truly is missing, `DEFINE` it) · `SchemaSymbolConflict` (that name already exists — use it) · `EpistemicRevisionRequired` (you tried to UPDATE belief history → new Assertion + SUPERSEDING) · `EvidenceCorrectionRequired` (→ CORRECT ... BY) · `VersionConflict` (re-read, re-apply, retry with fresh EXPECT VERSION) · `IdempotencyConflict` (same key, different request — pick a new key) · `OutcomeUnknown` (→ lookup by idempotency key) · `NotFoundOrNotVisible` (may exist beyond your visibility — never conclude falsehood) · `ReadonlyViolation` / `LanguageMismatch` (actual parsed semantics rule).
 
 ---
 
@@ -514,9 +553,9 @@ Frequent codes → fix: `SchemaSymbolAmbiguous` (use exact `kip://pkg@ver/symbol
 1. **Ground before writing**: `SEARCH` + `DESCRIBE` → exact ids and schema refs. Persist exact versions, never `@latest`.
 2. **Hot path = `ASSERT` + ingestion**: attributed claim in one statement; evidence minted by the runtime, referenced as `:key` — never re-type observed payloads.
 3. **Belief questions get `BELIEF`/`BELIEF SLOT`**; raw `FIND` is for audit/history/conflict inspection. Report `insufficient` as "not enough basis", never as "no".
-4. **Correction ritual**: new Evidence → `ASSERT ... SUPERSEDING :old` (+ `belief_revision` Activity for material revisions). Disagreement between actors just coexists.
+4. **Three kinds of revision**: the actor was wrong → `ASSERT ... SUPERSEDING :old` (+ `belief_revision` Activity for material revisions); the world changed → one `ASSERT` with `valid.from`; the Brain misrecorded → recording repair. Disagreement between actors just coexists.
 5. **One coherent change = one atomic MUTATE/transaction**: Evidence+Assertion; Experience+Steps+Activity; correction+supersession. Don't leave misleading halves.
-6. **Metabolism touches Facets only**: decay `memory_strength`, adjust `salience`, tally `GradingState` from linked outcomes — Assertion confidence is never edited; epistemically material change creates a new Assertion, optionally superseding the old one.
+6. **Metabolism touches Facets only**: decay is computed; reinforce by writing a new base and anchor; adjust `salience` — Assertion confidence is never edited, and `GradingState` is never written; epistemically material change creates a new Assertion.
 7. **Removal is a ladder**: archive → tombstone → purge (policied, confirmed). Merging is non-destructive; identity suspicion = `same_as` claim + review.
 8. **Respect the write path for retries**: same intent = same `idempotency_key`; distinct real-world observations = distinct `client_key`s. Retry ≠ new Experience.
 9. **Time is two axes**: use `FOR TIME` for "when was it valid", `AS OF` for "what did the Brain hold then"; combine them only when both cognitive-history time and world-valid time are specified.

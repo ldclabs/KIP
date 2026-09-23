@@ -16,7 +16,7 @@
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "KIP-2.0-Memory-Interface.md#51-source-order"
   ],
   "steps": [
     {

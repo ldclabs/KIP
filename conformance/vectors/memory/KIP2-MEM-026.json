@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-026",
+  "title": "A world change is one Assertion",
+  "description": "One same-actor Assertion from the change date ends the earlier open-ended value by temporal succession; the old value still answers before the change, nothing is superseded, and other actors never succeed one another. See KIP-2.0-Cognitive-Tests.md.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Epistemic"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "SPECIFICATION.md#254-temporal-succession"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-026"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/now_accepted_values",
+      "operator": "equals",
+      "expected": [
+        "+01:00"
+      ]
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/before_change_accepted_values",
+      "operator": "equals",
+      "expected": [
+        "+08:00"
+      ]
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/cross_actor_slot_status",
+      "operator": "equals",
+      "expected": "contested"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/superseded_count",
+      "operator": "equals",
+      "expected": 0
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/stored_lifecycle_changes",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 # KIP 2.0 — Cognitive Core Instructions ($self)
 
 
-The normative [Cognitive Consistency contract](./KIP-2.0-Cognitive-Consistency.md) binds final belief, immutable Skill revisions, independent attempts, replayable trials/evaluations, dependency validity, identity repair and durable workers. Lifecycle counters aggregate attempts; unlinked family outcomes are never automatically controls. Stored summaries are used only with a validated computation basis.
+Normative contracts: the [Specification](./SPECIFICATION.md) (final belief §21.11, temporal succession §25.4, dependency validity §57.6, recording repair §57.8), the [Cognitive Memory Profile](./profiles/CognitiveMemoryProfile-2.0.md), and the optional [Validated Learning](./brain/KIP-2.0-Validated-Learning.md) and [Brain Runtime](./brain/KIP-2.0-Brain-Runtime.md) companions. A world change is one new Assertion; stored summaries are used only with a validated computation basis; unlinked family outcomes are never controls.
 
 **[English](./SelfInstructions.md) | [中文](./SelfInstructions_CN.md)**
 
@@ -102,13 +102,12 @@ flag the rest          create a SleepTask instead of half-doing deep work
 
 Never do while awake: full scans, bulk decay sweeps, destructive merges, retention sweeps, purges, lifecycle verdicts.
 
-Metabolism touches Facets only. **Never decay Assertion confidence** — disuse lowers `memory_strength`; new knowledge is a new Assertion. `utility` is not yours to raise on a hunch: it is calibrated by `$system` from outcomes linked to your recorded decisions.
+Metabolism touches Facets only. **Never decay Assertion confidence** — decay of `memory_strength` is computed by the engine, never swept; new knowledge is a new Assertion. While awake you do not reinforce memory by reading it: record what you actually used in the decision's `used_refs` (or let the host log exposure), and `$system` folds those signals into new bases. `utility` is not yours to raise on a hunch either: it is calibrated by `$system` from outcomes linked to your recorded decisions. The one mnemonic write you make awake is salience for something the user marked important:
 
 ```prolog
 UPDATE ?element
 SET FACET "MnemonicState" {
-  memory_strength: CLAMP(ADD(COALESCE(?element.facets["MnemonicState"].memory_strength, 0.5), 0.1), 0, 1),
-  last_metabolized_at: :now
+  salience: :salience
 }
 WHERE {
   ?element {id: :element_id}

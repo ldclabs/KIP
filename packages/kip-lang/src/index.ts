@@ -1,6 +1,6 @@
 export { tokenize } from './lexer.js'
 export { canonicalize, parseCanonicalJson } from './canonical.js'
-export { parseTimestamp } from './timestamp.js'
+export { parseTimestamp, parseTimePoint } from './timestamp.js'
 export { MemorySession } from './memory-session.js'
 export type { MemorySessionScope, MemorySessionSnapshot } from './memory-session.js'
 export { parse } from './parser.js'
@@ -100,6 +100,7 @@ export type {
   PurgeStatement,
   PurgePayloadStatement,
   MergeConceptStatement,
+  DefineStatement,
   // META
   DescribeStatement,
   DescribeTargetKind,
@@ -107,6 +108,7 @@ export type {
   ListTargetKind,
   SearchStatement,
   SearchKind,
+  SearchPattern,
   VerifyStatement,
   VerifyTargetKind,
   ValidateStatement,
@@ -212,6 +214,8 @@ export type {
   ListTarget,
   SearchCommand,
   SearchTarget,
+  SearchPatternClause,
+  DefineCommand,
   VerifyTarget,
   ValidateCommand,
   ValidateTarget,

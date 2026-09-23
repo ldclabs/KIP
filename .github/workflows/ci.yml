@@ -79,7 +79,7 @@ jobs:
         run: |
           python3 formal/governance/check_governance.py
           python3 formal/grammar/check_ebnf.py
-          for mode in '' --self-graded --family-join --skip-trialstate --count-imported --no-gate --observation-count --reuse-trial --edit-revision; do
+          for mode in '' --self-graded --family-join --skip-trial --count-imported --no-gate --observation-count --reuse-trial --edit-revision; do
             python3 formal/lifecycle/check_lifecycle.py $mode
           done
           python3 formal/watch/check_watch.py
@@ -88,6 +88,10 @@ jobs:
           python3 formal/purge/check_purge.py --hold-after-policy
           python3 formal/purge/check_purge.py --no-stub
           python3 formal/purge/check_purge.py --payload-drops-citations
+          python3 formal/temporal/check_temporal.py
+          for mode in --cross-actor --agreeing-cuts --no-start-bound --arrival-order --outrank-observation --infer-succeeds --recency-first; do
+            python3 formal/temporal/check_temporal.py $mode
+          done
 
   vscode-kip:
     runs-on: ubuntu-latest

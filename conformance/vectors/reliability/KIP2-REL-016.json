@@ -17,7 +17,7 @@
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "KIP-2.0-Capsule-Specification.md#417-restore-and-reference-mapping"
   ],
   "steps": [
     {

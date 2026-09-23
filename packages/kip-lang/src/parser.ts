@@ -29,6 +29,7 @@ import type {
   StructuralPattern,
   BeliefPattern,
   BeliefSlotPattern,
+  SearchPattern,
   FilterClause,
   NotClause,
   OptionalClause,
@@ -71,6 +72,7 @@ import type {
   PurgeStatement,
   PurgePayloadStatement,
   MergeConceptStatement,
+  DefineStatement,
   DescribeStatement,
   DescribeTargetKind,
   ListStatement,
@@ -198,6 +200,7 @@ class Parser {
       case TokenType.Set:
       case TokenType.Purge:
       case TokenType.Merge:
+      case TokenType.Define:
         return this.parseMutationClause()
 
       // META
@@ -251,6 +254,8 @@ class Parser {
         return this.parsePurgeStatement()
       case TokenType.Merge:
         return this.parseMergeConcept()
+      case TokenType.Define:
+        return this.parseDefineStatement()
       default:
         this.error(`Unexpected token '${tok.value}': expected a KML mutation`, tok)
         throw new ParseAbort()
@@ -545,6 +550,8 @@ class Parser {
         return this.parseStructuralPattern(variable)
       case TokenType.Belief:
         return this.parseBeliefPattern(variable)
+      case TokenType.Search:
+        return this.parseSearchPattern(variable)
       default:
         this.error(
           `Expected a pattern body after ${variable.name} but got '${tok.value}'`,
@@ -768,6 +775,23 @@ class Parser {
     this.expect(TokenType.LBrace)
     const patterns = this.parseWherePatterns()
     this.expect(TokenType.RBrace)
+    // A search miss never proves absence (Spec §66.6), so a Search Pattern
+    // cannot be the thing NOT tests for.
+    const visit = (list: WherePattern[]): void => {
+      for (const pattern of list) {
+        if (pattern.kind === 'SearchPattern') {
+          this.diagnostics.push({
+            range: pattern.range,
+            severity: 'error',
+            message: 'a Search Pattern cannot appear inside NOT: a search miss never proves absence',
+            code: 'KIP_1001'
+          })
+        } else if (pattern.kind === 'OptionalClause' || pattern.kind === 'UnionClause') {
+          visit(pattern.patterns)
+        }
+      }
+    }
+    visit(patterns)
     return {
       kind: 'NotClause',
       patterns,
@@ -1026,7 +1050,18 @@ class Parser {
         continue
       }
       try {
-        clauses.push(this.parseMutationClause())
+        const clause = this.parseMutationClause()
+        // DEFINE changes the Schema Environment every later clause resolves
+        // against, so it commits alone (Spec §20.16).
+        if (clause.kind === 'DefineStatement') {
+          this.diagnostics.push({
+            range: clause.range,
+            severity: 'error',
+            message: 'DEFINE is a standalone operation and cannot appear inside MUTATE',
+            code: 'KIP_1001'
+          })
+        }
+        clauses.push(clause)
       } catch {
         this.recoverToMutationBoundary()
       }
@@ -1874,6 +1909,38 @@ class Parser {
     }
   }
 
+  /** `DEFINE PREDICATE <name> {...}` | `DEFINE CONCEPT TYPE <name> {...}` (Spec §20.16). */
+  private parseDefineStatement(): DefineStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const define = this.expectKeywordWithSpace(TokenType.Define)
+    let defineKind: DefineStatement['defineKind']
+    if (this.check(TokenType.Predicate)) {
+      this.expectSecondWord(TokenType.Predicate, define)
+      defineKind = 'PREDICATE'
+    } else if (this.check(TokenType.Concept)) {
+      const concept = this.expectSecondWord(TokenType.Concept, define)
+      this.expectSecondWord(TokenType.Type, concept)
+      defineKind = 'CONCEPT_TYPE'
+    } else {
+      this.error(
+        `Expected PREDICATE or CONCEPT TYPE after DEFINE but got '${this.current().value}'`,
+        this.current()
+      )
+      throw new ParseAbort()
+    }
+    const name = this.parseSchemaSymbol()
+    const definition = this.parseObjectLiteral()
+    return {
+      kind: 'DefineStatement',
+      defineKind,
+      name,
+      definition,
+      range: { start, end: this.endPos() },
+      leadingComments: leadingComments.length ? leadingComments : undefined
+    }
+  }
+
   private parseMergeConcept(): MergeConceptStatement {
     const leadingComments = this.collectLeadingComments()
     const start = this.currentPos()
@@ -2115,11 +2182,8 @@ class Parser {
   //  META — SEARCH
   // ────────────────────────────────────────────────────────────────────
 
-  private parseSearchStatement(): SearchStatement {
-    const leadingComments = this.collectLeadingComments()
-    const start = this.currentPos()
-    const search = this.expectKeywordWithSpace(TokenType.Search)
-
+  /** The kind word after SEARCH, shared by the statement and the pattern. */
+  private parseSearchKind(search: Token): SearchKind {
     const kindTok = this.current()
     let searchKind: SearchKind
     switch (kindTok.type) {
@@ -2138,27 +2202,26 @@ class Parser {
       case TokenType.Activity:
         searchKind = 'ACTIVITY'
         break
-      case TokenType.Cognition:
-        searchKind = 'COGNITION'
-        break
       default:
         this.error(
-          `Expected CONCEPT, PROPOSITION, ASSERTION, EVIDENCE, ACTIVITY or COGNITION after SEARCH but got '${kindTok.value}'`,
+          `Expected CONCEPT, PROPOSITION, ASSERTION, EVIDENCE or ACTIVITY after SEARCH but got '${kindTok.value}'`,
           kindTok
         )
         throw new ParseAbort()
     }
     this.expectSecondWord(kindTok.type, search)
+    return searchKind
+  }
 
-    const term = this.parseScalarValue()
-
+  /** `WITH TYPE`, `WITH PREDICATE`, `MODE`, `THRESHOLD`, in grammar order. */
+  private parseSearchModifiers(): {
+    withType?: ScalarValue
+    withPredicate?: ScalarValue
+    mode?: ScalarValue
+    threshold?: ScalarValue
+  } {
     let withType: ScalarValue | undefined
     let withPredicate: ScalarValue | undefined
-    let mode: ScalarValue | undefined
-    let threshold: ScalarValue | undefined
-    let asOfSeq: ScalarValue | undefined
-
-    // The grammar fixes this order; each modifier is taken at most once.
     while (this.check(TokenType.With)) {
       const withTok = this.expect(TokenType.With)
       if (this.check(TokenType.Type)) {
@@ -2177,9 +2240,57 @@ class Parser {
         break
       }
     }
+    const mode = this.match(TokenType.Mode) ? this.parseScalarValue() : undefined
+    const threshold = this.match(TokenType.Threshold) ? this.parseScalarValue() : undefined
+    return { withType, withPredicate, mode, threshold }
+  }
 
-    if (this.match(TokenType.Mode)) mode = this.parseScalarValue()
-    if (this.match(TokenType.Threshold)) threshold = this.parseScalarValue()
+  /** `?x SEARCH <KIND> <term> [modifiers] LIMIT <k>` (Spec §43.8). */
+  private parseSearchPattern(variable: VariableRef): SearchPattern {
+    const search = this.expect(TokenType.Search)
+    const searchKind = this.parseSearchKind(search)
+    const term = this.parseScalarValue()
+    const modifiers = this.parseSearchModifiers()
+    let limit: LimitClause | undefined
+    if (this.check(TokenType.Limit)) {
+      limit = this.parseLimitClause()
+    } else {
+      this.error(
+        'a Search Pattern requires LIMIT: it bounds the candidate set the query joins against',
+        this.current()
+      )
+    }
+    if (this.dialect === 'raw') {
+      // A mutation or export selection must be exact: approximate retrieval
+      // would make its target set depend on an index (Spec §43.8, §52.7).
+      this.diagnostics.push({
+        range: { start: variable.range.start, end: this.endPos() },
+        severity: 'error',
+        message: 'a Search Pattern is approximate and cannot select mutation or export targets',
+        code: 'KIP_1001'
+      })
+    }
+    return {
+      kind: 'SearchPattern',
+      variable,
+      searchKind,
+      term,
+      ...modifiers,
+      limit,
+      range: { start: variable.range.start, end: this.endPos() }
+    }
+  }
+
+  private parseSearchStatement(): SearchStatement {
+    const leadingComments = this.collectLeadingComments()
+    const start = this.currentPos()
+    const search = this.expectKeywordWithSpace(TokenType.Search)
+    const searchKind = this.parseSearchKind(search)
+
+    const term = this.parseScalarValue()
+    // The grammar fixes this order; each modifier is taken at most once.
+    const { withType, withPredicate, mode, threshold } = this.parseSearchModifiers()
+    let asOfSeq: ScalarValue | undefined
 
     if (this.check(TokenType.As)) {
       const as = this.expect(TokenType.As)
@@ -3362,6 +3473,7 @@ class Parser {
     TokenType.Set,
     TokenType.Purge,
     TokenType.Merge,
+    TokenType.Define,
     TokenType.Describe,
     TokenType.List,
     TokenType.Search,

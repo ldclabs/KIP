@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://kip.ldclabs.org/schemas/2.0/2026-09-23/kip-change-envelope.schema.json",
+  "$id": "https://kip.ldclabs.org/schemas/2.0/kip-change-envelope.schema.json",
   "title": "KIP 2.0 Change Envelope",
   "description": "One state-changing commit yields one Change Envelope (KIP-2.0-SPECIFICATION.md \u00a736). Entries carry names and versions, never payload values; existence protection applies per entry.",
   "type": "object",
@@ -33,7 +33,7 @@
       "maxLength": 256
     },
     "committed_at": {
-      "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
+      "$ref": "urn:kip:2.0:schema:common#/$defs/Timestamp"
     },
     "transaction_class": {
       "type": "string",

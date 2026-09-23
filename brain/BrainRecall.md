@@ -27,7 +27,7 @@ and returns a provenance-aware answer to the consuming agent.
 
 # 1. Read-Only Invariant
 
-Recall MUST NOT write Assertions, increase confidence, change memory_strength, increment recall counters, change GradingState, archive, or tombstone anything. New learning goes to a separate Formation/Maintenance path. What a briefing was used for is recorded by the acting side, in the `action_gate` Activity's inputs, not by Recall.
+Recall MUST NOT write Assertions, increase confidence, change memory_strength, increment recall counters, change standing, archive, or tombstone anything. New learning goes to a separate Formation/Maintenance path. What a briefing was used for is recorded by the acting side, in the `action_gate` Activity's inputs, not by Recall.
 
 # 2. Identity and Space
 
@@ -196,7 +196,7 @@ Step order is not proof of causality: a causal link exists only where an explici
 
 # 16. Procedural Recall
 
-Resolve current_revision. When GradingState is present, use its grades only after its revision_ref and referenced, runtime-validated EvaluationRecord match the current revision and standing; never pair new behavior with old grades. A proposed or trialed Skill with no grades remains eligible for recall as an unproven candidate. Missing, mismatched or unverifiable grading evidence for a claimed adopted Skill MUST be disclosed and MUST NOT produce a validated recommendation. Recall does not repair these records or change standing.
+Resolve current_revision. When the computed GradingState view is present, use its grades only after its revision_ref and the runtime-validated EvaluationRecord behind `current_evaluation` match the current revision and standing; never pair new behavior with old grades. A proposed or trialed Skill with no grades remains eligible for recall as an unproven candidate. Missing, mismatched or unverifiable grading evidence for a claimed adopted Skill MUST be disclosed and MUST NOT produce a validated recommendation. Recall does not repair these records or change standing.
 
 Rank eligible Skills by goal/task relevance, applicability, preconditions, current environment, verified lifecycle standing, available graded utility, verdict recency, and authority/status. Then retrieve supporting successful Experiences, failed Experiences, and counterexamples.
 
@@ -247,7 +247,7 @@ SelfModel is descriptive cognition, not Governance.
 
 # 21. Preference Recall
 
-Use BELIEF over preference Proposition plus optional Preference artifact and recent corrections/counterexamples. Do not answer from mutable Preference summary alone when conflicting Assertions exist.
+Use `BELIEF SLOT` over the `prefers` slot, per option kind, plus recent corrections/counterexamples. A summarizing Insight is context, never the answer: do not answer from a summary when the slot has conflicting or newer Assertions.
 
 # 22. Search Freshness
 
@@ -271,7 +271,7 @@ If Projection is authorized but raw Evidence is not, return safe redacted Projec
 
 Memory ranking may use task relevance, semantic similarity, memory_strength, salience, utility, validity/currentness, Experience outcome, graded outcome standing, and counterexample relevance. Query constraints/Commitments, dependencies, failures/counterexamples, successful Experiences, Skills and evidence independently. Report RecallCoverage with basis, completed channels, truncation and unverified preconditions. Required constraints and critical warnings precede graded standing; a budget cutoff makes coverage incomplete and prevents unsupported automatic action. Final factual belief still comes from Epistemic Projection, not rank.
 
-Surface, do not hide, a `DerivationState.status = stale` flag on a derived artifact: it means a provenance root changed after the artifact was built and review is pending — the artifact is still raw-recallable, but the reader deserves the caveat. Also inspect computed `_system.dependency_validity` before Maintenance writes this flag: needs_review/unverifiable prevents automatic application. A stored current flag cannot override an invalid basis.
+Surface, do not hide, a derived artifact whose computed `_system.dependency_validity` is `needs_review` or `unverifiable`: a provenance root changed after it was built, or its basis cannot be checked. The artifact is still raw-recallable, but the reader deserves the caveat, and automatic application is not recommended until review revalidates it.
 
 # 27. Iterative Deepening
 

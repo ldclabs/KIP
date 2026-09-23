@@ -84,6 +84,7 @@ function analyzeStatement(stmt: Statement, diags: Diagnostic[]): void {
   switch (stmt.kind) {
     case 'FindStatement':
       checkWhere(stmt.where, !!stmt.limit, diags)
+      checkSearchPatterns(stmt.where.patterns, diags)
       break
 
     case 'MutateStatement':
@@ -212,6 +213,22 @@ function checkAssert(stmt: AssertStatement, diags: Diagnostic[]): void {
   // is the shape that most often should have carried Evidence.
   const mode = stmt.assignments.entries.find((e) => e.key === 'mode')
   const hasEvidence = stmt.assignments.entries.some((e) => e.key === 'evidence')
+  const hasAt = stmt.assignments.entries.some((e) => e.key === 'at')
+  const hasValid = stmt.assignments.entries.some((e) => e.key === 'valid')
+
+  // A claim taken from captured material was made when the source says, not
+  // when this write runs. Without `at` (or a written `valid.from`) it takes the
+  // transaction time as its start key (Spec §13.2, §25.4), so an old claim
+  // recorded late would end a current value it predates.
+  if (hasEvidence && !hasAt && !hasValid) {
+    diags.push({
+      range: stmt.assignments.range,
+      severity: 'info',
+      message:
+        'ASSERT cites evidence but gives no at: asserted_at defaults to the transaction time, which is the claim\'s start key; a claim recorded later than it was made should carry at: <the source\'s observed time> (Spec §13.2, §25.4)',
+      code: 'KIP_2102'
+    })
+  }
   if (
     mode &&
     mode.value.kind === 'StringLiteral' &&
@@ -416,6 +433,24 @@ function collectHandleRefs(
 // ---------------------------------------------------------------------------
 // Unbounded recall
 // ---------------------------------------------------------------------------
+
+/** A Search Pattern takes the same MODE and THRESHOLD registry as SEARCH. */
+function checkSearchPatterns(patterns: WherePattern[], diags: Diagnostic[]): void {
+  for (const pattern of patterns) {
+    if (pattern.kind === 'SearchPattern') {
+      if (pattern.mode) checkEnum(pattern.mode, SEARCH_MODES, 'SEARCH MODE', diags)
+      if (pattern.threshold && pattern.threshold.kind === 'NumberLiteral') {
+        checkUnitInterval('THRESHOLD', pattern.threshold.value, pattern.threshold.range, diags)
+      }
+    } else if (
+      pattern.kind === 'OptionalClause' ||
+      pattern.kind === 'UnionClause' ||
+      pattern.kind === 'NotClause'
+    ) {
+      checkSearchPatterns(pattern.patterns, diags)
+    }
+  }
+}
 
 function checkWhere(
   where: WhereClause,

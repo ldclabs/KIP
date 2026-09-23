@@ -31,7 +31,7 @@ test('canonical encoding rejects values JSON.stringify would erase or silently r
 })
 
 test('every shipped digest uses the same canonical byte contract', async () => {
-  for (const file of ['profiles/cognitive-memory-2.2.0.schema.json',
+  for (const file of ['profiles/cognitive-memory-2.0.0.schema.json',
     'conformance/fixtures/test-core-domain-1.0.0.schema.json',
     'conformance/fixtures/test-secondary-1.0.0.schema.json',
     'conformance/fixtures/epistemic-test-deterministic.json']) {

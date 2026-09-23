@@ -26,6 +26,7 @@ KIP 2.0 splits cleanly into layers with very different verifiability:
 | Consequence channel / Skill lifecycle (§15.7, §29.8, §41.6; Profile §6, §14, §21) | Yes, bounded-exhaustive | explicit-state Python model checking (suite 5) |
 | Watch firing under concurrency (Profile §5.11) | Yes, bounded | explicit-state Python model checking (suite 6) |
 | Erasure: purge, legal hold, payload purge (§19.1, §60) | Yes, bounded-exhaustive | explicit-state Python model checking (suite 7) |
+| World time: succession, missing-start default, time bounds, `kip:memory-default` precedence (§21.13, §25.2–§25.5) | Yes, bounded-exhaustive pairs + seeded triples | Python model checking (suite 8; added 2026-09-23, see the memory-brain revision record) |
 | Epistemic Projection *policies*     | No — deliberately unprescribed | (frame properties only)                     |
 | Memory/learning as behavior         | No — empirical, Brain-level    | §21.3-style ablation benchmarks, not proofs |
 
@@ -191,8 +192,8 @@ share one task family plus a third Skill that arrives by import already
 
 | Property | Meaning | Spec / Profile |
 | --- | --- | --- |
-| I1 AttributionOnly | a verdict's inputs, hence a Skill's `GradingState`, contain only outcomes linked to a decision that applied it, with instrument origin; observing an outcome changes no tally by itself | Spec §15.7, Inv. 37; Profile §6.2, §14 rule 7 |
-| I2 BasisBeforeCount | a verdict on a trialed/adopted Skill finds a `TrialState` whose basis precedes every graded outcome | Profile §6.5, §14 rule 2 |
+| I1 AttributionOnly | a verdict's inputs, hence a Skill's computed `GradingState` view, contain only outcomes linked to a decision that applied it, with instrument origin; observing an outcome changes no tally by itself | Spec §15.7, Inv. 37; Profile §6.2, §14 rule 7 |
+| I2 BasisBeforeCount | a verdict on a trialed/adopted Skill finds the immutable TrialRecord its `current_trial` selects, whose basis precedes every graded outcome | Validated Learning §4 |
 | I3 VerdictOnly | the lifecycle status changes only in a step that appends a `lifecycle_verdict` | Profile §9, §14 rule 1 |
 | I4 Recomputable | re-running the rule on the recorded basis and inputs reproduces every recorded transition | Profile §14 rule 2 |
 | I5 RevocationNotHarder | demotion bar ≤ promotion bar; `adopted → revoked` reachable with fewer graded outcomes than adoption needed | Profile §14 rule 3 |
@@ -205,7 +206,7 @@ one linked failure; S1 adopted while its family-mate S2 stays ungraded).
 The self-graded-deployment variant (`--self-graded`, 2.1M states) holds.
 Four bug injections each produce their counterexample: `--family-join` (the
 pre-2026-09-02 design: the family is the attribution) violates I1 with S2
-graded by S1's outcome; `--skip-trialstate` violates I2; `--count-imported`
+graded by S1's outcome; `--skip-trial` violates I2; `--count-imported`
 violates I1 and I6; `--no-gate` (acting-Principal outcomes accepted and not
 flagged) violates I7.
 
@@ -352,7 +353,7 @@ drafted on 2026-08-31, where the task family was the join between outcomes
 and Skills: with two Skills in one family, an outcome produced by a decision
 that applied S1 grades S2 as well, and an outcome linked to no decision
 grades both. The redesign — attribution only through the
-`outcome_observation → action_gate` link, `TrialState` written at trial
+`outcome_observation → action_gate` link, the trial record selected at trial
 opening, the family reduced to the baseline stream — holds under every
 interleaving in scope (I1–I7). The model is the mechanical form of review
 finding P0-2.

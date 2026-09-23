@@ -1,0 +1,224 @@
+{
+  "name": "mutation-selection",
+  "description": "A mutation may choose what it acts on. The judgement calls an engine has to make here are what this fixture pins down: UPDATE reaches mutable state and nothing else, a bounded sweep takes a documented order, a selection block reads the transaction's starting state, and a merge consolidates identity without copying or erasing anything.",
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?alice { TYPE \"Person\" NAME \"Alice\" SET FIELDS {key: \"person:alice\"} }\n  CREATE CONCEPT ?dark { TYPE \"Option\" NAME \"Dark\" }\n  CREATE CONCEPT ?e1 { TYPE \"Experience\" NAME \"First\" SET ATTRIBUTES {goal: \"learn\", outcome_status: \"success\"} SET FACET \"MnemonicState\" {memory_strength: 0.8, salience: 0.5} }\n  CREATE CONCEPT ?e2 { TYPE \"Experience\" NAME \"Second\" SET ATTRIBUTES {goal: \"learn\", outcome_status: \"failure\"} SET FACET \"MnemonicState\" {memory_strength: 0.4, salience: 0.5} }\n  CREATE CONCEPT ?e3 { TYPE \"Experience\" NAME \"Third\" SET ATTRIBUTES {goal: \"rest\", outcome_status: \"success\"} SET FACET \"MnemonicState\" {memory_strength: 0.2, salience: 0.5} }\n  ENSURE PROPOSITION ?p (?alice, \"prefers\", ?dark)\n  CREATE ASSERTION ?a {\n    SET FIELDS { proposition: ?p, asserted_by: ?alice, stance: \"support\", mode: \"stated\", confidence: 0.9 }\n  }\n}"
+  ],
+  "cases": [
+    {
+      "name": "a sweep decays a Facet member by reading the target's own value",
+      "command": "UPDATE ?m SET FACET \"MnemonicState\" { memory_strength: MUL(?m.facets[\"MnemonicState\"].memory_strength, 0.5) } WHERE { ?m CONCEPT {type: \"Experience\"} } LIMIT 2",
+      "expect": {},
+      "vectors": [
+        "CORE-018",
+        "X-011"
+      ]
+    },
+    {
+      "name": "LIMIT cuts in ascending element id, so the same sweep twice takes the same elements",
+      "command": "FIND(?m.name, ?m.facets[\"MnemonicState\"].memory_strength) WHERE { ?m CONCEPT {type: \"Experience\"} } ORDER BY ?m.name",
+      "ordered": true,
+      "expect": {
+        "result": [
+          [
+            "First",
+            0.4
+          ],
+          [
+            "Second",
+            0.2
+          ],
+          [
+            "Third",
+            0.2
+          ]
+        ]
+      }
+    },
+    {
+      "name": "a Facet assignment merges members rather than replacing the Facet",
+      "command": "FIND(?m.facets[\"MnemonicState\"].salience) WHERE { ?m CONCEPT {name: \"First\"} }",
+      "expect": {
+        "result": [
+          0.5
+        ]
+      }
+    },
+    {
+      "name": "UPDATE does not reach an Assertion's epistemic payload",
+      "command": "UPDATE ?a SET FIELDS { name: \"relabelled\" } WHERE { ?a ASSERTION {} }",
+      "expect": {
+        "error": "EpistemicRevisionRequired"
+      }
+    },
+    {
+      "name": "a selection block that matches nothing changes nothing, and does not create",
+      "command": "UPDATE ?m SET ATTRIBUTES { outcome_status: \"aborted\" } WHERE { ?m CONCEPT {type: \"Experience\"} FILTER(?m.attributes.goal == \"no such goal\") }",
+      "expect": {}
+    },
+    {
+      "name": "a selection block reads the state the transaction started from",
+      "command": "MUTATE {\n  CREATE CONCEPT ?fresh { TYPE \"Experience\" NAME \"Fourth\" SET ATTRIBUTES {goal: \"learn\", outcome_status: \"success\"} }\n  TRANSITION ?m TO \"archived\" WHERE { ?m CONCEPT {type: \"Experience\"} }\n}",
+      "expect": {}
+    },
+    {
+      "name": "so the Concept the same transaction created is still in recall",
+      "command": "FIND(?m.name) WHERE { ?m CONCEPT {type: \"Experience\"} }",
+      "expect": {
+        "result": [
+          "Fourth"
+        ]
+      }
+    },
+    {
+      "name": "a duplicate of the same person, recorded separately",
+      "command": "UPSERT CONCEPT ?dup { MATCH {type: \"Person\", key: \"person:alice-duplicate\"} SET FIELDS {name: \"Alice\"} }",
+      "expect": {}
+    },
+    {
+      "name": "the upsert created the type its MATCH declared",
+      "command": "FIND(?p.name) WHERE { ?p CONCEPT {type: \"Person\", key: \"person:alice-duplicate\"} }",
+      "expect": {
+        "result": [
+          "Alice"
+        ]
+      }
+    },
+    {
+      "name": "a merge never picks an identity by description: two Concepts share the name",
+      "command": "MERGE CONCEPT ?source INTO ?target WHERE { ?source CONCEPT {key: \"person:alice-duplicate\"} ?target CONCEPT {name: \"Alice\"} }",
+      "expect": {
+        "error": "IdentityMergeConflict"
+      }
+    },
+    {
+      "name": "named by stable identity instead, the merge consolidates them",
+      "command": "MERGE CONCEPT ?source INTO ?target WHERE { ?source CONCEPT {key: \"person:alice-duplicate\"} ?target CONCEPT {key: \"person:alice\"} }",
+      "expect": {}
+    },
+    {
+      "name": "a logical key is identity within its type",
+      "command": "UPSERT CONCEPT ?a { MATCH {type: \"Person\", key: \"shared:label\"} SET FIELDS {name: \"A person\"} }",
+      "expect": {}
+    },
+    {
+      "name": "so another type may carry the same key, and it is a second identity",
+      "command": "UPSERT CONCEPT ?b { MATCH {type: \"Option\", key: \"shared:label\"} SET FIELDS {name: \"A preference\"} }",
+      "expect": {}
+    },
+    {
+      "name": "the key alone now names two Concepts, and is not resolved arbitrarily",
+      "command": "UPSERT CONCEPT ?c { MATCH {key: \"shared:label\"} SET FIELDS {name: \"?\"} }",
+      "expect": {
+        "error": "IdentityConflict"
+      }
+    },
+    {
+      "name": "an upsert declaring no type cannot create a Concept it would have to invent one for",
+      "command": "UPSERT CONCEPT ?x { MATCH {key: \"person:nobody\"} SET FIELDS {name: \"Nobody\"} }",
+      "expect": {
+        "error": "SchemaSymbolNotFound"
+      }
+    },
+    {
+      "name": "an upsert by id resolves only, so an id nothing carries is a failure and not a create",
+      "command": "UPSERT CONCEPT ?x { MATCH {type: \"Person\", id: \"C-99999\"} SET FIELDS {name: \"Nobody\"} }",
+      "expect": {
+        "error": "NotFoundOrNotVisible"
+      }
+    },
+    {
+      "name": "a MATCH member of the wrong type is refused rather than read as absent",
+      "command": "UPSERT CONCEPT ?x { MATCH {type: 42, key: \"person:nobody\"} SET FIELDS {name: \"Nobody\"} }",
+      "expect": {
+        "error": "TypeMismatch"
+      }
+    },
+    {
+      "name": "MATCH selects; it does not seed the Concept it creates",
+      "command": "UPSERT CONCEPT ?x { MATCH {type: \"Person\", key: \"person:unnamed\", name: \"Ignored\"} }",
+      "expect": {}
+    },
+    {
+      "name": "so grounding state arrives through SET FIELDS and nowhere else",
+      "command": "FIND(?p.key) WHERE { ?p CONCEPT {type: \"Person\", name: \"Ignored\"} }",
+      "expect": {
+        "result": []
+      }
+    },
+    {
+      "name": "a name is not identity, and the language refuses it before an engine sees it",
+      "command": "UPSERT CONCEPT ?c { MATCH {type: \"Person\", name: \"Alice\"} SET FIELDS {name: \"Alice B\"} }",
+      "expect": {
+        "error": "InvalidSyntax"
+      }
+    },
+    {
+      "name": "and `_system` is engine state no mutation may name",
+      "command": "UPDATE \"person:alice\" SET FIELDS {_system: {version: 99}}",
+      "expect": {
+        "error": "InvalidSyntax"
+      }
+    },
+    {
+      "name": "a WHERE on a directly named target is a guard, and a guard that holds lets the write through",
+      "command": "UPDATE ?t SET FIELDS {name: \"Alice Guarded\"} WHERE { ?t CONCEPT {key: \"person:alice\"} }",
+      "expect": {}
+    },
+    {
+      "name": "a guard that finds nothing makes the statement do nothing, and is not an error",
+      "command": "UPDATE ?t SET FIELDS {name: \"Never\"} WHERE { ?t CONCEPT {key: \"person:alice\"}  FILTER(?t.name == \"Nobody\") }",
+      "expect": {}
+    },
+    {
+      "name": "so the guarded write landed and the unguarded one did not",
+      "command": "FIND(?c.name) WHERE { ?c CONCEPT {key: \"person:alice\"} }",
+      "expect": {
+        "result": [
+          "Alice Guarded"
+        ]
+      }
+    },
+    {
+      "name": "PURGE refuses by default while anything still references the target",
+      "command": "PURGE ?alice WHERE { ?alice CONCEPT {key: \"person:alice\"} } CONFIRM \"PURGE\"",
+      "expect": {
+        "error": "PurgeDenied"
+      }
+    },
+    {
+      "name": "an unreferenced element erases, leaving an identity stub rather than a hole",
+      "command": "PURGE ?e WHERE { ?e CONCEPT {name: \"Third\", state: \"archived\"} } CONFIRM \"PURGE\"",
+      "expect": {}
+    },
+    {
+      "name": "the stub keeps identity and a digest, and carries none of the content",
+      "command": "FIND(?e.name, ?e.governance.purged) WHERE { ?e CONCEPT {state: \"purged\"} }",
+      "expect": {
+        "result": [
+          [
+            null,
+            true
+          ]
+        ]
+      }
+    }
+  ],
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://conformance/options",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Option": {
+            "kind": "ConceptType",
+            "description": "A preference option used by these fixtures. A real Space types each option by its kind (Profile §5.5, §7), because prefers partitions by the option's Concept Type; one catch-all type is one partition."
+          }
+        }
+      }
+    }
+  ]
+}

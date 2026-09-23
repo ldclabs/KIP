@@ -20,7 +20,7 @@ The `historical_reads` capability (§67.4) requires, within advertised retention
 AS OF SEQ
 lifecycle reconstruction
 historical Schema Environment
-historical identity, trust and Projection Policy versions (Consistency §2)
+historical identity, trust and Projection Policy versions (Specification §48.6)
 historical cognitive read
 current authorization
 transaction chronology

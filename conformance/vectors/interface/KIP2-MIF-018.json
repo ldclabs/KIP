@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MIF-018",
+  "title": "An unasked constraint surfaces",
+  "description": "Observe \"never deploy on Fridays\" in a task scope. Later ask, in the same task and with mode action, for help scheduling a deployment on 2026-09-25 (a Friday) without mentioning the constraint. The briefing includes the constraint as a critical warning with complete constraints coverage; with its channel truncated, action_eligible is false.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Core",
+    "KIP-Runtime"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "core-basic",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Memory-Interface.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_interface_scenario",
+      "args": {
+        "id": "KIP2-MIF-018"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/constraint_surfaced",
+      "operator": "equals",
+      "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/constraints_channel",
+      "operator": "equals",
+      "expected": "complete"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/truncated_action_eligible",
+      "operator": "equals",
+      "expected": false
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/recall_writes",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

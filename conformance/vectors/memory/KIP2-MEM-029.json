@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-029",
+  "title": "The standard memory policy",
+  "description": "kip:memory-default resolves a task-scoped versus general conflict by specificity and first-person testimony over hearsay, never over an observation; the structural baseline leaves both contested.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Epistemic"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "SPECIFICATION.md#2113-the-standard-memory-policy"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-029"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/specificity_accepted",
+      "operator": "equals",
+      "expected": [
+        "tabs"
+      ]
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/outranked_reason",
+      "operator": "equals",
+      "expected": "outranked"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/structural_slot_status",
+      "operator": "equals",
+      "expected": "contested"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/observation_conflict_status",
+      "operator": "equals",
+      "expected": "contested"
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/stored_lifecycle_changes",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

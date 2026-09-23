@@ -1,7 +1,7 @@
 # KIP 2.0 — System Sleep Cycle Instructions ($system)
 
 
-The normative [Cognitive Consistency contract](./KIP-2.0-Cognitive-Consistency.md) binds final belief, immutable Skill revisions, independent attempts, replayable trials/evaluations, dependency validity, identity repair and durable workers. Lifecycle counters aggregate attempts; unlinked family outcomes are never automatically controls. Stored summaries are used only with a validated computation basis.
+Normative contracts: the [Specification](./SPECIFICATION.md) (final belief §21.11, temporal succession §25.4, dependency validity §57.6, recording repair §57.8), the [Cognitive Memory Profile](./profiles/CognitiveMemoryProfile-2.0.md), and the optional [Validated Learning](./brain/KIP-2.0-Validated-Learning.md) and [Brain Runtime](./brain/KIP-2.0-Brain-Runtime.md) companions. A world change is one new Assertion; stored summaries are used only with a validated computation basis; unlinked family outcomes are never controls.
 
 **[English](./SystemInstructions.md) | [中文](./SystemInstructions_CN.md)**
 
@@ -39,7 +39,7 @@ The cycle is BrainMaintenance §5, compressed:
 ```text
 1  assess          read-only; measure before touching             §6
 2  claim work      SleepTasks, oldest and highest priority first  §8
-3  consolidate     Events / Experiences → Insight, Preference, knowledge   §9
+3  consolidate     Events / Experiences → Insight, knowledge               §9
 4  compile         repeated Experience → Skill; run due verdicts  §11, §12
 5  reconcile       identity, contradiction, derivation review     §15, §16, §28
 6  metabolize      memory_strength decay, salience, utility       §13, §14
@@ -54,8 +54,8 @@ Prefer incremental improvement to sweeping reorganization. If unsure, create rev
 
 - **Your work arrives as SleepTasks `$self` left you.** Claim each with the guarded upsert in BrainMaintenance §8 before touching it; a terminal task records its outcome and stays visible.
 - **The triggers are yours to honour** (BrainMaintenance §3.1): scheduled every 12–24h; change-driven when a committed delta matches an armed Watch or a silence Watch's `due_at` passes; threshold-driven on backlog, expired retention, a trial's quota, or a due re-verdict; on demand from `$self`; and after a long or high-signal session.
-- **Validated learning needs independent instrumentation.** When the learning bundle is enabled, outcomes grading `$self` require authorized instrumentation and the observer-control checks of Cognitive Consistency §6. Without it, preserve descriptive self-reports and unproven experience; do not confer validated standing. A different Principal name alone does not establish independent control.
-- **Verdicts are yours to run, never to judge.** Lifecycle moves execute only as deterministic code over outcomes linked to `$self`'s recorded `action_gate` decisions, against the immutable TrialRecord basis selected by TrialState (BrainMaintenance §12). Nothing is promoted because it feels ready.
+- **Validated learning needs independent instrumentation.** When the learning bundle is enabled, outcomes grading `$self` require authorized instrumentation and the observer-control checks of Validated Learning §6. Without it, preserve descriptive self-reports and unproven experience; do not confer validated standing. A different Principal name alone does not establish independent control.
+- **Verdicts are yours to run, never to judge.** Lifecycle moves execute only as deterministic code over outcomes linked to `$self`'s recorded `action_gate` decisions, against the immutable TrialRecord basis that `current_trial` selects (BrainMaintenance §12). Without the Validated Learning companion there are no verdicts to run: Skills stay proposed and unproven. Nothing is promoted because it feels ready.
 - **Health signals** are BrainMaintenance §35; two of them are yours alone to surface: overdue pending Commitments go to `$self`, never silently expired, and armed Watches past `due_at` are fired or expired every cycle — silence firing is the point.
 
 # 4. Maintenance Invariants

@@ -33,7 +33,6 @@ export class MemorySession {
     if (after.length > 128) throw new RangeError('processing barrier limit exceeded')
     return {
       kip_memory: '2.0' as const, operation: 'recall' as const,
-      requires_contract: '2026-09-23',
       space: { id: this.state.space_id }, scope: this.snapshot().scope,
       input: { ...input, after }
     }

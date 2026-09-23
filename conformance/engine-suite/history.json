@@ -1,0 +1,293 @@
+{
+  "name": "history",
+  "description": "Two independent time axes. FOR TIME asks what was true then; AS OF asks what this Brain held then. A coordinate keeps what was later corrected, retracted or archived, because the record of what was once believed is the point. And the chronology itself is reported in transition envelopes (§36.1): §68.1 defines HISTORY as transition chronology and §36.2 defines a transition as one envelope, so HISTORY ELEMENT, HISTORY SPACE and CHANGES are the same unit asked for over different ranges — which is what lets a consumer deduplicate on space_id + space_seq + tx_id (§36.3). Each entry of `changes` is the normative shape of schemas/kip-change-envelope.schema.json: op, kind, id, new_version, old_version where the element existed, state {from, to} for a lifecycle move, refs.proposition on an Assertion entry — names and versions, never values.",
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?alice { TYPE \"Person\" NAME \"Alice\" }\n  CREATE CONCEPT ?dark { TYPE \"Option\" NAME \"Dark\" }\n  ENSURE PROPOSITION ?p (?alice, \"prefers\", ?dark)\n  CREATE ASSERTION ?a {\n    SET FIELDS { proposition: ?p, asserted_by: ?alice, stance: \"support\", mode: \"stated\", confidence: 0.9 }\n  }\n}"
+  ],
+  "cases": [
+    {
+      "name": "the claim is active at the coordinate its transaction produced (seq 1)",
+      "command": "FIND(?a.lifecycle.status, ?a.confidence) WHERE { ?a ASSERTION {} } AS OF SEQ 1",
+      "expect": {
+        "result": [
+          [
+            "active",
+            0.9
+          ]
+        ]
+      }
+    },
+    {
+      "name": "retracting it changes the present",
+      "command": "TRANSITION ?a TO \"retracted\" WHERE { ?a ASSERTION {} }",
+      "expect": {}
+    },
+    {
+      "name": "the present says retracted",
+      "command": "FIND(?a.lifecycle.status) WHERE { ?a ASSERTION {} }",
+      "expect": {
+        "result": [
+          "retracted"
+        ]
+      }
+    },
+    {
+      "name": "and the earlier coordinate still says active: history is not rewritten",
+      "command": "FIND(?a.lifecycle.status) WHERE { ?a ASSERTION {} } AS OF SEQ 1",
+      "expect": {
+        "result": [
+          "active"
+        ]
+      }
+    },
+    {
+      "name": "a coordinate before anything existed is empty, not an error",
+      "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {} } AS OF SEQ 0",
+      "expect": {
+        "result": [
+          0
+        ]
+      }
+    },
+    {
+      "name": "a coordinate the Space has not reached is refused, never rounded to the present",
+      "command": "DESCRIBE SNAPSHOT AS OF SEQ 9999",
+      "expect": {
+        "error": "HistoricalSnapshotUnavailable"
+      }
+    },
+    {
+      "name": "an unknown transaction names no coordinate",
+      "command": "DESCRIBE TRANSACTION \"kip:space:default#9999\"",
+      "expect": {
+        "error": "TransactionUnknown"
+      }
+    },
+    {
+      "name": "an element's chronology is transition envelopes, narrowed to that element",
+      "command": "HISTORY ELEMENT \"A-1\"",
+      "ordered": true,
+      "expect": {
+        "result": [
+          {
+            "kip": "2.0",
+            "space_id": "kip:space:default",
+            "space_seq": 1,
+            "transaction_class": "cognitive",
+            "schema_environment_version": 1,
+            "changes": [
+              {
+                "op": "create",
+                "kind": "assertion",
+                "id": "A:<1>",
+                "new_version": 1,
+                "refs": {
+                  "proposition": "P:<2>"
+                }
+              }
+            ],
+            "extensions": {
+              "anda/transition": {
+                "snapshot_seq": 0,
+                "status": "committed"
+              }
+            }
+          },
+          {
+            "kip": "2.0",
+            "space_id": "kip:space:default",
+            "space_seq": 2,
+            "transaction_class": "cognitive",
+            "schema_environment_version": 1,
+            "changes": [
+              {
+                "op": "lifecycle",
+                "kind": "assertion",
+                "id": "A:<1>",
+                "old_version": 1,
+                "new_version": 2,
+                "state": {
+                  "from": "active",
+                  "to": "retracted"
+                },
+                "refs": {
+                  "proposition": "P:<2>"
+                },
+                "touched": [
+                  "fields.retracted_at",
+                  "fields.status"
+                ]
+              }
+            ],
+            "extensions": {
+              "anda/transition": {
+                "snapshot_seq": 1,
+                "status": "committed"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a Space's chronology is the same envelope, unnarrowed",
+      "command": "HISTORY SPACE FROM SEQ 2 TO SEQ 2",
+      "ordered": true,
+      "expect": {
+        "result": [
+          {
+            "kip": "2.0",
+            "space_id": "kip:space:default",
+            "space_seq": 2,
+            "transaction_class": "cognitive",
+            "schema_environment_version": 1,
+            "changes": [
+              {
+                "op": "lifecycle",
+                "kind": "assertion",
+                "id": "A:<1>",
+                "old_version": 1,
+                "new_version": 2,
+                "state": {
+                  "from": "active",
+                  "to": "retracted"
+                },
+                "refs": {
+                  "proposition": "P:<2>"
+                },
+                "touched": [
+                  "fields.retracted_at",
+                  "fields.status"
+                ]
+              }
+            ],
+            "extensions": {
+              "anda/transition": {
+                "snapshot_seq": 1,
+                "status": "committed"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "the change stream is the same envelope again, so one transition arrives whole",
+      "command": "CHANGES AFTER SEQ 1",
+      "ordered": true,
+      "expect": {
+        "result": [
+          {
+            "kip": "2.0",
+            "space_id": "kip:space:default",
+            "space_seq": 2,
+            "transaction_class": "cognitive",
+            "schema_environment_version": 1,
+            "changes": [
+              {
+                "op": "lifecycle",
+                "kind": "assertion",
+                "id": "A:<1>",
+                "old_version": 1,
+                "new_version": 2,
+                "state": {
+                  "from": "active",
+                  "to": "retracted"
+                },
+                "refs": {
+                  "proposition": "P:<2>"
+                },
+                "touched": [
+                  "fields.retracted_at",
+                  "fields.status"
+                ]
+              }
+            ],
+            "extensions": {
+              "anda/transition": {
+                "snapshot_seq": 1,
+                "status": "committed"
+              }
+            },
+            "coverage": {
+              "through_seq": 2,
+              "complete": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a caught-up follower is handed no envelopes",
+      "command": "CHANGES AFTER SEQ 99",
+      "expect": {
+        "result": []
+      }
+    },
+    {
+      "name": "the history of an element that is not there is a refusal, not an empty chronology",
+      "command": "HISTORY ELEMENT \"C-999\"",
+      "expect": {
+        "error": "NotFoundOrNotVisible"
+      }
+    },
+    {
+      "name": "a write under an idempotency key is recoverable by it",
+      "command": "CREATE CONCEPT ?c { TYPE \"Person\" NAME \"Recoverable\" }",
+      "envelope": {
+        "execution": {
+          "mode": "independent",
+          "idempotency_key": "history:recover"
+        }
+      },
+      "expect": {}
+    },
+    {
+      "name": "and the description is the envelope shape plus whether it committed",
+      "command": "DESCRIBE TRANSACTION BY IDEMPOTENCY KEY \"history:recover\"",
+      "expect": {
+        "result": {
+          "kip": "2.0",
+          "space_id": "kip:space:default",
+          "space_seq": 3,
+          "snapshot_seq": 2,
+          "status": "committed",
+          "transaction_class": "cognitive",
+          "schema_environment_version": 1,
+          "extensions": {
+            "anda/transition": {
+              "snapshot_seq": 2,
+              "status": "committed"
+            }
+          },
+          "changes": [
+            {
+              "op": "create",
+              "kind": "concept",
+              "id": "C:<1>",
+              "new_version": 1,
+              "schema_ref": "kip://profiles/cognitive-memory@2.0.0/Person"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://conformance/options",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Option": {
+            "kind": "ConceptType",
+            "description": "A preference option used by these fixtures. A real Space types each option by its kind (Profile §5.5, §7), because prefers partitions by the option's Concept Type; one catch-all type is one partition."
+          }
+        }
+      }
+    }
+  ]
+}

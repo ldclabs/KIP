@@ -1,0 +1,49 @@
+{
+  "name": "transaction-final-validation",
+  "description": "Final identity validation agrees between preview and commit; client keys also resolve inside one mutation.",
+  "setup": [],
+  "cases": [
+    {
+      "name": "commit refuses the same duplicate logical keys",
+      "command": "MUTATE { CREATE CONCEPT ?a { TYPE \"Person\" NAME \"Duplicate\" SET FIELDS {key: \"same-key\"} } CREATE CONCEPT ?b { TYPE \"Person\" NAME \"Duplicate\" SET FIELDS {key: \"same-key\"} } }",
+      "expect": {
+        "error": "IdentityConflict"
+      }
+    },
+    {
+      "name": "rejected creations leave no visible rows",
+      "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {name:\"Duplicate\"} }",
+      "expect": {
+        "result": [
+          0
+        ]
+      }
+    },
+    {
+      "name": "one client key resolves to one creation inside a MUTATE",
+      "command": "MUTATE { CREATE CONCEPT ?a { TYPE \"Person\" NAME \"Batch Alice\" CLIENT KEY \"batch-identity\" } CREATE CONCEPT ?b { TYPE \"Person\" NAME \"Batch Alice\" CLIENT KEY \"batch-identity\" } }",
+      "expect": {}
+    },
+    {
+      "name": "the batch contains one logical creation",
+      "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {name:\"Batch Alice\"} }",
+      "expect": {
+        "result": [
+          1
+        ]
+      }
+    },
+    {
+      "name": "the same creation can still retry after commit",
+      "command": "CREATE CONCEPT ?c {TYPE \"Person\" NAME \"Batch Alice\" CLIENT KEY \"batch-identity\"}",
+      "expect": {}
+    },
+    {
+      "name": "a conflicting use of that client key is rejected",
+      "command": "CREATE CONCEPT ?c {TYPE \"Person\" NAME \"Other\" CLIENT KEY \"batch-identity\"}",
+      "expect": {
+        "error": "ClientKeyConflict"
+      }
+    }
+  ]
+}

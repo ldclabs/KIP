@@ -1,0 +1,255 @@
+{
+  "format": "KIP-Schema-Package",
+  "format_version": "2.0-draft",
+  "manifest": {
+    "package_id": "kip://domains/general",
+    "version": "1.0.0",
+    "package_ref": "kip://domains/general@1.0.0",
+    "name": "KIP General Domain",
+    "description": "A deliberately small general-purpose domain vocabulary for personal and team memory: places, organizations, topics and the everyday relations between people and them. Relations it does not name belong in a domain package or the Space's draft vocabulary (Spec §20.16).",
+    "publisher": "urn:kip:publisher:ldclabs",
+    "purpose": "standard_domain",
+    "stability": "normative_draft",
+    "executable": false,
+    "source_document": "profiles/CognitiveMemoryProfile-2.0.md"
+  },
+  "dependencies": [
+    {
+      "package_id": "kip://core",
+      "version": "2.0.0",
+      "package_ref": "kip://core@2.0.0",
+      "required": true
+    },
+    {
+      "package_id": "kip://profiles/cognitive-memory",
+      "version": "2.0.0",
+      "package_ref": "kip://profiles/cognitive-memory@2.0.0",
+      "required": true,
+      "content_digest": "sha256:2d514bea7d32b9b33e7121f3e52c142f22a7263ac4f04070d3df3ce9a0abcd4b"
+    }
+  ],
+  "definitions": {
+    "concept_types": {
+      "Place": {
+        "ref": "kip://domains/general@1.0.0/Place",
+        "kind": "ConceptType",
+        "description": "A named geographic location: a city, a region, a country, a venue.",
+        "attributes": {
+          "open": true,
+          "fields": {}
+        },
+        "model_hints": {
+          "summary": "Use for where people live, travel and meet; nest with located_in."
+        }
+      },
+      "Organization": {
+        "ref": "kip://domains/general@1.0.0/Organization",
+        "kind": "ConceptType",
+        "description": "A company, institution, team or community.",
+        "attributes": {
+          "open": true,
+          "fields": {}
+        },
+        "model_hints": {
+          "summary": "Use for employers, schools, clubs and teams."
+        }
+      },
+      "Topic": {
+        "ref": "kip://domains/general@1.0.0/Topic",
+        "kind": "ConceptType",
+        "description": "A subject of interest or expertise.",
+        "attributes": {
+          "open": true,
+          "fields": {}
+        },
+        "model_hints": {
+          "summary": "Use for interests and skills people talk about; not for preferences among options (use prefers)."
+        }
+      }
+    },
+    "predicates": {
+      "lives_in": {
+        "ref": "kip://domains/general@1.0.0/lives_in",
+        "kind": "PredicateType",
+        "description": "The subject's primary place of residence. A move is one new Assertion from the move; temporal succession ends the previous residence (Spec §25.4).",
+        "subject": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Person"
+          ]
+        },
+        "object": {
+          "concept_types": [
+            "kip://domains/general@1.0.0/Place"
+          ]
+        },
+        "functional": true,
+        "open_world": true,
+        "complete": false,
+        "temporal_conflict": "overlapping_valid_time"
+      },
+      "located_in": {
+        "ref": "kip://domains/general@1.0.0/located_in",
+        "kind": "PredicateType",
+        "description": "The smaller place lies within the larger one.",
+        "subject": {
+          "concept_types": [
+            "kip://domains/general@1.0.0/Place"
+          ]
+        },
+        "object": {
+          "concept_types": [
+            "kip://domains/general@1.0.0/Place"
+          ]
+        },
+        "functional": true,
+        "open_world": true,
+        "complete": false,
+        "temporal_conflict": "overlapping_valid_time"
+      },
+      "works_for": {
+        "ref": "kip://domains/general@1.0.0/works_for",
+        "kind": "PredicateType",
+        "description": "The subject is employed by or works for the organization. People may hold several roles, so the slot is multi-valued; an ended job is the same actor's reject stance from the end date.",
+        "subject": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Person"
+          ]
+        },
+        "object": {
+          "concept_types": [
+            "kip://domains/general@1.0.0/Organization"
+          ]
+        },
+        "functional": false,
+        "open_world": true,
+        "complete": false,
+        "temporal_conflict": "overlapping_valid_time"
+      },
+      "member_of": {
+        "ref": "kip://domains/general@1.0.0/member_of",
+        "kind": "PredicateType",
+        "description": "The subject belongs to the organization, team or community.",
+        "subject": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Person"
+          ]
+        },
+        "object": {
+          "concept_types": [
+            "kip://domains/general@1.0.0/Organization"
+          ]
+        },
+        "functional": false,
+        "open_world": true,
+        "complete": false,
+        "temporal_conflict": "overlapping_valid_time"
+      },
+      "knows": {
+        "ref": "kip://domains/general@1.0.0/knows",
+        "kind": "PredicateType",
+        "description": "The subject is acquainted with the other person. Not symmetric by declaration: each direction is its own claim.",
+        "subject": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Person"
+          ]
+        },
+        "object": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Person"
+          ]
+        },
+        "functional": false,
+        "open_world": true,
+        "complete": false,
+        "temporal_conflict": "overlapping_valid_time"
+      },
+      "timezone": {
+        "ref": "kip://domains/general@1.0.0/timezone",
+        "kind": "PredicateType",
+        "description": "The subject's current timezone, as an IANA name or a UTC offset string.",
+        "subject": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Person"
+          ]
+        },
+        "object": {
+          "literal_types": [
+            "string"
+          ]
+        },
+        "functional": true,
+        "open_world": true,
+        "complete": false,
+        "temporal_conflict": "overlapping_valid_time"
+      },
+      "speaks": {
+        "ref": "kip://domains/general@1.0.0/speaks",
+        "kind": "PredicateType",
+        "description": "A language the subject speaks, as a BCP 47 language tag string.",
+        "subject": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Person"
+          ]
+        },
+        "object": {
+          "literal_types": [
+            "string"
+          ]
+        },
+        "functional": false,
+        "open_world": true,
+        "complete": false,
+        "temporal_conflict": "overlapping_valid_time"
+      },
+      "interested_in": {
+        "ref": "kip://domains/general@1.0.0/interested_in",
+        "kind": "PredicateType",
+        "description": "The subject has an interest in the topic.",
+        "subject": {
+          "concept_types": [
+            "kip://profiles/cognitive-memory@2.0.0/Person"
+          ]
+        },
+        "object": {
+          "concept_types": [
+            "kip://domains/general@1.0.0/Topic"
+          ]
+        },
+        "functional": false,
+        "open_world": true,
+        "complete": false,
+        "temporal_conflict": "overlapping_valid_time"
+      }
+    },
+    "facets": {},
+    "structural_fields": {}
+  },
+  "constraints": [],
+  "aliases": {
+    "concept_types": {},
+    "predicates": {},
+    "facets": {},
+    "structural_fields": {}
+  },
+  "compatibility": {
+    "readable_with": [
+      "kip://core@2.0.0",
+      "kip://profiles/cognitive-memory@2.0.0"
+    ],
+    "supersedes": [],
+    "breaking_changes": []
+  },
+  "migrations": [],
+  "model_hints": {
+    "summary": "Everyday relations for personal and team memory. Prefer these over inventing near-synonyms; a relation not here goes to the draft vocabulary."
+  },
+  "canonicalization": {
+    "profile": "kip-jcs-safe-v1",
+    "status": "normative-draft",
+    "description": "RFC 8785 JCS, narrowed to KIP portable safe integral values; no nonzero underflow; strict decoded-key/Unicode validation; integrity excluded from its own digest."
+  },
+  "integrity": {
+    "digest_profile": "kip-jcs-safe-v1",
+    "content_digest": "sha256:30d2ba4390b5b72f6f4f24537f3a7a75b7496085febabb822ef2f1500a664254"
+  }
+}

@@ -1,12 +1,15 @@
 # Running the KIP 2.0 checks
 
-The parent suite has 331 vectors; the cognitive consistency companion adds 25.
-The optional Memory Interface adds 12 binding scenarios, separately selectable.
-The 2026-09-23 reliability revision adds 17 scenarios (`--suite reliability`),
-with mandatory current-contract checks and separately advertised optional features.
-The repository supplies language tests, deterministic contract oracles, finite
-models, typed JSON schemas, a golden snapshot Capsule and a memory-subset adapter
-runner. These are different evidence sources; none alone is a full engine result.
+Four kinds of evidence live here, and none stands in for another:
+
+| Evidence | What it is | Where |
+| --- | --- | --- |
+| Engine suite | 362 executable cases (command → expected result or error), verified by both reference engines on the previous draft | `engine-suite/`, `--suite engine` |
+| Vectors | 341 parent-suite vectors in prose, 29 cognitive vectors, 20 Memory Interface scenarios and 17 reliability scenarios; the last three sets ship as JSON harness vectors | `KIP-2.0-*-Tests.md`, `vectors/` |
+| Contract oracles and models | Small executable models of projection, succession, time bounds, dependency validity, learning, processing barriers and attention; bounded formal models | `reference/`, `vectors/cognitive-contracts.json`, `../formal/` |
+| Behavioral evaluation | Held-out, budgeted Brain experiments | `../brain/BrainEvaluation.md` (report status `not_run` until measured) |
+
+A conformance level (Specification §89) is claimed on engine evidence only: the engine suite and the applicable vectors run against the engine itself. Models and oracles are reported as models.
 
 ## Local contract checks
 
@@ -18,47 +21,40 @@ node conformance/update-digests.mjs
 bash formal/run.sh
 ```
 
-KIP_DOC_LANG=en excludes Chinese mirror reads/comparison when updating English
-sources independently. The default language suite still validates both mirrors.
-The formal runner returns 3 if prerequisite-dependent suites were skipped, 1 on
-any failure, and 0 only when every suite ran and passed. Alloy/TLC need the JARs
-and JVM described in `../formal/README.md`; Node checks require the workspace build.
+`KIP_DOC_LANG=en` excludes Chinese mirror reads and comparison when English sources are updated independently; the default language suite validates both. The formal runner returns 3 if prerequisite-dependent suites were skipped, 1 on any failure, and 0 only when every suite ran and passed. Alloy/TLC need the JARs and JVM described in `../formal/README.md`; Node checks require the workspace build.
 
-When intentionally editing a package/schema, regenerate artifact digests with
-`node conformance/update-digests.mjs --write`, then run the read-only check.
-It uses the same canonicalizer as consumers, and the Profile pins validation-schema
-digests over the complete transitive reference closure, including Change Envelopes
-used by Capsules. The read-only check verifies that lock and Capsule package pins
-as well as each artifact's own digest. The contract suite compiles the schemas in
-an isolated validator loaded only from the manifest pins. Never regenerate a digest
-just to conceal a failed integrity check.
+When intentionally editing a package, schema or policy artifact, regenerate digests with `node conformance/update-digests.mjs --write`, then run the read-only check. It uses the same canonicalizer as consumers; the Profile pins validation-schema digests over the complete transitive reference closure, and dependent packages and Capsules pin the package digest. Never regenerate a digest to conceal a failed integrity check.
 
-## Current and retained artifacts
+## Artifact identities
 
-The current memory package is 2.2.0. Package 2.1.0 and its six original resources
-(`schemas/legacy-2.1-*.json`) remain byte-identical. Current Schema IDs include the
-`2026-09-23` contract revision; shared timestamps and ProjectionBasis use `$ref`.
-Validators must load the selected package's complete digest-pinned closure, not
-substitute a resource from another revision. No old deployment is upgraded by a
-new package appearing in this repository.
+There is one draft memory package, `kip://profiles/cognitive-memory@2.0.0`, one general domain package, `kip://domains/general@1.0.0`, and one standard policy, `kip:memory-default`. Schema IDs are `urn:kip:2.0:schema:*`. During the draft a revision is identified by its content digest, not by a new version number; earlier draft packages are not retained (Specification Status). Validators load the package's complete digest-pinned closure and refuse a substituted resource (REL-015).
 
-## Engine adapter boundary
+## Engine suite
 
 ```sh
-node conformance/run.mjs --list
-node conformance/run.mjs --adapter /absolute/path/to/adapter.mjs
-node conformance/run.mjs --suite interface --list
-node conformance/run.mjs --suite interface --adapter /absolute/path/to/adapter.mjs
+node conformance/run.mjs --suite engine --list
+node conformance/run.mjs --suite engine --adapter /absolute/path/to/adapter.mjs
 ```
 
-An adapter exports a default object:
+The adapter resets an isolated Space per fixture, executes single-operation KIP requests and returns raw response envelopes. The runner flattens and normalizes answers exactly as both reference engines' harnesses do; see [engine-suite/README.md](engine-suite/README.md). An unexpected `UnsupportedCapability` is reported as `SKIP_UNSUPPORTED`, never as a pass, and a lost response stops the run because the Space is then uncertain.
+
+## Harness vectors
+
+```sh
+node conformance/run.mjs --suite memory --list
+node conformance/run.mjs --suite interface --adapter /absolute/path/to/adapter.mjs
+node conformance/run.mjs --suite reliability --adapter /absolute/path/to/adapter.mjs
+```
+
+A harness adapter exports a default object:
 
 ```js
 export default {
   async describe() { /* {kind: 'engine'|'model', name, version, capabilities: []} */ },
   async seed(fixture) { /* isolated Space; reset and install named fixture/packages */ },
   async harness(action, args) {
-    // exercise_memory_scenario with args.id, as specified by that MEM vector.
+    // exercise_memory_scenario / exercise_memory_interface_scenario /
+    // exercise_memory_reliability_scenario with args.id, as the vector specifies.
     // Drive the actual engine, including barrier/fault hooks where required.
     // Return {observed: normalized wire values, raw_responses: actual responses/receipts}.
   },
@@ -66,39 +62,10 @@ export default {
 }
 ```
 
-`vectors/memory/*.json` fixes the expected observations and postconditions;
-`KIP-2.0-Cognitive-Tests.md` specifies each scenario. Scenario adapters translate
-these tests into their engine's KQL/KML and protected control binding. Use exact
-Schema refs: the test domain and standard memory package share some local names.
-Do not implement an engine adapter by calling `reference/contracts.mjs`; that
-would test a model while claiming an engine. Engine exercises must retain raw
-responses and receipts. Adapters also validate each KIP response against the wire
-schema and each projected/artifact result against its specific companion schema.
+Each vector fixes the expected observations and durable postconditions; its Markdown companion specifies the scenario. Use exact Schema refs: the test domain and the standard memory package share some local names. Do not implement an engine adapter by calling `reference/*.mjs`; that tests a model while claiming an engine. Engine exercises retain raw responses and receipts, and validate each KIP response against the wire schema and each projected or artifact result against its companion schema.
 
-This runner deliberately handles the shipped memory harness vectors only; unknown
-step/assertion kinds fail as HARNESS_ERROR. It does not silently pass unimplemented
-parent-suite operations. A timeout stops the suite because a mutation may still be
-in flight. Reconcile/reset the isolated fixture before another run; no automatic
-retry of an uncertain write occurs. Optional unadvertised capabilities are skipped;
-a missing required one fails. A suite with no passing executed tests cannot PASS.
-
-Reports keep profiles_claimed empty and state partial-suite coverage. Full Profile
-certification requires all applicable parent and companion vectors on actual engines,
-including concurrency and failure injection, then cross-engine artifact exchange.
-Behavioral learning requires the separate BrainEvaluation workflow.
+The runner executes the shipped harness vectors only; an unknown step or assertion kind fails as `HARNESS_ERROR`. A timeout stops the suite because a mutation may still be in flight. Optional unadvertised capabilities are skipped; a missing required one fails. A suite with no passing executed tests cannot PASS. Reports keep `profiles_claimed` empty and state partial coverage.
 
 ## Memory Interface binding
 
-`KIP-2.0-Memory-Interface-Tests.md` and `vectors/interface/` exercise the five intents
-through `exercise_memory_interface_scenario`. A binding Adapter captures real source
-handles, invokes the Brain's actual Interface, and validates requests/responses against
-`schemas/kip-memory.schema.json`. Retain source/progress/KIP receipts and independent
-state inspection. Scenarios become required when memory_interface is advertised.
-Basic memory must work without pretending to implement learning or durable dispatch.
-See [Anda Brain implementation evidence](Brain-Implementation-Evidence.md) for an
-actual 538-test library run and its limits; it does not certify the new REL suite.
-
-`reference/memory-interface.mjs` is a small executable contract model for processing
-barriers, restart/idempotency, scope and coverage. Its tests are model evidence only;
-they do not implement a production Brain, run an LLM or measure tokenizer/latency
-performance. The existing runner supports both suites and keeps their claims partial.
+`KIP-2.0-Memory-Interface-Tests.md` and `vectors/interface/` exercise the five intents through `exercise_memory_interface_scenario`: processing barriers, restart and idempotency, scope, coverage, and the positive memory scenarios MIF-013–020 (a new fact is recallable, a correction changes the answer, a world change answers old and new times, a preference changes within its kind, a misrecording is repaired without an actor withdrawal, an unasked constraint surfaces, a due Commitment reaches attention recall, unknown is not no). A binding adapter captures real source handles, invokes the Brain's actual Interface and validates requests and responses against `schemas/kip-memory.schema.json`. `reference/memory-interface.mjs` is a small executable model of barriers, restart, scope, coverage, revision routing and attention; its tests are model evidence only. See [Anda Brain implementation evidence](Brain-Implementation-Evidence.md) for the recorded library run and its limits.

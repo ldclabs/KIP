@@ -1,0 +1,357 @@
+{
+  "name": "schema-endpoints",
+  "description": "What a Schema Package says may occupy each end of a tuple, what may sit at each end of a structural edge, and what kind of element may carry a Facet (§41–§44, §58, §62–§66). An endpoint spec is a contract about what a reference points at, so it is checked where the reference is written rather than where it is read. Two judgement calls decide the shape: an endpoint this engine cannot resolve is reported as unknown rather than as wrong — inventing a violation out of a failed lookup would refuse legitimate cross-Space data — and an element the same transaction just created is resolvable, or a block that mints a Concept and then points at it would look untyped to itself. A declaration reads the same in both directions: an element reference on an end that names only datatypes is refused exactly as a Literal is on an end that names kinds, and an end that names both accepts both. A Facet's `applicable_to` is judged the same way, against the carrier: a Facet declaring `concept_types` refuses a record, which cannot be a Concept of any type, and refuses a Concept of another type.",
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://test/endpoints",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Tool": {
+            "kind": "ConceptType",
+            "description": "Something used."
+          },
+          "Room": {
+            "kind": "ConceptType",
+            "description": "Somewhere a Tool is kept."
+          }
+        },
+        "predicates": {
+          "kept_in": {
+            "kind": "PredicateType",
+            "description": "Where a Tool is kept. Both ends are element references of a declared type.",
+            "subject": {
+              "concept_types": [
+                "kip://test/endpoints@1.0.0/Tool"
+              ]
+            },
+            "object": {
+              "concept_types": [
+                "kip://test/endpoints@1.0.0/Room"
+              ]
+            }
+          },
+          "engraved": {
+            "kind": "PredicateType",
+            "description": "The text engraved on a Tool. The object is a Literal of a declared datatype.",
+            "subject": {
+              "kinds": [
+                "Concept"
+              ]
+            },
+            "object": {
+              "datatypes": [
+                "kip:string"
+              ]
+            }
+          },
+          "labelled": {
+            "kind": "PredicateType",
+            "description": "A label for a Tool: either a Concept that stands for one, or the text itself.",
+            "subject": {
+              "kinds": [
+                "Concept"
+              ]
+            },
+            "object": {
+              "kinds": [
+                "Concept"
+              ],
+              "datatypes": [
+                "kip:string"
+              ]
+            }
+          }
+        },
+        "facets": {
+          "Wear": {
+            "kind": "FacetDefinition",
+            "description": "How worn a Tool is. State about a Tool, and only a Tool.",
+            "closed": true,
+            "applicable_to": {
+              "concept_types": [
+                "kip://test/endpoints@1.0.0/Tool"
+              ]
+            },
+            "fields": {
+              "level": {
+                "type": "number",
+                "required": false,
+                "mutable": true,
+                "minimum": 0.0,
+                "maximum": 1.0
+              }
+            }
+          }
+        },
+        "structural_fields": {
+          "kept_with": {
+            "kind": "StructuralFieldDefinition",
+            "description": "Other Tools kept alongside this one. Both ends are Tools, at most two, and no Tool twice.",
+            "source": {
+              "concept_types": [
+                "kip://test/endpoints@1.0.0/Tool"
+              ]
+            },
+            "target": {
+              "concept_types": [
+                "kip://test/endpoints@1.0.0/Tool"
+              ]
+            },
+            "cardinality": {
+              "min": 0,
+              "max": 2
+            },
+            "ordered": false,
+            "unique": true
+          }
+        }
+      }
+    }
+  ],
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?hammer { TYPE \"Tool\" NAME \"Hammer\" }\n  CREATE CONCEPT ?shed { TYPE \"Room\" NAME \"Shed\" }\n}"
+  ],
+  "cases": [
+    {
+      "name": "a tuple whose ends are what the predicate declares",
+      "command": "MUTATE {\n  ENSURE PROPOSITION ?p (:tool, \"kept_in\", :room)\n}",
+      "params": {
+        "tool": {
+          "id": "C-1"
+        },
+        "room": {
+          "id": "C-2"
+        }
+      },
+      "expect": {},
+      "vectors": [
+        "SCHEMA-019"
+      ]
+    },
+    {
+      "name": "an object of the wrong Concept type is refused where the reference is written",
+      "command": "MUTATE {\n  ENSURE PROPOSITION ?p (:tool, \"kept_in\", :tool)\n}",
+      "params": {
+        "tool": {
+          "id": "C-1"
+        }
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "and so is a subject of the wrong Concept type",
+      "command": "MUTATE {\n  ENSURE PROPOSITION ?p (:room, \"kept_in\", :room)\n}",
+      "params": {
+        "room": {
+          "id": "C-2"
+        }
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "a Literal cannot occupy an end the schema declares an element reference",
+      "command": "MUTATE {\n  ENSURE PROPOSITION ?p (:tool, \"kept_in\", \"the shed\")\n}",
+      "params": {
+        "tool": {
+          "id": "C-1"
+        }
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "an end this Space cannot resolve is unknown, not wrong",
+      "command": "MUTATE {\n  ENSURE PROPOSITION ?p (:tool, \"kept_in\", :elsewhere)\n}",
+      "params": {
+        "tool": {
+          "id": "C-1"
+        },
+        "elsewhere": {
+          "canonical_id": "urn:room:shed"
+        }
+      },
+      "expect": {}
+    },
+    {
+      "name": "a Literal of the declared datatype is what a datatype endpoint is for",
+      "command": "MUTATE {\n  ENSURE PROPOSITION ?p (:tool, \"engraved\", \"MMXXVI\")\n}",
+      "params": {
+        "tool": {
+          "id": "C-1"
+        }
+      },
+      "expect": {}
+    },
+    {
+      "name": "a Literal of another datatype is not",
+      "command": "MUTATE {\n  ENSURE PROPOSITION ?p (:tool, \"engraved\", 2026)\n}",
+      "params": {
+        "tool": {
+          "id": "C-1"
+        }
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "and an element reference is as wrong there as a Literal is on a reference end",
+      "command": "MUTATE {\n  ENSURE PROPOSITION ?p (:tool, \"engraved\", :room)\n}",
+      "params": {
+        "tool": {
+          "id": "C-1"
+        },
+        "room": {
+          "id": "C-2"
+        }
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "an end that declares both forms accepts both",
+      "command": "MUTATE {\n  ENSURE PROPOSITION ?a (:tool, \"labelled\", :room)\n  ENSURE PROPOSITION ?b (:tool, \"labelled\", \"the good one\")\n}",
+      "params": {
+        "tool": {
+          "id": "C-1"
+        },
+        "room": {
+          "id": "C-2"
+        }
+      },
+      "expect": {}
+    },
+    {
+      "name": "an element the same transaction just created is resolvable to itself",
+      "command": "MUTATE {\n  CREATE CONCEPT ?chisel { TYPE \"Tool\" NAME \"Chisel\" }\n  CREATE CONCEPT ?loft { TYPE \"Room\" NAME \"Loft\" }\n  ENSURE PROPOSITION ?p (?chisel, \"kept_in\", ?loft)\n}",
+      "expect": {}
+    },
+    {
+      "name": "including when what it just created is the wrong type for the slot",
+      "command": "MUTATE {\n  CREATE CONCEPT ?bench { TYPE \"Tool\" NAME \"Bench\" }\n  ENSURE PROPOSITION ?p (:tool, \"kept_in\", ?bench)\n}",
+      "params": {
+        "tool": {
+          "id": "C-1"
+        }
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "a Facet is state about the kind of element it declares",
+      "command": "MUTATE {\n  UPDATE \"C-1\"\n  SET FACET \"Wear\" {level: 0.4}\n}",
+      "expect": {}
+    },
+    {
+      "name": "and a record, which cannot be a Concept of any type, cannot carry it",
+      "command": "MUTATE {\n  CREATE EVIDENCE ?e {\n    SET FIELDS {evidence_class: \"observation\", payload: \"the handle is splitting\"}\n    SET FACET \"Wear\" {level: 0.4}\n  }\n}",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "and a Concept of another type cannot carry it either",
+      "command": "MUTATE {\n  UPDATE \"C-2\"\n  SET FACET \"Wear\" {level: 0.4}\n}",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "the tuples that survived",
+      "command": "FIND(?s.name, ?o.name) WHERE { ?p PROPOSITION (?s, \"kept_in\", ?o) }",
+      "expect": {
+        "result": [
+          [
+            "Hammer",
+            "Shed"
+          ],
+          [
+            "Chisel",
+            "Loft"
+          ],
+          [
+            "Hammer",
+            null
+          ]
+        ]
+      }
+    },
+    {
+      "name": "a structural edge is held to the ends its field declares",
+      "command": "MUTATE {\n  CREATE CONCEPT ?saw { TYPE \"Tool\" NAME \"Saw\" }\n  CREATE CONCEPT ?plane { TYPE \"Tool\" NAME \"Plane\" }\n  UPDATE ?saw SET STRUCTURAL { (\"kept_with\", ?plane) }\n}",
+      "expect": {}
+    },
+    {
+      "name": "a target of the wrong Concept type is refused there too",
+      "command": "MUTATE {\n  UPDATE \"C-1\"\n  SET STRUCTURAL { (\"kept_with\", :room) }\n}",
+      "params": {
+        "room": {
+          "id": "C-2"
+        }
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "and so is a source the field was never about",
+      "command": "MUTATE {\n  UPDATE \"C-2\"\n  SET STRUCTURAL { (\"kept_with\", :tool) }\n}",
+      "params": {
+        "tool": {
+          "id": "C-1"
+        }
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "stating the same reference twice is one edge, not a duplicate",
+      "command": "MUTATE {\n  CREATE CONCEPT ?awl {\n    TYPE \"Tool\"\n    NAME \"Awl\"\n    SET STRUCTURAL {\n      (\"kept_with\", :tool)\n      (\"kept_with\", :tool)\n    }\n  }\n}",
+      "params": {
+        "tool": {
+          "id": "C-1"
+        }
+      },
+      "expect": {}
+    },
+    {
+      "name": "which is why a field declared unique is not violable by writing to it",
+      "command": "FIND(?t.structural) WHERE { ?t CONCEPT {name: \"Awl\"} }",
+      "expect": {
+        "result": [
+          {
+            "kip://test/endpoints@1.0.0/kept_with": [
+              {
+                "id": "C:<1>"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "and more references than the declared cardinality permits is another",
+      "command": "MUTATE {\n  CREATE CONCEPT ?rasp { TYPE \"Tool\" NAME \"Rasp\" }\n  CREATE CONCEPT ?file { TYPE \"Tool\" NAME \"File\" }\n  CREATE CONCEPT ?vice {\n    TYPE \"Tool\"\n    NAME \"Vice\"\n    SET STRUCTURAL {\n      (\"kept_with\", :tool)\n      (\"kept_with\", ?rasp)\n      (\"kept_with\", ?file)\n    }\n  }\n}",
+      "params": {
+        "tool": {
+          "id": "C-1"
+        }
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    }
+  ]
+}

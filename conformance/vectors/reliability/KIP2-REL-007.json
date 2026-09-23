@@ -16,7 +16,7 @@
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "brain/KIP-2.0-Brain-Runtime.md#4-external-actions"
   ],
   "steps": [
     {

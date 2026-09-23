@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "id": "KIP2-MEM-020",
-  "title": "Mutable cache planes are all guarded",
-  "description": "Race a verdict with a GradingState/TrialState/MnemonicState update. A verdict that\nread-modify-writes those planes guards all of them and either commits once or\nrefreshes on conflict. Guarding only ATTRIBUTES cannot justify overwriting a\nconcurrently changed grading or utility cache. No partial verdict/status commit.",
+  "title": "Every written mutable plane of a verdict is guarded",
+  "description": "Race a verdict with a concurrent status, current_evaluation or MnemonicState update. A verdict that\nread-modify-writes those planes guards all of them and either commits once or\nrefreshes on conflict. The GradingState view is computed and can never be written,\nso no verdict can overwrite a concurrently changed grade. No partial verdict/status commit.",
   "level": "MUST",
   "class": "black_box",
   "profiles": [
@@ -13,7 +13,8 @@
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "brain/KIP-2.0-Validated-Learning.md#4-trials-and-evaluations",
+    "profiles/CognitiveMemoryProfile-2.0.md#62-gradingstate-computed"
   ],
   "steps": [
     {

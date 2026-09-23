@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "id": "KIP2-MEM-011",
   "title": "Exact numeric identity and canonical bytes",
-  "description": "Reject 9007199254740992 and 9007199254740993 (both outside the portable range),\nincluding fraction/exponent spellings, before lowering/binding discards digits.\nAccept \u00b19007199254740991 exactly; reject nonzero underflow and non-finite values.\nReject duplicate decoded object names, invalid Unicode and BOM in canonical JSON.\nAll shipped artifacts use kip-jcs-safe-v1 and reproduce their digest with one\ncanonicalizer. Test UTF-16 property ordering, 1/1.0, exponent boundaries and -0.\nArtifact strings stay unchanged by NFC; semantic Literal normalization is separate.",
+  "description": "Reject 9007199254740992 and 9007199254740993 (both outside the portable range),\nincluding fraction/exponent spellings, before lowering/binding discards digits.\nAccept ±9007199254740991 exactly; reject nonzero underflow and non-finite values.\nReject duplicate decoded object names, invalid Unicode and BOM in canonical JSON.\nAll shipped artifacts use kip-jcs-safe-v1 and reproduce their digest with one\ncanonicalizer. Test UTF-16 property ordering, 1/1.0, exponent boundaries and -0.\nArtifact strings stay unchanged by NFC; semantic Literal normalization is separate.",
   "level": "MUST",
   "class": "black_box",
   "profiles": [
@@ -13,7 +13,7 @@
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "SPECIFICATION.md#93-numeric-rules"
   ],
   "steps": [
     {

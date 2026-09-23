@@ -19,6 +19,19 @@ semantic/hybrid only where advertised. A search miss is not canonical absence.
 SEARCH CONCEPT :query MODE "keyword" LIMIT 10
 ```
 
+When grounding and belief belong in one read, bind the hits inside the query; the
+pattern's LIMIT bounds the candidates and the score is relevance, never confidence:
+
+```kip
+FIND(?person.name, ?home)
+WHERE {
+  ?person SEARCH CONCEPT :query WITH TYPE "Person" LIMIT 10
+  ?home BELIEF SLOT (?person, "lives_in")
+}
+WITH EPISTEMIC {context_refs: :contexts, purpose: "answer_user", policy: "kip:memory-default"}
+LIMIT 5
+```
+
 Use final BELIEF for facts. All parameters below are complete bound values and
 exact known references; context is supplied, never guessed as universal.
 
@@ -29,6 +42,10 @@ WITH EPISTEMIC {context_refs: :contexts, purpose: "answer_user", explanation: "s
 ```
 
 Use a slot to inspect alternative values. Both forms account for applicable conflicts.
+Under `kip:memory-default` a task-scoped value outranks a general one in its task and a
+person's own statement outranks hearsay; an outranked value is `uncertain`, never
+`rejected`. A value that changed is not a conflict: its successor ends it, and `FOR TIME`
+before the change still answers it.
 
 ```kip
 FIND(?slot)

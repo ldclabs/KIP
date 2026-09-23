@@ -13,7 +13,9 @@
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "brain/KIP-2.0-Brain-Runtime.md#2-durable-attention",
+    "brain/KIP-2.0-Brain-Runtime.md#3-leased-work",
+    "brain/KIP-2.0-Brain-Runtime.md#4-external-actions"
   ],
   "steps": [
     {

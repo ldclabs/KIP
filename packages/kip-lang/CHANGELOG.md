@@ -4,12 +4,24 @@ All notable changes to `@ldclabs/kip-lang` are documented here.
 
 ## Unreleased
 
+- Add `DEFINE PREDICATE` / `DEFINE CONCEPT TYPE` (Spec §20.16): parsed as a
+  standalone KML statement, lowered to a single `Define` clause, rejected inside
+  `MUTATE`.
+- Add the KQL Search Pattern `?x SEARCH <KIND> <term> ... LIMIT <k>` (Spec §43.8),
+  lowered to a `Search` where-clause; `LIMIT` is required, and the pattern is
+  rejected inside `NOT` and in mutation/export selections.
+- Remove the undefined `SEARCH COGNITION` kind (breaking for text that used it).
+- Export `parseTimePoint` for `valid_time` endpoints that may be time bounds
+  (`{earliest, latest}`, Spec §25.5).
+- Schema IDs return to the stable `urn:kip:2.0:schema:*` form; the memory package
+  is `cognitive-memory@2.0.0` and draft packages are no longer retained.
+- Add the `KIP_2102` info diagnostic: an `ASSERT` that cites evidence without
+  `at` or `valid.from` takes the transaction time as its start key (Spec §13.2,
+  §25.4); a claim recorded later than it was made should carry `at`.
 - Add scoped ASSERT context with deterministic context_refs lowering.
 - Export strict `parseTimestamp` and host-side `MemorySession` receipt bookkeeping.
 - Test selection dependencies, source causality, recording repair, prospective
   enrollment, receiver fencing, scoped recall and rebuildable memory views.
-- Current contract schemas use revisioned IDs and shared definitions; memory
-  package 2.2.0 preserves the exact prior 2.1.0 artifact and validation resources.
 - These changes do not implement or certify a production Nexus/Brain.
 
 ## 2.3.1

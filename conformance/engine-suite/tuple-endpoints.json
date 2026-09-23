@@ -1,0 +1,77 @@
+{
+  "name": "tuple-endpoints",
+  "description": "KQL endpoint patterns constrain visible Concepts, nested Propositions and canonical references; KML creation endpoints still require stable identity. An extra field is never silently ignored.",
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?alice { TYPE \"Person\" NAME \"Alice\" }\n  CREATE CONCEPT ?bob { TYPE \"Person\" NAME \"Bob\" }\n  ENSURE PROPOSITION ?p (?alice, \"same_as\", {canonical_id: \"urn:x:alice\"})\n  ENSURE PROPOSITION ?q (?bob, \"same_as\", {canonical_id: \"urn:x:bob\"})\n}"
+  ],
+  "cases": [
+    {
+      "name": "an object endpoint written as {canonical_id: ...} names one endpoint, not every tuple",
+      "command": "FIND(?s.name) WHERE { ?p PROPOSITION (?s, \"same_as\", {canonical_id: \"urn:x:alice\"}) }",
+      "expect": {
+        "result": [
+          "Alice"
+        ]
+      }
+    },
+    {
+      "name": "a canonical endpoint nobody wrote matches nothing rather than everything",
+      "command": "FIND(?s.name) WHERE { ?p PROPOSITION (?s, \"same_as\", {canonical_id: \"urn:x:nobody\"}) }",
+      "expect": {
+        "result": []
+      }
+    },
+    {
+      "name": "an inline Concept pattern does not match a canonical reference",
+      "command": "FIND(?s.name) WHERE { ?p PROPOSITION (?s, \"same_as\", {name: \"Alice\"}) }",
+      "expect": {
+        "result": []
+      }
+    },
+    {
+      "name": "a variable canonical_id matches local Concepts, not nonlocal reference objects",
+      "command": "FIND(?s.name) WHERE { ?p PROPOSITION (?s, \"same_as\", {canonical_id: ?whatever}) }",
+      "expect": {
+        "result": []
+      }
+    },
+    {
+      "name": "a nested Proposition endpoint matches no canonical reference",
+      "command": "FIND(?s.name) WHERE { ?meta PROPOSITION (?s, \"same_as\", (id: :other)) }",
+      "params": {
+        "other": "P-1"
+      },
+      "expect": {
+        "result": []
+      }
+    },
+    {
+      "name": "the same refusal on the mutation path",
+      "command": "ENSURE PROPOSITION ?p (:subject, \"same_as\", (id: :other))",
+      "params": {
+        "subject": "C-1",
+        "other": "P-1"
+      },
+      "expect": {
+        "error": "UnsupportedCapability"
+      }
+    },
+    {
+      "name": "a mutation endpoint that describes rather than names is refused",
+      "command": "ENSURE PROPOSITION ?p (:subject, \"same_as\", {name: \"Bob\"})",
+      "params": {
+        "subject": "C-1"
+      },
+      "expect": {
+        "error": "IdentitySelectorRequired"
+      }
+    },
+    {
+      "name": "additional endpoint fields are constraints, never ignored",
+      "command": "FIND(?s.name) WHERE { ?p PROPOSITION (?s, \"same_as\", {canonical_id: \"urn:x:alice\", name: \"Zed\"}) }",
+      "expect": {
+        "result": []
+      }
+    }
+  ]
+}

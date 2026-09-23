@@ -1,0 +1,235 @@
+{
+  "format": "KIP-Epistemic-Policy",
+  "format_version": "2.0-draft",
+  "policy_id": "kip:memory-default",
+  "version": 1,
+  "name": "KIP Standard Memory Policy",
+  "description": "The standard deterministic Projection Policy for memory recall (Spec §21.13): the structural baseline plus three ordered precedence rules — context specificity, first-person testimony, recency. No numeric weighting.",
+  "purpose": "standard_memory_recall",
+  "deterministic": true,
+  "method": {
+    "method_id": "kip-memory-default-v1",
+    "method_version": "1",
+    "deterministic": true,
+    "score_model": "none",
+    "score_semantics": null
+  },
+  "time": {
+    "missing_valid_time": "from: the bound {latest: asserted_at} — the value began no later than the claim (Spec §25.2); until: open (ends at a successor, Spec §25.4)",
+    "validity_test": "requested_valid_at_must_intersect_assertion_valid_time",
+    "non_overlapping_functional_values_conflict": false,
+    "interval_bounds": "[from,until)",
+    "succession": "same_actor_same_context_lines for Assertions that take part: mode stated or observed, or a written from (Spec §25.4)",
+    "time_bounds": "three_valued: inside | outside | indeterminate (Spec §25.5)"
+  },
+  "eligibility": {
+    "assertion_lifecycle": {
+      "include": [
+        "active"
+      ],
+      "exclude": [
+        "retracted",
+        "superseded"
+      ],
+      "note": "expired is computed from world time (Spec §14.3), never a stored status: an Assertion outside its effective interval at valid_at contributes nothing."
+    },
+    "visibility": "caller_visible_only",
+    "modes": {
+      "include": [
+        "observed",
+        "stated",
+        "inferred"
+      ],
+      "exclude_by_default": [
+        "hypothetical",
+        "predicted"
+      ],
+      "imported": {
+        "default": "exclude"
+      }
+    },
+    "confidence": {
+      "affects_status": false,
+      "minimum": null,
+      "missing_allowed": true,
+      "note": "Assertion confidence is preserved/reported but does not decide fixture status."
+    },
+    "context": "assertion_context_subset_of_request_context",
+    "evidence_lifecycle": {
+      "include": [
+        "active"
+      ],
+      "exclude": [
+        "corrected"
+      ],
+      "payload_purge": "preserve_event_and_root_identity"
+    }
+  },
+  "trust": {
+    "resolver": "none",
+    "note": "The standard memory policy weighs no trust; trust-weighted policies are weighted_projection (Spec §67.4)."
+  },
+  "independence": {
+    "unit": "provenance_root_group",
+    "same_underlying_root": "one_group",
+    "derived_summary_translation_copy": "preserve_upstream_group",
+    "repeat_same_source_event": "one_group",
+    "distinct_observation_events": "distinct_groups_if_provenance_supports_independence",
+    "cycle_without_external_root": "zero_independent_strong_roots"
+  },
+  "stance_mapping": {
+    "support": "support",
+    "reject": "opposition",
+    "uncertain": "uncertainty_material"
+  },
+  "projection": {
+    "proposition_status": {
+      "evaluation_order": [
+        "contested",
+        "accepted",
+        "rejected",
+        "uncertain",
+        "insufficient"
+      ],
+      "rules": [
+        {
+          "status": "contested",
+          "when": {
+            "eligible_independent_support_roots": {
+              "min": 1
+            },
+            "eligible_independent_opposition_roots": {
+              "min": 1
+            }
+          }
+        },
+        {
+          "status": "accepted",
+          "when": {
+            "eligible_independent_support_roots": {
+              "min": 1
+            },
+            "eligible_independent_opposition_roots": {
+              "max": 0
+            }
+          }
+        },
+        {
+          "status": "rejected",
+          "when": {
+            "eligible_independent_support_roots": {
+              "max": 0
+            },
+            "eligible_independent_opposition_roots": {
+              "min": 1
+            }
+          }
+        },
+        {
+          "status": "uncertain",
+          "when": {
+            "eligible_independent_support_roots": {
+              "max": 0
+            },
+            "eligible_independent_opposition_roots": {
+              "max": 0
+            },
+            "weak_or_uncertain_material": {
+              "min": 1
+            }
+          }
+        },
+        {
+          "status": "insufficient",
+          "when": {
+            "otherwise": true
+          }
+        }
+      ]
+    },
+    "belief_slot": {
+      "functional_predicate_rule": "If two or more distinct candidate objects each have accepted/strong support and their valid-time intervals overlap for a functional Predicate, the slot status is contested.",
+      "non_overlapping_valid_time": "not_a_conflict",
+      "empty_slot_status": "insufficient",
+      "empty_slot_accepted_values": []
+    },
+    "open_world": {
+      "no_support_means": "insufficient",
+      "absence_is_not_opposition": true,
+      "boolean_reject_positive_equals_support_false": false,
+      "closed_world_requires_explicit_schema_or_policy": true
+    },
+    "leading": {
+      "accepted": "support",
+      "rejected": "opposition",
+      "contested": "side_with_more_eligible_independent_roots",
+      "tie": "none",
+      "uncertain": "none",
+      "insufficient": "none",
+      "note": "Disclosure only: leading never changes status (Spec §21.6, §27.2)."
+    },
+    "final_conflict_rule": "Compute candidate status first, then mark every materially supported member of an unresolved functional/exclusive conflict contested, including grounded BELIEF and BELIEF-by-id. accepted_values contains only final accepted candidates.",
+    "dependency_validity": "An inferred derivation with needs_review/unverifiable basis cannot be final accepted; report uncertain unless contested or rejected is already warranted."
+  },
+  "explanation": {
+    "minimum_output": [
+      "status",
+      "leading",
+      "policy_id",
+      "policy_version",
+      "valid_at",
+      "as_of",
+      "candidate_status",
+      "slot_status",
+      "basis",
+      "conflict_refs",
+      "conflict_reasons"
+    ],
+    "ledger_when_requested": [
+      "eligible_assertions",
+      "excluded_assertions_with_reason",
+      "support_root_groups",
+      "opposition_root_groups",
+      "uncertainty_reasons",
+      "temporal_exclusions",
+      "precedence_rule_applied",
+      "succession_exclusions"
+    ],
+    "private_chain_of_thought_required": false
+  },
+  "non_effects": [
+    "does_not_mutate_assertion_confidence",
+    "does_not_mutate_source_trust",
+    "does_not_mutate_memory_strength",
+    "does_not_create_evidence",
+    "does_not_create_assertions",
+    "does_not_grant_governance_authority"
+  ],
+  "canonicalization": {
+    "profile": "kip-jcs-safe-v1",
+    "status": "normative-draft",
+    "description": "RFC 8785 JCS, narrowed to KIP portable safe integral values; no nonzero underflow; strict decoded-key/Unicode validation; integrity excluded from its own digest."
+  },
+  "precedence": {
+    "applies_to": "conflict sets of a functional slot or functional_by partition at the basis",
+    "order": [
+      "context_specificity",
+      "first_person_testimony",
+      "recency"
+    ],
+    "rules": {
+      "context_specificity": "candidate A prevails over B when some eligible support of A has a context set that strictly contains the context set of every eligible support of B",
+      "first_person_testimony": "candidate A prevails over B when A has eligible support stated or observed by the slot's subject and no eligible support of B is by the subject or has mode observed",
+      "recency": "candidate A prevails over B when the greatest start key (Spec §25.4: exact from, else the bound's latest, else asserted_at) among A's eligible support is greater than the greatest start key among B's eligible support; equal keys do not decide"
+    },
+    "decision": "the first rule under which one candidate prevails over every other decides; otherwise the conflict stands",
+    "outranked_status": "uncertain",
+    "outranked_reason": "outranked"
+  },
+  "integrity": {
+    "digest_profile": "kip-jcs-safe-v1",
+    "content_digest": "sha256:b70ae00cce4e974871c513b4a8b1e8cf5d5fccb08c682c60c0ccc6e8a084e03e",
+    "covers": "all top-level fields except integrity",
+    "signatures": []
+  }
+}

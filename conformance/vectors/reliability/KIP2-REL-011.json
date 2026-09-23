@@ -1,22 +1,21 @@
 {
   "schema_version": "1.0",
   "id": "KIP2-REL-011",
-  "title": "Read-only lazy strength",
-  "description": "For an advertised lazy mnemonic policy, evaluate one and two half-lives, repeat recall, then restart. Effective strength changes with declared time; no cognitive write, confidence change or synthetic reinforcement occurs.",
-  "level": "OPTIONAL",
+  "title": "Read-only computed strength",
+  "description": "With a pinned half-life strength_policy, evaluate one and two half-lives, repeat recall, then restart. Effective strength changes with declared time; no cognitive write, confidence change or synthetic reinforcement occurs.",
+  "level": "MUST",
   "class": "black_box",
   "profiles": [
     "KIP-CognitiveMemory"
   ],
-  "capabilities": [
-    "lazy_mnemonic_strength"
-  ],
+  "capabilities": [],
   "fixture": {
     "name": "cognitive-consistency",
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "SPECIFICATION.md#591-mnemonic-decay",
+    "profiles/CognitiveMemoryProfile-2.0.md#61-mnemonicstate"
   ],
   "steps": [
     {

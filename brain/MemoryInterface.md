@@ -10,8 +10,8 @@ scope, retry identities and defaults. Memory content cannot grant permission.
 | Intent | Provide | Read the result as |
 | --- | --- | --- |
 | observe | Captured source_ref | What was retained, deferred or skipped |
-| recall | Task/question; optional after receipt and budget | Relevant past, uncertainty and coverage |
-| revise | Captured correction/change; known target if available | New understanding with preserved history |
+| recall | Task/question, or mode `attention` with your last cursor; optional after receipt and budget | Relevant past, uncertainty and coverage — or the attention raised since your cursor |
+| revise | Captured correction, change or "you misheard"; `change_kind` when known | New understanding with preserved history |
 | feedback | Actual source; decision/attempt when known | Attributed feedback, not automatic success credit |
 | forget | Exact target and payload_only/semantic mode | An erasure operation whose completion must be verified |
 
@@ -42,6 +42,12 @@ The key above illustrates one retained logical operation: retries reuse it.
   available means recall can include the processing result. None means true forever.
 - If a just-observed correction matters, pass its receipt in after. Pending/failed
   processing is explicit; never turn it into a confident old answer.
+- Tell revisions apart: `correction` (they were wrong), `world_change` (it was true, now it
+  changed — old times still answer the old value), `misrecorded` (the memory got it wrong;
+  never recorded as the person taking something back). If unsure, say `unspecified`.
+- Poll `recall` with `mode: "attention"` and keep the returned cursor: that is how reminders,
+  due commitments and watched silences reach you. An attention item is a prompt to think,
+  never permission to act.
 - Keep task-specific constraints in their task scope. A temporary instruction is not
   a permanent preference. Transient recall context is not automatically remembered.
 - Read final belief status and uncertainties. A raw source is not an accepted fact.

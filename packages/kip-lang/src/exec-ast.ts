@@ -215,10 +215,27 @@ export type WhereClause =
     }
   | { Belief: { variable: string; target: BeliefTarget } }
   | { BeliefSlot: { variable: string; subject: Term; predicate: PredAtom } }
+  | { Search: SearchPatternClause }
   | { Filter: { expression: FilterExpression } }
   | { Not: WhereClause[] }
   | { Optional: WhereClause[] }
   | { Union: WhereClause[] }
+
+/**
+ * A Search Pattern inside WHERE (Spec §43.8). `limit` bounds the candidate set
+ * and is always present; each hit binds `variable` and exposes the transient
+ * `retrieval.score` / `retrieval.mode` members.
+ */
+export interface SearchPatternClause {
+  variable: string
+  target: SearchTarget
+  term: Scalar
+  with_type: Scalar | null
+  with_predicate: Scalar | null
+  mode: Scalar | null
+  threshold: Scalar | null
+  limit: Scalar
+}
 
 /**
  * What a BELIEF projects: an already-bound Proposition variable, a Proposition
@@ -312,6 +329,18 @@ export type MutationClause =
   | { Purge: PurgeStatement }
   | { PurgePayload: PurgePayloadStatement }
   | { MergeConcept: MergeConcept }
+  | { Define: DefineCommand }
+
+/**
+ * `DEFINE PREDICATE` / `DEFINE CONCEPT TYPE` (Spec §20.16): one symbol added
+ * to the Space's draft vocabulary. It only ever appears as the single clause
+ * of a standalone statement, never inside an explicit MUTATE transaction.
+ */
+export interface DefineCommand {
+  kind: 'Predicate' | 'ConceptType'
+  name: SymbolRef
+  definition: Record<string, BoundValue>
+}
 
 /**
  * `EXPECT VERSION n [OF plane]` (Spec §35.1). Without a plane the guard is
@@ -568,7 +597,6 @@ export type SearchTarget =
   | 'Assertion'
   | 'Evidence'
   | 'Activity'
-  | 'Cognition'
 
 export type VerifyTarget =
   | 'Capsule'

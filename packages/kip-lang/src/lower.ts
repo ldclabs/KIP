@@ -251,6 +251,7 @@ export function lowerStatement(stmt: Statement): Command {
     case 'PurgeStatement':
     case 'PurgePayloadStatement':
     case 'MergeConceptStatement':
+    case 'DefineStatement':
       const clauses = lowerMutationClause(stmt, 0)
       assertUniqueHandles(clauses, stmt.range)
       assertResolvedHandles(clauses, stmt.range)
@@ -498,10 +499,36 @@ function lowerWherePattern(pattern: WherePattern): WhereClause {
         }
       }
 
+    case 'SearchPattern':
+      if (!pattern.limit) {
+        throw invalidSyntax(
+          'a Search Pattern requires LIMIT: it bounds the candidate set (Spec §43.8)',
+          pattern.range
+        )
+      }
+      return {
+        Search: {
+          variable: varName(pattern.variable.name, pattern.variable.range),
+          target: SEARCH_TARGETS[pattern.searchKind],
+          term: lowerScalar(pattern.term),
+          with_type: pattern.withType ? lowerScalar(pattern.withType) : null,
+          with_predicate: pattern.withPredicate ? lowerScalar(pattern.withPredicate) : null,
+          mode: pattern.mode ? lowerScalar(pattern.mode) : null,
+          threshold: pattern.threshold ? lowerScalar(pattern.threshold) : null,
+          limit: lowerScalar(pattern.limit.value)
+        }
+      }
+
     case 'FilterClause':
       return { Filter: { expression: lowerFilter(pattern.expression) } }
 
     case 'NotClause':
+      if (containsSearch(pattern.patterns)) {
+        throw invalidSyntax(
+          'a Search Pattern cannot appear inside NOT: a search miss never proves absence (Spec §66.6)',
+          pattern.range
+        )
+      }
       return { Not: pattern.patterns.map(lowerWherePattern) }
 
     case 'OptionalClause':
@@ -510,6 +537,15 @@ function lowerWherePattern(pattern: WherePattern): WhereClause {
     case 'UnionClause':
       return { Union: pattern.patterns.map(lowerWherePattern) }
   }
+}
+
+function containsSearch(patterns: WherePattern[]): boolean {
+  return patterns.some(
+    (pattern) =>
+      pattern.kind === 'SearchPattern' ||
+      ((pattern.kind === 'OptionalClause' || pattern.kind === 'UnionClause') &&
+        containsSearch(pattern.patterns))
+  )
 }
 
 function lowerPropositionMatcher(tuple: PropositionTuple): PropositionMatcher {
@@ -774,6 +810,13 @@ function lowerMutate(stmt: MutateStatement): KmlStatement {
   if (stmt.clauses.length === 0) {
     throw invalidSyntax('MUTATE requires at least one mutation', stmt.range)
   }
+  const define = stmt.clauses.find((clause) => clause.kind === 'DefineStatement')
+  if (define) {
+    throw invalidSyntax(
+      'DEFINE is a standalone operation and cannot appear inside MUTATE (Spec §20.16)',
+      define.range
+    )
+  }
   const clauses = stmt.clauses.flatMap((clause, i) =>
     lowerMutationClause(clause, i)
   )
@@ -920,6 +963,16 @@ function lowerMutationClause(
             into: lowerElementRef(stmt.into),
             where_clauses: stmt.where ? lowerWhere(stmt.where) : null,
             expect_versions: lowerExpectVersions(stmt.expectVersions)
+          }
+        }
+      ]
+    case 'DefineStatement':
+      return [
+        {
+          Define: {
+            kind: stmt.defineKind === 'PREDICATE' ? 'Predicate' : 'ConceptType',
+            name: lowerSymbol(stmt.name),
+            definition: lowerBoundObject(stmt.definition)
           }
         }
       ]
@@ -1801,8 +1854,7 @@ const SEARCH_TARGETS: Record<SearchStatement['searchKind'], SearchTarget> = {
   PROPOSITION: 'Proposition',
   ASSERTION: 'Assertion',
   EVIDENCE: 'Evidence',
-  ACTIVITY: 'Activity',
-  COGNITION: 'Cognition'
+  ACTIVITY: 'Activity'
 }
 
 function lowerDescribe(stmt: DescribeStatement): DescribeTarget {

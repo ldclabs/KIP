@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "id": "KIP2-REL-015",
-  "title": "Immutable package resource closure",
-  "description": "Activate the current package only from its digest-pinned schema closure, then separately verify the retained 2.1.0 package against its original resources. A shared cache must not substitute resources with different digests.",
+  "title": "Digest-pinned package resource closure",
+  "description": "Activate the current package only from its digest-pinned schema closure. A cached or substituted resource whose digest differs from its pin must be refused rather than loaded.",
   "level": "MUST",
   "class": "black_box",
   "profiles": [
@@ -14,7 +14,7 @@
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "SPECIFICATION.md#20-schema-packages"
   ],
   "steps": [
     {
@@ -37,7 +37,7 @@
     {
       "source": "step",
       "step": "exercise",
-      "path": "/legacy_digests_unchanged",
+      "path": "/substituted_resource_rejected",
       "operator": "equals",
       "expected": true
     }

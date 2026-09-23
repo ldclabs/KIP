@@ -13,7 +13,8 @@
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "profiles/CognitiveMemoryProfile-2.0.md#14-skill-lifecycle",
+    "brain/KIP-2.0-Validated-Learning.md#4-trials-and-evaluations"
   ],
   "steps": [
     {

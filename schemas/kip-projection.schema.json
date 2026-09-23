@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:kip:2.0:2026-09-23:schema:projection",
+  "$id": "urn:kip:2.0:schema:projection",
   "$defs": {
     "ProjectionBasis": {
       "type": "object",
@@ -68,12 +68,12 @@
           "minLength": 1
         },
         "valid_at": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Timestamp"
         },
         "next_invalid_at": {
           "anyOf": [
             {
-              "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
+              "$ref": "urn:kip:2.0:schema:common#/$defs/Timestamp"
             },
             {
               "type": "null"
@@ -120,7 +120,7 @@
           "minItems": 0
         },
         "basis": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
+          "$ref": "urn:kip:2.0:schema:projection#/$defs/ProjectionBasis"
         }
       },
       "required": [
@@ -204,7 +204,7 @@
           ]
         },
         "basis": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
+          "$ref": "urn:kip:2.0:schema:projection#/$defs/ProjectionBasis"
         },
         "conflict_refs": {
           "type": "array",
@@ -245,7 +245,7 @@
               "minItems": 0
             },
             "basis": {
-              "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
+              "$ref": "urn:kip:2.0:schema:projection#/$defs/ProjectionBasis"
             }
           },
           "required": [
@@ -331,6 +331,55 @@
         },
         "explanation": {
           "type": "object"
+        },
+        "uncertainty": {
+          "type": "object",
+          "properties": {
+            "level": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "reasons": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Includes temporal_indeterminate (Spec §25.5) and outranked (Spec §21.13) where they apply."
+            }
+          },
+          "additionalProperties": false
+        },
+        "precedence": {
+          "type": "object",
+          "description": "Present when a policy precedence rule decided this candidate's final status (Spec §21.13).",
+          "properties": {
+            "rule": {
+              "enum": [
+                "context_specificity",
+                "first_person_testimony"
+              ]
+            },
+            "prevailed_over": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "outranked_by": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "rule"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
@@ -412,7 +461,7 @@
           "minItems": 0
         },
         "basis": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
+          "$ref": "urn:kip:2.0:schema:projection#/$defs/ProjectionBasis"
         }
       },
       "required": [

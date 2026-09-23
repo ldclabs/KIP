@@ -16,7 +16,7 @@
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "SPECIFICATION.md#578-recording-repair"
   ],
   "steps": [
     {

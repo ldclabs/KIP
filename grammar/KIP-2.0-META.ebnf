@@ -281,8 +281,7 @@ search_kind      = "CONCEPT"
                  | "PROPOSITION"
                  | "ASSERTION"
                  | "EVIDENCE"
-                 | "ACTIVITY"
-                 | "COGNITION" ;
+                 | "ACTIVITY" ;
 
 search_mode      = '"keyword"'
                  | '"semantic"'

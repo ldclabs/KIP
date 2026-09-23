@@ -1,0 +1,294 @@
+{
+  "name": "cognitive-consistency",
+  "description": "d6e3a45 Core cognitive contracts: conflict-complete belief, context inclusion, half-open clocks, protected identity and portable numeric inputs.",
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://test/consistency",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "predicates": {
+          "position": {
+            "kind": "PredicateType",
+            "functional": true,
+            "object": {
+              "literal_types": [
+                "string"
+              ]
+            }
+          },
+          "scoped": {
+            "kind": "PredicateType",
+            "functional": true,
+            "object": {
+              "literal_types": [
+                "string"
+              ]
+            }
+          },
+          "temporal": {
+            "kind": "PredicateType",
+            "functional": true,
+            "object": {
+              "literal_types": [
+                "string"
+              ]
+            }
+          },
+          "likes": {
+            "kind": "PredicateType",
+            "functional": false,
+            "object": {
+              "literal_types": [
+                "string"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "setup": [
+    "MUTATE {\n CREATE CONCEPT ?a { TYPE \"Person\" NAME \"Ada\" }\n CREATE CONCEPT ?work { TYPE \"Person\" NAME \"work\" }\n CREATE CONCEPT ?travel { TYPE \"Person\" NAME \"travel\" }\n ENSURE PROPOSITION ?home (?a, \"position\", \"home\")\n ENSURE PROPOSITION ?office (?a, \"position\", \"office\")\n ENSURE PROPOSITION ?tea (?a, \"likes\", \"tea\")\n ENSURE PROPOSITION ?coffee (?a, \"likes\", \"coffee\")\n ENSURE PROPOSITION ?w (?a, \"scoped\", \"work\")\n ENSURE PROPOSITION ?t (?a, \"scoped\", \"travel\")\n ENSURE PROPOSITION ?old (?a, \"temporal\", \"old\")\n ENSURE PROPOSITION ?new (?a, \"temporal\", \"new\")\n CREATE ASSERTION ?a1 { SET FIELDS { proposition: ?home, asserted_by: ?a, stance: \"support\", mode: \"stated\", confidence: 0.9 } }\n CREATE ASSERTION ?a2 { SET FIELDS { proposition: ?office, asserted_by: ?a, stance: \"support\", mode: \"stated\", confidence: 0.9 } }\n CREATE ASSERTION ?a3 { SET FIELDS { proposition: ?tea, asserted_by: ?a, stance: \"support\", mode: \"stated\", confidence: 0.9 } }\n CREATE ASSERTION ?a4 { SET FIELDS { proposition: ?coffee, asserted_by: ?a, stance: \"support\", mode: \"stated\", confidence: 0.9 } }\n CREATE ASSERTION ?a5 { SET FIELDS { proposition: ?w, asserted_by: ?a, stance: \"support\", mode: \"stated\", confidence: 0.9, context_refs: [?work] } }\n CREATE ASSERTION ?a6 { SET FIELDS { proposition: ?t, asserted_by: ?a, stance: \"support\", mode: \"stated\", confidence: 0.9, context_refs: [?travel] } }\n CREATE ASSERTION ?a7 { SET FIELDS { proposition: ?old, asserted_by: ?a, stance: \"support\", mode: \"stated\", confidence: 0.9, valid_time: { from: \"2026-09-01T00:00:00.000Z\", until: \"2026-09-07T00:00:00.000Z\" } } }\n CREATE ASSERTION ?a8 { SET FIELDS { proposition: ?new, asserted_by: ?a, stance: \"support\", mode: \"stated\", confidence: 0.9, valid_time: { from: \"2026-09-07T00:00:00.000Z\" } } }\n}"
+  ],
+  "cases": [
+    {
+      "name": "grounded conflict includes candidate diagnosis and visible slot opposition",
+      "command": "FIND(?b.status, ?b.candidate_status, ?b.slot_status, ?b.conflict_reasons, ?b.leading) WHERE { ?a CONCEPT {name: \"Ada\"} ?b BELIEF (?a, \"position\", \"home\") }",
+      "expect": {
+        "result": [
+          [
+            "contested",
+            "accepted",
+            "contested",
+            [
+              "functional_value"
+            ],
+            "none"
+          ]
+        ]
+      },
+      "vectors": [
+        "MEM-001"
+      ]
+    },
+    {
+      "name": "slot conflict has no accepted values",
+      "command": "FIND(?b.status, ?b.accepted_values) WHERE { ?a CONCEPT {name: \"Ada\"} ?b BELIEF SLOT (?a, \"position\") }",
+      "expect": {
+        "result": [
+          [
+            "contested",
+            []
+          ]
+        ]
+      },
+      "vectors": [
+        "MEM-001"
+      ]
+    },
+    {
+      "name": "LIMIT never hides a competing conflict",
+      "command": "FIND(?b.status) WHERE { ?a CONCEPT {name: \"Ada\"} ?b BELIEF (?a, \"position\", ?value) } LIMIT 1",
+      "expect": {
+        "result": [
+          "contested"
+        ]
+      },
+      "vectors": [
+        "MEM-001"
+      ]
+    },
+    {
+      "name": "a multi-value preference slot remains accepted",
+      "command": "FIND(?b.status) WHERE { ?a CONCEPT {name: \"Ada\"} ?b BELIEF SLOT (?a, \"likes\") }",
+      "expect": {
+        "result": [
+          "accepted"
+        ]
+      },
+      "vectors": [
+        "MEM-001"
+      ]
+    },
+    {
+      "name": "scoped assertions cannot support context-free recall",
+      "command": "FIND(?b.status) WHERE { ?a CONCEPT {name: \"Ada\"} ?b BELIEF (?a, \"scoped\", \"work\") }",
+      "expect": {
+        "result": [
+          "insufficient"
+        ]
+      },
+      "vectors": [
+        "MEM-007"
+      ]
+    },
+    {
+      "name": "exact context includes the matching scoped claim",
+      "command": "FIND(?b.status) WHERE { ?a CONCEPT {name: \"Ada\"} ?b BELIEF (?a, \"scoped\", \"work\") } WITH EPISTEMIC {context_refs: [\"C-2\"]}",
+      "expect": {
+        "result": [
+          "accepted"
+        ]
+      },
+      "vectors": [
+        "MEM-007"
+      ]
+    },
+    {
+      "name": "no scoped support is borrowed; matching-context functional opposition remains",
+      "command": "FIND(?b.status) WHERE { ?a CONCEPT {name: \"Ada\"} ?b BELIEF (?a, \"scoped\", \"travel\") } WITH EPISTEMIC {context_refs: [\"C-2\"]}",
+      "expect": {
+        "result": [
+          "rejected"
+        ]
+      },
+      "vectors": [
+        "MEM-007"
+      ]
+    },
+    {
+      "name": "both explicit contexts disclose the conflict",
+      "command": "FIND(?b.status) WHERE { ?a CONCEPT {name: \"Ada\"} ?b BELIEF (?a, \"scoped\", \"work\") } WITH EPISTEMIC {context_refs: [\"C-2\", \"C-3\"]}",
+      "expect": {
+        "result": [
+          "contested"
+        ]
+      },
+      "vectors": [
+        "MEM-001"
+      ]
+    },
+    {
+      "name": "until is excluded exactly at the boundary: an expired value contributes nothing",
+      "command": "FIND(?b.status) WHERE { ?a CONCEPT {name: \"Ada\"} ?b BELIEF (?a, \"temporal\", \"old\") } FOR TIME \"2026-09-07T00:00:00.000Z\"",
+      "expect": {
+        "result": [
+          "insufficient"
+        ]
+      },
+      "vectors": [
+        "MEM-007"
+      ]
+    },
+    {
+      "name": "the value beginning at the boundary is eligible",
+      "command": "FIND(?b.status) WHERE { ?a CONCEPT {name: \"Ada\"} ?b BELIEF (?a, \"temporal\", \"new\") } FOR TIME \"2026-09-07T00:00:00.000Z\"",
+      "expect": {
+        "result": [
+          "accepted"
+        ]
+      },
+      "vectors": [
+        "MEM-007"
+      ]
+    },
+    {
+      "name": "basis preserves canonical time and the next known invalidation",
+      "command": "FIND(?b.basis.valid_at, ?b.basis.next_invalid_at) WHERE { ?a CONCEPT {name: \"Ada\"} ?b BELIEF (?a, \"temporal\", \"old\") } FOR TIME \"2026-09-06T00:00:00.000Z\"",
+      "expect": {
+        "result": [
+          [
+            "2026-09-06T00:00:00.000Z",
+            "2026-09-07T00:00:00.000Z"
+          ]
+        ]
+      },
+      "vectors": [
+        "MEM-007"
+      ]
+    },
+    {
+      "name": "invalid half-open interval ('2026-09-07T00:00:00.000Z', '2026-09-07T00:00:00.000Z')",
+      "command": "CREATE ASSERTION ?x { SET FIELDS { proposition: \"P-7\", asserted_by: \"C-1\", stance: \"support\", mode: \"stated\", valid_time: {\"from\": \"2026-09-07T00:00:00.000Z\", \"until\": \"2026-09-07T00:00:00.000Z\"} } }",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "vectors": [
+        "MEM-007"
+      ]
+    },
+    {
+      "name": "invalid half-open interval ('2026-09-08T00:00:00.000Z', '2026-09-07T00:00:00.000Z')",
+      "command": "CREATE ASSERTION ?x { SET FIELDS { proposition: \"P-7\", asserted_by: \"C-1\", stance: \"support\", mode: \"stated\", valid_time: {\"from\": \"2026-09-08T00:00:00.000Z\", \"until\": \"2026-09-07T00:00:00.000Z\"} } }",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "vectors": [
+        "MEM-007"
+      ]
+    },
+    {
+      "name": "merged_into is protected identity state",
+      "command": "UPDATE \"C-1\" SET FIELDS {merged_into: \"C-2\"}",
+      "expect": {
+        "error": "InvalidSyntax"
+      },
+      "vectors": [
+        "MEM-007"
+      ]
+    },
+    {
+      "name": "portable numeric source rejects 9007199254740992",
+      "command": "CREATE CONCEPT ?x { TYPE \"Person\" SET ATTRIBUTES {n: 9007199254740992} }",
+      "expect": {
+        "error": "InvalidSyntax"
+      },
+      "vectors": [
+        "MEM-011"
+      ]
+    },
+    {
+      "name": "portable numeric source rejects 9007199254740993.0",
+      "command": "CREATE CONCEPT ?x { TYPE \"Person\" SET ATTRIBUTES {n: 9007199254740993.0} }",
+      "expect": {
+        "error": "InvalidSyntax"
+      },
+      "vectors": [
+        "MEM-011"
+      ]
+    },
+    {
+      "name": "portable numeric source rejects 9007199254740993e0",
+      "command": "CREATE CONCEPT ?x { TYPE \"Person\" SET ATTRIBUTES {n: 9007199254740993e0} }",
+      "expect": {
+        "error": "InvalidSyntax"
+      },
+      "vectors": [
+        "MEM-011"
+      ]
+    },
+    {
+      "name": "portable numeric source rejects 1e-400",
+      "command": "CREATE CONCEPT ?x { TYPE \"Person\" SET ATTRIBUTES {n: 1e-400} }",
+      "expect": {
+        "error": "InvalidSyntax"
+      },
+      "vectors": [
+        "MEM-011"
+      ]
+    },
+    {
+      "name": "unknown context is rejected without widening scope",
+      "command": "FIND(?b.status) WHERE {?a CONCEPT {name:\"Ada\"} ?b BELIEF (?a,\"scoped\",\"work\")} WITH EPISTEMIC {context_refs:[\"C-999999\"]}",
+      "expect": {
+        "error": "NotFoundOrNotVisible"
+      },
+      "vectors": [
+        "MEM-007"
+      ]
+    },
+    {
+      "name": "KIP strings reject unpaired Unicode escapes before execution",
+      "command": "CREATE CONCEPT ?x {TYPE \"Person\" NAME \"\\ud800\"}",
+      "expect": {
+        "error": "InvalidSyntax"
+      },
+      "vectors": [
+        "MEM-011"
+      ]
+    }
+  ]
+}

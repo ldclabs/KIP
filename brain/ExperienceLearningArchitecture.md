@@ -1,7 +1,7 @@
 # Experience Learning Architecture for a KIP 2.0 Brain
 
 
-The normative [Cognitive Consistency contract](../KIP-2.0-Cognitive-Consistency.md) binds final belief, immutable Skill revisions, independent attempts, replayable trials/evaluations, dependency validity, identity repair and durable workers. Lifecycle counters aggregate attempts; unlinked family outcomes are never automatically controls. Stored summaries are used only with a validated computation basis.
+Normative contracts: the [Specification](../SPECIFICATION.md) (final belief §21.11, temporal succession §25.4, dependency validity §57.6, recording repair §57.8), the [Cognitive Memory Profile](../profiles/CognitiveMemoryProfile-2.0.md), and the optional [Validated Learning](../brain/KIP-2.0-Validated-Learning.md) and [Brain Runtime](../brain/KIP-2.0-Brain-Runtime.md) companions. A world change is one new Assertion; stored summaries are used only with a validated computation basis; unlinked family outcomes are never controls.
 
 **[English](./ExperienceLearningArchitecture.md) | [中文](./ExperienceLearningArchitecture_CN.md)**
 
@@ -191,7 +191,7 @@ Future recall changes through `memory_strength`/salience. Truth does not change.
 
 ## Procedural learning
 
-Future action policy changes through Skill, GradingState, applicability, and counterexamples.
+Future action policy changes through Skill revisions, validated standing, applicability, and counterexamples.
 
 ## Self-model learning
 
@@ -309,7 +309,7 @@ Use atomic Transactions where partial state would mislead:
 Evidence + Proposition + Assertion
 Experience + Steps + Formation Activity
 new Assertion + supersession + revision Activity
-Skill + compiled_from + compilation Activity
+Skill + SkillRevision + compilation Activity (compiled_from is computed from it)
 ```
 
 External action remains outside KIP transaction rollback.

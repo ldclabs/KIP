@@ -18,7 +18,7 @@ sequence of length ≤ 3):
     E1, E2   Evidence (each with a payload)
     A1       Assertion citing E1            (required reference)
     ACT      Activity, inputs [E1, E2], outputs [A1]   (required references)
-    C1       Concept, structural derived_from → E1     (optional reference)
+    C1       Concept, structural mentions → E1         (optional reference)
 
 Properties (checked after every operation on every path):
   P1 HeldNeverErased     — a held element is never stubbed, erased, or

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:kip:2.0:2026-09-23:schema:response",
+  "$id": "urn:kip:2.0:schema:response",
   "title": "KIP 2.0 Response Envelope",
   "description": "JSON Schema for a non-streaming logical KIP 2.0 response envelope. Streaming delivery frames are transport units and should be described by a separate schema.",
   "type": "object",
@@ -243,7 +243,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 1024,
-          "description": "Echo of the request's idempotency key when one was given, so an outcome_unknown response can be recovered by key (\u00a780.4)."
+          "description": "Echo of the request's idempotency key when one was given, so an outcome_unknown response can be recovered by key (§80.4)."
         },
         "extensions": {
           "$ref": "#/$defs/Extensions"
@@ -285,7 +285,7 @@
         },
         "receipt": {
           "$ref": "#/$defs/Receipt",
-          "description": "The operation's own transaction Receipt in sequence and independent modes (\u00a775); absent in atomic mode, where the top-level receipt is the transaction's."
+          "description": "The operation's own transaction Receipt in sequence and independent modes (§75); absent in atomic mode, where the top-level receipt is the transaction's."
         },
         "extensions": {
           "$ref": "#/$defs/Extensions"
@@ -380,7 +380,7 @@
           "$ref": "#/$defs/PolicyIdentity"
         },
         "valid_at": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Timestamp"
         },
         "search": {
           "$ref": "#/$defs/SearchContext"
@@ -394,7 +394,7 @@
           "$ref": "#/$defs/Extensions"
         },
         "basis": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
+          "$ref": "urn:kip:2.0:schema:projection#/$defs/ProjectionBasis"
         }
       }
     },
@@ -521,7 +521,7 @@
           "maximum": 9007199254740991
         },
         "committed_at": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Timestamp"
         },
         "status": {
           "type": "string",
@@ -571,7 +571,7 @@
         },
         "receipt_digest": {
           "$ref": "#/$defs/Digest",
-          "description": "Canonical digest of the Receipt without receipt_digest and proofs (Spec \u00a733.2); a signed Receipt signs it."
+          "description": "Canonical digest of the Receipt without receipt_digest and proofs (Spec §33.2); a signed Receipt signs it."
         },
         "origin": {
           "type": "object",
@@ -603,7 +603,7 @@
               ]
             }
           },
-          "description": "The Principal the commit was attributed to, the ActorBinding exercised, and the delegation chain digest (Spec \u00a733.2)."
+          "description": "The Principal the commit was attributed to, the ActorBinding exercised, and the delegation chain digest (Spec §33.2)."
         }
       },
       "allOf": [
@@ -649,7 +649,7 @@
           }
         },
         {
-          "$comment": "A no_effect transaction allocates no space_seq (\u00a732.8); the field is omitted, never null.",
+          "$comment": "A no_effect transaction allocates no space_seq (§32.8); the field is omitted, never null.",
           "if": {
             "properties": {
               "status": {
@@ -695,6 +695,7 @@
           "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$",
           "examples": [
             "SchemaSymbolAmbiguous",
+            "SchemaSymbolConflict",
             "NotAuthorized",
             "VersionConflict",
             "OutcomeUnknown"

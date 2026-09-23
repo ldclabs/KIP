@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-028",
+  "title": "Preference among options of one kind",
+  "description": "prefers is functional within an object-type partition: a newer ColorScheme preference succeeds the older, an Editor preference coexists.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "SPECIFICATION.md#2015-predicate-definition-fields",
+    "profiles/CognitiveMemoryProfile-2.0.md#7-standard-structural-fields"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-028"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/accepted_values",
+      "operator": "equals",
+      "expected": [
+        "light",
+        "vim"
+      ]
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/conflict_count",
+      "operator": "equals",
+      "expected": 0
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/stored_lifecycle_changes",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

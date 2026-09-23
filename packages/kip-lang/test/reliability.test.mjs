@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { readFile, readdir } from 'node:fs/promises'
 import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
-import { MemorySession, parseTimestamp, parse, lowerAll, canonicalize } from '../dist/index.js'
+import { MemorySession, parseTimestamp, parseTimePoint, parse, lowerAll, canonicalize } from '../dist/index.js'
 import * as model from '../../../conformance/reference/reliability.mjs'
 
 const root = new URL('../../../', import.meta.url)
@@ -12,7 +12,7 @@ const ajv = new Ajv2020({ strict: false, allErrors: true }); addFormats(ajv)
 for (const file of await readdir(new URL('schemas/', root))) {
   if (file.endsWith('.json')) ajv.addSchema(await json('schemas/' + file))
 }
-const prefix = 'urn:kip:2.0:2026-09-23:schema:'
+const prefix = 'urn:kip:2.0:schema:'
 const validates = (name, value) => ajv.validate(prefix + 'cognitive-records#/$defs/' + name, value)
 const artifact = { artifact_ref: 'artifact:selector', content_digest: 'sha256:' + 'a'.repeat(64) }
 const t = '2026-09-23T00:00:00.000Z', t1 = '2026-09-23T00:00:01.000Z', t2 = '2026-09-23T00:00:02.000Z'
@@ -182,19 +182,24 @@ test('REL-014: scoped ASSERT lowers to the same immutable context_refs field', (
   assert.doesNotMatch(text,/"context"/)
 })
 
-test('REL-015: legacy package schema pins still compile byte-identical resources', async () => {
+test('REL-015: the current package activates only from its digest-pinned schema closure', async () => {
   const { createHash }=await import('node:crypto')
-  const pkg=await json('profiles/cognitive-memory-2.1.0.schema.json')
+  const pkg=await json('profiles/cognitive-memory-2.0.0.schema.json')
+  const digest=value=>'sha256:'+createHash('sha256').update(canonicalize(value)).digest('hex')
   const isolated=new Ajv2020({strict:false});addFormats(isolated)
   for(const pin of pkg.manifest.validation_schemas){
     const schema=ajv.getSchema(pin.id)?.schema
     assert.ok(schema,pin.id)
-    assert.equal('sha256:'+createHash('sha256').update(canonicalize(schema)).digest('hex'),pin.content_digest)
+    assert.equal(digest(schema),pin.content_digest)
     isolated.addSchema(schema)
   }
   for(const pin of pkg.manifest.validation_schemas) assert.ok(isolated.getSchema(pin.id))
+  // A substituted resource under a pinned ID is refused by digest, whatever a cache holds.
+  const pin=pkg.manifest.validation_schemas[0]
+  const substituted={...ajv.getSchema(pin.id).schema,description:'substituted'}
+  assert.notEqual(digest(substituted),pin.content_digest)
   const {integrity,...body}=pkg
-  assert.equal('sha256:'+createHash('sha256').update(canonicalize(body)).digest('hex'),integrity.content_digest)
+  assert.equal(digest(body),integrity.content_digest)
 })
 
 test('REL-016: import maps only declared references while retaining signed source coordinates', () => {
@@ -256,4 +261,17 @@ test('causal intake cannot expose a correction before its explicit predecessor w
   assert.throws(()=>ledger.advance(host,available(b)),/PreconditionFailed/)
   ledger.advance(host,available(a));ledger.advance(host,available(b))
   assert.equal(ledger.read(host,b).progress.phase,'available')
+})
+
+test('time bounds: parseTimePoint accepts exact instants and bounds, never an invented instant', () => {
+  assert.equal(parseTimePoint(null), null)
+  assert.deepEqual(parseTimePoint(t), { earliest: Date.parse(t), latest: Date.parse(t) })
+  assert.deepEqual(parseTimePoint({ latest: t }), { earliest: -Infinity, latest: Date.parse(t) })
+  assert.deepEqual(parseTimePoint({ earliest: t, latest: t2 }), { earliest: Date.parse(t), latest: Date.parse(t2) })
+  for (const bad of [{}, { earliest: t2, latest: t }, { at: t }, { latest: '2026-09-23' }, 5, []])
+    assert.throws(() => parseTimePoint(bad))
+  const common = 'urn:kip:2.0:schema:common#/$defs/TimePoint'
+  assert.equal(ajv.validate(common, { earliest: t, latest: t2 }), true)
+  assert.equal(ajv.validate(common, {}), false)
+  assert.equal(ajv.validate(common, { at: t }), false)
 })

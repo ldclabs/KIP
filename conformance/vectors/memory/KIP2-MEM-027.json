@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-027",
+  "title": "Coarse time is never an invented instant",
+  "description": "Time bounds yield inside, outside or indeterminate; indeterminate support alone is uncertain with temporal_indeterminate; malformed bounds are rejected.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Epistemic"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "SPECIFICATION.md#255-time-bounds"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-027"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/indeterminate_status",
+      "operator": "equals",
+      "expected": "uncertain"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/uncertainty_reason",
+      "operator": "equals",
+      "expected": "temporal_indeterminate"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/malformed_bounds_rejected",
+      "operator": "equals",
+      "expected": true
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/stored_lifecycle_changes",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

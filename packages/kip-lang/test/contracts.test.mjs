@@ -199,17 +199,17 @@ test('MEM-012: schema locks follow transitive references, terminate cycles and r
 })
 
 test('MEM-012: manifest pins alone compile every validation schema, including Capsule dependencies', async () => {
-  const pkg=await json('profiles/cognitive-memory-2.2.0.schema.json')
+  const pkg=await json('profiles/cognitive-memory-2.0.0.schema.json')
   const isolated=new Ajv2020({strict:false,allErrors:true})
   addFormats(isolated)
   for (const pin of pkg.manifest.validation_schemas) isolated.addSchema(schemaCatalog.get(pin.id))
   for (const pin of pkg.manifest.validation_schemas) assert.ok(isolated.getSchema(pin.id),pin.id)
   const capsule=await json('conformance/fixtures/capsules/valid-snapshot.json')
-  assert.ok(isolated.validate('urn:kip:2.0:2026-09-23:schema:capsule',capsule),JSON.stringify(isolated.errors))
+  assert.ok(isolated.validate('urn:kip:2.0:schema:capsule',capsule),JSON.stringify(isolated.errors))
 })
 
 test('MEM-018: EvaluationRecord distinguishes promotion from monitoring and withdrawal', () => {
-  const validate=ajv.getSchema('urn:kip:2.0:2026-09-23:schema:cognitive-records#/$defs/EvaluationRecord')
+  const validate=ajv.getSchema('urn:kip:2.0:schema:cognitive-records#/$defs/EvaluationRecord')
   const evaluation=cases.records.EvaluationRecord
   const allowed={proposed:['proposed','trialed','revoked'],trialed:['trialed','adopted','revoked'],
     adopted:['adopted','trialed','revoked'],revoked:['revoked','trialed']}
@@ -233,9 +233,9 @@ test('MEM-018: EvaluationRecord distinguishes promotion from monitoring and with
 })
 
 test('MEM-011/012: published shapes and pinned package schemas validate independently', async () => {
-  for (const name of ['cognitive-memory-2.2.0.schema.json']) {
+  for (const name of ['cognitive-memory-2.0.0.schema.json']) {
     const pkg=await json('profiles/'+name)
-    assert.ok(ajv.validate('urn:kip:2.0:2026-09-23:schema:schema-package',pkg),JSON.stringify(ajv.errors))
+    assert.ok(ajv.validate('urn:kip:2.0:schema:schema-package',pkg),JSON.stringify(ajv.errors))
     for (const pin of pkg.manifest.validation_schemas) {
       assert.ok(schemaCatalog.has(pin.id),pin.id)
       assert.equal(hash(schemaCatalog.get(pin.id)),pin.content_digest,pin.id)
@@ -249,20 +249,20 @@ test('MEM-011/012: published shapes and pinned package schemas validate independ
     }
   }
   const capsule=await json('conformance/fixtures/capsules/valid-snapshot.json')
-  assert.ok(ajv.validate('urn:kip:2.0:2026-09-23:schema:capsule',capsule),JSON.stringify(ajv.errors))
+  assert.ok(ajv.validate('urn:kip:2.0:schema:capsule',capsule),JSON.stringify(ajv.errors))
   const illegal=structuredClone(capsule);illegal.payload.records[0].confidence=1
-  assert.equal(ajv.validate('urn:kip:2.0:2026-09-23:schema:capsule',illegal),false)
+  assert.equal(ajv.validate('urn:kip:2.0:schema:capsule',illegal),false)
   for (const [name,value] of Object.entries(cases.records)) {
-    assert.ok(ajv.validate('urn:kip:2.0:2026-09-23:schema:cognitive-records#/$defs/'+name,value),name+JSON.stringify(ajv.errors))
+    assert.ok(ajv.validate('urn:kip:2.0:schema:cognitive-records#/$defs/'+name,value),name+JSON.stringify(ajv.errors))
   }
   const fake=structuredClone(cases.records.EvaluationRecord);fake.attempt_refs=['A1','A1']
-  assert.equal(ajv.validate('urn:kip:2.0:2026-09-23:schema:cognitive-records#/$defs/EvaluationRecord',fake),false)
+  assert.equal(ajv.validate('urn:kip:2.0:schema:cognitive-records#/$defs/EvaluationRecord',fake),false)
   const forget=structuredClone(cases.records.ErasurePlan);forget.status='completed'
-  assert.equal(ajv.validate('urn:kip:2.0:2026-09-23:schema:cognitive-records#/$defs/ErasurePlan',forget),false)
+  assert.equal(ajv.validate('urn:kip:2.0:schema:cognitive-records#/$defs/ErasurePlan',forget),false)
   const unrun=await json('conformance/fixtures/brain-evaluation-not-run.json')
-  assert.ok(ajv.validate('urn:kip:2.0:2026-09-23:schema:brain-evaluation',unrun))
-  assert.equal(ajv.validate('urn:kip:2.0:2026-09-23:schema:brain-evaluation',{...unrun,learning_gate:'passed'}),false)
-  assert.equal(ajv.validate('urn:kip:2.0:2026-09-23:schema:brain-evaluation',{...unrun,metrics:[{name:'score',estimate:1,lower:1,upper:1,unit:'rate',attempts:1}]}),false)
+  assert.ok(ajv.validate('urn:kip:2.0:schema:brain-evaluation',unrun))
+  assert.equal(ajv.validate('urn:kip:2.0:schema:brain-evaluation',{...unrun,learning_gate:'passed'}),false)
+  assert.equal(ajv.validate('urn:kip:2.0:schema:brain-evaluation',{...unrun,metrics:[{name:'score',estimate:1,lower:1,upper:1,unit:'rate',attempts:1}]}),false)
 })
 
 test('updated formation/maintenance recipes remain executable command text', async () => {
@@ -280,7 +280,7 @@ test('updated formation/maintenance recipes remain executable command text', asy
 test('portable memory vectors validate and the adapter runner detects wrong state and missing execution evidence', async () => {
   const vectors = await Promise.all((await readdir(new URL('conformance/vectors/memory/',base)))
     .filter(f=>f.endsWith('.json')).sort().map(f=>json('conformance/vectors/memory/'+f)))
-  assert.equal(vectors.length,25)
+  assert.equal(vectors.length,29)
   for (const vector of vectors) assert.ok(ajv.validate('urn:kip:2.0:schema:conformance-test-vector',vector),JSON.stringify(ajv.errors))
   const v=vectors[0]
   const adapter={
@@ -303,4 +303,58 @@ test('portable memory vectors validate and the adapter runner detects wrong stat
   assert.equal(unsupported.summary.pass,0)
   assert.equal(unsupported.overall_status,'FAIL')
   assert.ok(ajv.validate('urn:kip:2.0:schema:conformance-report',unsupported),JSON.stringify(ajv.errors))
+})
+
+test('packages: the memory and general domain packages validate, and prefers is partitioned by kind', async () => {
+  const memory = await json('profiles/cognitive-memory-2.0.0.schema.json')
+  const general = await json('profiles/general-domain-1.0.0.schema.json')
+  for (const pkg of [memory, general])
+    assert.ok(ajv.validate('urn:kip:2.0:schema:schema-package', pkg), JSON.stringify(ajv.errors))
+  assert.equal(memory.definitions.predicates.prefers.functional_by, 'object_type')
+  assert.equal(memory.definitions.predicates.prefers.functional, false)
+  // functional and functional_by together are a package error (Spec §20.15).
+  const broken = structuredClone(general)
+  broken.definitions.predicates.lives_in.functional_by = 'object_type'
+  assert.equal(ajv.validate('urn:kip:2.0:schema:schema-package', broken), false)
+  // Removed caches stay removed; computed members are marked and read-only.
+  assert.equal(memory.definitions.facets.TrialState, undefined)
+  assert.equal(memory.definitions.facets.DerivationState, undefined)
+  assert.equal(memory.definitions.facets.GradingState.computed, true)
+  assert.ok(Object.values(memory.definitions.facets.GradingState.fields).every(f => f.mutable === false))
+  assert.equal(memory.definitions.facets.MnemonicState.fields.effective_strength.computed, true)
+  for (const field of ['derived_from', 'compiled_from', 'compiled_by', 'consolidated_to'])
+    assert.equal(memory.definitions.structural_fields[field].computed, true, field)
+  for (const field of ['current_trial', 'current_evaluation'])
+    assert.equal(memory.definitions.structural_fields[field].cardinality.max, 1, field)
+  assert.ok(memory.definitions.concept_types.SleepTask.attributes.fields.task_class.enum.includes('review_schema'))
+  const pin = general.dependencies.find(d => d.package_ref === 'kip://profiles/cognitive-memory@2.0.0')
+  assert.equal(pin.content_digest, memory.integrity.content_digest)
+})
+
+test('policy: kip:memory-default is the structural baseline plus three ordered precedence rules', async () => {
+  const policy = await json('profiles/policy-memory-default.json')
+  assert.equal(policy.policy_id, 'kip:memory-default')
+  assert.equal(policy.method.score_model, 'none')
+  assert.deepEqual(policy.precedence.order, ['context_specificity', 'first_person_testimony', 'recency'])
+  assert.match(policy.precedence.rules.recency, /start key/)
+  assert.equal(policy.precedence.outranked_status, 'uncertain')
+  const { integrity, ...body } = policy
+  assert.equal(hash(body), integrity.content_digest)
+})
+
+test('world time: succession narrows written intervals and ignores arrival order', () => {
+  const t = s => `2026-${s}T00:00:00.000Z`
+  const a = (value, from, extra = {}) => ({ id: value, value, assertions: [{ root: value, status: 'active', mode: 'stated',
+    stance: 'support', trusted: true, actor: 'alice', from, ...extra }] })
+  const candidates = [a('beijing', t('01-01')), a('shanghai', t('05-01')), a('tokyo', t('09-01'))]
+  const at = (list, when) => model.project(list, { functional: true, valid_at: t(when) }).accepted_values
+  for (const order of [[0, 1, 2], [2, 0, 1], [1, 2, 0]]) {
+    const list = order.map(i => candidates[i])
+    assert.deepEqual(at(list, '02-01'), ['beijing'])
+    assert.deepEqual(at(list, '06-01'), ['shanghai'])
+    assert.deepEqual(at(list, '10-01'), ['tokyo'])
+  }
+  // Before any value began, nothing is invented.
+  assert.deepEqual(model.project(candidates, { functional: true, valid_at: '2025-06-01T00:00:00.000Z' }).status, 'insufficient')
+  assert.throws(() => model.project([a('x', { earliest: t('05-01'), latest: t('04-01') })], { functional: true, valid_at: t('06-01') }), /time bound/)
 })

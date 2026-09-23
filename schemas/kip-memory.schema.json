@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:kip:2.0:2026-09-23:schema:memory",
+  "$id": "urn:kip:2.0:schema:memory",
   "title": "KIP 2.0 Memory Interface",
   "description": "Optional Agent-to-Brain binding over existing KIP semantics. Static shapes do not prove source fidelity, authority, processing progress, coverage, token budgets or erasure; adapters enforce those contracts.",
   "oneOf": [
@@ -71,9 +71,7 @@
       "enum": [
         "memory_basic",
         "memory_experience",
-        "memory_learning",
-        "memory_durable",
-        "memory_exchange"
+        "memory_learning"
       ]
     },
     "Operation": {
@@ -112,7 +110,8 @@
           "enum": [
             "answer",
             "action",
-            "resume"
+            "resume",
+            "attention"
           ],
           "default": "answer"
         },
@@ -147,7 +146,7 @@
           "type": "object",
           "properties": {
             "valid_at": {
-              "$ref": "urn:kip:2.0:2026-09-23:schema:common#/$defs/Timestamp"
+              "$ref": "urn:kip:2.0:schema:common#/$defs/Timestamp"
             },
             "as_of_seq": {
               "$ref": "#/$defs/Sequence"
@@ -155,6 +154,10 @@
           },
           "additionalProperties": false,
           "minProperties": 1
+        },
+        "attention_cursor": {
+          "$ref": "#/$defs/Ref",
+          "description": "Opaque cursor returned by an earlier attention recall; items at or before it are not returned again."
         }
       },
       "required": [],
@@ -168,6 +171,16 @@
         {
           "required": [
             "target_ref"
+          ]
+        },
+        {
+          "properties": {
+            "mode": {
+              "const": "attention"
+            }
+          },
+          "required": [
+            "mode"
           ]
         }
       ]
@@ -185,6 +198,7 @@
           "enum": [
             "correction",
             "world_change",
+            "misrecorded",
             "unspecified"
           ],
           "default": "unspecified"
@@ -295,7 +309,7 @@
           "maxLength": 4096
         },
         "error": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:response#/$defs/Error"
+          "$ref": "urn:kip:2.0:schema:response#/$defs/Error"
         }
       },
       "required": [
@@ -720,15 +734,15 @@
       "type": "object",
       "properties": {
         "basis": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:projection#/$defs/ProjectionBasis"
+          "$ref": "urn:kip:2.0:schema:projection#/$defs/ProjectionBasis"
         },
         "coverage": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:cognitive-records#/$defs/RecallCoverage"
+          "$ref": "urn:kip:2.0:schema:cognitive-records#/$defs/RecallCoverage"
         },
         "elements": {
           "type": "array",
           "items": {
-            "$ref": "urn:kip:2.0:2026-09-23:schema:element"
+            "$ref": "urn:kip:2.0:schema:element"
           },
           "maxItems": 128
         }
@@ -782,6 +796,16 @@
         },
         "details": {
           "$ref": "#/$defs/Details"
+        },
+        "attention": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AttentionItem"
+          },
+          "maxItems": 128
+        },
+        "attention_cursor": {
+          "$ref": "#/$defs/Ref"
         }
       },
       "required": [
@@ -807,7 +831,7 @@
           "$ref": "#/$defs/Operation"
         },
         "space": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:request#/$defs/SpaceSelector"
+          "$ref": "urn:kip:2.0:schema:request#/$defs/SpaceSelector"
         },
         "scope": {
           "$ref": "#/$defs/Scope"
@@ -826,11 +850,7 @@
           "uniqueItems": true,
           "maxItems": 5
         },
-        "input": {},
-        "requires_contract": {
-          "type": "string",
-          "minLength": 1
-        }
+        "input": {}
       },
       "required": [
         "kip_memory",
@@ -981,7 +1001,7 @@
         },
         "result": {},
         "error": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:response#/$defs/Error"
+          "$ref": "urn:kip:2.0:schema:response#/$defs/Error"
         },
         "warnings": {
           "type": "array",
@@ -1528,11 +1548,7 @@
           "maximum": 9007199254740991
         },
         "default_space": {
-          "$ref": "urn:kip:2.0:2026-09-23:schema:request#/$defs/SpaceSelector"
-        },
-        "contract_revision": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "urn:kip:2.0:schema:request#/$defs/SpaceSelector"
         }
       },
       "required": [
@@ -1597,62 +1613,57 @@
               }
             }
           }
-        },
-        {
-          "if": {
-            "properties": {
-              "bundles": {
-                "contains": {
-                  "const": "memory_durable"
-                }
-              }
-            },
-            "required": [
-              "bundles"
-            ]
-          },
-          "then": {
-            "properties": {
-              "bundles": {
-                "allOf": [
-                  {
-                    "contains": {
-                      "const": "memory_basic"
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "bundles": {
-                "contains": {
-                  "const": "memory_exchange"
-                }
-              }
-            },
-            "required": [
-              "bundles"
-            ]
-          },
-          "then": {
-            "properties": {
-              "bundles": {
-                "allOf": [
-                  {
-                    "contains": {
-                      "const": "memory_basic"
-                    }
-                  }
-                ]
-              }
-            }
-          }
         }
       ]
+    },
+    "AttentionItem": {
+      "type": "object",
+      "description": "A fired Watch or a due Commitment the Brain raised, delivered by attention recall (Memory Interface §4). Every item is raised by a commit — a watch_fire Activity or a commitment_review Activity — and raised_seq is that commit's space_seq. Attention grants nothing.",
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/Ref"
+        },
+        "kind": {
+          "enum": [
+            "watch_fired",
+            "commitment_due"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "raised_seq": {
+          "$ref": "#/$defs/Sequence",
+          "description": "The space_seq of the commit that raised this item (the watch_fire or commitment_review Activity); the attention cursor orders by it."
+        },
+        "due_at": {
+          "$ref": "urn:kip:2.0:schema:common#/$defs/Timestamp"
+        },
+        "target_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Ref"
+          },
+          "uniqueItems": true,
+          "maxItems": 128
+        },
+        "priority": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "ref",
+        "kind",
+        "summary",
+        "raised_seq",
+        "target_refs"
+      ],
+      "additionalProperties": false
     }
   }
 }

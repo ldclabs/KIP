@@ -1,0 +1,554 @@
+{
+  "name": "timestamps",
+  "description": "KIP dcde1de §6.5: strict UTC millisecond inputs, exact error classes, calendar validation and preserved values.",
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://test/timestamps",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "TimestampProbe": {
+            "kind": "ConceptType",
+            "attributes": {
+              "open": false,
+              "fields": {
+                "at": {
+                  "type": "timestamp"
+                },
+                "nullable_at": {
+                  "type": [
+                    "timestamp",
+                    "null"
+                  ]
+                },
+                "formatted": {
+                  "type": "string",
+                  "format": "timestamp"
+                }
+              }
+            }
+          }
+        },
+        "predicates": {
+          "moment": {
+            "kind": "PredicateType",
+            "object": {
+              "literal_types": [
+                "string"
+              ],
+              "format": "timestamp"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "setup": [
+    "MUTATE {CREATE CONCEPT ?a {TYPE \"Person\" NAME \"clock\"} ENSURE PROPOSITION ?p (?a, \"moment\", \"2024-02-29T12:34:56.123Z\")}"
+  ],
+  "cases": [
+    {
+      "name": "reject noncanonical observed_at '2026-01-01T00:00:00Z'",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "reject noncanonical observed_at '2026-01-01T00:00:00.1Z'",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00.1Z"
+      }
+    },
+    {
+      "name": "reject noncanonical observed_at '2026-01-01T00:00:00.12Z'",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00.12Z"
+      }
+    },
+    {
+      "name": "reject noncanonical observed_at '2026-01-01T00:00:00.1234Z'",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00.1234Z"
+      }
+    },
+    {
+      "name": "reject noncanonical observed_at '2026-01-01T00:00:00.000+00:00'",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00.000+00:00"
+      }
+    },
+    {
+      "name": "reject noncanonical observed_at '2026-01-01T08:00:00.000+08:00'",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T08:00:00.000+08:00"
+      }
+    },
+    {
+      "name": "reject noncanonical observed_at '2026-01-01t00:00:00.000z'",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01t00:00:00.000z"
+      }
+    },
+    {
+      "name": "reject noncanonical observed_at '2026-01-01 00:00:00.000Z'",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01 00:00:00.000Z"
+      }
+    },
+    {
+      "name": "reject noncanonical observed_at '2026-02-29T00:00:00.000Z'",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-02-29T00:00:00.000Z"
+      }
+    },
+    {
+      "name": "reject noncanonical observed_at '2024-02-30T00:00:00.000Z'",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2024-02-30T00:00:00.000Z"
+      }
+    },
+    {
+      "name": "reject noncanonical observed_at '2026-01-01T24:00:00.000Z'",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T24:00:00.000Z"
+      }
+    },
+    {
+      "name": "reject noncanonical observed_at '2026-01-01T00:00:60.000Z'",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:60.000Z"
+      }
+    },
+    {
+      "name": "reject noncanonical observed_at '2026-01-01T00:00:00.000Z\\n'",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00.000Z\n"
+      }
+    },
+    {
+      "name": "reject non-string observed_at 0",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "params": {
+        "at": 0
+      }
+    },
+    {
+      "name": "reject non-string observed_at True",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "params": {
+        "at": true
+      }
+    },
+    {
+      "name": "reject non-string observed_at []",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "params": {
+        "at": []
+      }
+    },
+    {
+      "name": "reject non-string observed_at {}",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "params": {
+        "at": {}
+      }
+    },
+    {
+      "name": "accept canonical observed_at 2024-02-29T12:34:56.000Z",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "result": null
+      },
+      "params": {
+        "at": "2024-02-29T12:34:56.000Z"
+      }
+    },
+    {
+      "name": "accept canonical observed_at 2024-02-29T12:34:56.123Z",
+      "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
+      "expect": {
+        "result": null
+      },
+      "params": {
+        "at": "2024-02-29T12:34:56.123Z"
+      }
+    },
+    {
+      "name": "preserve milliseconds on read",
+      "command": "FIND(?e.observed_at) WHERE {?e EVIDENCE {evidence_class:\"timestamp_test\"}}",
+      "expect": {
+        "result": [
+          "2024-02-29T12:34:56.000Z",
+          "2024-02-29T12:34:56.123Z"
+        ]
+      }
+    },
+    {
+      "name": "leave payload timestamps untouched",
+      "command": "FIND(?e.payload.inline) WHERE {?e EVIDENCE {evidence_class:\"timestamp_test\"}}",
+      "expect": {
+        "result": [
+          "arbitrary text 2026-01-01T00:00:00Z",
+          "arbitrary text 2026-01-01T00:00:00Z"
+        ]
+      }
+    },
+    {
+      "name": "asserted_at rejects whole seconds",
+      "command": "CREATE ASSERTION ?x {SET FIELDS {proposition:\"P-1\",asserted_by:\"C-1\",stance:\"support\",mode:\"stated\", asserted_at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "asserted_at rejects epoch values",
+      "command": "CREATE ASSERTION ?x {SET FIELDS {proposition:\"P-1\",asserted_by:\"C-1\",stance:\"support\",mode:\"stated\", asserted_at::at}}",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "params": {
+        "at": 0
+      }
+    },
+    {
+      "name": "valid_time.from rejects whole seconds",
+      "command": "CREATE ASSERTION ?x {SET FIELDS {proposition:\"P-1\",asserted_by:\"C-1\",stance:\"support\",mode:\"stated\", valid_time:{from::at}}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "valid_time.from rejects epoch values",
+      "command": "CREATE ASSERTION ?x {SET FIELDS {proposition:\"P-1\",asserted_by:\"C-1\",stance:\"support\",mode:\"stated\", valid_time:{from::at}}}",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "params": {
+        "at": 0
+      }
+    },
+    {
+      "name": "valid_time.until rejects whole seconds",
+      "command": "CREATE ASSERTION ?x {SET FIELDS {proposition:\"P-1\",asserted_by:\"C-1\",stance:\"support\",mode:\"stated\", valid_time:{until::at}}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "valid_time.until rejects epoch values",
+      "command": "CREATE ASSERTION ?x {SET FIELDS {proposition:\"P-1\",asserted_by:\"C-1\",stance:\"support\",mode:\"stated\", valid_time:{until::at}}}",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "params": {
+        "at": 0
+      }
+    },
+    {
+      "name": "Activity.started_at rejects whole seconds",
+      "command": "CREATE ACTIVITY ?x {SET FIELDS {activity_class:\"timestamp_test\",started_at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "Activity.started_at rejects epoch values",
+      "command": "CREATE ACTIVITY ?x {SET FIELDS {activity_class:\"timestamp_test\",started_at::at}}",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "params": {
+        "at": 0
+      }
+    },
+    {
+      "name": "Activity.ended_at rejects whole seconds",
+      "command": "CREATE ACTIVITY ?x {SET FIELDS {activity_class:\"timestamp_test\",ended_at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "Activity.ended_at rejects epoch values",
+      "command": "CREATE ACTIVITY ?x {SET FIELDS {activity_class:\"timestamp_test\",ended_at::at}}",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "params": {
+        "at": 0
+      }
+    },
+    {
+      "name": "retention.expires_at rejects whole seconds",
+      "command": "SET RETENTION \"C-1\" {expires_at::at}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "retention.expires_at rejects epoch values",
+      "command": "SET RETENTION \"C-1\" {expires_at::at}",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "params": {
+        "at": 0
+      }
+    },
+    {
+      "name": "FOR TIME rejects whole seconds",
+      "command": "FIND(?c.name) WHERE {?c CONCEPT {id:\"C-1\"}} FOR TIME :at",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "FOR TIME rejects epoch values",
+      "command": "FIND(?c.name) WHERE {?c CONCEPT {id:\"C-1\"}} FOR TIME :at",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "params": {
+        "at": 0
+      }
+    },
+    {
+      "name": "DESCRIBE SNAPSHOT AT TIME rejects whole seconds",
+      "command": "DESCRIBE SNAPSHOT AT TIME :at",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "DESCRIBE SNAPSHOT AT TIME rejects epoch values",
+      "command": "DESCRIBE SNAPSHOT AT TIME :at",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "params": {
+        "at": 0
+      }
+    },
+    {
+      "name": "profile timestamp rejects whole seconds",
+      "command": "CREATE CONCEPT ?c {TYPE \"TimestampProbe\" SET ATTRIBUTES {at::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "profile timestamp rejects epoch values",
+      "command": "CREATE CONCEPT ?c {TYPE \"TimestampProbe\" SET ATTRIBUTES {at::at}}",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "params": {
+        "at": 0
+      }
+    },
+    {
+      "name": "profile format timestamp rejects whole seconds",
+      "command": "CREATE CONCEPT ?c {TYPE \"TimestampProbe\" SET ATTRIBUTES {formatted::at}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "profile format timestamp rejects epoch values",
+      "command": "CREATE CONCEPT ?c {TYPE \"TimestampProbe\" SET ATTRIBUTES {formatted::at}}",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "params": {
+        "at": 0
+      }
+    },
+    {
+      "name": "predicate timestamp rejects whole seconds",
+      "command": "ENSURE PROPOSITION ?p (:actor, \"moment\", :at)",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "params": {
+        "at": "2026-01-01T00:00:00Z",
+        "actor": {
+          "id": "C-1"
+        }
+      }
+    },
+    {
+      "name": "predicate timestamp rejects epoch values",
+      "command": "ENSURE PROPOSITION ?p (:actor, \"moment\", :at)",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "params": {
+        "at": 0,
+        "actor": {
+          "id": "C-1"
+        }
+      }
+    },
+    {
+      "name": "nullable profile timestamp permits null",
+      "command": "CREATE CONCEPT ?c {TYPE \"TimestampProbe\" SET ATTRIBUTES {nullable_at:null}}",
+      "expect": {
+        "result": null
+      }
+    },
+    {
+      "name": "ingest observed_at rejects '2026-01-01T00:00:00Z'",
+      "command": "FIND(?c) WHERE {?c CONCEPT {id:\"C-1\"}}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "envelope": {
+        "ingest": {
+          "evidence": [
+            {
+              "key": "entry",
+              "evidence_class": "user_statement",
+              "payload": "text",
+              "observed_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "ingest observed_at rejects 0",
+      "command": "FIND(?c) WHERE {?c CONCEPT {id:\"C-1\"}}",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "envelope": {
+        "ingest": {
+          "evidence": [
+            {
+              "key": "entry",
+              "evidence_class": "user_statement",
+              "payload": "text",
+              "observed_at": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "ingest observed_at rejects None",
+      "command": "FIND(?c) WHERE {?c CONCEPT {id:\"C-1\"}}",
+      "expect": {
+        "error": "TypeMismatch"
+      },
+      "envelope": {
+        "ingest": {
+          "evidence": [
+            {
+              "key": "entry",
+              "evidence_class": "user_statement",
+              "payload": "text",
+              "observed_at": null
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

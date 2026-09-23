@@ -13,7 +13,7 @@
     "reset": true
   },
   "spec_refs": [
-    "KIP-2.0-Cognitive-Consistency.md"
+    "profiles/CognitiveMemoryProfile-2.0.md#65-process-records-and-runtime-state"
   ],
   "steps": [
     {

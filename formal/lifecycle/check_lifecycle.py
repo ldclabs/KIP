@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded consequence-channel contract model (Consistency §§5–6).
+"""Bounded consequence-channel contract model (Validated Learning companion §§3–6).
 
 Enumerates observation sequences (including two instruments observing one attempt),
 then checks revision selection, re-trial, correction and historical replay. This
@@ -47,7 +47,7 @@ class Evaluation:
 ATTEMPTS = {a.id: a for a in (
     Attempt("A1", "S1", "R1", "T1"), Attempt("A2", "S1", "R1", "T1"),
     Attempt("A3", "S1", "R1", "T1"), Attempt("F1", "S2", "R-other", "T-other"))}
-MODES = {k: False for k in ("family_join", "skip_trialstate", "count_imported",
+MODES = {k: False for k in ("family_join", "skip_trial", "count_imported",
     "no_gate", "self_graded", "observation_count", "reuse_trial", "edit_revision",
     "direct_promotion", "monitor_as_promotion")}
 BUGS = tuple(k for k in MODES if k != "self_graded")
@@ -99,7 +99,7 @@ def rule(before, trial, samples):
 def evaluate(trial, outcomes, before="trialed"):
     inputs = selected(trial, outcomes)
     samples = aggregate(inputs)
-    return Evaluation(None if MODES["skip_trialstate"] else trial, trial.revision,
+    return Evaluation(None if MODES["skip_trial"] else trial, trial.revision,
                       samples, inputs, before, rule(before, trial, samples))
 
 

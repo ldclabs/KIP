@@ -31,7 +31,8 @@
               "status": "active",
               "mode": "stated",
               "stance": "support",
-              "trusted": true
+              "trusted": true,
+              "asserted_at": "2026-09-01T00:00:00.000Z"
             }
           ]
         },
@@ -44,7 +45,8 @@
               "status": "active",
               "mode": "stated",
               "stance": "support",
-              "trusted": true
+              "trusted": true,
+              "asserted_at": "2026-09-01T00:00:00.000Z"
             }
           ]
         }
@@ -76,7 +78,8 @@
               "status": "active",
               "mode": "stated",
               "stance": "support",
-              "trusted": true
+              "trusted": true,
+              "asserted_at": "2026-09-01T00:00:00.000Z"
             }
           ]
         },
@@ -89,7 +92,8 @@
               "status": "active",
               "mode": "stated",
               "stance": "support",
-              "trusted": true
+              "trusted": true,
+              "asserted_at": "2026-09-01T00:00:00.000Z"
             }
           ]
         }
@@ -127,7 +131,8 @@
               "trusted": true,
               "context_refs": [
                 "work"
-              ]
+              ],
+              "asserted_at": "2026-09-01T00:00:00.000Z"
             }
           ]
         },
@@ -143,7 +148,8 @@
               "trusted": true,
               "context_refs": [
                 "travel"
-              ]
+              ],
+              "asserted_at": "2026-09-01T00:00:00.000Z"
             }
           ]
         }
@@ -178,7 +184,8 @@
               "trusted": true,
               "context_refs": [
                 "work"
-              ]
+              ],
+              "asserted_at": "2026-09-01T00:00:00.000Z"
             }
           ]
         },
@@ -194,7 +201,8 @@
               "trusted": true,
               "context_refs": [
                 "travel"
-              ]
+              ],
+              "asserted_at": "2026-09-01T00:00:00.000Z"
             }
           ]
         }
@@ -231,7 +239,8 @@
               "mode": "stated",
               "stance": "support",
               "trusted": true,
-              "until": "2026-09-06T12:00:00.000Z"
+              "until": "2026-09-06T12:00:00.000Z",
+              "asserted_at": "2026-09-01T00:00:00.000Z"
             }
           ]
         },
@@ -279,7 +288,8 @@
               "status": "active",
               "mode": "stated",
               "stance": "support",
-              "trusted": true
+              "trusted": true,
+              "asserted_at": "2026-09-01T00:00:00.000Z"
             }
           ],
           "dependency_validity": "needs_review"
@@ -311,14 +321,16 @@
               "status": "active",
               "mode": "stated",
               "stance": "support",
-              "trusted": true
+              "trusted": true,
+              "asserted_at": "2026-09-01T00:00:00.000Z"
             },
             {
               "root": "E2",
               "status": "active",
               "mode": "stated",
               "stance": "reject",
-              "trusted": true
+              "trusted": true,
+              "asserted_at": "2026-09-01T00:00:00.000Z"
             }
           ]
         },
@@ -331,7 +343,8 @@
               "status": "active",
               "mode": "stated",
               "stance": "support",
-              "trusted": true
+              "trusted": true,
+              "asserted_at": "2026-09-01T00:00:00.000Z"
             }
           ]
         }
@@ -349,6 +362,1177 @@
         "candidate_statuses": [
           "contested",
           "accepted"
+        ]
+      }
+    },
+    {
+      "id": "MEM-026a",
+      "name": "a world change is one Assertion: the new value holds from its start",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "+08:00",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "asserted_at": "2026-01-01T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "+01:00",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": "2026-09-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-20T00:00:00.000Z"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "+01:00"
+        ],
+        "candidate_statuses": [
+          "insufficient",
+          "accepted"
+        ]
+      }
+    },
+    {
+      "id": "MEM-026b",
+      "name": "the succeeded value still answers for its time",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "+08:00",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": "2026-01-01T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "+01:00",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": "2026-09-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-06-01T00:00:00.000Z"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "+08:00"
+        ],
+        "candidate_statuses": [
+          "accepted",
+          "insufficient"
+        ]
+      }
+    },
+    {
+      "id": "MEM-026c",
+      "name": "undated present-tense statements: current value certain, the change window uncertain",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "beijing",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": {
+                "latest": "2026-01-10T00:00:00.000Z"
+              },
+              "asserted_at": "2026-01-10T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "shanghai",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": {
+                "latest": "2026-09-10T00:00:00.000Z"
+              },
+              "asserted_at": "2026-09-10T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-20T00:00:00.000Z"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "shanghai"
+        ],
+        "candidate_statuses": [
+          "insufficient",
+          "accepted"
+        ]
+      }
+    },
+    {
+      "id": "MEM-026d",
+      "name": "inside the change window both values are indeterminate",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "beijing",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": {
+                "latest": "2026-01-10T00:00:00.000Z"
+              },
+              "asserted_at": "2026-01-10T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "shanghai",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": {
+                "latest": "2026-09-10T00:00:00.000Z"
+              },
+              "asserted_at": "2026-09-10T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-05-01T00:00:00.000Z"
+      },
+      "expected": {
+        "slot_status": "uncertain",
+        "accepted_values": [],
+        "candidate_statuses": [
+          "uncertain",
+          "uncertain"
+        ]
+      }
+    },
+    {
+      "id": "MEM-026e",
+      "name": "different actors never succeed one another",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "+08:00",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": "2026-01-01T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "+09:00",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "bob",
+              "from": "2026-09-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-20T00:00:00.000Z"
+      },
+      "expected": {
+        "slot_status": "contested",
+        "accepted_values": [],
+        "candidate_statuses": [
+          "contested",
+          "contested"
+        ]
+      }
+    },
+    {
+      "id": "MEM-026f",
+      "name": "withdrawing the successor restores the predecessor's open end",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "+08:00",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": "2026-01-01T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "+01:00",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "retracted",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": "2026-09-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-20T00:00:00.000Z"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "+08:00"
+        ],
+        "candidate_statuses": [
+          "accepted",
+          "insufficient"
+        ]
+      }
+    },
+    {
+      "id": "MEM-026g",
+      "name": "late history never displaces the current value",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "tokyo",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": "2026-03-01T00:00:00.000Z",
+              "until": "2026-04-01T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "shanghai",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": "2026-08-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-20T00:00:00.000Z"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "shanghai"
+        ],
+        "candidate_statuses": [
+          "insufficient",
+          "accepted"
+        ]
+      }
+    },
+    {
+      "id": "MEM-026h",
+      "name": "an ended value: same actor, opposite stance, from the end",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "acme",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": "2026-01-01T00:00:00.000Z"
+            },
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "reject",
+              "trusted": true,
+              "actor": "alice",
+              "from": "2026-06-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": false,
+        "context_refs": [],
+        "valid_at": "2026-09-20T00:00:00.000Z"
+      },
+      "expected": {
+        "slot_status": "insufficient",
+        "accepted_values": [],
+        "candidate_statuses": [
+          "rejected"
+        ]
+      }
+    },
+    {
+      "id": "MEM-026i",
+      "name": "before the end the value is still accepted",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "acme",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": "2026-01-01T00:00:00.000Z"
+            },
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "reject",
+              "trusted": true,
+              "actor": "alice",
+              "from": "2026-06-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": false,
+        "context_refs": [],
+        "valid_at": "2026-03-01T00:00:00.000Z"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "acme"
+        ],
+        "candidate_statuses": [
+          "accepted"
+        ]
+      }
+    },
+    {
+      "id": "MEM-026j",
+      "name": "repeating the same value never opens a gap",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "shanghai",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": {
+                "latest": "2026-03-01T00:00:00.000Z"
+              },
+              "asserted_at": "2026-03-01T00:00:00.000Z"
+            },
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": {
+                "latest": "2026-08-01T00:00:00.000Z"
+              },
+              "asserted_at": "2026-08-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-05-01T00:00:00.000Z"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "shanghai"
+        ],
+        "candidate_statuses": [
+          "accepted"
+        ]
+      }
+    },
+    {
+      "id": "MEM-027a",
+      "name": "a coarse interval that may or may not cover the instant is uncertain, never accepted",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "berlin",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": {
+                "earliest": "2026-01-01T00:00:00.000Z",
+                "latest": "2026-12-31T23:59:59.999Z"
+              }
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-06-01T00:00:00.000Z"
+      },
+      "expected": {
+        "slot_status": "uncertain",
+        "accepted_values": [],
+        "candidate_statuses": [
+          "uncertain"
+        ]
+      }
+    },
+    {
+      "id": "MEM-028a",
+      "name": "functional_by: preferences of different kinds coexist; one kind succeeds",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "dark",
+          "partition": "ColorScheme",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": "2026-01-01T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "light",
+          "partition": "ColorScheme",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": "2026-09-01T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P3",
+          "value": "vim",
+          "partition": "Editor",
+          "assertions": [
+            {
+              "root": "E3",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "from": "2026-02-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional_by": true,
+        "context_refs": [],
+        "valid_at": "2026-09-20T00:00:00.000Z"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "light",
+          "vim"
+        ],
+        "candidate_statuses": [
+          "insufficient",
+          "accepted",
+          "accepted"
+        ]
+      }
+    },
+    {
+      "id": "MEM-029a",
+      "name": "memory-default: a task-scoped instruction prevails in its task",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "spaces",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "asserted_at": "2026-09-01T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "tabs",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "context_refs": [
+                "task-9"
+              ],
+              "asserted_at": "2026-09-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [
+          "task-9"
+        ],
+        "valid_at": "2026-09-20T00:00:00.000Z",
+        "policy": "memory-default",
+        "subject": "alice"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "tabs"
+        ],
+        "candidate_statuses": [
+          "uncertain",
+          "accepted"
+        ]
+      }
+    },
+    {
+      "id": "MEM-029b",
+      "name": "structural baseline leaves the same conflict contested",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "spaces",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "asserted_at": "2026-09-01T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "tabs",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "context_refs": [
+                "task-9"
+              ],
+              "asserted_at": "2026-09-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [
+          "task-9"
+        ],
+        "valid_at": "2026-09-20T00:00:00.000Z",
+        "policy": "structural",
+        "subject": "alice"
+      },
+      "expected": {
+        "slot_status": "contested",
+        "accepted_values": [],
+        "candidate_statuses": [
+          "contested",
+          "contested"
+        ]
+      }
+    },
+    {
+      "id": "MEM-029c",
+      "name": "memory-default: the subject's own statement outranks hearsay",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "+08:00",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "asserted_at": "2026-09-01T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "+09:00",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "bob",
+              "asserted_at": "2026-09-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-20T00:00:00.000Z",
+        "policy": "memory-default",
+        "subject": "alice"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "+08:00"
+        ],
+        "candidate_statuses": [
+          "accepted",
+          "uncertain"
+        ]
+      }
+    },
+    {
+      "id": "MEM-029d",
+      "name": "memory-default: rule 2 never lets testimony outrank an observation; equal start keys stay contested",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "+08:00",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "asserted_at": "2026-09-01T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "+09:00",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "observed",
+              "stance": "support",
+              "trusted": true,
+              "actor": "device",
+              "asserted_at": "2026-09-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-20T00:00:00.000Z",
+        "policy": "memory-default",
+        "subject": "alice"
+      },
+      "expected": {
+        "slot_status": "contested",
+        "accepted_values": [],
+        "candidate_statuses": [
+          "contested",
+          "contested"
+        ]
+      }
+    },
+    {
+      "id": "MEM-026k",
+      "name": "two inferences without a written start never succeed one another (structural: contested)",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "austin",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "inferred",
+              "stance": "support",
+              "trusted": true,
+              "actor": "brain",
+              "asserted_at": "2026-01-10T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "dallas",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "inferred",
+              "stance": "support",
+              "trusted": true,
+              "actor": "brain",
+              "asserted_at": "2026-09-10T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-20T00:00:00.000Z"
+      },
+      "expected": {
+        "slot_status": "contested",
+        "accepted_values": [],
+        "candidate_statuses": [
+          "contested",
+          "contested"
+        ]
+      }
+    },
+    {
+      "id": "MEM-026l",
+      "name": "the same two inferences under memory-default: recency decides, nothing is invented as a change",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "austin",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "inferred",
+              "stance": "support",
+              "trusted": true,
+              "actor": "brain",
+              "asserted_at": "2026-01-10T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "dallas",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "inferred",
+              "stance": "support",
+              "trusted": true,
+              "actor": "brain",
+              "asserted_at": "2026-09-10T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-20T00:00:00.000Z",
+        "policy": "memory-default",
+        "subject": "acme"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "dallas"
+        ],
+        "candidate_statuses": [
+          "uncertain",
+          "accepted"
+        ]
+      }
+    },
+    {
+      "id": "MEM-026m",
+      "name": "an inference that writes its start takes part, but cannot end an inference that does not: the conflict stands",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "austin",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "inferred",
+              "stance": "support",
+              "trusted": true,
+              "actor": "brain",
+              "asserted_at": "2026-01-10T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "dallas",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "inferred",
+              "stance": "support",
+              "trusted": true,
+              "actor": "brain",
+              "asserted_at": "2026-09-10T00:00:00.000Z",
+              "from": "2026-09-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-20T00:00:00.000Z"
+      },
+      "expected": {
+        "slot_status": "contested",
+        "accepted_values": [],
+        "candidate_statuses": [
+          "contested",
+          "contested"
+        ]
+      }
+    },
+    {
+      "id": "MEM-026n",
+      "name": "a claim with no stated start is indeterminate before it was made",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "beijing",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "asserted_at": "2026-01-10T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-01-05T00:00:00.000Z"
+      },
+      "expected": {
+        "slot_status": "uncertain",
+        "accepted_values": [],
+        "candidate_statuses": [
+          "uncertain"
+        ]
+      }
+    },
+    {
+      "id": "MEM-029e",
+      "name": "memory-default: a newer observation prevails over older testimony by recency",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "+01:00",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "dave",
+              "asserted_at": "2026-01-01T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "+02:00",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "observed",
+              "stance": "support",
+              "trusted": true,
+              "actor": "sensor",
+              "asserted_at": "2026-09-05T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-20T00:00:00.000Z",
+        "policy": "memory-default",
+        "subject": "dave"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "+02:00"
+        ],
+        "candidate_statuses": [
+          "uncertain",
+          "accepted"
+        ]
+      }
+    },
+    {
+      "id": "MEM-029f",
+      "name": "memory-default: recency never beats the subject's own statement",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "+08:00",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "alice",
+              "asserted_at": "2026-01-01T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "+09:00",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "stated",
+              "stance": "support",
+              "trusted": true,
+              "actor": "bob",
+              "asserted_at": "2026-09-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-20T00:00:00.000Z",
+        "policy": "memory-default",
+        "subject": "alice"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "+08:00"
+        ],
+        "candidate_statuses": [
+          "accepted",
+          "uncertain"
+        ]
+      }
+    },
+    {
+      "id": "MEM-029g",
+      "name": "memory-default: a late-recorded old claim never wins by recency, because its start key is when it was made",
+      "candidates": [
+        {
+          "id": "P1",
+          "value": "+01:00",
+          "assertions": [
+            {
+              "root": "E1",
+              "status": "active",
+              "mode": "observed",
+              "stance": "support",
+              "trusted": true,
+              "actor": "sensor",
+              "asserted_at": "2026-09-05T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "value": "+03:00",
+          "assertions": [
+            {
+              "root": "E2",
+              "status": "active",
+              "mode": "observed",
+              "stance": "support",
+              "trusted": true,
+              "actor": "meter",
+              "asserted_at": "2026-02-01T00:00:00.000Z"
+            }
+          ]
+        }
+      ],
+      "request": {
+        "functional": true,
+        "context_refs": [],
+        "valid_at": "2026-09-20T00:00:00.000Z",
+        "policy": "memory-default",
+        "subject": "dave"
+      },
+      "expected": {
+        "slot_status": "accepted",
+        "accepted_values": [
+          "+01:00"
+        ],
+        "candidate_statuses": [
+          "accepted",
+          "uncertain"
         ]
       }
     }

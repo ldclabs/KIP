@@ -21,7 +21,7 @@ before interpreting a model test as engine or behavioral evidence.
    an explicit disposition. No guessed numeric scores are required.
 4. A plain fact normally needs Evidence, Proposition and Assertion. Add an Event only
    when its episodic grouping helps; add Experience/Steps only when the trajectory
-   teaches something. Preference, Insight and SelfModel are optional derived views,
+   teaches something. Insight and SelfModel are optional derived views,
    not mandatory copies of each message. Preserve required transformation lineage.
 5. Recall resolves identity/scope, enumerates critical constraints and Commitments,
    checks BELIEF/prerequisites, then retrieves bounded experiences and semantic material.
@@ -46,28 +46,30 @@ inside Brain merely to claim this checklist complete.
 
 ## Cheap maintenance and one authoritative record
 
-Persist explicit reinforcement and policy changes. For optional lazy mnemonic decay,
+Persist explicit reinforcement and policy changes. Mnemonic decay is computed:
 `MnemonicState.memory_strength` is the last explicitly written base,
 `last_metabolized_at` its time anchor and `strength_policy` a pinned policy artifact
 (e.g. a declared half-life). A missing base/anchor/policy stays unknown; never invent
-0.5. Compute effective strength as a read-only ranking value. No read writes back a
+0.5. The engine computes `effective_strength` as a read-only ranking value. No read writes back a
 new base, advances a version, increments a use count or changes confidence. A
 periodic compaction may explicitly refresh the anchor if equivalence is preserved.
 Unsupported policies fail explicitly. Numeric results obey the portable number domain.
 
-Compare lazy and sweep modes against the same policy and corpus before claiming
-savings. Measure idle writes, emitted envelopes, cache invalidations, backlog and
-p50/p95 recall cost. Lazy mode avoids routine per-element decay writes, not required
-retention, correction or lease work. It is advertised as `lazy_mnemonic_strength`.
+Use signals reach the base only through explicit writes: a DecisionRecord's
+`used_refs`, or an exposure-log batch where the Nexus keeps one (Spec §66.8), folded in
+by Maintenance with a plane guard. Computed decay removes routine per-element decay
+writes, not required retention, correction or lease work; measure idle writes,
+emitted envelopes, cache invalidations and p50/p95 recall cost before and after.
 
-Retain revision/trial/evaluation pointers and immutable records. Compute GradingState
-counts from the selected validated evaluation; validate them if an engine stores a
-cache. Treat DerivationState as review progress; currentness comes from dependency
-validation. Do not create another competing set of mutable truth flags.
+Retain revision/trial/evaluation pointers (`current_trial`, `current_evaluation`) and
+immutable records. GradingState is a computed view of the selected validated
+evaluation, and currentness is the computed dependency validity; neither is ever
+written. Do not create another competing set of mutable truth flags.
 
-Activity/DependencyBasis are the dependency authority. Generate or check redundant
-lineage edges in the same mutation, keeping semantic prerequisites separate from
-context/disclosure. Compatibility views may preserve existing Facet/Structural names.
+Activity/DependencyBasis are the only dependency authority; `derived_from`,
+`compiled_from`, `compiled_by` and `consolidated_to` are computed from them, so a
+formation writes the producing Activity and never the lineage edges. Keep semantic
+prerequisites separate from context/disclosure groups.
 Tests discard materializations and rebuild them; authoritative history stays unchanged.
 
 ## Host ergonomics

@@ -1,0 +1,260 @@
+{
+  "name": "consequence",
+  "description": "The consequence channel: what the world did after the Brain acted, and what a Skill's standing is spent from. Outcome Evidence (Spec §15.7) carries an OutcomeRecord Facet — the graded index over an untouched payload — and cognition subscribes to a stream by task family rather than by reference. What an engine owes here is the Profile's schema discipline: the scoring handle a Skill cannot be compiled without, the four lifecycle states, a graded index its subject cannot rewrite, and the one guarded statement (Appendix F.6) a lifecycle verdict executes as. The verdict rule itself is Brain policy; that it lands as one recomputable transition is not.",
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?skill {\n    TYPE \"Skill\"\n    NAME \"Deploy behind a pre-flight migration check\"\n    SET ATTRIBUTES {\n      skill_class: \"workflow\",\n      summary: \"Dry-run the migration before the deploy\",\n      status: \"proposed\"\n    }\n    SET FACET \"MnemonicState\" {utility: 0.5}\n    SET STRUCTURAL {(\"current_revision\",?revision)}\n  }\n  CREATE CONCEPT ?revision {TYPE \"SkillRevision\" SET ATTRIBUTES {task_family:\"deploy/pre-flight\",procedure:\"dry-run migration before deploy\",behavior_digest:\"sha256:045d856aa6d929d266e7b68583ab860353254097da85f7f4969499ab535bb7b3\"} SET STRUCTURAL {(\"revision_of\",?skill)}}\n}",
+    "MUTATE {\n  CREATE EVIDENCE ?win {\n    SET FIELDS {\n      evidence_class: \"outcome\",\n      payload: \"deploy 41: the pre-flight check caught the drift, rollout clean\",\n      media_type: \"text/plain\",\n      observed_at: \"2026-08-20T09:00:00.000Z\"\n    }\n    SET FACET \"OutcomeRecord\" {attempt_ref: null, metric: \"completion\", window: \"run\", terminal: true, observer_config_digest: \"sha256:0000000000000000000000000000000000000000000000000000000000000000\", observation_key: \"win\", task_family: \"deploy/pre-flight\", outcome_status: \"success\", magnitude: 0.8}\n  }\n  CREATE EVIDENCE ?loss {\n    SET FIELDS {\n      evidence_class: \"outcome\",\n      payload: \"deploy 42: pre-flight passed, rollout still failed on a stale replica\",\n      media_type: \"text/plain\",\n      observed_at: \"2026-08-21T09:00:00.000Z\"\n    }\n    SET FACET \"OutcomeRecord\" {attempt_ref: null, metric: \"completion\", window: \"run\", terminal: true, observer_config_digest: \"sha256:0000000000000000000000000000000000000000000000000000000000000000\", observation_key: \"loss\", task_family: \"deploy/pre-flight\", outcome_status: \"failure\"}\n  }\n  CREATE ACTIVITY ?observed {\n    SET FIELDS {activity_class: \"outcome_observation\", status: \"completed\"}\n    SET STRUCTURAL {\n      (\"outputs\", ?win)\n      (\"outputs\", ?loss)\n    }\n  }\n}"
+  ],
+  "cases": [
+    {
+      "name": "the channel is a graded index over Evidence, keyed by the family it grades",
+      "command": "FIND(?e.facets[\"OutcomeRecord\"].task_family, ?e.facets[\"OutcomeRecord\"].outcome_status) WHERE { ?e EVIDENCE {evidence_class: \"outcome\"} }",
+      "expect": {
+        "result": [
+          [
+            "deploy/pre-flight",
+            "success"
+          ],
+          [
+            "deploy/pre-flight",
+            "failure"
+          ]
+        ]
+      },
+      "vectors": [
+        "X-016"
+      ]
+    },
+    {
+      "name": "an optional grade member may be absent without the grade being incomplete",
+      "command": "FIND(?e.facets[\"OutcomeRecord\"].magnitude) WHERE { ?e EVIDENCE {evidence_class: \"outcome\"} }",
+      "expect": {
+        "result": [
+          0.8,
+          null
+        ]
+      }
+    },
+    {
+      "name": "behavior belongs to a SkillRevision with a task_family",
+      "command": "MUTATE {\n  CREATE CONCEPT ?s {\n    TYPE \"SkillRevision\"\n    NAME \"Be careful\"\n    SET ATTRIBUTES {skill_class: \"heuristic\", summary: \"Think first\", procedure: \"think\", status: \"proposed\"}\n  }\n}",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "the retired lifecycle vocabulary is not a lifecycle state",
+      "command": "MUTATE {\n  CREATE CONCEPT ?s {\n    TYPE \"Skill\"\n    NAME \"Deploy on Fridays\"\n    SET ATTRIBUTES {skill_class: \"workflow\", task_family: \"deploy/pre-flight\", summary: \"Ship it\", procedure: \"ship\", status: \"validated\"}\n  }\n}",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "a grade is not rewritable by the cognition it grades",
+      "command": "UPDATE \"E-1\" SET FACET \"OutcomeRecord\" {outcome_status: \"failure\"}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "vectors": [
+        "GOV-026",
+        "X-017"
+      ]
+    },
+    {
+      "name": "and erasing a grade is rewriting it to absent",
+      "command": "UPDATE \"E-1\" UNSET FACET \"OutcomeRecord\" {outcome_status}",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "the graded index is closed: an instrument cannot smuggle a verdict into it",
+      "command": "UPDATE \"E-1\" SET FACET \"OutcomeRecord\" {verdict: \"promote\"}",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "vectors": [
+        "X-016"
+      ]
+    },
+    {
+      "name": "an immutable OutcomeRecord cannot gain a retrospective measurement",
+      "command": "MUTATE {\n  UPDATE \"E-2\"\n  SET FACET \"OutcomeRecord\" {magnitude: 0.25}\n}",
+      "expect": {
+        "error": "ImmutableField"
+      }
+    },
+    {
+      "name": "a second retrospective measurement is also refused",
+      "command": "UPDATE \"E-2\" SET FACET \"OutcomeRecord\" {magnitude: 0.9}",
+      "expect": {
+        "error": "ImmutableField"
+      }
+    },
+    {
+      "name": "a verdict name and mutable tallies cannot establish validated learning",
+      "command": "MUTATE {\n  CREATE ACTIVITY ?verdict {\n    SET FIELDS {\n      activity_class: \"lifecycle_verdict\",\n      status: \"completed\",\n      parameters_digest: \"sha3-256:ru1e\"\n    }\n    SET STRUCTURAL {\n      (\"inputs\", \"E-1\")\n      (\"inputs\", \"E-2\")\n      (\"outputs\", \"C-1\")\n    }\n  }\n  UPDATE \"C-1\"\n  SET ATTRIBUTES {status: \"trialed\"}\n  SET FACET \"GradingState\" {success_count: 1, failure_count: 1, graded_count: 2}\n  EXPECT VERSION 1\n}",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "refused grading preserves unproven standing and independent utility",
+      "command": "FIND(?s.attributes.status, ?s.facets[\"GradingState\"].graded_count, ?s.facets[\"MnemonicState\"].utility) WHERE { ?s CONCEPT {type: \"Skill\"} }",
+      "expect": {
+        "result": [
+          [
+            "proposed",
+            null,
+            0.5
+          ]
+        ]
+      }
+    },
+    {
+      "name": "an unvalidated adoption cannot bypass the learning contract",
+      "command": "MUTATE {\n  UPDATE \"C-1\"\n  SET ATTRIBUTES {status: \"adopted\"}\n  EXPECT VERSION 1\n}",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "a rejected grading transaction commits no verdict Activity",
+      "command": "FIND(?v.parameters_digest, ?v.inputs) WHERE { ?v ACTIVITY {activity_class: \"lifecycle_verdict\"} }",
+      "expect": {
+        "result": []
+      }
+    },
+    {
+      "name": "the lifecycle enum is not only a creation-time contract",
+      "command": "UPDATE \"C-1\" SET ATTRIBUTES {status: \"validated\"}",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "a refused UPDATE leaves the standing it failed to move",
+      "command": "FIND(?s.attributes.status) WHERE { ?s CONCEPT {type: \"Skill\"} }",
+      "expect": {
+        "result": [
+          "proposed"
+        ]
+      }
+    },
+    {
+      "name": "UPDATE cannot unset the required Skill class",
+      "command": "UPDATE \"C-1\" UNSET ATTRIBUTES {skill_class}",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "legacy behavior fields are not writable on a stable Skill",
+      "command": "UPDATE \"C-1\" SET ATTRIBUTES {task_family: 7}",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "conflicting removal and assignment cannot use clause order as a tie-break",
+      "command": "MUTATE {\n  UPDATE \"C-1\"\n  UNSET ATTRIBUTES {summary}\n  SET ATTRIBUTES {summary: \"Dry-run the migration, then deploy\"}\n}",
+      "expect": {
+        "error": "DuplicateMutationTarget"
+      }
+    },
+    {
+      "name": "adoption cannot omit the lifecycle and cache version guards",
+      "command": "MUTATE {\n  UPDATE \"C-1\"\n  SET ATTRIBUTES {status: \"adopted\"}\n}",
+      "expect": {
+        "error": "VersionConflict"
+      }
+    },
+    {
+      "name": "the Skill that came out the other side",
+      "command": "FIND(?s.attributes.status, ?s.attributes.summary) WHERE { ?s CONCEPT {type: \"Skill\"} }",
+      "expect": {
+        "result": [
+          [
+            "proposed",
+            "Dry-run the migration before the deploy"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "an instrumented run records the identity the grading joined on",
+      "command": "MUTATE {\n  CREATE CONCEPT ?run {\n    TYPE \"GradedRun\"\n    NAME \"deploy 42\"\n    SET ATTRIBUTES {run_id: \"deploy-42\", note: \"stale replica\"}\n  }\n}",
+      "expect": {}
+    },
+    {
+      "name": "what a verdict actually graded cannot be relabelled afterwards",
+      "command": "UPDATE ?r SET ATTRIBUTES {run_id: \"deploy-99\"} WHERE { ?r CONCEPT {type: \"GradedRun\"} }",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "what was only ever commentary still moves",
+      "command": "MUTATE {\n  UPDATE ?r\n  SET ATTRIBUTES {note: \"stale replica, since drained\"}\n  WHERE { ?r CONCEPT {type: \"GradedRun\"} }\n}",
+      "expect": {}
+    },
+    {
+      "name": "the run, after the one revision its type allowed",
+      "command": "FIND(?r.attributes.run_id, ?r.attributes.note) WHERE { ?r CONCEPT {type: \"GradedRun\"} }",
+      "expect": {
+        "result": [
+          [
+            "deploy-42",
+            "stale replica, since drained"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "the graded index belongs on the Evidence, not on the cognition it grades",
+      "command": "MUTATE {\n  UPDATE \"C-1\"\n  SET FACET \"OutcomeRecord\" {task_family: \"deploy/pre-flight\", outcome_status: \"success\"}\n}",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    },
+    {
+      "name": "and the tallies belong on the Skill, not on the outcome that moved them",
+      "command": "MUTATE {\n  UPDATE \"E-1\"\n  SET FACET \"GradingState\" {graded_count: 1}\n}",
+      "expect": {
+        "error": "ConstraintViolation"
+      }
+    }
+  ],
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://test/instrumentation",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "GradedRun": {
+            "kind": "ConceptType",
+            "description": "One instrumented run an outcome stream graded. `run_id` is immutable because a verdict binds to what it actually graded: relabelling the run afterwards would silently move a grade onto something else.",
+            "attributes": {
+              "open": false,
+              "fields": {
+                "run_id": {
+                  "type": "string",
+                  "required": true,
+                  "mutable": false
+                },
+                "note": {
+                  "type": "string",
+                  "required": false,
+                  "mutable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

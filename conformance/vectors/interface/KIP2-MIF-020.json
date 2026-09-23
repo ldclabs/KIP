@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MIF-020",
+  "title": "Unknown is not no",
+  "description": "Recall a fact that was never observed (\"Is Alice vegetarian?\"). The answer discloses insufficient basis rather than a negative, and a stated rejection by Alice is reported as rejected. The two are never conflated.",
+  "level": "OPTIONAL",
+  "class": "black_box",
+  "profiles": [
+    "KIP-Core",
+    "KIP-Runtime"
+  ],
+  "capabilities": [
+    "memory_interface"
+  ],
+  "fixture": {
+    "name": "core-basic",
+    "reset": true
+  },
+  "spec_refs": [
+    "KIP-2.0-Memory-Interface.md"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_interface_scenario",
+      "args": {
+        "id": "KIP2-MIF-020"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/never_observed_status",
+      "operator": "equals",
+      "expected": "insufficient"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/stated_rejection_status",
+      "operator": "equals",
+      "expected": "rejected"
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/recall_writes",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

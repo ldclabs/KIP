@@ -15,10 +15,12 @@
     "score_semantics": null
   },
   "time": {
-    "missing_valid_time": "unbounded",
+    "missing_valid_time": "from: the bound {latest: asserted_at} (Spec §25.2); until: open (ends at a successor, Spec §25.4)",
     "validity_test": "requested_valid_at_must_intersect_assertion_valid_time",
     "non_overlapping_functional_values_conflict": false,
-    "interval_bounds": "[from,until)"
+    "interval_bounds": "[from,until)",
+    "succession": "same_actor_same_context_lines (Spec §25.4)",
+    "time_bounds": "three_valued: inside | outside | indeterminate (Spec §25.5)"
   },
   "eligibility": {
     "assertion_lifecycle": {
@@ -233,7 +235,7 @@
   },
   "integrity": {
     "digest_profile": "kip-jcs-safe-v1",
-    "content_digest": "sha256:203da04f15f62b0daeba4e9c0f814f1061004220e66176c06d8836b03474c997",
+    "content_digest": "sha256:4f1319d244419f6174f790d57602015d5c068f15db04b1ab549d3a3bc44469c1",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

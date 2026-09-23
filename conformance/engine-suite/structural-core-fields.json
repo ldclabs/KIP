@@ -1,0 +1,168 @@
+{
+  "name": "structural-core-fields",
+  "description": "`STRUCTURAL` reaches both structural planes (§8.2, §17). A Profile field is addressed by its resolved symbol; a Core field — an Assertion's `evidence` and `context`, an Evidence record's `source` and `generated_by`, an Activity's `inputs`, `outputs` and `associated_actors` — is addressed by its plain name. That is what gives \"which Assertions cite this Evidence\" a spelling. The two planes are told apart by name and never merged, so a Profile field cannot redefine what an Assertion cites, and a Core field reports no `index`: its order is storage order, not a declared position.",
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://test/structural-core-probe",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Note": {
+            "kind": "ConceptType",
+            "description": "A note that cites other notes."
+          }
+        },
+        "structural_fields": {
+          "evidence": {
+            "kind": "StructuralFieldDefinition",
+            "description": "A Profile field that happens to share a Core field's name, to prove the two planes stay apart.",
+            "source": {
+              "concept_types": [
+                "kip://test/structural-core-probe@1.0.0/Note"
+              ]
+            },
+            "target": {
+              "kinds": [
+                "Concept"
+              ]
+            },
+            "ordered": true
+          },
+          "reviewed": {
+            "kind": "StructuralFieldDefinition",
+            "description": "What an element was reviewed against. Carried by any kind, to prove a Profile field is not a Concept's alone.",
+            "source": {
+              "kinds": [
+                "Concept",
+                "Assertion",
+                "Activity",
+                "Evidence"
+              ]
+            },
+            "target": {
+              "kinds": [
+                "Concept"
+              ]
+            },
+            "ordered": false
+          }
+        }
+      }
+    },
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://conformance/options",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Option": {
+            "kind": "ConceptType",
+            "description": "A preference option used by these fixtures. A real Space types each option by its kind (Profile §5.5, §7), because prefers partitions by the option's Concept Type; one catch-all type is one partition."
+          }
+        }
+      }
+    }
+  ],
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?alice { TYPE \"Person\" NAME \"Alice\" }\n  CREATE CONCEPT ?dark { TYPE \"Option\" NAME \"Dark\" }\n  CREATE CONCEPT ?note { TYPE \"Note\" NAME \"A note\" }\n  CREATE CONCEPT ?citing {\n    TYPE \"Note\"\n    NAME \"Citing note\"\n    SET STRUCTURAL { (\"evidence\", ?note) }\n  }\n  ENSURE PROPOSITION ?p (?alice, \"prefers\", ?dark)\n  CREATE EVIDENCE ?e {\n    SET FIELDS {\n      evidence_class: \"user_statement\",\n      payload: \"I prefer dark mode.\",\n      content_digest: \"sha3-256:d1ge5t\",\n      media_type: \"text/plain\",\n      observed_at: \"2026-08-16T09:00:00.000Z\"\n    }\n  }\n  CREATE ASSERTION ?a {\n    SET FIELDS { proposition: ?p, asserted_by: ?alice, stance: \"support\", mode: \"stated\", confidence: 0.9 }\n    SET STRUCTURAL { (\"evidence\", ?e) {role: \"support\"} }\n  }\n  CREATE ACTIVITY ?run {\n    SET FIELDS {activity_class: \"semantic_consolidation\", status: \"completed\"}\n    SET STRUCTURAL {\n      (\"inputs\", ?alice)\n      (\"outputs\", ?dark)\n      (\"associated_actors\", ?alice)\n      (\"reviewed\", ?note)\n    }\n  }\n}"
+  ],
+  "cases": [
+    {
+      "name": "which Assertions cite this Evidence has a spelling",
+      "command": "FIND(?a.id) WHERE { ?a ASSERTION {} STRUCTURAL (?a, \"evidence\", ?e) ?e EVIDENCE {} }",
+      "expect": {
+        "result": [
+          "A:<1>"
+        ]
+      }
+    },
+    {
+      "name": "and it answers the other way round too",
+      "command": "FIND(?e.evidence_class) WHERE { STRUCTURAL (:a, \"evidence\", ?e) ?e EVIDENCE {} }",
+      "params": {
+        "a": "A-1"
+      },
+      "expect": {
+        "result": [
+          "user_statement"
+        ]
+      }
+    },
+    {
+      "name": "an Activity's inputs and outputs are the same kind of field",
+      "command": "FIND(?c.name) WHERE { STRUCTURAL (?x, \"inputs\", ?c) ?c CONCEPT {} }",
+      "expect": {
+        "result": [
+          "Alice"
+        ]
+      }
+    },
+    {
+      "name": "so are its outputs",
+      "command": "FIND(?c.name) WHERE { STRUCTURAL (?x, \"outputs\", ?c) ?c CONCEPT {} }",
+      "expect": {
+        "result": [
+          "Dark"
+        ]
+      }
+    },
+    {
+      "name": "a Core field an element does not carry matches nothing rather than erroring",
+      "command": "FIND(?c) WHERE { STRUCTURAL (?e, \"source\", ?c) }",
+      "expect": {
+        "result": []
+      }
+    },
+    {
+      "name": "the bound edge names the Core field plainly, and reports no declared position",
+      "command": "FIND(?edge.field, ?edge.index) WHERE { ?edge STRUCTURAL (:a, \"evidence\", ?e) }",
+      "params": {
+        "a": "A-1"
+      },
+      "expect": {
+        "result": [
+          [
+            "evidence",
+            null
+          ]
+        ]
+      }
+    },
+    {
+      "name": "a Profile field of the same name is a different edge, and keeps its symbol",
+      "command": "FIND(?edge.field, ?edge.index) WHERE { ?edge STRUCTURAL (?n, \"evidence\", ?t) ?n CONCEPT {name: \"Citing note\"} }",
+      "expect": {
+        "result": [
+          [
+            "kip://test/structural-core-probe@1.0.0/evidence",
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "name": "a name that is neither a Core field nor a declared symbol is refused",
+      "command": "FIND(?c) WHERE { STRUCTURAL (?x, \"not_a_field\", ?c) }",
+      "expect": {
+        "error": "SchemaSymbolNotFound"
+      }
+    },
+    {
+      "name": "a Profile field on a record is reachable from a bound source, not just from a Concept",
+      "command": "FIND(?edge.field) WHERE { ?edge STRUCTURAL (:run, \"reviewed\", ?t) }",
+      "params": {
+        "run": "X-1"
+      },
+      "expect": {
+        "result": [
+          "kip://test/structural-core-probe@1.0.0/reviewed"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "name": "merge-identity",
+  "description": "Non-destructive identity consolidation (§11). The merged-away Concept stays addressable and keeps forwarding; the history that referenced it keeps referencing it (§11.2); ordinary new writes land on the identity that survived (§11.3); and no merge may make canonical resolution — following `merged_into` to its fixpoint — cycle (§11.1).",
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?a { TYPE \"Person\" NAME \"Al\" SET FIELDS {key: \"al\"} }\n  CREATE CONCEPT ?b { TYPE \"Person\" NAME \"Alice\" SET FIELDS {key: \"alice\"} }\n  CREATE CONCEPT ?dark { TYPE \"Option\" NAME \"Dark\" SET FIELDS {key: \"dark\"} }\n  ENSURE PROPOSITION ?old (?a, \"prefers\", ?dark)\n}",
+    "MERGE CONCEPT ?source INTO ?target WHERE {\n  ?source CONCEPT {key: \"al\"}\n  ?target CONCEPT {key: \"alice\"}\n}",
+    "MUTATE {\n  UPSERT CONCEPT ?a { MATCH {type: \"Person\", key: \"al\"} }\n  UPSERT CONCEPT ?dark { MATCH {type: \"Option\", key: \"dark\"} }\n  ENSURE PROPOSITION ?new (?a, \"prefers\", ?dark)\n}",
+    "MUTATE {\n  UPSERT CONCEPT ?a { MATCH {type: \"Person\", key: \"al\"} }\n  UPSERT CONCEPT ?dark { MATCH {type: \"Option\", key: \"dark\"} }\n  ENSURE PROPOSITION ?again (?a, \"prefers\", ?dark)\n}"
+  ],
+  "cases": [
+    {
+      "name": "the merged-away Concept keeps its own name and leaves ordinary recall",
+      "command": "FIND(?c.name, ?c._system.state) WHERE { ?c CONCEPT {key: \"al\", state: \"merged\"} }",
+      "expect": {
+        "result": [
+          [
+            "Al",
+            "merged"
+          ]
+        ]
+      },
+      "vectors": [
+        "CORE-020"
+      ]
+    },
+    {
+      "name": "it forwards to the identity that survived",
+      "command": "FIND(?merged.key) WHERE {\n  ?c CONCEPT {key: \"al\", state: \"merged\"}\n  ?merged CONCEPT {id: ?target}\n  FILTER(?target == ?c.merged_into)\n}",
+      "expect": {
+        "result": [
+          "alice"
+        ]
+      }
+    },
+    {
+      "name": "history keeps referring to what it referred to",
+      "command": "FIND(?raw.key) WHERE { ?p PROPOSITION (?s, \"prefers\", ?o) ?raw CONCEPT {id: ?stored, state: ?state} FILTER(?stored == ?p.subject.id) }",
+      "expect": {
+        "result": [
+          "al",
+          "alice"
+        ]
+      },
+      "vectors": [
+        "CORE-021",
+        "HIST-008"
+      ]
+    },
+    {
+      "name": "two post-merge writes resolve to one canonical Proposition on the survivor",
+      "command": "FIND(COUNT(?p)) WHERE { ?p PROPOSITION (?s, \"prefers\", ?o) }",
+      "expect": {
+        "result": [
+          2
+        ]
+      }
+    },
+    {
+      "name": "re-sending the same merge is a no_effect, not a conflict",
+      "command": "MERGE CONCEPT ?source INTO ?target WHERE {\n  ?source CONCEPT {key: \"al\", state: \"merged\"}\n  ?target CONCEPT {key: \"alice\"}\n}",
+      "expect": {
+        "result": null
+      }
+    },
+    {
+      "name": "merging back would make canonical resolution cycle",
+      "command": "MERGE CONCEPT ?source INTO ?target WHERE {\n  ?source CONCEPT {key: \"alice\"}\n  ?target CONCEPT {key: \"al\", state: \"merged\"}\n}",
+      "expect": {
+        "error": "IdentityMergeConflict"
+      }
+    },
+    {
+      "name": "merging a Concept into itself has no effect",
+      "command": "MERGE CONCEPT ?source INTO ?target WHERE {\n  ?source CONCEPT {key: \"alice\"}\n  ?target CONCEPT {key: \"alice\"}\n}",
+      "expect": {
+        "result": null
+      }
+    }
+  ],
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://conformance/options",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Option": {
+            "kind": "ConceptType",
+            "description": "A preference option used by these fixtures. A real Space types each option by its kind (Profile §5.5, §7), because prefers partitions by the option's Concept Type; one catch-all type is one partition."
+          }
+        }
+      }
+    }
+  ]
+}

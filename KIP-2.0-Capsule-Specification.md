@@ -148,7 +148,7 @@ Recommended conservative order:
 1. prior verified import mapping
 2. trusted canonical_id
 3. explicitly approved mapping
-4. explicitly declared portable identity (lineage + verified issuer_namespace + key_scope + normalized key, Cognitive Consistency §4)
+4. explicitly declared portable identity (lineage + verified issuer_namespace + key_scope + normalized key, Specification §11.6)
 5. create new Concept
 ```
 
@@ -348,6 +348,16 @@ Network fetch requires separate runtime/tool authority.
 ## 41.6 Imported outcomes
 
 Import assigns fresh local `_system.origin` (§41.2) and records the import in `origin.import_id`. For `outcome`-class Evidence that is decisive: the destination never authorized the instrument that wrote it, so an imported outcome is readable evidence and never a local grade. A grading consumer MUST exclude any outcome whose `origin.import_id` is set (§15.7), and an imported Skill's grading state does not transfer (§31.4).
+
+---
+
+## 41.7 Restore and reference mapping
+
+A sharing import retains source history but transfers neither standing nor authority. A migration or restore additionally verifies owner, `$self` and backup lineage, the reference mappings and the retained control and evaluation artifacts, and records a **RestoreReport** (`schemas/kip-cognitive-records.schema.json`) listing missing resources, the historical preservation achieved and the separate current validation result.
+
+Source ProjectionBasis values, versions and replay bytes stay in their source namespace, with a pinned mapping artifact to destination identities. An importer MUST NOT rewrite a signed source basis into a fabricated destination read. Typed references inside Facets and artifacts are mapped by the `reference_paths` their package declares (§20.5) — JSON Pointer segments with `*` for array items, `target: element`, `namespace: source` — never by replacing every matching string. Null references stay null. Source coordinates inside a ProjectionBasis or an immutable replay artifact are retained, not remapped; destination views use the mapping artifact. An unknown path or an unavailable required reference fails closure validation (§40.3) rather than being guessed, and an unmapped or unverifiable pin prohibits current automatic use. A source's draft vocabulary (`kip://local/...`, §20.16) stays source-namespaced.
+
+Verified historical adoption MAY remain readable as history, but imported outcomes never become local grades, on restore as on merge. Current standing requires explicit destination validation under the destination's authorized learning policy ([Validated Learning](./brain/KIP-2.0-Validated-Learning.md)); otherwise it is `unproven` or `unverifiable`. Permission never transfers. Storage-level disaster recovery that preserves the authenticated original runtime is distinct from Capsule import and declares its own recovery boundary.
 
 ---
 

@@ -587,17 +587,18 @@ describe('META', () => {
     assert.ok(parseErrors('LIST DEPENDENTS DEPTH 2').length > 0)
   })
 
-  test('SEARCH covers all six kinds and every modifier', () => {
+  test('SEARCH covers all five kinds and every modifier', () => {
     for (const kind of [
       'CONCEPT',
       'PROPOSITION',
       'ASSERTION',
       'EVIDENCE',
-      'ACTIVITY',
-      'COGNITION'
+      'ACTIVITY'
     ]) {
       assert.equal(parseOne(`SEARCH ${kind} :term`).searchKind, kind)
     }
+    // COGNITION was never defined and is gone (Spec §66.2).
+    assert.ok(parseErrors('SEARCH COGNITION :term').length > 0)
     const stmt = parseOne(
       'SEARCH CONCEPT :term WITH TYPE :t WITH PREDICATE :p MODE "hybrid" THRESHOLD 0.5 AS OF SEQ :s LIMIT 10 CURSOR :c'
     )
@@ -854,7 +855,10 @@ EXPECT VERSION 3`,
       'DESCRIBE PRIMER MODE "compact"',
       'DESCRIBE COMPATIBILITY FROM :a TO :b',
       'LIST SCHEMA PACKAGES STATUS "active" LIMIT 10',
-      'SEARCH COGNITION :term MODE "hybrid" THRESHOLD 0.5',
+      'SEARCH EVIDENCE :term MODE "hybrid" THRESHOLD 0.5',
+      'DEFINE PREDICATE "lives_in" {description: "home", functional: true}',
+      'DEFINE CONCEPT TYPE :name {description: "A place"}',
+      'FIND(?x) WHERE { ?x SEARCH CONCEPT :q WITH TYPE "Person" MODE "semantic" THRESHOLD 0.4 LIMIT 5 } ORDER BY ?x.retrieval.score DESC',
       'VERIFY SCHEMA PACKAGE :a',
       'VALIDATE KML :c WITH {strict: true}',
       'PREVIEW IMPORT CAPSULE :c INTO :s',
@@ -1092,4 +1096,43 @@ describe('budget', () => {
     assert.doesNotThrow(() => checkBudget(`"a\\\n${deep}"`))
     assert.doesNotThrow(() => checkBudget(`"${deep}"`))
   })
+})
+
+describe('draft vocabulary and search patterns', () => {
+  test('DEFINE parses both symbol kinds and stays out of MUTATE', () => {
+    const predicate = parseOne('DEFINE PREDICATE "lives_in" {description: "home", functional: true}')
+    assert.equal(predicate.kind, 'DefineStatement')
+    assert.equal(predicate.defineKind, 'PREDICATE')
+    assert.equal(parseOne('DEFINE CONCEPT TYPE "Place" {description: "A place"}').defineKind, 'CONCEPT_TYPE')
+    assert.ok(parseErrors('DEFINE TYPE "Place" {}').length > 0)
+    assert.ok(parseErrors('MUTATE { DEFINE PREDICATE "x" {description: "d"} }').length > 0)
+  })
+
+  test('a Search Pattern binds hits inside FIND and requires LIMIT', () => {
+    const find = parseOne('FIND(?x) WHERE { ?x SEARCH CONCEPT :q WITH TYPE "Person" LIMIT 5 }')
+    const pattern = find.where.patterns[0]
+    assert.equal(pattern.kind, 'SearchPattern')
+    assert.equal(pattern.searchKind, 'CONCEPT')
+    assert.ok(parseErrors('FIND(?x) WHERE { ?x SEARCH CONCEPT :q }').length > 0)
+    assert.ok(parseErrors('FIND(?x) WHERE { ?x SEARCH CONCEPT :q LIMIT 5 CURSOR :c }').length > 0)
+  })
+
+  test('a Search Pattern never decides absence or a mutation target', () => {
+    assert.ok(parseErrors('FIND(?x) WHERE { ?x {type: "T"} NOT { ?y SEARCH CONCEPT :q LIMIT 3 } }').length > 0)
+    assert.ok(parseErrors('FIND(?x) WHERE { ?x {type: "T"} NOT { OPTIONAL { ?y SEARCH CONCEPT :q LIMIT 3 } } }').length > 0)
+    assert.ok(parseErrors('UPDATE ?x SET ATTRIBUTES {a: 1} WHERE { ?x SEARCH CONCEPT :q LIMIT 3 }').length > 0)
+    const optional = parse('FIND(?x) WHERE { OPTIONAL { ?x SEARCH CONCEPT :q LIMIT 3 } } LIMIT 3')
+    assert.equal(optional.diagnostics.filter((d) => d.severity === 'error').length, 0)
+  })
+})
+
+test('ASSERT from captured evidence without at is flagged: asserted_at is the start key (Spec §13.2, §25.4)', () => {
+  const late = diagnose('ASSERT (:alice, "lives_in", :beijing) {by: :alice, mode: "stated", evidence: :msg}')
+  assert.ok(late.some((d) => d.code === 'KIP_2102' && d.severity === 'info'))
+  const dated = diagnose('ASSERT (:alice, "lives_in", :beijing) {by: :alice, mode: "stated", evidence: :msg, at: :observed_at}')
+  assert.ok(!dated.some((d) => d.code === 'KIP_2102'))
+  const started = diagnose('ASSERT (:alice, "lives_in", :beijing) {by: :alice, mode: "stated", evidence: :msg, valid: {from: :moved_at}}')
+  assert.ok(!started.some((d) => d.code === 'KIP_2102'))
+  const uncited = diagnose('ASSERT (:alice, "lives_in", :beijing) {by: :alice, mode: "stated"}')
+  assert.ok(!uncited.some((d) => d.code === 'KIP_2102'))
 })
