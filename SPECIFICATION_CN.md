@@ -1183,6 +1183,8 @@ expired (已过期)
 
 废弃替代不是普通的分歧争议。
 
+若只更正数值，Formation **必须**显式保留被更正的现实世界有效区间，并将 `asserted_at` 设为此次更正的声明时间。复制原先写明的区间端点；原 `from` 缺失时，将其显式写为 `{latest: <原 asserted_at>}`，不能再次省略。否则新断言会以更正时刻作为缺省上界，使此前时间的正确值变为不确定（英文规范 §25.2）。若更正同时修改区间，则写入来源实际更正后的区间；supersession 不自动推断或继承有效时间。
+
 ---
 
 ## 14.3 已过期 (Expired)
@@ -6843,6 +6845,8 @@ ASSERT (:alice, "prefers", :dark_mode) {
 
 **更正 —— 原先的主张是错误的。** Alice 当初说的是 `+08:00`，但她实际意思是 `+07:00`。早先的主张从来就没有正确过：建立新证据，断言新值，并废弃替代（supersede）旧断言：
 
+其中 `:time` 为更正的声明时间，`:corrected_valid_time` 按 §14.2 保留原有效区间；原起点缺失时，显式写为 `{latest: <原 asserted_at>}`。
+
 ```prolog
 MUTATE {
   CREATE EVIDENCE ?e {
@@ -6874,7 +6878,8 @@ MUTATE {
       stance: "support",
       mode: "stated",
       confidence: 1.0,
-      asserted_at: :time
+      asserted_at: :time,
+      valid_time: :corrected_valid_time
     }
 
     SET STRUCTURAL {

@@ -151,11 +151,17 @@ export function project(candidates, { functional = false, functional_by = false,
       if (functional) break
     }
   }
-  const slot_status = out.some(r => r.status === 'contested') ? 'contested' :
-    out.some(r => r.status === 'accepted') ? 'accepted' :
-    out.some(r => r.status === 'uncertain') ? 'uncertain' : 'insufficient'
-  return { status: slot_status, accepted_values: out.filter(r => r.status === 'accepted').map(r => r.value),
-    candidates: out.map(({ support_rows, ...row }) => ({ ...row, slot_status })) }
+  const statusOf = list => list.some(r => r.status === 'contested') ? 'contested' :
+    list.some(r => r.status === 'accepted') ? 'accepted' :
+    list.some(r => r.status === 'uncertain') ? 'uncertain' : 'insufficient'
+  const partitionStatus = new Map([...new Set(out.map(r => r.partition))]
+    .map(partition => [partition, statusOf(out.filter(r => r.partition === partition))]))
+  const status = statusOf(out)
+  // The top-level status summarizes this oracle call; each candidate names its
+  // own slot, which is a subject–predicate–partition triple for functional_by.
+  return { status, accepted_values: out.filter(r => r.status === 'accepted').map(r => r.value),
+    candidates: out.map(({ support_rows, ...row }) => ({ ...row,
+      slot_status: functional_by ? partitionStatus.get(row.partition) : status })) }
 }
 
 /** kip:memory-default precedence (§21.13): the first rule under which one

@@ -45,7 +45,30 @@
     }
   ],
   "setup": [
-    "MUTATE {\n  CREATE CONCEPT ?alice { TYPE \"Person\" NAME \"Alice\" }\n  CREATE CONCEPT ?bob { TYPE \"Person\" NAME \"Bob\" }\n  CREATE CONCEPT ?carol { TYPE \"Person\" NAME \"Carol\" }\n  CREATE CONCEPT ?dave { TYPE \"Person\" NAME \"Dave\" }\n  CREATE CONCEPT ?sensor { TYPE \"Person\" NAME \"Sensor\" }\n  CREATE CONCEPT ?brain { TYPE \"Person\" NAME \"Brain\" }\n  CREATE CONCEPT ?beijing { TYPE \"Place\" NAME \"Beijing\" }\n  CREATE CONCEPT ?shanghai { TYPE \"Place\" NAME \"Shanghai\" }\n  CREATE CONCEPT ?berlin { TYPE \"Place\" NAME \"Berlin\" }\n  CREATE CONCEPT ?austin { TYPE \"Place\" NAME \"Austin\" }\n  CREATE CONCEPT ?dallas { TYPE \"Place\" NAME \"Dallas\" }\n  CREATE CONCEPT ?campus { TYPE \"Place\" NAME \"Acme campus\" }\n  CREATE CONCEPT ?dark { TYPE \"ColorScheme\" NAME \"Dark\" }\n  CREATE CONCEPT ?light { TYPE \"ColorScheme\" NAME \"Light\" }\n  CREATE CONCEPT ?vim { TYPE \"Editor\" NAME \"Vim\" }\n  ENSURE PROPOSITION ?p_bj (?alice, \"lives_in\", ?beijing)\n  ENSURE PROPOSITION ?p_sh (?alice, \"lives_in\", ?shanghai)\n  ENSURE PROPOSITION ?p_be (?carol, \"lives_in\", ?berlin)\n  ENSURE PROPOSITION ?p_dark (?alice, \"prefers\", ?dark)\n  ENSURE PROPOSITION ?p_light (?alice, \"prefers\", ?light)\n  ENSURE PROPOSITION ?p_vim (?alice, \"prefers\", ?vim)\n  ENSURE PROPOSITION ?p_tz8 (?alice, \"timezone\", \"+08:00\")\n  ENSURE PROPOSITION ?p_tz9 (?alice, \"timezone\", \"+09:00\")\n  ENSURE PROPOSITION ?p_d1 (?dave, \"timezone\", \"+01:00\")\n  ENSURE PROPOSITION ?p_d2 (?dave, \"timezone\", \"+02:00\")\n  ENSURE PROPOSITION ?p_au (?campus, \"located_in\", ?austin)\n  ENSURE PROPOSITION ?p_da (?campus, \"located_in\", ?dallas)\n  CREATE ASSERTION ?a1 { SET FIELDS { proposition: ?p_bj, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-01-10T00:00:00.000Z\" } }\n  CREATE ASSERTION ?a2 { SET FIELDS { proposition: ?p_sh, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-09-10T00:00:00.000Z\", valid_time: { from: \"2026-09-01T00:00:00.000Z\" } } }\n  CREATE ASSERTION ?a3 { SET FIELDS { proposition: ?p_be, asserted_by: ?carol, stance: \"support\", mode: \"stated\", asserted_at: \"2026-03-01T00:00:00.000Z\", valid_time: { from: { earliest: \"2026-01-01T00:00:00.000Z\", latest: \"2026-12-31T23:59:59.999Z\" } } } }\n  CREATE ASSERTION ?a4 { SET FIELDS { proposition: ?p_dark, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-01-01T00:00:00.000Z\", valid_time: { from: \"2026-01-01T00:00:00.000Z\" } } }\n  CREATE ASSERTION ?a5 { SET FIELDS { proposition: ?p_light, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-09-01T00:00:00.000Z\", valid_time: { from: \"2026-09-01T00:00:00.000Z\" } } }\n  CREATE ASSERTION ?a6 { SET FIELDS { proposition: ?p_vim, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-02-01T00:00:00.000Z\", valid_time: { from: \"2026-02-01T00:00:00.000Z\" } } }\n  CREATE ASSERTION ?a7 { SET FIELDS { proposition: ?p_tz8, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-01-01T00:00:00.000Z\" } }\n  CREATE ASSERTION ?a8 { SET FIELDS { proposition: ?p_tz9, asserted_by: ?bob, stance: \"support\", mode: \"stated\", asserted_at: \"2026-09-01T00:00:00.000Z\" } }\n  CREATE ASSERTION ?a9 { SET FIELDS { proposition: ?p_d1, asserted_by: ?dave, stance: \"support\", mode: \"stated\", asserted_at: \"2026-01-01T00:00:00.000Z\" } }\n  CREATE ASSERTION ?a10 { SET FIELDS { proposition: ?p_d2, asserted_by: ?sensor, stance: \"support\", mode: \"observed\", asserted_at: \"2026-09-05T00:00:00.000Z\" } }\n  CREATE ASSERTION ?a11 { SET FIELDS { proposition: ?p_au, asserted_by: ?brain, stance: \"support\", mode: \"inferred\", asserted_at: \"2026-01-10T00:00:00.000Z\" } }\n  CREATE ASSERTION ?a12 { SET FIELDS { proposition: ?p_da, asserted_by: ?brain, stance: \"support\", mode: \"inferred\", asserted_at: \"2026-09-10T00:00:00.000Z\" } }\n}"
+    "MUTATE {\n  CREATE CONCEPT ?alice { TYPE \"Person\" NAME \"Alice\" }\n  CREATE CONCEPT ?bob { TYPE \"Person\" NAME \"Bob\" }\n  CREATE CONCEPT ?carol { TYPE \"Person\" NAME \"Carol\" }\n  CREATE CONCEPT ?dave { TYPE \"Person\" NAME \"Dave\" }\n  CREATE CONCEPT ?sensor { TYPE \"Person\" NAME \"Sensor\" }\n  CREATE CONCEPT ?brain { TYPE \"Person\" NAME \"Brain\" }\n  CREATE CONCEPT ?beijing { TYPE \"Place\" NAME \"Beijing\" }\n  CREATE CONCEPT ?shanghai { TYPE \"Place\" NAME \"Shanghai\" }\n  CREATE CONCEPT ?berlin { TYPE \"Place\" NAME \"Berlin\" }\n  CREATE CONCEPT ?austin { TYPE \"Place\" NAME \"Austin\" }\n  CREATE CONCEPT ?dallas { TYPE \"Place\" NAME \"Dallas\" }\n  CREATE CONCEPT ?campus { TYPE \"Place\" NAME \"Acme campus\" }\n  CREATE CONCEPT ?dark { TYPE \"ColorScheme\" NAME \"Dark\" }\n  CREATE CONCEPT ?light { TYPE \"ColorScheme\" NAME \"Light\" }\n  CREATE CONCEPT ?vim { TYPE \"Editor\" NAME \"Vim\" }\n  ENSURE PROPOSITION ?p_bj (?alice, \"lives_in\", ?beijing)\n  ENSURE PROPOSITION ?p_sh (?alice, \"lives_in\", ?shanghai)\n  ENSURE PROPOSITION ?p_be (?carol, \"lives_in\", ?berlin)\n  ENSURE PROPOSITION ?p_dark (?alice, \"prefers\", ?dark)\n  ENSURE PROPOSITION ?p_light (?alice, \"prefers\", ?light)\n  ENSURE PROPOSITION ?p_vim (?alice, \"prefers\", ?vim)\n  ENSURE PROPOSITION ?p_tz8 (?alice, \"timezone\", \"+08:00\")\n  ENSURE PROPOSITION ?p_tz9 (?alice, \"timezone\", \"+09:00\")\n  ENSURE PROPOSITION ?p_d1 (?dave, \"timezone\", \"+01:00\")\n  ENSURE PROPOSITION ?p_d2 (?dave, \"timezone\", \"+02:00\")\n  ENSURE PROPOSITION ?p_au (?campus, \"located_in\", ?austin)\n  ENSURE PROPOSITION ?p_da (?campus, \"located_in\", ?dallas)\n  CREATE ASSERTION ?a1 { SET FIELDS { proposition: ?p_bj, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-01-10T00:00:00.000Z\" } }\n  CREATE ASSERTION ?a2 { SET FIELDS { proposition: ?p_sh, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-09-10T00:00:00.000Z\", valid_time: { from: \"2026-09-01T00:00:00.000Z\" } } }\n  CREATE ASSERTION ?a3 { SET FIELDS { proposition: ?p_be, asserted_by: ?carol, stance: \"support\", mode: \"stated\", asserted_at: \"2026-03-01T00:00:00.000Z\", valid_time: { from: { earliest: \"2026-01-01T00:00:00.000Z\", latest: \"2026-12-31T23:59:59.999Z\" } } } }\n  CREATE ASSERTION ?a4 { SET FIELDS { proposition: ?p_dark, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-01-01T00:00:00.000Z\", valid_time: { from: \"2026-01-01T00:00:00.000Z\" } } }\n  CREATE ASSERTION ?a5 { SET FIELDS { proposition: ?p_light, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-09-01T00:00:00.000Z\", valid_time: { from: \"2026-09-01T00:00:00.000Z\" } } }\n  CREATE ASSERTION ?a6 { SET FIELDS { proposition: ?p_vim, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-02-01T00:00:00.000Z\", valid_time: { from: \"2026-02-01T00:00:00.000Z\" } } }\n  CREATE ASSERTION ?a7 { SET FIELDS { proposition: ?p_tz8, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-01-01T00:00:00.000Z\" } }\n  CREATE ASSERTION ?a8 { SET FIELDS { proposition: ?p_tz9, asserted_by: ?bob, stance: \"support\", mode: \"stated\", asserted_at: \"2026-09-01T00:00:00.000Z\" } }\n  CREATE ASSERTION ?a9 { SET FIELDS { proposition: ?p_d1, asserted_by: ?dave, stance: \"support\", mode: \"stated\", asserted_at: \"2026-01-01T00:00:00.000Z\" } }\n  CREATE ASSERTION ?a10 { SET FIELDS { proposition: ?p_d2, asserted_by: ?sensor, stance: \"support\", mode: \"observed\", asserted_at: \"2026-09-05T00:00:00.000Z\" } }\n  CREATE EVIDENCE ?source_austin { SET FIELDS { evidence_class: \"document\", payload: \"Acme campus is in Austin\", observed_at: \"2026-01-10T00:00:00.000Z\" } }\n  CREATE EVIDENCE ?source_dallas { SET FIELDS { evidence_class: \"document\", payload: \"Acme campus is in Dallas\", observed_at: \"2026-09-10T00:00:00.000Z\" } }\n}",
+    {
+      "command": "FIND(?campus.id, ?austin.id, ?dallas.id, ?brain.id, ?e1.id, ?e1._system.version, ?e2.id, ?e2._system.version, ?b.basis)\nWHERE {\n  ?campus CONCEPT {name: \"Acme campus\"}\n  ?austin CONCEPT {name: \"Austin\"}\n  ?dallas CONCEPT {name: \"Dallas\"}\n  ?brain CONCEPT {name: \"Brain\"}\n  ?e1 EVIDENCE {observed_at: \"2026-01-10T00:00:00.000Z\"}\n  ?e2 EVIDENCE {observed_at: \"2026-09-10T00:00:00.000Z\"}\n  ?b BELIEF (?campus, \"located_in\", ?austin)\n}\nFOR TIME \"2026-09-20T00:00:00.000Z\"\nWITH EPISTEMIC {policy: \"kip:memory-default\"}",
+      "capture": {
+        "campus": "/0/0",
+        "austin": "/0/1",
+        "dallas": "/0/2",
+        "brain": "/0/3",
+        "source_austin": "/0/4",
+        "source_austin_version": "/0/5",
+        "source_dallas": "/0/6",
+        "source_dallas_version": "/0/7",
+        "inference_basis": "/0/8",
+        "inference_seq": "/0/8/snapshot_seq"
+      }
+    },
+    "MUTATE {\n  ASSERT ?inference_austin (:campus, \"located_in\", :austin) {\n    by: :brain, mode: \"inferred\", at: \"2026-01-10T00:00:00.000Z\", evidence: :source_austin\n  }\n  ASSERT ?inference_dallas (:campus, \"located_in\", :dallas) {\n    by: :brain, mode: \"inferred\", at: \"2026-09-10T00:00:00.000Z\", evidence: :source_dallas\n  }\n  CREATE ACTIVITY ?derive_austin {\n    SET FIELDS {activity_class: \"extraction\", status: \"completed\"}\n    SET FACET \"DependencyBasis\" {\n      basis_seq: :inference_seq,\n      groups: [{role: \"all_of\", pins: [{id: :source_austin, version: :source_austin_version}]}],\n      policy_basis: :inference_basis\n    }\n    SET STRUCTURAL { (\"inputs\", :source_austin) (\"outputs\", ?inference_austin) }\n  }\n  CREATE ACTIVITY ?derive_dallas {\n    SET FIELDS {activity_class: \"extraction\", status: \"completed\"}\n    SET FACET \"DependencyBasis\" {\n      basis_seq: :inference_seq,\n      groups: [{role: \"all_of\", pins: [{id: :source_dallas, version: :source_dallas_version}]}],\n      policy_basis: :inference_basis\n    }\n    SET STRUCTURAL { (\"inputs\", :source_dallas) (\"outputs\", ?inference_dallas) }\n  }\n}",
+    {
+      "command": "FIND(?alice.id, ?a.id) WHERE { ?alice CONCEPT {name: \"Alice\"} ?p PROPOSITION (?alice, \"timezone\", \"+08:00\") ?a ASSERTION {proposition: ?p} }",
+      "capture": {
+        "alice": "/0/0",
+        "old_timezone_assertion": "/0/1"
+      }
+    }
   ],
   "cases": [
     {
@@ -360,6 +383,26 @@
       },
       "vectors": [
         "KQL-033"
+      ]
+    },
+    {
+      "name": "a value-only correction keeps the original world interval and the correction time",
+      "command": "MUTATE {\n  CREATE EVIDENCE ?correction_source {\n    SET FIELDS {evidence_class: \"user_statement\", payload: \"I meant +07:00, not +08:00\", observed_at: \"2026-09-21T00:00:00.000Z\"}\n  }\n  ASSERT (:alice, \"timezone\", \"+07:00\") {\n    by: :alice, mode: \"stated\", at: \"2026-09-21T00:00:00.000Z\", evidence: ?correction_source,\n    valid: {from: {latest: \"2026-01-01T00:00:00.000Z\"}}\n  } SUPERSEDING :old_timezone_assertion\n}",
+      "expect": {},
+      "vectors": [
+        "KML-017"
+      ]
+    },
+    {
+      "name": "the corrected value answers before the correction was stated",
+      "command": "FIND(?b.status) WHERE { ?alice CONCEPT {name: \"Alice\"} ?b BELIEF (?alice, \"timezone\", \"+07:00\") } FOR TIME \"2026-06-01T00:00:00.000Z\" WITH EPISTEMIC {policy: \"kip:memory-default\"}",
+      "expect": {
+        "result": [
+          "accepted"
+        ]
+      },
+      "vectors": [
+        "KML-017"
       ]
     }
   ]

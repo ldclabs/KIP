@@ -43,7 +43,9 @@ Evidence-only and must remain reachable through recall with the unresolved
 interpretation disclosed.
 
 Three revisions look alike and are written differently. A correction — the actor's
-earlier claim was wrong — supersedes it. A world change — the claim was true for its
+earlier claim was wrong — supersedes it. A value-only correction explicitly preserves
+the corrected interval in `valid`, materializing a missing original start as
+`{latest: <original asserted_at>}`; `at` remains the time of the correction. A world change — the claim was true for its
 time — is one new Assertion from when the change began; temporal succession ends the
 old one and it still answers for its time. A misrecording — you wrote down what the
 actor never said — is a recording repair, never a retraction on their behalf. Do not

@@ -15,7 +15,7 @@
     "validation_schemas": [
       {
         "id": "urn:kip:2.0:schema:projection",
-        "content_digest": "sha256:49e47c1ddb3ba2f788de889d78593d3d4c3ca6d3f318271c102a9d4e53e4fa45"
+        "content_digest": "sha256:a4faae39c8cb0d41b28ed84e13c37d6cf604b054dde94746ccbe61a01ccca13f"
       },
       {
         "id": "urn:kip:2.0:schema:cognitive-records",
@@ -2947,7 +2947,7 @@
   },
   "integrity": {
     "digest_profile": "kip-jcs-safe-v1",
-    "content_digest": "sha256:2d514bea7d32b9b33e7121f3e52c142f22a7263ac4f04070d3df3ce9a0abcd4b",
+    "content_digest": "sha256:afd781dac11f0fa72a9c286c2f495a7090a249547c1e0bc739b4206d4b6ca4cc",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

@@ -22,7 +22,7 @@ test('engine suite: the manifest counts what ships', () => {
 test('engine suite: every setup and case command is current KIP syntax', () => {
   for (const fixture of fixtures) {
     for (const setup of fixture.setup ?? []) {
-      const errors = parse(setup).diagnostics.filter(d => d.severity === 'error')
+      const errors = parse(typeof setup === 'string' ? setup : setup.command).diagnostics.filter(d => d.severity === 'error')
       assert.deepEqual(errors.map(e => e.message), [], `${fixture.name} setup`)
     }
     for (const c of fixture.cases) {
@@ -65,17 +65,20 @@ test('engine suite: the runner passes a faithful engine and fails a wrong one', 
       describe: async () => ({ kind: 'model', name: 'scripted', version: '1', capabilities: [] }),
       resetSpace: async ({ name }) => {
         const fixture = fixtures.find(f => f.name === name)
-        queue = [...(fixture.setup ?? []).map(() => null), ...fixture.cases]
+        queue = [...(fixture.setup ?? []).map(step => typeof step === 'string' ? null : { setup: step }), ...fixture.cases]
       },
       execute: async () => {
         const c = queue.shift()
         if (!c) return { results: [{ result: null }] }
+        if (c.setup) return { results: [{ result: c.setup.capture.inference_basis
+          ? [['C-campus', 'C-austin', 'C-dallas', 'C-brain', 'E-austin', 1, 'E-dallas', 1, { snapshot_seq: 1 }]]
+          : [['C-alice', 'A-old']] }] }
         return transform(c)
       }
     }
   }
   const echo = c => c.expect.error ? { results: [{ error: { code: c.expect.error, message: 'expected' } }] }
-    : { results: [{ result: c.expect.result ?? null }] }
+    : { results: [{ result: c.expect.result ?? c.expect.result_contains ?? null }] }
   const faithful = scripted(echo)
   const good = await runEngineSuite(faithful, fixtures)
   assert.equal(good.overall_status, 'PASS', JSON.stringify(good.tests.filter(t => t.status !== 'PASS').slice(0, 3)))
@@ -86,4 +89,50 @@ test('engine suite: the runner passes a faithful engine and fails a wrong one', 
   const unbuilt = await runEngineSuite(scripted(() => ({ error: { code: 'UnsupportedCapability', message: 'not built' } })), fixtures)
   assert.equal(unbuilt.summary.pass, fixtures.flatMap(f => f.cases).filter(c => c.expect.error === 'UnsupportedCapability').length)
   assert.ok(unbuilt.summary.skip_unsupported > 0)
+})
+
+test('engine suite: META policy checks allow extra policies but require memory-default', async () => {
+  const fixture = fixtures.find(f => f.name === 'meta-shapes')
+  const cases = fixture.cases.filter(c => c.command.includes('EPISTEMIC POLIC'))
+  const run = policies => runEngineSuite({
+    describe: async () => ({ kind: 'model', name: 'policy-list', version: '1' }),
+    resetSpace: async () => {},
+    execute: async ({ operations: [{ command }] }) => ({ results: [{ result:
+      command.startsWith('LIST') ? policies : policies.find(p => p.id === 'kip:memory-default') ?? {} }] })
+  }, [{ name: 'policies', cases }])
+  const standard = { id: 'kip:memory-default', version: 1, method: { score_model: 'none' } }
+  assert.equal((await run([{ id: 'engine:custom' }, standard])).summary.pass, 2)
+  assert.equal((await run([{ id: 'engine:custom' }])).summary.fail, 2)
+})
+
+test('engine suite: inference setup forwards raw read pins and basis, and refuses missing captures', async () => {
+  const fixture = fixtures.find(f => f.name === 'world-time')
+  const basis = (await json('conformance/vectors/cognitive-contracts.json')).basis
+  const read = [['campus-id', 'austin-id', 'dallas-id', 'brain-id', 'source-a', 3, 'source-b', 7, basis]]
+  const run = result => {
+    let writes = 0
+    return runEngineSuite({
+      describe: async () => ({ kind: 'model', name: 'captured-basis', version: '1' }),
+      resetSpace: async () => {},
+      execute: async ({ operations: [{ command, parameters }] }) => {
+        if (command === fixture.setup[1].command) return { results: [{ result }] }
+        if (command === fixture.setup[2]) {
+          writes++
+          assert.deepEqual(parameters.inference_basis, basis)
+          assert.equal(parameters.inference_seq, basis.snapshot_seq)
+          assert.equal(parameters.source_austin, 'source-a')
+          assert.equal(parameters.source_austin_version, 3)
+          assert.equal(parameters.source_dallas_version, 7)
+        }
+        return { results: [{ result: command === 'FIND(COUNT(?a)) WHERE { ?a ASSERTION {} }' ? [writes] : null }] }
+      }
+    }, [{ name: 'inference-capture', setup: fixture.setup.slice(0, 3), cases: [{
+      name: 'derived-write', command: 'FIND(COUNT(?a)) WHERE { ?a ASSERTION {} }', expect: { result: [1] }
+    }] }])
+  }
+  assert.equal((await run(read)).overall_status, 'PASS')
+  const missing = await run([])
+  assert.equal(missing.summary.harness_error, 1)
+  assert.equal(missing.summary.pass, 0)
+  assert.match(missing.tests[0].error.message, /capture result is missing/)
 })

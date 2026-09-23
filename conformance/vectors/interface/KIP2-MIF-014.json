@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "id": "KIP2-MIF-014",
   "title": "A correction changes the answer",
-  "description": "Observe \"my timezone is +08:00\", then revise with change_kind correction (\"I meant +07:00\"). Recall answers +07:00; the old Assertion is superseded by the same actor and remains in history; FOR TIME queries also answer +07:00 because the old claim was never true.",
+  "description": "Observe \"my timezone is +08:00\", then revise with change_kind correction (\"I meant +07:00\"). Recall answers +07:00; the old Assertion is superseded by the same actor and remains in history; FOR TIME queries also answer +07:00 because the old claim was never true. The correction preserves the original world interval explicitly (a missing original start becomes {latest: <original asserted_at>}); its asserted_at is the correction time. Query a world time after the original statement and before the correction.",
   "level": "OPTIONAL",
   "class": "black_box",
   "profiles": [

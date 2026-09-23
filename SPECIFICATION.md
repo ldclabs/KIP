@@ -1237,6 +1237,8 @@ Supersession means a newer Assertion replaces the older Assertion in a compatibl
 
 Supersession is **revision**: the superseding Assertion says the superseded one was wrong — in its value, or in the interval it claimed — for the time it covered. Projection therefore drops a superseded Assertion for every `FOR TIME`, not only for the present.
 
+For a value-only correction, Formation MUST explicitly preserve the world interval being corrected while setting `asserted_at` to the time of the correction. Copy the original written endpoints; if its `from` was absent, materialize `{latest: <original asserted_at>}` instead of omitting it again. Omitting `from` on the replacement would use the correction time (§25.2), making the corrected value indeterminate for earlier times. When the correction also changes the interval, write the interval the source actually corrects; supersession never infers or inherits one automatically.
+
 Supersession is not generic disagreement, and it is not how the world changing over time is recorded. A value that held and then stopped holding is recorded by a new `active` Assertion that begins where the change happened: the earlier open-ended Assertion is ended by its successor through temporal succession (§25.4), stays `active`, and keeps answering "what was true then" (§48.4, Appendix G.4). A value that simply stopped, with no successor value, is ended by a same-actor Assertion of the opposite stance from the change date (Appendix F.2). A runtime and a Brain MUST NOT use supersession to record a world change: superseding a claim that was true for its time rewrites an actor's history into an error the actor never made, and erases history the protocol exists to keep.
 
 Supersession, world change (§25.4) and recording repair (§57.8) are three different histories. Supersession says the actor's claim was wrong; succession says the world moved on; recording repair says the Brain recorded something the actor never claimed.
@@ -7384,6 +7386,8 @@ Two situations look alike and are written differently (§14.2).
 
 **Correction — the earlier claim was wrong.** Alice said `+08:00`; she meant `+07:00`. The new Assertion supersedes the old one, which is dropped from every projection because it was never true:
 
+Here `:time` is the correction time and `:corrected_valid_time` is the preserved interval under §14.2, including `{latest: <original asserted_at>}` when the original had no start.
+
 ```prolog
 MUTATE {
   CREATE EVIDENCE ?e {
@@ -7415,7 +7419,8 @@ MUTATE {
       stance: "support",
       mode: "stated",
       confidence: 1.0,
-      asserted_at: :time
+      asserted_at: :time,
+      valid_time: :corrected_valid_time
     }
 
     SET STRUCTURAL {

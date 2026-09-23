@@ -239,11 +239,12 @@ Optional `context: :contexts` lowers to immutable `context_refs` for task-scoped
 claims. It is independent of Evidence citation roles. The host resolves the context
 set; omission keeps the general scope.
 
-Correction — the same actor's earlier claim was wrong:
+Correction — the same actor's earlier claim was wrong. Keep the interval being corrected in `:corrected_valid_time`; materialize a missing original start as `{latest: <original asserted_at>}`. `:corrected_at` is when the correction was stated, not a new world-time start:
 
 ```kip
 ASSERT ?a (:alice, "timezone", "+01:00") {   // the handle ?a is optional
-  by: :alice, mode: "stated", evidence: :e2
+  by: :alice, mode: "stated", at: :corrected_at, evidence: :e2,
+  valid: :corrected_valid_time
 } SUPERSEDING :old_assertion
 ```
 

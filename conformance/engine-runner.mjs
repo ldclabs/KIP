@@ -56,6 +56,29 @@ export function sameResult(actual, expected, ordered, tagOf = defaultTag) {
   return canonical(left) === canonical(expected)
 }
 
+/** Partial object/array assertions for deployment-extensible META results. */
+export function containsResult(actual, expected) {
+  if (Array.isArray(expected)) return Array.isArray(actual) &&
+    expected.every(item => actual.some(value => containsResult(value, item)))
+  if (expected !== null && typeof expected === 'object') return actual !== null &&
+    typeof actual === 'object' && !Array.isArray(actual) &&
+    Object.entries(expected).every(([key, value]) => Object.hasOwn(actual, key) && containsResult(actual[key], value))
+  return actual === expected
+}
+
+function captureResult(result, path) {
+  if (path === '') return structuredClone(result)
+  if (typeof path !== 'string' || !path.startsWith('/')) throw new Error('capture requires a JSON Pointer')
+  let value = result
+  for (const segment of path.slice(1).split('/')) {
+    const key = segment.replace(/~1/g, '/').replace(/~0/g, '~')
+    if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key))
+      throw new Error(`capture result is missing ${path}`)
+    value = value[key]
+  }
+  return structuredClone(value)
+}
+
 /** A command's answer: the top-level error, the first result's error, or its result. */
 export function flatten(envelope) {
   if (envelope?.error) return { error: { code: envelope.error.code, message: envelope.error.message ?? '' } }
@@ -79,11 +102,17 @@ export async function runEngineSuite(adapter, fixtures) {
   const tagOf = adapter.elementIdTag?.bind(adapter) ?? defaultTag
   const tests = []
   for (const fixture of fixtures) {
+    const parameters = Object.create(null)
     try {
       await adapter.resetSpace({ name: fixture.name, packages: fixture.packages ?? [] })
       for (const setup of fixture.setup ?? []) {
-        const outcome = flatten(await adapter.execute(request(setup)))
+        const step = typeof setup === 'string' ? { command: setup } : setup
+        const outcome = flatten(await adapter.execute(request(step.command, { ...parameters, ...step.params })))
         if (outcome.error) throw new Error(`setup failed with ${outcome.error.code}: ${outcome.error.message}`)
+        // Capture raw read values, including the engine's actual basis. Never
+        // normalize IDs or manufacture snapshot/authorization coordinates.
+        for (const [name, path] of Object.entries(step.capture ?? {}))
+          parameters[name] = captureResult(outcome.result, path)
       }
     } catch (error) {
       tests.push({ id: `${fixture.name}/setup`, status: 'HARNESS_ERROR', error: { code: 'AdapterError', message: error.message } })
@@ -93,7 +122,7 @@ export async function runEngineSuite(adapter, fixtures) {
       const id = `${fixture.name}/${testCase.name}`
       let outcome
       try {
-        outcome = flatten(await adapter.execute(request(testCase.command, testCase.params ?? {}, testCase.envelope ?? {})))
+        outcome = flatten(await adapter.execute(request(testCase.command, { ...parameters, ...testCase.params }, testCase.envelope ?? {})))
       } catch (error) {
         // A lost response may still have committed: stop rather than run on an uncertain Space.
         tests.push({ id, status: 'HARNESS_ERROR', error: { code: 'AdapterError', message: error.message } })
@@ -112,10 +141,11 @@ export async function runEngineSuite(adapter, fixtures) {
         tests.push({ id, status: 'FAIL', failures: [{ phase: 'assertion', message: `expected ${expectedError}, got a result` }] })
         continue
       }
-      const pass = testCase.expect?.result === undefined ||
-        sameResult(outcome.result, testCase.expect.result, testCase.ordered === true, tagOf)
+      const pass = (testCase.expect?.result === undefined ||
+        sameResult(outcome.result, testCase.expect.result, testCase.ordered === true, tagOf)) &&
+        (testCase.expect?.result_contains === undefined || containsResult(outcome.result, testCase.expect.result_contains))
       tests.push(pass ? { id, status: 'PASS' } : { id, status: 'FAIL', failures: [{ phase: 'assertion',
-        message: `expected ${JSON.stringify(testCase.expect.result)}, got ${JSON.stringify(normalize(outcome.result, tagOf))}` }] })
+        message: `expected ${JSON.stringify(testCase.expect)}, got ${JSON.stringify(normalize(outcome.result, tagOf))}` }] })
     }
   }
   const summary = { pass: 0, fail: 0, skip_unsupported: 0, not_applicable: 0, harness_error: 0 }

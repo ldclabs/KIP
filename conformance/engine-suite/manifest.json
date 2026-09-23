@@ -14,7 +14,7 @@
     "verified_against": "the draft before this revision; engines have not yet run the revised cases or the pending fixture"
   },
   "fixtures": 22,
-  "cases": 386,
+  "cases": 388,
   "revised_on_import": [
     {
       "fixture": "core-truth-neutrality.json",
@@ -57,6 +57,18 @@
       "fixture": "cognitive-consistency.json",
       "name": "until is excluded exactly at the boundary",
       "change": "expected status insufficient instead of rejected: an Assertion outside its effective interval contributes nothing, and rejected is never produced from absent support (Spec §14.3, §21.5)"
+    },
+    {
+      "fixture": "cognitive-consistency.json",
+      "change": "context-mismatched candidate expects insufficient: functional alone does not imply complete/exclusive-value rejection"
+    },
+    {
+      "fixture": "meta-shapes.json",
+      "change": "policy enumeration/description check kip:memory-default by partial object matching, permitting other deployment policies without requiring private baseline/forecast settings"
+    },
+    {
+      "fixture": "world-time.json",
+      "change": "inferences now cite Evidence and producing Activities with DependencyBasis pins and projection basis captured from actual setup reads; add value-only correction historical coverage"
     }
   ],
   "not_yet_covered": "world-time.json pins this revision's new behavior (temporal succession, the missing-from default, time bounds, functional_by, kip:memory-default with recency, non-succession of inferences, DEFINE, the Search Pattern) and is marked pending_engine: written from the Specification and the oracle cases, verified by no engine yet. The exposure log and attention recall have oracle and Memory Interface vectors only.",

@@ -144,6 +144,8 @@ DESCRIBE PRIMER MODE "compact"
 
 # 16. 事实更正规范
 
+若只更正数值，Formation **必须**显式保留被更正的现实世界有效区间，并将 `asserted_at` 设为此次更正的声明时间。复制原先写明的区间端点；原 `from` 缺失时，将其显式写为 `{latest: <原 asserted_at>}`，不能再次省略。否则新断言会以更正时刻作为缺省上界，使此前时间的正确值变为不确定（英文规范 §25.2）。若更正同时修改区间，则写入来源实际更正后的区间；supersession 不自动推断或继承有效时间。
+
 显式更正必须完整保留历史血统链：
 
 ```text
@@ -155,7 +157,7 @@ DESCRIBE PRIMER MODE "compact"
 + belief_revision Activity
 ```
 
-语法糖形式：`ASSERT (...) {by: ..., mode: ..., evidence: :e2} SUPERSEDING :a1`。
+语法糖形式：`ASSERT (...) {by: ..., mode: ..., at: :corrected_at, valid: :corrected_valid_time, evidence: :e2} SUPERSEDING :a1`。
 
 严禁直接覆写或原地修改 A1。若 Bob 与 Alice 的意见发生分歧，应创建 Bob 的新断言并存记录，绝不能废弃替代 Alice 的断言。
 

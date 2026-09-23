@@ -140,5 +140,5 @@ export function attentionAfter(items, cursor = null) {
   const fresh = items.filter(item => item.raised_seq > after)
     .sort((a, b) => a.raised_seq - b.raised_seq || (a.ref < b.ref ? -1 : a.ref > b.ref ? 1 : 0))
   const last = fresh.length ? fresh[fresh.length - 1].raised_seq : after
-  return { attention: clone(fresh), attention_cursor: last < 0 ? null : 'attention:' + last }
+  return { attention: clone(fresh), attention_cursor: 'attention:' + last }
 }

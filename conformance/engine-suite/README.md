@@ -51,6 +51,14 @@ The Cognitive Memory Profile is installed and activated for every fixture;
 installing a fixture's own packages is a host decision, never a command. Cases
 in one fixture share one Space and run in order.
 
+A setup entry may also be `{command, params?, capture?}`. `capture` maps parameter
+names to JSON Pointers in that command's raw flattened result, for example
+`{"inference_basis": "/0/8", "inference_seq": "/0/8/snapshot_seq"}`. Captures are
+local to the fixture and supplied to later setup commands and cases; explicit
+`params` override them. A missing path fails setup before any dependent write.
+This lets `world-time.json` pin actual Evidence IDs/versions and an actual
+ProjectionBasis instead of inventing authorization or snapshot coordinates.
+
 ## Adapter
 
 ```js
@@ -76,6 +84,13 @@ numbered before anything under `refs`. Wall-clock timestamps, transaction ids,
 content digests, authorization views and search scores are dropped. Everything
 else is compared exactly; when `ordered` is false a top-level array is compared
 as a multiset.
+
+Deployment-extensible META answers may instead use `expect.result_contains`:
+object members are matched recursively, an expected array requires a matching
+actual row for each expected row, and scalar values must match exactly. Extra
+members and rows are allowed. The policy introspection cases use this to require
+`kip:memory-default` without fixing an engine's additional policy registry or
+private thresholds. Ordinary `expect.result` remains an exact comparison.
 
 ## Coverage
 

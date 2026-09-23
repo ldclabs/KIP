@@ -358,3 +358,41 @@ test('world time: succession narrows written intervals and ignores arrival order
   assert.deepEqual(model.project(candidates, { functional: true, valid_at: '2025-06-01T00:00:00.000Z' }).status, 'insufficient')
   assert.throws(() => model.project([a('x', { earliest: t('05-01'), latest: t('04-01') })], { functional: true, valid_at: t('06-01') }), /time bound/)
 })
+
+test('memory-default precedence results satisfy the wire schema, including recency', () => {
+  for (const entry of cases.projection.filter(c => c.request.policy === 'memory-default')) {
+    const result = model.project(entry.candidates, entry.request)
+    for (const row of result.candidates.filter(c => c.precedence)) {
+      const projection = { status: row.status, candidate_status: row.candidate_status,
+        slot_status: row.slot_status, leading: row.status === 'accepted' ? 'support' : 'none',
+        basis: cases.basis, conflict_refs: row.conflict_refs, conflict_reasons: [],
+        uncertainty: { reasons: row.reasons }, precedence: row.precedence }
+      assert.ok(ajv.validate('urn:kip:2.0:schema:projection', projection), entry.id + JSON.stringify(ajv.errors))
+    }
+  }
+})
+
+test('functional_by: a conflict in one partition does not change another partition slot', () => {
+  const entry = structuredClone(cases.projection.find(c => c.id === 'MEM-028a'))
+  entry.candidates[1].assertions[0].from = entry.candidates[0].assertions[0].from
+  const result = model.project(entry.candidates, entry.request)
+  assert.deepEqual(result.accepted_values, ['vim'])
+  assert.deepEqual(result.candidates.map(c => c.slot_status), ['contested', 'contested', 'accepted'])
+  const editor = model.project([entry.candidates[2]], entry.request)
+  assert.deepEqual(result.candidates[2], editor.candidates[0])
+})
+
+test('a value-only correction preserves earlier answers without backdating asserted_at', () => {
+  const originalTime = '2026-01-01T00:00:00.000Z', correctionTime = '2026-09-21T00:00:00.000Z'
+  const old = { id: 'old', value: '+08:00', assertions: [{ root: 'E1', actor: 'alice', mode: 'stated',
+    stance: 'support', status: 'superseded', trusted: true, asserted_at: originalTime }] }
+  const replacement = { id: 'new', value: '+07:00', assertions: [{ root: 'E2', actor: 'alice', mode: 'stated',
+    stance: 'support', status: 'active', trusted: true, asserted_at: correctionTime, from: { latest: originalTime } }] }
+  const request = { functional: true, valid_at: '2026-06-01T00:00:00.000Z' }
+  assert.deepEqual(model.project([old, replacement], request).accepted_values, ['+07:00'])
+  assert.equal(model.project([old, replacement], { ...request, valid_at: '2025-12-01T00:00:00.000Z' }).status, 'uncertain')
+  const missingInterval = structuredClone(replacement)
+  delete missingInterval.assertions[0].from
+  assert.equal(model.project([old, missingInterval], request).status, 'uncertain')
+  assert.equal(replacement.assertions[0].asserted_at, correctionTime)
+})

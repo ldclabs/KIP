@@ -1374,7 +1374,7 @@ Primary profile: `KIP-Epistemic`
 
 **Expected semantic behavior:** Under `kip:memory-default`, in a request whose context includes `task-9`, a `tabs` value scoped to `task-9` prevails over a general `spaces` value; `spaces` is `uncertain` with `outranked`, and the result discloses `precedence.rule: "context_specificity"`. Alice's statement of her own timezone prevails over Bob's (`first_person_testimony`), even when Bob's is newer. Rule 2 never lets testimony outrank an observation; when their start keys are equal that conflict stays `contested`, and when the observation is newer it prevails by `recency` (as does the newer of two observations), the older value becoming `uncertain` with `outranked`. Recency compares start keys, so a late-recorded old claim never wins. The structural baseline leaves every one of these `contested` (§21.13). Oracle: MEM-029a–g; engine: `world-time.json` (pending).
 
-**Forbidden outcome:** numeric weighting; an outranked value reported `rejected`; recency outside succession used as a tie-break; a result that does not disclose the rule and policy.
+**Forbidden outcome:** numeric weighting; an outranked value reported `rejected`; recency overriding context specificity or first-person precedence; a result that does not disclose the rule and policy.
 
 ---
 
@@ -2746,7 +2746,7 @@ Primary profile: `KIP-KML`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Create revised Assertion from new Evidence. Old Assertion payload remains.
+**Expected semantic behavior:** Create revised Assertion from new Evidence. Old Assertion payload remains. For a value-only correction, explicitly preserve the corrected world interval: a missing original `from` becomes `{latest: <original asserted_at>}`, while the replacement's `asserted_at` records the correction time (§14.2). `FOR TIME` between the original statement and the correction accepts the corrected value; times before the original known start remain uncertain. Engine: `world-time.json` (pending).
 
 **Forbidden outcome:** old Assertion mutation.
 

@@ -226,67 +226,23 @@
       }
     },
     {
-      "name": "a policy list carries the policy, in the wire names both engines write",
+      "name": "policy introspection includes the standard memory policy and permits deployment policies",
       "command": "LIST EPISTEMIC POLICIES",
-      "ordered": true,
+      "ordered": false,
       "expect": {
-        "result": [
+        "result_contains": [
           {
-            "id": "kip:policy:baseline",
-            "version": 2,
-            "eligible_modes": [
-              "observed",
-              "stated",
-              "inferred",
-              "imported"
-            ],
-            "accept_threshold": 0.7,
-            "material_threshold": 0.3,
-            "unstated_confidence_weight": 0.5,
-            "conflict_set_expansion": true,
-            "notes": [
-              "mode gates eligibility and never weights a claim: a mode does not grant trust",
-              "corroboration groups are counted once; repetition is not evidence"
-            ]
-          },
-          {
-            "id": "kip:policy:forecast",
-            "version": 2,
-            "eligible_modes": [
-              "predicted",
-              "inferred"
-            ],
-            "accept_threshold": 0.7,
-            "material_threshold": 0.3,
-            "unstated_confidence_weight": 0.5,
-            "conflict_set_expansion": true,
-            "notes": [
-              "mode gates eligibility and never weights a claim: a mode does not grant trust",
-              "corroboration groups are counted once; repetition is not evidence"
-            ]
+            "id": "kip:memory-default"
           }
         ]
       }
     },
     {
-      "name": "and DESCRIBE answers about one in exactly the same shape",
-      "command": "DESCRIBE EPISTEMIC POLICY \"kip:policy:forecast\"",
+      "name": "the standard memory policy can be described without engine-specific thresholds",
+      "command": "DESCRIBE EPISTEMIC POLICY \"kip:memory-default\"",
       "expect": {
-        "result": {
-          "id": "kip:policy:forecast",
-          "version": 2,
-          "eligible_modes": [
-            "predicted",
-            "inferred"
-          ],
-          "accept_threshold": 0.7,
-          "material_threshold": 0.3,
-          "unstated_confidence_weight": 0.5,
-          "conflict_set_expansion": true,
-          "notes": [
-            "mode gates eligibility and never weights a claim: a mode does not grant trust",
-            "corroboration groups are counted once; repetition is not evidence"
-          ]
+        "result_contains": {
+          "id": "kip:memory-default"
         }
       }
     }

@@ -368,7 +368,7 @@ TRANSITION A1 TO "superseded" BY A2
 belief_revision Activity
 ```
 
-Sugar form: `ASSERT (...) {by: ..., mode: ..., evidence: :e2} SUPERSEDING :a1`.
+Sugar form: `ASSERT (...) {by: ..., mode: ..., at: :corrected_at, valid: :corrected_valid_time, evidence: :e2} SUPERSEDING :a1`. For a value-only correction, preserve the interval being corrected; materialize a missing original start as `{latest: <original asserted_at>}` (Spec §14.2), so historical recall sees the corrected value.
 
 Never overwrite A1. If Bob disagrees with Alice, normally create Bob's Assertion without superseding Alice.
 

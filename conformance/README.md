@@ -4,7 +4,7 @@ Four kinds of evidence live here, and none stands in for another:
 
 | Evidence | What it is | Where |
 | --- | --- | --- |
-| Engine suite | 362 executable cases (command → expected result or error), verified by both reference engines on the previous draft | `engine-suite/`, `--suite engine` |
+| Engine suite | 362 imported cases verified on the previous draft, plus 26 pending world-time cases; imported expectations have since been corrected and need fresh engine verification | `engine-suite/`, `--suite engine` |
 | Vectors | 341 parent-suite vectors in prose, 29 cognitive vectors, 20 Memory Interface scenarios and 17 reliability scenarios; the last three sets ship as JSON harness vectors | `KIP-2.0-*-Tests.md`, `vectors/` |
 | Contract oracles and models | Small executable models of projection, succession, time bounds, dependency validity, learning, processing barriers and attention; bounded formal models | `reference/`, `vectors/cognitive-contracts.json`, `../formal/` |
 | Behavioral evaluation | Held-out, budgeted Brain experiments | `../brain/BrainEvaluation.md` (report status `not_run` until measured) |

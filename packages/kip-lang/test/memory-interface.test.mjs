@@ -298,4 +298,10 @@ test('MIF-019: attention recall is read-only, cursor-ordered and repeatable', ()
       pending_receipts: [], unverified_preconditions: [], action_eligible: true },
     after: [], attention: first.attention, attention_cursor: first.attention_cursor }
   assert.ok(validate('Briefing')(briefing), JSON.stringify(validate('Briefing').errors))
+  const empty = attentionAfter([])
+  assert.ok(validate('Briefing')({ ...briefing, ...empty }), JSON.stringify(validate('Briefing').errors))
+  assert.ok(validate('Request')({ kip_memory: '2.0', operation: 'recall',
+    input: { mode: 'attention', attention_cursor: empty.attention_cursor } }), JSON.stringify(validate('Request').errors))
+  assert.deepEqual(attentionAfter(items, empty.attention_cursor), first)
+  assert.deepEqual(attentionAfter([], empty.attention_cursor), empty)
 })

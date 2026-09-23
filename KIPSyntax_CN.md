@@ -229,11 +229,12 @@ ASSERT (:alice, "prefers", :dark_mode) {
 
 可选的 `context: :contexts` 脱糖为不可变的 `context_refs`，用于任务作用域的主张。它独立于 Evidence 的引用角色。由宿主负责解析上下文集合；若省略则保持全局/通用作用域。
 
-修订——同一行动者此前的陈述被证明是错的：
+修订——同一行动者此前的陈述被证明是错的。`:corrected_valid_time` 保留被更正的区间；原起点缺失时显式写为 `{latest: <原 asserted_at>}`。`:corrected_at` 是此次更正的声明时间，而非新的现实世界起点：
 
 ```kip
 ASSERT ?a (:alice, "timezone", "+01:00") {   // 句柄 ?a 是可选的
-  by: :alice, mode: "stated", evidence: :e2
+  by: :alice, mode: "stated", at: :corrected_at, evidence: :e2,
+  valid: :corrected_valid_time
 } SUPERSEDING :old_assertion
 ```
 

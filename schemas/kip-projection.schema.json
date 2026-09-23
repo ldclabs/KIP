@@ -359,7 +359,8 @@
             "rule": {
               "enum": [
                 "context_specificity",
-                "first_person_testimony"
+                "first_person_testimony",
+                "recency"
               ]
             },
             "prevailed_over": {

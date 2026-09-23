@@ -29,7 +29,7 @@
         "MUTATE"
       ],
       "validated_standing": false,
-      "notes": "Runs on a KIP-Core Nexus with the standard memory package activated: prefers, Commitment and Watch are its symbols, without requiring the dependency-validity and computed-strength engine features of KIP-CognitiveMemory. Dependency validity (Spec §57.6) binds every derived artifact the Brain writes; a Brain that writes none needs no DependencyBasis. Payload-only forgetting uses PURGE PAYLOAD, which KIP-Core already requires. Coverage channels of unadvertised levels (experiences, failures, skills) are not_applicable by construction.",
+      "notes": "Runs on a KIP-Core Nexus with the standard memory package activated: prefers, Commitment and Watch are its symbols, without requiring the dependency-validity and computed-strength engine features of KIP-CognitiveMemory. Dependency validity (Spec §57.6) binds every derived artifact the Brain writes; a Brain that writes none needs no DependencyBasis. Payload-only forgetting uses PURGE PAYLOAD, which KIP-Core already requires. Channels of unadvertised levels still require an authoritative scoped absence or irrelevance determination before not_applicable; retained relevant content that cannot be served makes coverage incomplete.",
       "nexus_package": "kip://profiles/cognitive-memory@2.0.0"
     },
     "memory_experience": {

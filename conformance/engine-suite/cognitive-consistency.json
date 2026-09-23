@@ -138,11 +138,11 @@
       ]
     },
     {
-      "name": "no scoped support is borrowed; matching-context functional opposition remains",
+      "name": "a context-mismatched candidate is insufficient without exclusive completeness",
       "command": "FIND(?b.status) WHERE { ?a CONCEPT {name: \"Ada\"} ?b BELIEF (?a, \"scoped\", \"travel\") } WITH EPISTEMIC {context_refs: [\"C-2\"]}",
       "expect": {
         "result": [
-          "rejected"
+          "insufficient"
         ]
       },
       "vectors": [

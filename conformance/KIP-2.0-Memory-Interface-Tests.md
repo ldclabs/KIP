@@ -26,9 +26,9 @@ measure latency, token cost or semantic formation quality.
 
 ## KIP2-MIF-001 — Minimal memory and truthful bundle discovery
 
-Advertise memory_interface with memory_basic and its prerequisites. Complete ordinary observation, scoped recall, correction, descriptive feedback and governed forgetting without opening a trial. A raw type being installed does not advertise learning. Attempt a learning operation without memory_learning and an unknown required bundle; both fail UnsupportedCapability. Also exercise invalid bundle dependency declarations.
+Advertise memory_interface with memory_basic and its prerequisites. Complete ordinary observation, scoped recall, correction, descriptive feedback and governed forgetting without opening a trial. A raw type being installed does not advertise learning. Attempt a learning operation without memory_learning and an unknown required bundle; both fail UnsupportedCapability. Also exercise invalid bundle dependency declarations. Also connect a memory_basic binding to a Space with an authorized, relevant failed Experience retained through raw KIP. If the binding cannot serve that channel, report failures=incomplete and action_eligible=false, never not_applicable merely because memory_experience is unadvertised.
 
-Expected observations: basic_intents_usable=true, learning_without_bundle="UnsupportedCapability", invalid_bundle_rejected=true.
+Expected observations: basic_intents_usable=true, learning_without_bundle="UnsupportedCapability", invalid_bundle_rejected=true, unserved_retained_failures="incomplete", unserved_retained_action_eligible=false.
 
 Durable postconditions: ordinary_input_opened_trial=false.
 
@@ -132,7 +132,7 @@ Durable postconditions: fact_assertions=1.
 
 ## KIP2-MIF-014 — A correction changes the answer
 
-Observe "my timezone is +08:00", then revise with change_kind correction ("I meant +07:00"). Recall answers +07:00; the old Assertion is superseded by the same actor and remains in history; FOR TIME queries also answer +07:00 because the old claim was never true.
+Observe "my timezone is +08:00", then revise with change_kind correction ("I meant +07:00"). Recall answers +07:00; the old Assertion is superseded by the same actor and remains in history; FOR TIME queries also answer +07:00 because the old claim was never true. The correction explicitly preserves the original world interval (a missing original start becomes `{latest: <original asserted_at>}`) while its `asserted_at` is the correction time. Query a world time after the original statement and before the correction.
 
 Expected observations: answer="+07:00", old_lifecycle="superseded", historical_answer="+07:00".
 

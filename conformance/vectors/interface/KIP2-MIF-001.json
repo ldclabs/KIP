@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "id": "KIP2-MIF-001",
   "title": "Minimal memory and truthful bundle discovery",
-  "description": "Advertise memory_interface with memory_basic and its prerequisites. Complete ordinary observation, scoped recall, correction, descriptive feedback and governed forgetting without opening a trial. A raw type being installed does not advertise learning. Attempt a learning operation without memory_learning and an unknown required bundle; both fail UnsupportedCapability. Also exercise invalid bundle dependency declarations.",
+  "description": "Advertise memory_interface with memory_basic and its prerequisites. Complete ordinary observation, scoped recall, correction, descriptive feedback and governed forgetting without opening a trial. A raw type being installed does not advertise learning. Attempt a learning operation without memory_learning and an unknown required bundle; both fail UnsupportedCapability. Also exercise invalid bundle dependency declarations. Also connect a memory_basic binding to a Space with an authorized, relevant failed Experience retained through raw KIP. If the binding cannot serve that channel, report failures=incomplete and action_eligible=false, never not_applicable merely because memory_experience is unadvertised.",
   "level": "OPTIONAL",
   "class": "black_box",
   "profiles": [
@@ -50,6 +50,20 @@
       "path": "/invalid_bundle_rejected",
       "operator": "equals",
       "expected": true
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/unserved_retained_failures",
+      "operator": "equals",
+      "expected": "incomplete"
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/unserved_retained_action_eligible",
+      "operator": "equals",
+      "expected": false
     }
   ],
   "postconditions": [
