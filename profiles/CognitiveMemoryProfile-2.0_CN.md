@@ -521,11 +521,6 @@ DependencyBasis 是过程记录上的不可变内容，不是重写断言前提�
 结构字段是图拓扑连接，不是语义命题。
 
 ```text
-experienced_by  Experience → Person
-has_step        Experience → ExperienceStep (有序)
-involves        Event/Experience → 相关 Person/Concept
-mentions        Event/Experience/Insight → Concept
-```text
 experienced_by     Experience → Person
 has_step           Experience → ExperienceStep (有序)
 involves           Event/Experience → 相关 Person/Concept

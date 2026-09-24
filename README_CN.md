@@ -6,11 +6,9 @@
 
 **默认开发版本：KIP 2.0，规范性草案。** 仓库根目录承载当前协议与工具。KIP [v1.0-RC11](./v1/README_CN.md) 已冻结，供历史查阅与迁移参考；切换默认入口不会升级现有部署，也不代表 2.0 协议已成为稳定版。
 
-认知一致性修订加入最终信念保证、不可变程序性记录，以及独立版本的记忆模式包（2.2.0），并配有可执行契约检查和有界模型。[Rust](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) 与 [Cloudflare Durable Object](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do) 引擎面向 KIP 2.0 草案；对本次修订的覆盖必须由最新适配器结果确认，不能从早期一致性结果推断。协议继续标为 `2.0-draft`，与已发布工具的版本独立；结构测试不构成真实 Brain 学习成效的证明。
+2.0 的范围已冻结。本次修订让草案成为更好的记忆，而不是更大的契约：世界变迁只需一条断言（时间继承）；粗粒度日期写成时间界限，而不是编造的精确时刻；偏好在其类别之内变化；标准策略（`kip:memory-default`）让各个引擎以相同方式裁决日常冲突；大脑遇到新关系时，可以通过空间的草稿词汇（`DEFINE`）加以定义；检索与信念可在同一次查询中组合（搜索模式）；已触发的 Watch 通过注意力召回送达业务智能体。本次修订也做了减法：不再保留草案包（只有一个 `cognitive-memory@2.0.0`）；可写缓存改为计算视图；认知一致性伴随文档并入主规范；试用与持久工作者移入可选的 `brain/` 伴随文档；Preference 类型被移除 —— 偏好就是一条主张。第二轮审查收紧了新语义的边界：未写明起点的主张不晚于其做出时刻开始；`asserted_at` 是主张做出的时间，而不是被记录的时间；两条推断永不相互继承；其余冲突由标准策略按时间就近裁决。详见[修订记录](./KIP-2.0-Memory-Brain-Resolution_CN.md)。
 
-[认知一致性契约](./KIP-2.0-Cognitive-Consistency_CN.md) 规定最终信念、不可变 Skill 修订、独立尝试、可重放试用与评估、依赖有效性、身份修复及持久工作者。生命周期计数聚合执行尝试；未关联的同任务族结果不会自动成为对照。已存摘要必须在计算依据通过校验后使用。
-
-2026-09-23 可靠性修订采用记忆模式包 **2.2.0** 与带版本标识的 Schema 身份。新增选择依赖、记录修复、因果形成、前瞻性入组、显式分发保证及召回计划。既有的 2.1.0 模式包与固化的 Schema 资源保持不变。[决议与验证](KIP-2.0-Reliability-Resolution_CN.md) 明确区分了协议层工作、已审查的 Anda Brain 实现以及尚未执行的部署/学习门禁。
+[Rust](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) 与 [Cloudflare Durable Object](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do) 引擎面向 KIP 2.0 草案。它们共享的测试套件现以[可执行引擎套件](./conformance/engine-suite/README.md)的形式存放在本仓库；两个引擎通过当前套件的全部用例，包括草稿词汇、废弃替代作用域与计算强度三个固件（anda-db `e70e275`），因此已没有标记为 `pending_engine` 的固件。协议继续标为 `2.0-draft`，与工具版本相互独立；结构测试不构成真实 Brain 学习成效的证明。
 
 ## 从这里开始
 
@@ -46,7 +44,7 @@
 命题存在  ≠  命题为真  ≠  大脑接受该命题
 ```
 
-这就是为什么观点的反转与更正无需付出高昂代价。“其实我现在吃素了”是一条废弃替代旧断言的新断言；下一次执行认知投影时，系统直接报告新值。没有需要就地补丁篡改的可变信念映射表，被替代的旧偏好历史完整可审计，绝不会悄然蒸发。
+更正会创建一条新断言，同时保留旧记录。世界的变化则保留互补的有效时间区间：曾经为真的主张被结束，而不是被宣布为错误。下一次投影会重新评估当前槽位与依赖，历史查询仍能得到此前有效的答案（规范 §14.2）。
 
 证据、溯源与模式定义同样遵循这一理念：[证据（Evidence）](./SPECIFICATION_CN.md#15-证据-evidence)与[活动（Activity）](./SPECIFICATION_CN.md#16-活动-activity)是一等公民元素，而非随意的元数据黑盒；模式定义则存放于带版本控制、指纹摘要锁定的[模式包（Schema Packages）](./SPECIFICATION_CN.md#20-模式包-schema-packages)之中。
 
@@ -61,7 +59,7 @@
 | [`LIST DEPENDENTS`](./SPECIFICATION_CN.md#635-list-dependents-列举依赖方) | 溯源拓扑的有界反向遍历。当修正某一源头时，从其编译派生出的认知 —— 洞察、偏好摘要、技能、自我模型 —— 可在单次操作中被完整发现，而不会悄然失效落后。[§57.5](./SPECIFICATION_CN.md#575-修订与派生认知-revision-and-derived-cognition) 明确了这一规则：根节点的修订**严禁**自动撤回其派生依赖项，而**必须**将它们保留为可复审状态。依赖项是否存续取决于复审裁决，而非协议层规则。 |
 | [`PURGE PAYLOAD`](./SPECIFICATION_CN.md#606-载荷清除-purge-payload-payload-purge) | 销毁 Evidence 元素的观测字节数据，同时完整保留其记录本身：摘要散列、分类、观测时间、来源以及依赖于它的各项引用。实现数据最小化而不破坏溯源血统 —— 基于存留摘要，[独立证据统计与佐证计算](./SPECIFICATION_CN.md#23-认识独立性-epistemic-independence)仍可正常运作。此操作与彻底销毁记录本身的元素[清除（purge）](./SPECIFICATION_CN.md#603-物理清除-purge-purge)严格区分。 |
 
-配套的支撑状态定义在[认知记忆 Profile（Cognitive Memory Profile）](./profiles/CognitiveMemoryProfile-2.0_CN.md)中：[`WorkingState`](./profiles/CognitiveMemoryProfile-2.0_CN.md#512-workingstate工作状态) 是标有 `basis_seq` 的固化恢复摘要，使大脑能从编译后的状态外加增量差分中苏醒，而无需重读全部历史；[`DerivationState`](./profiles/CognitiveMemoryProfile-2.0_CN.md#6-标准-facet) 承载依赖复审写回的 `current | stale | under_review` 状态标志；`MnemonicState.utility` 则记录准入下注（预期该记忆有多大效用）—— 该值刻意与显著性 `salience`、记忆强度 `memory_strength` 以及认知置信度 `confidence` 保持严格分离。
+配套的支撑状态定义在[认知记忆 Profile（Cognitive Memory Profile）](./profiles/CognitiveMemoryProfile-2.0_CN.md)中：[`WorkingState`](./profiles/CognitiveMemoryProfile-2.0_CN.md#512-workingstate工作状态) 是标有 `basis_seq` 的固化恢复摘要，使大脑能从编译后的状态外加增量差分中苏醒，而无需重读全部历史；计算得出的[依赖有效性](./SPECIFICATION_CN.md#576-依赖有效性-dependency-validity)让根源的修订在下一次读取时即可见；`MnemonicState.utility` 则记录准入下注（预期该记忆有多大效用）—— 该值刻意与显著性 `salience`、记忆强度 `memory_strength` 以及认知置信度 `confidence` 保持严格分离。
 
 ## 后果通道
 
@@ -75,7 +73,7 @@
 proposed (提议) → trialed (试用) → adopted (采纳) → revoked (废弃)
 ```
 
-生命周期变迁必须携带经过校验的不可变 EvaluationRecord，提交于 [`lifecycle_verdict`](./profiles/CognitiveMemoryProfile-2.0_CN.md#9-活动-activities) 活动与受守卫的更新（[Validated Learning §7](./brain/KIP-2.0-Validated-Learning_CN.md#7-kml-形式的裁决-the-verdict-as-kml)）之上。审计员可对照不可变的 TrialRecord 重放精确输入；技能的 `current_trial` 仅用于选择该记录，且其 GradingState 属于计算型视图。没有该伴随文档时，技能保持为未验证的候选者 —— 有用、可召回，但绝不晋升。仅有 `trialed → adopted` 必须通过比较性裁决晋升，且撤销门槛绝不高于采纳门槛。同状态监控可在经授权的策略下维持现有地位而无需声明新改进；策略撤回可能包含零个后果。导入的技能以 `proposed` 状态准入且无本地打分，但保持作为未验证候选者可召回。被撤销的技能必须进入新一轮试用后方可重新被采纳。
+生命周期变迁必须携带经过校验的不可变 EvaluationRecord，提交于 [`lifecycle_verdict`](./profiles/CognitiveMemoryProfile-2.0_CN.md#9-活动-activities) 活动与受守卫的更新（[Validated Learning §7](./brain/KIP-2.0-Validated-Learning_CN.md#7-裁决的-kml-表达-the-verdict-as-kml)）之上。审计员可对照不可变的 TrialRecord 重放精确输入；技能的 `current_trial` 仅用于选择该记录，且其 GradingState 属于计算型视图。没有该伴随文档时，技能保持为未验证的候选者 —— 有用、可召回，但绝不晋升。仅有 `trialed → adopted` 必须通过比较性裁决晋升，且撤销门槛绝不高于采纳门槛。同状态监控可在经授权的策略下维持现有地位而无需声明新改进；策略撤回可能包含零个后果。导入的技能以 `proposed` 状态准入且无本地打分，但保持作为未验证候选者可召回。被撤销的技能必须进入新一轮试用后方可重新被采纳。
 
 ## 协议提供客观信号；大脑拥有主观策略
 
@@ -118,7 +116,7 @@ KIP 不定义具体的准入阈值、打断策略、显著性算法、巩固调�
 | [📋 修订记录](./KIP-2.0-Memory-Brain-Resolution_CN.md) | 本次修订的清单与验证；早前版本：[可靠性](./KIP-2.0-Reliability-Resolution_CN.md)、[评审决议](./KIP-2.0-Review-Resolution_CN.md) |
 | [🗂 设计文档](./design/) | 十篇规范统合前的参考性设计草稿，自 2026-09-02 起冻结 |
 
-保留现有中文镜像。本次修订以英文规范源为准，中文镜像不构成另一套语义契约。
+中文镜像跟随英文源文档（本次修订之后于 8c4d187 同步，此后保持一致）；英文源文档具有规范效力，中文镜像不构成另一套语义契约。
 
 项目术语见 [CONTEXT_CN.md](./CONTEXT_CN.md)，相关文章保留在 [post/](./post/)。
 

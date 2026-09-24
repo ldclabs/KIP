@@ -120,7 +120,7 @@ If memory is what makes an agent valuable, the natural move is to make it imposs
 | [Revision records](./KIP-2.0-Memory-Brain-Resolution.md) | This revision's checklist and validation; earlier: [reliability](./KIP-2.0-Reliability-Resolution.md), [review](./KIP-2.0-Review-Resolution.md) |
 | [🗂 Design Notes](./design/) | Ten pre-consolidation rationale documents, frozen 2026-09-02 |
 
-Existing Chinese mirrors are retained but lag this revision, which updated English sources only; mirrors are not an alternative semantic contract.
+Chinese mirrors track the English sources (synchronized after this revision in 8c4d187 and kept in step since); the English sources are normative, and a mirror is not an alternative semantic contract.
 
 Project terminology lives in [CONTEXT.md](./CONTEXT.md); essays remain in [post/](./post/).
 
