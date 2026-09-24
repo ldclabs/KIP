@@ -1019,7 +1019,7 @@ Primary profile: `KIP-Schema`
 
 **Level:** MUST
 
-**Expected semantic behavior:** A Predicate declaring `functional_by: "object_type"` treats candidate objects of one Concept Type lineage as one slot: two supported objects of the same type conflict (or succeed one another for the same actor, §25.4), while objects of different types coexist. `BELIEF SLOT` reports per-partition accepted values. A package declaring both `functional: true` and `functional_by`, or `functional_by` on a Predicate whose object is a Literal, fails validation (§20.15). Oracle: MEM-028a; engine: `world-time.json` (pending).
+**Expected semantic behavior:** A Predicate declaring `functional_by: "object_type"` treats candidate objects of one Concept Type lineage as one slot: two supported objects of the same type conflict (or succeed one another for the same actor, §25.4), while objects of different types coexist. `BELIEF SLOT` reports per-partition accepted values. A package declaring both `functional: true` and `functional_by`, or `functional_by` on a Predicate whose object is a Literal, fails validation (§20.15). Oracle: MEM-028a; engine: `world-time.json`.
 
 **Forbidden outcome:** objects of different types reported as conflicting; one partition's winner suppressing another partition; a package combining `functional: true` with `functional_by` activated.
 
@@ -1364,7 +1364,7 @@ Primary profile: `KIP-Epistemic`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Alice's open-ended `+08:00` from T1 is followed by Alice's `+01:00` from T2 > T1. At T2 or later the slot accepts `+01:00` and the earlier Assertion is `expired` for that projection; before T2 it accepts `+08:00`. No Assertion is superseded, retracted or rewritten, and `HISTORY` shows no lifecycle transition. Bob's later value never ends Alice's. Retracting the successor restores the predecessor. A claim with no `from` is read as `{latest: asserted_at}`, so it is `uncertain` before it was made; `asserted_at` is when the claim was made, so a late-recorded old claim never displaces the current value. Two `inferred` claims without a written `from` never succeed one another: they stay a conflict. Oracle: MEM-026a–n; model: `formal/temporal`; engine: `world-time.json` (pending).
+**Expected semantic behavior:** Alice's open-ended `+08:00` from T1 is followed by Alice's `+01:00` from T2 > T1. At T2 or later the slot accepts `+01:00` and the earlier Assertion is `expired` for that projection; before T2 it accepts `+08:00`. No Assertion is superseded, retracted or rewritten, and `HISTORY` shows no lifecycle transition. Bob's later value never ends Alice's. Retracting the successor restores the predecessor. A claim with no `from` is read as `{latest: asserted_at}`, so it is `uncertain` before it was made; `asserted_at` is when the claim was made, so a late-recorded old claim never displaces the current value. Two `inferred` claims without a written `from` never succeed one another: they stay a conflict. Oracle: MEM-026a–n; model: `formal/temporal`; engine: `world-time.json`.
 
 **Forbidden outcome:** supersession used to record the change; the old value dropped for `FOR TIME` before T2; a different actor's value ending Alice's; stored state changed by projection.
 
@@ -1384,7 +1384,7 @@ Primary profile: `KIP-Epistemic`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Under `kip:memory-default`, in a request whose context includes `task-9`, a `tabs` value scoped to `task-9` prevails over a general `spaces` value; `spaces` is `uncertain` with `outranked`, and the result discloses `precedence.rule: "context_specificity"`. Alice's statement of her own timezone prevails over Bob's (`first_person_testimony`), even when Bob's is newer. Rule 2 never lets testimony outrank an observation; when their start keys are equal that conflict stays `contested`, and when the observation is newer it prevails by `recency` (as does the newer of two observations), the older value becoming `uncertain` with `outranked`. Recency compares start keys, so a late-recorded old claim never wins. The structural baseline leaves every one of these `contested` (§21.13). Oracle: MEM-029a–g; engine: `world-time.json` (pending).
+**Expected semantic behavior:** Under `kip:memory-default`, in a request whose context includes `task-9`, a `tabs` value scoped to `task-9` prevails over a general `spaces` value; `spaces` is `uncertain` with `outranked`, and the result discloses `precedence.rule: "context_specificity"`. Alice's statement of her own timezone prevails over Bob's (`first_person_testimony`), even when Bob's is newer. Rule 2 never lets testimony outrank an observation; when their start keys are equal that conflict stays `contested`, and when the observation is newer it prevails by `recency` (as does the newer of two observations), the older value becoming `uncertain` with `outranked`. Recency compares start keys, so a late-recorded old claim never wins. The structural baseline leaves every one of these `contested` (§21.13). Oracle: MEM-029a–g; engine: `world-time.json`.
 
 **Forbidden outcome:** numeric weighting; an outranked value reported `rejected`; recency overriding context specificity or first-person precedence; a result that does not disclose the rule and policy.
 
@@ -2758,7 +2758,7 @@ Primary profile: `KIP-KML`
 
 **Level:** MUST
 
-**Expected semantic behavior:** Create revised Assertion from new Evidence. Old Assertion payload remains. For a value-only correction, explicitly preserve the corrected world interval: a missing original `from` becomes `{latest: <original asserted_at>}`, while the replacement's `asserted_at` records the correction time (§14.2). `FOR TIME` between the original statement and the correction accepts the corrected value; times before the original known start remain uncertain. Engine: `world-time.json` (pending).
+**Expected semantic behavior:** Create revised Assertion from new Evidence. Old Assertion payload remains. For a value-only correction, explicitly preserve the corrected world interval: a missing original `from` becomes `{latest: <original asserted_at>}`, while the replacement's `asserted_at` records the correction time (§14.2). `FOR TIME` between the original statement and the correction accepts the corrected value; times before the original known start remain uncertain. Engine: `world-time.json`.
 
 **Forbidden outcome:** old Assertion mutation.
 

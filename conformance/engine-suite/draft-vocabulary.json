@@ -1,6 +1,5 @@
 {
   "name": "draft-vocabulary",
-  "status": "pending_engine",
   "description": "The Space's draft vocabulary (§20.16), for an engine that advertises draft_vocabulary. DEFINE adds a Predicate or a Concept Type at the fixed reference kip://local/draft@0.0.0, and the symbol resolves for the next operation: it is listed and described with its package, elements persist its exact reference, and a draft Predicate projects like any other. DEFINE only adds — a name of the same kind that already resolves fails SchemaSymbolConflict — never runs inside MUTATE, needs a description, and never claims authority over the data: no closed world, no exclusive-value completeness, no required attribute or Facet, no member outside its definition. Parameters bind before the checks. Every case requires draft_vocabulary through the request envelope (§71), so an engine without it skips the whole chain.",
   "setup": [
     "MUTATE {\n  CREATE CONCEPT ?ada { TYPE \"Person\" NAME \"Ada\" }\n  CREATE CONCEPT ?grace { TYPE \"Person\" NAME \"Grace\" }\n}",

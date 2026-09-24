@@ -1,6 +1,5 @@
 {
   "name": "supersession-scope",
-  "status": "pending_engine",
   "description": "Supersession stays inside its actor and its scope (§14.2): the replacement has the same canonical actor, the same Proposition or one of the same subject and Predicate lineage, and the same canonical context set. A correction cannot move a general claim into a context or a scoped claim out of one — that would widen or narrow what the actor said — and fails SupersessionMismatch without writing anything; a same-scope correction commits and supersedes.",
   "packages": [
     {

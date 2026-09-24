@@ -11,8 +11,8 @@
       "rs/anda_cognitive_nexus tests/conformance.rs",
       "ts/kip-do test/conformance.test.ts"
     ],
-    "verified_against": "KIP 3251912's suite at anda-db 6a67d602a03d0ed8a1a855b651bf2ee6315d7034: 384 of its 388 cases passed on both engines (Rust tests/conformance.rs; kip-do test/conformance.test.ts under a Node shim, its workerd pool not run) and the 4 DEFINE cases were skipped for draft_vocabulary. Engines have not run the revisions below that post-date it, nor the pending fixtures.",
-    "verified_head": "6a67d602a03d0ed8a1a855b651bf2ee6315d7034"
+    "verified_against": "KIP 597db44's suite at anda-db e70e27500e4c7094da2e0334274aad343db48db6: all 423 cases in its 25 fixtures passed on both engines, none skipped (Rust tests/conformance.rs; kip-do test/conformance.test.ts under a Node shim, its workerd pool not run), including the formerly pending draft-vocabulary.json, supersession-scope.json and mnemonic-strength.json.",
+    "verified_head": "e70e27500e4c7094da2e0334274aad343db48db6"
   },
   "fixtures": 25,
   "cases": 423,
@@ -99,12 +99,16 @@
     {
       "fixture": "draft-vocabulary.json",
       "change": "four pending review regressions: a Predicate can share a Concept Type name and exact ref; review_schema keys include ConceptType/PredicateType so both reviews are created and retry independently"
+    },
+    {
+      "fixtures": [
+        "draft-vocabulary.json",
+        "mnemonic-strength.json",
+        "supersession-scope.json"
+      ],
+      "change": "verified by both engines at anda-db e70e275 and no longer pending_engine"
     }
   ],
-  "not_yet_covered": "The pending fixtures pin contracts no engine has verified yet: draft-vocabulary.json (DEFINE, §20.16), supersession-scope.json (context-compatible supersession, §14.2) and mnemonic-strength.json (computed strength under a pinned policy, §59.1). Promotion of a draft symbol, Capsule mapping of draft symbols, a Principal holding only propose_schema, the exposure log and attention recall have Conformance/Memory Interface vectors and oracle cases only.",
-  "pending_engine": [
-    "draft-vocabulary.json",
-    "mnemonic-strength.json",
-    "supersession-scope.json"
-  ]
+  "not_yet_covered": "No fixture is pending. Promotion of a draft symbol, Capsule mapping of draft symbols, a Principal holding only propose_schema, the exposure log and attention recall have Conformance/Memory Interface vectors and oracle cases only; both engines test promotion and the propose_schema boundary, and the Rust engine Capsule mapping, in their own suites, which is not evidence from this one.",
+  "pending_engine": []
 }

@@ -1,6 +1,5 @@
 {
   "name": "mnemonic-strength",
-  "status": "pending_engine",
   "description": "Decay is computed, not written (§59.1, Profile §6.1): effective_strength is derived at read time from the base memory_strength, its anchor last_metabolized_at and the pinned strength_policy — here the standard kip:strength-half-life-30d. A missing base, anchor or pin, or a pin whose digest does not match, leaves it null, never a default; before its anchor it is the base; far past its anchor it has decayed. Reading never writes it back, and writing it fails like any computed member (§18.2). Results that depend on the read's wall-clock instant are pinned only by bounds far from any test date.",
   "setup": [
     {

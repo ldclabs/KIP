@@ -25,7 +25,11 @@ the Profile has no Preference type, and one boundary case expects `insufficient`
 where an expired value used to be reported `rejected` (§14.3, §21.5). Both engines
 then ran the suite of KIP `3251912` at anda-db `6a67d60`: 384 of its 388 cases
 passed, and the four `DEFINE` cases were skipped because neither engine advertises
-`draft_vocabulary`. `manifest.json` lists the revisions made since.
+`draft_vocabulary`. At anda-db `e70e275` both engines ran the suite of KIP
+`597db44` — 423 cases in 25 fixtures, including the draft vocabulary, supersession
+scope and computed strength fixtures added since — and passed every case with none
+skipped (kip-do under a Node shim; see `manifest.json`). `manifest.json` lists the
+revisions made along the way.
 
 ## Case shape
 
@@ -118,7 +122,8 @@ under `pending_engine` in `manifest.json`: it was written from the Specification
 and the oracle cases, and no engine has verified it yet. The runner executes it
 like any other fixture and names it in the report's `kip.org/evidence.pending_engine`,
 so an engine's pass is new evidence rather than a re-run. The release requires
-every fixture verified. The current pending fixtures are `draft-vocabulary.json`
-(§20.16), `supersession-scope.json` (§14.2) and `mnemonic-strength.json` (§59.1).
+every fixture verified. No fixture is pending at present: the last three,
+`draft-vocabulary.json` (§20.16), `supersession-scope.json` (§14.2) and
+`mnemonic-strength.json` (§59.1), were verified at anda-db `e70e275`.
 A fixture whose every case depends on an optional capability names it in each
 case's `envelope.requires`, so an engine without the capability skips it.

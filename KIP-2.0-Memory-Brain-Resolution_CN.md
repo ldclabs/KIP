@@ -142,3 +142,7 @@
 - `review_schema` 任务同时指明符号类别与确切引用，键为 `review_schema:<kind>:<ref>`，其中类别是 `ConceptType` 或 `PredicateType`。同名类型与谓词因此各有独立任务，重试仍保持幂等。Profile、Brain 卡片、语法卡及中文镜像均已同步。SCHEMA-022 增加键预言机和四个待引擎验证用例，覆盖同名、独立任务与重试；引擎套件现有 423 例，其中 39 例待验证。
 
 已重新生成修改后的 Profile 提示之摘要及其依赖包／胶囊钉固。这些新增内容属于契约／模型证据；待验证引擎用例和修改后的记忆接口场景仍需下游重新执行。
+
+## 引擎验证 — 2026-09-24
+
+K6 已完成。在 anda-db `e70e275`，两个参考引擎实现了草稿词汇、上下文兼容的废弃替代与计算强度，并运行 `597db44` 的套件：25 个固件共 423 例在两个引擎上全部通过，无跳过（Rust `tests/conformance.rs`；kip-do `test/conformance.test.ts` 在 Node 垫片下运行，未运行其 workerd 池）。`draft-vocabulary.json`、`supersession-scope.json` 与 `mnemonic-strength.json` 摘掉 `pending_engine`；manifest 记录了验证所依据的提交，现已没有待验证固件。晋升、草稿符号的胶囊映射以及只持有 `propose_schema` 的主体由引擎各自的测试覆盖，不属于本套件；在此仍是 SCHEMA-023 与 GOV-031 向量。大脑一侧（anda-brain `b174f50`）以 `DEFINE` 起草词汇、排入 `review_schema:<kind>:<ref>`，并通过所有者 API 晋升。KIP 一侧剩余的事项是发布 `@ldclabs/kip-lang` 2.4.1。
