@@ -71,7 +71,7 @@ Brain 可以嵌入在执行动作的智能体中、使用专职模型实现、�
 **recall.** `mode` 为 `answer`（默认）、`action`、`resume` 或 `attention`。
 
 - `resume` 限定于当前任务范围：全局 WorkingState 在所请求的范围内进行过滤或重建，绝不作为另一个任务的工作上下文提供；且恢复简报必须（MUST）包含自该任务上次注意力游标以来在该范围内引发的注意力事项。
-- `attention` 返回 Brain 引发的注意力 —— 触发的 Watch（`watch_fired`）与到期的承诺（`commitment_due`），作为 `AttentionItem` 返回 —— 位于请求的 `attention_cursor` 之后，并附带新游标。每个条目均由某次提交引发：`watch_fire` Activity，或记录承诺到期的 `commitment_review` Activity（Profile §5.7、§17）；条目的 `raised_seq` 即为该提交的 `space_seq`，游标正是以此定序。到期时间的流逝本身不会引发任何事项。主动记忆正是通过此机制在无需推送通道的情况下触达业务智能体；部署环境可以（MAY）额外通过其通告的推送传输协议投递相同条目。注意力召回是只读的：宿主持有游标，且消费条目不会改变记忆中的任何状态。**注意力条目不赋予任何权限**（Profile §5.11）；对其采取行动与任何其他行动一样，必须通过行动网关与 Governance 治理。
+- `attention` 返回 Brain 引发的注意力 —— 触发的 Watch（`watch_fired`）与到期的承诺（`commitment_due`），作为 `AttentionItem` 返回 —— 位于请求的 `attention_cursor` 之后，并附带新游标。每个条目均由某次提交引发：`watch_fire` Activity，或记录承诺到期的 `commitment_review` Activity —— 它按承诺与到期时间设键，因此同一到期时间只会引发一次（Profile §5.7、§17）；条目的 `raised_seq` 即为该提交的 `space_seq`。条目按 `(raised_seq, ref)` 顺序投递，游标标记最后投递的条目：一次提交可以引发多个条目，因此一页可能止于某个 `raised_seq` 的中间，下一页从该条目之后继续，而绝不跳过整个序号。游标绝不越过其所在页未返回的条目，空页返回所给的原游标。到期时间的流逝本身不会引发任何事项。主动记忆正是通过此机制在无需推送通道的情况下触达业务智能体；部署环境可以（MAY）额外通过其通告的推送传输协议投递相同条目。注意力召回是只读的：宿主持有游标，且消费条目不会改变记忆中的任何状态。**注意力条目不赋予任何权限**（Profile §5.11）；对其采取行动与任何其他行动一样，必须通过行动网关与 Governance 治理。
 - `input.context` 是调用方提供的瞬态情境，绝非隐式写入。`detail: "evidence"` 在当前 Governance 治理下展开目标；它不是第六种意图，也不修改任何状态。
 - `input.time` 将 `valid_at`（现实世界时间）与 `as_of_seq`（保留的认知历史）分离。历史读取需要底层能力与保留的历史控制状态支持（规范 §48.6）；不受支持的请求显式报错。比显式固定的 `as_of_seq` 更晚的 `after` 屏障报错 `PreconditionFailed`，而非无限等待或静默推进快照。
 
@@ -85,7 +85,7 @@ misrecorded    Brain 记下了行动者从未说过的话 → 录入修复 (§57
 unspecified    由适配器决定并披露其选择；绝不基于猜测进行废弃替代
 ```
 
-`change_kind` 表达意图，而非废弃替代另一行动者的权限。对于 `misrecorded`，其 Nexus 通告了 `recording_repair` 的 Brain 必须（MUST）使用它；未通告的 Brain 绝不能（MUST NOT）将请求映射为 `correction` 或 `world_change` —— 那将伪造行动者的撤回 —— 而是报错 `UnsupportedCapability`，或在部署环境授予了 `quarantine` 权限时将抽取结果置于隔离区并返回 `partial` 带有相应披露。不明确的行动者、目标、上下文或变更时间保持显式：适配器保留 Evidence 并汇报缺失，而非凭空编造精确的修订；未知的变更时间写入为时间界限，绝不捏造具体时刻（规范 §25.5）。对于仅更正数值的情况，适配器依据规范 §14.2 显式保留被更正的现实世界有效区间；`asserted_at` 保持为更正时间，而非原始陈述时间。每一次连贯的修订都是原子性的。
+`change_kind` 表达意图，而非废弃替代另一行动者的权限。对于 `misrecorded`，其 Nexus 通告了 `recording_repair` 的 Brain 必须（MUST）使用它；未通告的 Brain 绝不能（MUST NOT）将请求映射为 `correction` 或 `world_change` —— 那将伪造行动者的撤回 —— 而是报错 `UnsupportedCapability`，或在部署环境授予了 `quarantine` 权限时将抽取结果置于隔离区并返回 `partial` 带有相应披露。修订所写入的每条断言都从 `source_ref` 取得 `asserted_at`（规范 §13.2）：即来源的观测时间；对于行动者当场作出的陈述，即宿主捕获它的时刻 —— 绝不是形成过程运行的时间。接受无已捕获来源之修订的宿主 API 应把该请求本身捕获为来源，因此其 `asserted_at` 为请求的捕获时间，与规范附录 F.2 中的现在时陈述一致。不明确的行动者、目标、上下文或变更时间保持显式：适配器保留 Evidence 并汇报缺失，而非凭空编造精确的修订；未知的变更时间写入为时间界限，绝不捏造具体时刻（规范 §25.5）。对于仅更正数值的情况，适配器依据规范 §14.2 显式保留被更正的现实世界有效区间；`asserted_at` 保持为更正时间，而非原始陈述时间。每一次连贯的修订都是原子性的。
 
 **feedback.** 自我陈述记录为 `agent_statement`，人类反馈记录为具备归属的 Evidence。只有具备所需决策、尝试与观测器绑定的经授权观测仪器才能写入可评级的结果（已验证学习 §3）。反馈本身绝不会提升 Skill，普通描述性反馈无需学习级别。
 

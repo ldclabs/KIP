@@ -22,8 +22,10 @@ package refs follow the single draft package `cognitive-memory@2.0.0`, one facet
 listing follows the Profile's removal of `TrialState` and `DerivationState`, the
 fixtures' preference options are typed `Option` through an inline package since
 the Profile has no Preference type, and one boundary case expects `insufficient`
-where an expired value used to be reported `rejected` (§14.3, §21.5). The engines
-verified the previous draft; they have not yet run these revisions.
+where an expired value used to be reported `rejected` (§14.3, §21.5). Both engines
+then ran the suite of KIP `3251912` at anda-db `6a67d60`: 384 of its 388 cases
+passed, and the four `DEFINE` cases were skipped because neither engine advertises
+`draft_vocabulary`. `manifest.json` lists the revisions made since.
 
 ## Case shape
 
@@ -58,6 +60,9 @@ local to the fixture and supplied to later setup commands and cases; explicit
 `params` override them. A missing path fails setup before any dependent write.
 This lets `world-time.json` pin actual Evidence IDs/versions and an actual
 ProjectionBasis instead of inventing authorization or snapshot coordinates.
+`mnemonic-strength.json` passes its strength-policy pin as a setup parameter, and
+`conformance/update-digests.mjs` keeps that pin equal to the shipped artifact's
+digest.
 
 ## Adapter
 
@@ -89,12 +94,14 @@ content digests, authorization views and search scores are dropped. Everything
 else is compared exactly; when `ordered` is false a top-level array is compared
 as a multiset.
 
-Deployment-extensible META answers may instead use `expect.result_contains`:
+Deployment-extensible answers may instead use `expect.result_contains`:
 object members are matched recursively, an expected array requires a matching
 actual row for each expected row, and scalar values must match exactly. Extra
 members and rows are allowed. The policy introspection cases use this to require
 `kip:memory-default` without fixing an engine's additional policy registry or
-private thresholds. Ordinary `expect.result` remains an exact comparison.
+private thresholds, the draft-vocabulary cases use it for `DEFINE`'s result and the
+listing of the draft package, whose environment version and extra rows are
+engine-specific, and ordinary `expect.result` remains an exact comparison.
 
 ## Coverage
 
@@ -111,4 +118,7 @@ under `pending_engine` in `manifest.json`: it was written from the Specification
 and the oracle cases, and no engine has verified it yet. The runner executes it
 like any other fixture and names it in the report's `kip.org/evidence.pending_engine`,
 so an engine's pass is new evidence rather than a re-run. The release requires
-every fixture verified; `world-time.json` is the current pending fixture.
+every fixture verified. The current pending fixtures are `draft-vocabulary.json`
+(§20.16), `supersession-scope.json` (§14.2) and `mnemonic-strength.json` (§59.1).
+A fixture whose every case depends on an optional capability names it in each
+case's `envelope.requires`, so an engine without the capability skips it.

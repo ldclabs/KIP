@@ -1576,6 +1576,104 @@
         "principal_id"
       ],
       "additionalProperties": false
+    },
+    "StrengthPolicy": {
+      "type": "object",
+      "description": "A mnemonic strength policy artifact pinned by MnemonicState.strength_policy (Profile §6.1, Spec §59.1). A half_life policy computes effective_strength = memory_strength × 2^(−max(0, t − last_metabolized_at) / half_life_ms), t being the instant the read is evaluated. The pin's artifact_ref is policy_id; an unknown policy or a digest mismatch leaves effective_strength null.",
+      "properties": {
+        "format": {
+          "const": "KIP-Strength-Policy"
+        },
+        "format_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "method": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "half_life"
+            },
+            "half_life_ms": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "before_anchor": {
+              "const": "base"
+            },
+            "range": {
+              "const": "[0,1]"
+            }
+          },
+          "required": [
+            "kind",
+            "half_life_ms"
+          ],
+          "additionalProperties": false
+        },
+        "non_effects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "canonicalization": {
+          "type": "object"
+        },
+        "integrity": {
+          "type": "object",
+          "properties": {
+            "digest_profile": {
+              "const": "kip-jcs-safe-v1"
+            },
+            "content_digest": {
+              "$ref": "urn:kip:2.0:schema:common#/$defs/Digest"
+            },
+            "covers": {
+              "type": "string",
+              "minLength": 1
+            },
+            "signatures": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            }
+          },
+          "required": [
+            "digest_profile",
+            "content_digest"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "format",
+        "format_version",
+        "policy_id",
+        "version",
+        "method",
+        "integrity"
+      ],
+      "additionalProperties": false
     }
   }
 }

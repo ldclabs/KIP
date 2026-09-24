@@ -4,8 +4,8 @@ Four kinds of evidence live here, and none stands in for another:
 
 | Evidence | What it is | Where |
 | --- | --- | --- |
-| Engine suite | 362 imported cases verified on the previous draft, plus 26 pending world-time cases; imported expectations have since been corrected and need fresh engine verification | `engine-suite/`, `--suite engine` |
-| Vectors | 341 parent-suite vectors in prose, 29 cognitive vectors, 20 Memory Interface scenarios and 17 reliability scenarios; the last three sets ship as JSON harness vectors | `KIP-2.0-*-Tests.md`, `vectors/` |
+| Engine suite | 419 cases in 25 fixtures: 384 ran on both reference engines at anda-db `6a67d60` (one has been revised since), and 35 are pending in `draft-vocabulary.json`, `supersession-scope.json` and `mnemonic-strength.json` | `engine-suite/`, `--suite engine` |
+| Vectors | 343 parent-suite vectors in prose, 30 cognitive vectors, 20 Memory Interface scenarios and 17 reliability scenarios; the last three sets ship as JSON harness vectors | `KIP-2.0-*-Tests.md`, `vectors/` |
 | Contract oracles and models | Small executable models of projection, succession, time bounds, dependency validity, learning, processing barriers and attention; bounded formal models | `reference/`, `vectors/cognitive-contracts.json`, `../formal/` |
 | Behavioral evaluation | Held-out, budgeted Brain experiments | `../brain/BrainEvaluation.md` (report status `not_run` until measured) |
 
@@ -27,7 +27,7 @@ When intentionally editing a package, schema or policy artifact, regenerate dige
 
 ## Artifact identities
 
-There is one draft memory package, `kip://profiles/cognitive-memory@2.0.0`, one general domain package, `kip://domains/general@1.0.0`, and one standard policy, `kip:memory-default`. Schema IDs are `urn:kip:2.0:schema:*`. During the draft a revision is identified by its content digest, not by a new version number; earlier draft packages are not retained (Specification Status). Validators load the package's complete digest-pinned closure and refuse a substituted resource (REL-015).
+There is one draft memory package, `kip://profiles/cognitive-memory@2.0.0`, one general domain package, `kip://domains/general@1.0.0`, one standard projection policy, `kip:memory-default`, and one standard strength policy, `kip:strength-half-life-30d`. Schema IDs are `urn:kip:2.0:schema:*`. During the draft a revision is identified by its content digest, not by a new version number; earlier draft packages are not retained (Specification Status). Validators load the package's complete digest-pinned closure and refuse a substituted resource (REL-015).
 
 ## Engine suite
 

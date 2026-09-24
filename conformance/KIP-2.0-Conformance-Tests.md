@@ -1029,11 +1029,23 @@ Primary profile: `KIP-Schema`
 
 **Level:** MUST
 
-**Expected semantic behavior:** With `draft_vocabulary` advertised and `propose_schema` granted, `DEFINE PREDICATE "mentors" {...}` commits alone, advances `schema_environment_version`, publishes a `schema` control change and makes `mentors` resolvable for the next operation under the fixed draft reference `kip://local/draft@0.0.0`. Defining a name that already resolves (a Core, Profile, installed or earlier draft symbol) fails `SchemaSymbolConflict`. A draft Predicate declaring `open_world: false` or `complete: true` fails `ConstraintViolation`. `DEFINE` inside `MUTATE`, or in an `atomic` request with another operation, fails `InvalidSyntax` / `InvalidRequestEnvelope`. Without the capability, `DEFINE` fails `UnsupportedCapability` (§20.16).
+**Expected semantic behavior:** With `draft_vocabulary` advertised and `propose_schema` granted, `DEFINE PREDICATE "mentors" {...}` commits alone, advances `schema_environment_version`, publishes a `schema` control change, returns `{ref: "kip://local/draft@0.0.0/mentors", schema_environment_version}` and makes `mentors` resolvable for the next operation under the fixed draft reference `kip://local/draft@0.0.0`. `LIST SCHEMA PACKAGES` then reports `kip://local/draft@0.0.0` as `active` with a runtime-computed digest, `LIST PREDICATES` and `DESCRIBE PREDICATE` report the exact draft reference, and a Concept created under `DEFINE CONCEPT TYPE "Instrument"` persists `schema_ref = kip://local/draft@0.0.0/Instrument`. Defining a name that already names a symbol of the same kind (a Core, Profile, locked package of any state, or earlier draft symbol) fails `SchemaSymbolConflict`, including an identical repeat without an idempotency key; a reserved Core name conflicts for every kind. A definition without a string `description`, with a member outside §20.16's lists, a draft Predicate declaring `open_world: false` or `complete: true`, and a draft Concept Type declaring a required attribute, a Facet or a Structural Field fail `ConstraintViolation` — also when the offending value arrives through a parameter, because parameters bind before the checks. `DEFINE` inside `MUTATE`, or in an `atomic` request with another operation, fails `InvalidSyntax` / `InvalidRequestEnvelope`. Without the capability, `DEFINE` fails `UnsupportedCapability` (§20.16). Engine fixture: `engine-suite/draft-vocabulary.json`.
 
-**Postconditions:** the package's earlier draft symbols are unchanged; elements written under the draft reference stay readable, and promotion is a Schema Environment migration record, never a declaration in a package artifact (§20.16).
+**Postconditions:** the package's earlier draft symbols are unchanged; activating or migrating another package keeps the draft package in the Schema Environment; elements written under the draft reference stay readable; the defining Brain's `review_schema` SleepTask for the symbol exists once, keyed `review_schema:<exact symbol ref>` (§20.16).
 
-**Forbidden outcome:** an existing symbol changed or shadowed; a closed-world or complete draft Predicate accepted; `DEFINE` committing inside another transaction; a draft symbol used in the same transaction that defined it.
+**Forbidden outcome:** an existing symbol changed or shadowed; a closed-world or complete draft Predicate accepted; a required or Facet-bearing draft type accepted; `DEFINE` committing inside another transaction; a draft symbol used in the same transaction that defined it; the draft package installed Nexus-wide or visible from another Space.
+
+---
+
+## KIP2-SCHEMA-023 — Draft symbols are promoted by lineage mapping and stay home on import
+
+**Level:** MUST where `draft_vocabulary` is advertised
+
+**Expected semantic behavior:** Space S defines `mentors` and writes Assertions under it. A Principal holding `manage_schema` promotes `kip://local/draft/mentors` to `kip://acme/people/mentors` of an installed package: the Schema Environment version advances, `DESCRIBE SCHEMA ENVIRONMENT` reports `lineage_maps [{kind: "PredicateType", from: "kip://local/draft/mentors", to: "kip://acme/people/mentors"}]`, and a `BELIEF SLOT` or Proposition pattern over `mentors` now counts the Assertions written under both references, whose Propositions keep `predicate_ref = kip://local/draft@0.0.0/mentors`. A second promotion of the same draft symbol, a promotion to a symbol of another kind, and a promotion by a Principal holding only `propose_schema` fail (`ConstraintViolation`, `ConstraintViolation`, `NotAuthorized`). `AS OF` a sequence before the promotion reports no mapping. A Capsule exported from S carries its draft symbols as `kip://local/draft@0.0.0/...`; importing it into Space D with a mapping artifact that maps `mentors` to D's own draft symbol or an installed symbol of the same kind writes the mapped exact reference, and importing it without a mapping for a used draft symbol fails `SchemaPackageUnavailable`, naming every unmapped symbol (§20.16, Capsule companion §41.7).
+
+**Postconditions:** no stored `predicate_ref` or `schema_ref` rewritten by the promotion; D's draft vocabulary unchanged by an import that failed; a same-named draft symbol in D never merged with S's by name.
+
+**Forbidden outcome:** implicit promotion; a promotion declared in a package artifact; promotion under `propose_schema`; a source draft symbol matched to the destination's by name or silently written into a synthesized destination package.
 
 ---
 
@@ -1691,7 +1703,7 @@ Primary profile: `KIP-Governance`
 
 **Level:** MUST
 
-**Expected semantic behavior:** A Principal holding only `propose_schema` can `DEFINE` new draft symbols and nothing else: installing, activating or aliasing a package fails `NotAuthorized`, and so does any attempt to change an existing symbol. A Grant naming `propose_schema` where `draft_vocabulary` is not advertised is rejected (§29). Under the single-agent preset (§30.5), `agent` holds `propose_schema` and `owner` alone holds `manage_schema`.
+**Expected semantic behavior:** A Principal holding only `propose_schema` can `DEFINE` new draft symbols and nothing else: installing, activating or aliasing a package, and promoting a draft symbol (SCHEMA-023), fail `NotAuthorized`, and so does any attempt to change an existing symbol. A Grant naming `propose_schema` where `draft_vocabulary` is not advertised is rejected (§29). Under the single-agent preset (§30.5), `agent` holds `propose_schema` and `owner` alone holds `manage_schema`.
 
 **Forbidden outcome:** draft authority reaching installed packages; `propose_schema` accepted where nothing gates it.
 
@@ -2810,17 +2822,17 @@ Primary profile: `KIP-KML`
 
 ---
 
-## KIP2-KML-024 — Maintenance can decay memory_strength
+## KIP2-KML-024 — UPDATE expressions on mnemonic signals read pre-update state
 
 **Level:** MUST
 
 **Expected semantic behavior:** With the baseline update functions supported, seed an eligible Concept with `MnemonicState {memory_strength: 0.8, salience: 0.2}`. One UPDATE assigns `memory_strength: MUL(?m.facets["MnemonicState"].memory_strength, 0.5)` and `salience: ADD(?m.facets["MnemonicState"].memory_strength, 0.1)`. The resulting values are `0.4` and `0.9`, because both expressions read the same pre-update target state (§58.4, §59), independent of assignment order. `CLAMP(x, 0, 1)` enforces those bounds. A read of another joined variable's field in an update expression fails instead of choosing one joined row.
 
-**Missing/type variants:** a missing `memory_strength` passed through `COALESCE(path, 0.5)` initializes the decay input. Without COALESCE, the missing input produces a null expression and skips only that assigned key, while a valid `last_metabolized_at` assignment still commits. On the test Package's open Project attributes, a non-numeric source value likewise skips the numeric-expression target key and preserves its previous value; COALESCE does not coerce that non-null source into a number. A literal null assignment remains a value assignment under KML-012. If every key is skipped or unchanged, that target has no version increment.
+**Missing/type variants:** a missing `memory_strength` passed through `COALESCE(path, :initial)` takes the explicitly supplied initial value — never an invented default such as `0.5` (§59.1). Without COALESCE, the missing input produces a null expression and skips only that assigned key, while a valid `last_metabolized_at` assignment still commits. On the test Package's open Project attributes, a non-numeric source value likewise skips the numeric-expression target key and preserves its previous value; COALESCE does not coerce that non-null source into a number. A literal null assignment remains a value assignment under KML-012. If every key is skipped or unchanged, that target has no version increment.
 
 **Atomic error variants:** wrong arity (ADD/MUL/COALESCE take two arguments; CLAMP takes three), an unsupported function, a forbidden variable reference, or CLAMP with `lo > hi` fails the transaction. A missing bound parameter is `ReferenceError` under §74, not a null input to skip or default. Numeric overflow, non-finite output, an unsafe integral result such as `ADD(9007199254740991, 1)`, and nonzero underflow violate §9.3 and abort all writes. These errors must not be converted into the null-input key-skip path.
 
-**Sweep variant:** seed more eligible Concepts than the chunk limit and execute the §59.1 marker-based decay. Reuse one `cycle_start` across chunks, commit strength and marker together, and exclude marked targets. Each chunk uses a distinct idempotency key; retrying that chunk with its same key replays its retained outcome without applying decay again. Repeating chunks selects every eligible target at most once for that cycle and terminates when fewer than the cap are selected. Concurrent workers need serializable execution or appropriate guards; the marker alone does not establish isolation.
+**Bounded batch variant:** decay itself is computed, never swept (§59.1, MEM-030); what Maintenance writes in batches is explicit reinforcement — a new base and anchor together. Seed more eligible Concepts than the chunk limit and reinforce them in chunks with one `cycle_start` as the new anchor, excluding targets whose anchor already equals it. Each chunk uses a distinct idempotency key; retrying that chunk with its same key replays its retained outcome without reinforcing again. Repeating chunks selects every eligible target at most once for that cycle and terminates when fewer than the cap are selected. Concurrent workers need serializable execution or appropriate guards; the anchor alone does not establish isolation.
 
 **Forbidden outcome:** assignment-order-dependent arithmetic; join-row-dependent values; null-input expressions erasing keys; missing parameters swallowed by COALESCE; partial commits after numeric/Schema errors; using a fresh cycle marker per retry or one idempotency key for all chunks and claiming the sweep completed.
 
@@ -2953,6 +2965,18 @@ Primary profile: `KIP-KML`
 **Postconditions:** every rejected target unchanged in state and version; `act_pending` `completed` with `ended_at` set and topology immutable thereafter.
 
 **Forbidden outcome:** a move accepted from an illegal state; an `EXPECT STATE` clause required or accepted; the same-state move failing.
+
+---
+
+## KIP2-KML-036 — Supersession stays in its actor and its scope
+
+**Level:** MUST
+
+**Expected semantic behavior:** Alice's general `timezone` claim `+08:00` and her claim `+09:00` scoped to context `work` are active. A correction `+07:00` scoped to `work` that supersedes the general claim, and a general correction that supersedes the scoped claim, each fail `SupersessionMismatch` and write nothing; a correction `+07:00` scoped to `work` that supersedes the scoped claim commits and supersedes it. A replacement by another actor fails the same way (KML-019), and a value correction must keep the subject and Predicate lineage (§14.2). Engine fixture: `engine-suite/supersession-scope.json`.
+
+**Postconditions:** the general claim `active`; the scoped claim `superseded` only after the same-scope correction; the replacement's `context_refs` equal to the replaced claim's.
+
+**Forbidden outcome:** a claim moved into or out of a context by supersession; a failed supersession leaving its new Assertion or Proposition behind.
 
 ---
 
@@ -4222,11 +4246,11 @@ historical basis, or a verdict without a validated immutable EvaluationRecord.
 
 **Level:** MUST
 
-**Expected semantic behavior:** A1 — Alice, `timezone`, `+08:00`, `valid_time {from: T0}` open-ended — is active. Alice moved at T1. One transaction writes A1' (`+08:00`, `valid_time {from: T0, until: T1}`) `SUPERSEDING` A1, A2 (`+01:00`, `valid_time {from: T1}`), and a `belief_revision` Activity (Specification §14.2, F.2). Under the deterministic policy: `BELIEF SLOT (alice, "timezone") FOR TIME T1 - 1 day` reports `accepted` `+08:00` from A1'; `FOR TIME T1` and `FOR TIME T1 + 1 day` report `accepted` `+01:00`; `AS OF` the sequence before the transaction with `FOR TIME` now reports `+08:00` (A1 was open-ended then, Appendix G.3/G.4); no time reports `contested`. By contrast the correction of F.2 (`+08:00` was wrong, `+07:00` is right) leaves `FOR TIME T1 - 1 day` reporting `+07:00`, because a superseded claim is dropped for every time.
+**Expected semantic behavior:** A1 — Alice, `timezone`, `+08:00`, `valid_time {from: T0}` open-ended — is active. Alice moved at T1. One Assertion A2 by Alice (`+01:00`, `valid_time {from: T1}`) records the move; temporal succession ends A1 at T1 (Specification §14.2, §25.4, F.2). Under the deterministic policy: `BELIEF SLOT (alice, "timezone") FOR TIME T1 - 1 day` reports `accepted` `+08:00` from A1; `FOR TIME T1` and `FOR TIME T1 + 1 day` report `accepted` `+01:00`, with A1 outside its effective interval; `AS OF` the sequence before A2 with `FOR TIME` now reports `+08:00` (A1 was open-ended then, Appendix G.3/G.4); no time reports `contested`. By contrast the correction of F.2 (`+08:00` was wrong, `+07:00` is right) supersedes A1 and leaves `FOR TIME T1 - 1 day` reporting `+07:00`, because a superseded claim is dropped for every time.
 
-**Postconditions:** A1 `superseded`; A1' and A2 `active`; the two active intervals do not overlap.
+**Postconditions:** A1 and A2 `active`; A1's stored `valid_time` unchanged; no `belief_revision`, supersession or retraction recorded for the move.
 
-**Forbidden outcome:** A1 superseded without A1', leaving `FOR TIME` before T1 `insufficient`; a superseded Assertion counted for any `FOR TIME`; two open intervals producing `contested`.
+**Forbidden outcome:** the move written as a supersession of A1, recording an error Alice never made; a rewritten copy of A1 with a closed interval; two open values producing `contested`; a superseded Assertion counted for any `FOR TIME`.
 
 ---
 
@@ -4289,10 +4313,10 @@ The Specification requires 49 cross-cutting invariants (§102), registered as Pa
 | 41. Portable numbers and canonical artifacts reject silent numeric loss and ambiguous JSON. | MEM-011 |
 | 42. Identity decisions preserve input bindings; supported repair retains raw history and exposes unresolved attribution. | MEM-008 |
 | 43. Governed control changes invalidate dependent computation bases; incomplete stream coverage is not silence. | MEM-007, MEM-009 |
-| 44. A world change is one new Assertion; no one is recorded as having been wrong | EPI-031, MEM-026 |
+| 44. A world change is one new Assertion; no one is recorded as having been wrong | EPI-031, MEM-026, X-018 |
 | 45. Coarse time is a bound; indeterminate support never decides a status | EPI-032, MEM-027 |
 | 46. A policy resolves conflicts only by declared, disclosed rules | EPI-033, MEM-029 |
-| 47. Draft vocabulary only adds and confers no Schema authority | SCHEMA-022, GOV-031 |
+| 47. Draft vocabulary only adds and confers no Schema authority | SCHEMA-022, SCHEMA-023, GOV-031 |
 | 48. A search hit never proves absence or selects a mutation target | KQL-032, KQL-033 |
 | 49. A misrecording is repaired, never an actor withdrawal; exposure is never cognition | REL-004, MIF-017, RT-035 |
 
@@ -4318,7 +4342,7 @@ A full runner SHOULD exercise every reachable error in the claimed profiles.
 | SchemaSymbolAmbiguous | SCHEMA-003 |
 | SchemaSymbolConflict | SCHEMA-022 |
 | SchemaFieldNotFound | SCHEMA-008 |
-| SchemaPackageUnavailable | missing dependency Capsule vector |
+| SchemaPackageUnavailable | missing dependency Capsule vector, SCHEMA-023 |
 | SchemaEnvironmentChanged | SCHEMA-014 |
 | HistoricalSchemaUnavailable | historical-retention negative vector |
 | TypeMismatch | SCHEMA-005/006 / CORE-024 |
@@ -4336,7 +4360,7 @@ A full runner SHOULD exercise every reachable error in the claimed profiles.
 | EvidenceCorrectionRequired | CORE-009 / KML-016 |
 | InvalidLifecycleTransition | KML-035 |
 | RetractionNotAuthorized | GOV-019 / KML-021 |
-| SupersessionMismatch | KML-019 |
+| SupersessionMismatch | KML-019, KML-036 |
 | EvidenceCorrectionConflict | correction-lineage negative vector |
 | ActivityTerminal | CORE-015 |
 | ProjectionTargetUnbound | KQL-020 |

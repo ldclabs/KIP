@@ -11,10 +11,11 @@
       "rs/anda_cognitive_nexus tests/conformance.rs",
       "ts/kip-do test/conformance.test.ts"
     ],
-    "verified_against": "the draft before this revision; engines have not yet run the revised cases or the pending fixture"
+    "verified_against": "KIP 3251912's suite at anda-db 6a67d602a03d0ed8a1a855b651bf2ee6315d7034: 384 of its 388 cases passed on both engines (Rust tests/conformance.rs; kip-do test/conformance.test.ts under a Node shim, its workerd pool not run) and the 4 DEFINE cases were skipped for draft_vocabulary. Engines have not run the revisions below that post-date it, nor the pending fixtures.",
+    "verified_head": "6a67d602a03d0ed8a1a855b651bf2ee6315d7034"
   },
-  "fixtures": 22,
-  "cases": 388,
+  "fixtures": 25,
+  "cases": 419,
   "revised_on_import": [
     {
       "fixture": "core-truth-neutrality.json",
@@ -73,10 +74,33 @@
     {
       "fixture": "world-time.json",
       "change": "the four DEFINE cases require draft_vocabulary through the request envelope (§71), so an engine without that optional capability skips them instead of failing the case that resolves the draft symbol"
+    },
+    {
+      "fixture": "world-time.json",
+      "change": "verified by both engines at anda-db 6a67d60 and no longer pending_engine; its four DEFINE cases moved to draft-vocabulary.json"
+    },
+    {
+      "fixture": "draft-vocabulary.json",
+      "change": "new pending fixture (§20.16): the four DEFINE cases of world-time.json plus listing, description, exact draft references, a draft Concept Type, projection over a draft Predicate, same-kind conflicts, required description, unknown and authority-claiming members, MUTATE placement and parameter binding"
+    },
+    {
+      "fixture": "supersession-scope.json",
+      "change": "new pending fixture (§14.2): supersession across context sets fails SupersessionMismatch and writes nothing; a same-scope correction supersedes"
+    },
+    {
+      "fixture": "mnemonic-strength.json",
+      "change": "new pending fixture (§59.1, Profile §6.1): effective_strength under the standard kip:strength-half-life-30d policy, null for a missing base, anchor or matching pin, and read-only"
+    },
+    {
+      "fixture": "epistemic-projection.json",
+      "name": "a projection reports the policy it ran under",
+      "change": "reads ?b.basis.policy.id under WITH EPISTEMIC {policy: \"kip:memory-default\"}: a projection reports its policy in its basis and has no separate policy member (§27.2), and the case no longer depends on an engine's private default policy name"
     }
   ],
-  "not_yet_covered": "world-time.json pins this revision's new behavior (temporal succession, the missing-from default, time bounds, functional_by, kip:memory-default with recency, non-succession of inferences, DEFINE, the Search Pattern) and is marked pending_engine: written from the Specification and the oracle cases, verified by no engine yet. The exposure log and attention recall have oracle and Memory Interface vectors only.",
+  "not_yet_covered": "The pending fixtures pin contracts no engine has verified yet: draft-vocabulary.json (DEFINE, §20.16), supersession-scope.json (context-compatible supersession, §14.2) and mnemonic-strength.json (computed strength under a pinned policy, §59.1). Promotion of a draft symbol, Capsule mapping of draft symbols, a Principal holding only propose_schema, the exposure log and attention recall have Conformance/Memory Interface vectors and oracle cases only.",
   "pending_engine": [
-    "world-time.json"
+    "draft-vocabulary.json",
+    "mnemonic-strength.json",
+    "supersession-scope.json"
   ]
 }

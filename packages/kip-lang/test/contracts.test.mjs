@@ -280,7 +280,7 @@ test('updated formation/maintenance recipes remain executable command text', asy
 test('portable memory vectors validate and the adapter runner detects wrong state and missing execution evidence', async () => {
   const vectors = await Promise.all((await readdir(new URL('conformance/vectors/memory/',base)))
     .filter(f=>f.endsWith('.json')).sort().map(f=>json('conformance/vectors/memory/'+f)))
-  assert.equal(vectors.length,29)
+  assert.equal(vectors.length,30)
   for (const vector of vectors) assert.ok(ajv.validate('urn:kip:2.0:schema:conformance-test-vector',vector),JSON.stringify(ajv.errors))
   const v=vectors[0]
   const adapter={
@@ -340,6 +340,44 @@ test('policy: kip:memory-default is the structural baseline plus three ordered p
   assert.equal(policy.precedence.outranked_status, 'uncertain')
   const { integrity, ...body } = policy
   assert.equal(hash(body), integrity.content_digest)
+})
+
+test('MEM-030: effective strength is computed under the pinned policy, never defaulted', async () => {
+  const policy = await json('profiles/policy-strength-half-life-30d.json')
+  assert.ok(ajv.validate('urn:kip:2.0:schema:cognitive-records#/$defs/StrengthPolicy', policy), JSON.stringify(ajv.errors))
+  const { integrity, ...body } = policy
+  assert.equal(hash(body), integrity.content_digest)
+  assert.equal(policy.method.half_life_ms, 30 * 24 * 60 * 60 * 1000)
+  const policies = { [policy.policy_id]: policy }
+  for (const entry of cases.strength) {
+    for (const state of [entry.state, ...(entry.variants ?? [])]) {
+      for (const read of entry.reads) {
+        const value = model.effectiveStrength(state, policies, read.at)
+        if (read.expected === null) assert.equal(value, null, entry.id + ' ' + read.at)
+        else assert.ok(Math.abs(value - read.expected) < 1e-12, `${entry.id} ${read.at}: ${value}`)
+      }
+    }
+  }
+  // A read never writes back: the state is untouched, and the package marks the member computed.
+  const before = JSON.stringify(cases.strength[0].state)
+  model.effectiveStrength(cases.strength[0].state, policies, '2026-08-31T00:00:00.000Z')
+  assert.equal(JSON.stringify(cases.strength[0].state), before)
+  // The engine fixture pins the artifact as it ships.
+  const fixture = await json('conformance/engine-suite/mnemonic-strength.json')
+  assert.equal(fixture.setup[0].params.policy.artifact_ref, policy.policy_id)
+  assert.equal(fixture.setup[0].params.policy.content_digest, integrity.content_digest)
+  assert.notEqual(fixture.setup[0].params.mismatched_policy.content_digest, integrity.content_digest)
+})
+
+test('KML-036: supersession keeps its actor and its scope', () => {
+  const old = { actor: 'alice', proposition: 'P-1', subject: 'C-alice', predicate_lineage: 'kip://t/timezone', context_refs: ['C-work'] }
+  assert.equal(model.supersessionCompatible(old, { ...old, proposition: 'P-2', context_refs: ['C-work'] }), true)
+  assert.equal(model.supersessionCompatible(old, { ...old, proposition: 'P-2', context_refs: [] }), false)
+  assert.equal(model.supersessionCompatible({ ...old, context_refs: [] }, { ...old, context_refs: ['C-work'] }), false)
+  assert.equal(model.supersessionCompatible(old, { ...old, actor: 'bob' }), false)
+  assert.equal(model.supersessionCompatible(old, { ...old, proposition: 'P-3', predicate_lineage: 'kip://t/lives_in' }), false)
+  // The context set is canonical: order and repetition do not matter.
+  assert.equal(model.supersessionCompatible({ ...old, context_refs: ['C-a', 'C-b'] }, { ...old, context_refs: ['C-b', 'C-a', 'C-b'] }), true)
 })
 
 test('world time: succession narrows written intervals and ignores arrival order', () => {

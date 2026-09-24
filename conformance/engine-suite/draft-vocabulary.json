@@ -1,0 +1,398 @@
+{
+  "name": "draft-vocabulary",
+  "status": "pending_engine",
+  "description": "The Space's draft vocabulary (§20.16), for an engine that advertises draft_vocabulary. DEFINE adds a Predicate or a Concept Type at the fixed reference kip://local/draft@0.0.0, and the symbol resolves for the next operation: it is listed and described with its package, elements persist its exact reference, and a draft Predicate projects like any other. DEFINE only adds — a name of the same kind that already resolves fails SchemaSymbolConflict — never runs inside MUTATE, needs a description, and never claims authority over the data: no closed world, no exclusive-value completeness, no required attribute or Facet, no member outside its definition. Parameters bind before the checks. Every case requires draft_vocabulary through the request envelope (§71), so an engine without it skips the whole chain.",
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?ada { TYPE \"Person\" NAME \"Ada\" }\n  CREATE CONCEPT ?grace { TYPE \"Person\" NAME \"Grace\" }\n}",
+    {
+      "command": "FIND(?ada.id) WHERE { ?ada CONCEPT {name: \"Ada\"} }",
+      "capture": {
+        "ada": "/0"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "DEFINE adds a Predicate to the draft vocabulary",
+      "command": "DEFINE PREDICATE \"mentors\" {\n  description: \"The subject mentors the object.\",\n  subject: {concept_types: [\"Person\"]},\n  object: {concept_types: [\"Person\"]}\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "result_contains": {
+          "ref": "kip://local/draft@0.0.0/mentors"
+        }
+      },
+      "vectors": [
+        "SCHEMA-022",
+        "GOV-031"
+      ]
+    },
+    {
+      "name": "the draft symbol resolves for the next operation",
+      "command": "FIND(?p) WHERE { ?p (?x, \"mentors\", ?y) }",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "result": []
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "the draft Predicate is listed under the draft package",
+      "command": "LIST PREDICATES",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "result_contains": [
+          {
+            "ref": "kip://local/draft@0.0.0/mentors",
+            "local_name": "mentors",
+            "package_ref": "kip://local/draft@0.0.0",
+            "status": "active"
+          }
+        ]
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "the draft package is an active package of the Space",
+      "command": "LIST SCHEMA PACKAGES",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "result_contains": [
+          {
+            "package_ref": "kip://local/draft@0.0.0",
+            "package_id": "kip://local/draft",
+            "version": "0.0.0",
+            "status": "active"
+          }
+        ]
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "DESCRIBE names the exact draft reference",
+      "command": "DESCRIBE PREDICATE \"mentors\"",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "result_contains": {
+          "ref": "kip://local/draft@0.0.0/mentors",
+          "local_name": "mentors",
+          "package_ref": "kip://local/draft@0.0.0",
+          "definition": {
+            "description": "The subject mentors the object."
+          }
+        }
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "DEFINE adds a Concept Type",
+      "command": "DEFINE CONCEPT TYPE \"Instrument\" {\n  description: \"A musical instrument.\",\n  attributes: {open: true, fields: {family: {type: \"string\", description: \"strings, brass, percussion ...\"}}}\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "result_contains": {
+          "ref": "kip://local/draft@0.0.0/Instrument"
+        }
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "an element of a draft type is written at once",
+      "command": "MUTATE {\n  CREATE CONCEPT ?violin { TYPE \"Instrument\" NAME \"Violin\" SET ATTRIBUTES {family: \"strings\"} }\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {},
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "the element persists the exact draft reference",
+      "command": "FIND(?c.schema_ref) WHERE { ?c CONCEPT {type: \"Instrument\"} }",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "result": [
+          "kip://local/draft@0.0.0/Instrument"
+        ]
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "a draft Predicate can name a draft Concept Type",
+      "command": "DEFINE PREDICATE \"main_instrument\" {\n  description: \"The instrument the subject mainly plays.\",\n  subject: {concept_types: [\"Person\"]},\n  object: {concept_types: [\"Instrument\"]},\n  functional: true\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "result_contains": {
+          "ref": "kip://local/draft@0.0.0/main_instrument"
+        }
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "a claim over a draft Predicate is an ordinary Assertion",
+      "command": "MUTATE {\n  CREATE CONCEPT ?cello { TYPE \"Instrument\" NAME \"Cello\" }\n  ASSERT (:ada, \"main_instrument\", ?cello) {\n    by: :ada, mode: \"stated\", at: \"2026-09-01T00:00:00.000Z\"\n  }\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {},
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "and projects like any other",
+      "command": "FIND(?b.status) WHERE { ?s CONCEPT {name: \"Ada\"} ?o CONCEPT {name: \"Cello\"} ?b BELIEF (?s, \"main_instrument\", ?o) } FOR TIME \"2026-09-20T00:00:00.000Z\"",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "result": [
+          "accepted"
+        ]
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "a name that already resolves fails SchemaSymbolConflict",
+      "command": "DEFINE PREDICATE \"prefers\" {\n  description: \"already a Profile Predicate\"\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "error": "SchemaSymbolConflict"
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "a draft symbol is defined once, even identically",
+      "command": "DEFINE PREDICATE \"mentors\" {\n  description: \"The subject mentors the object.\",\n  subject: {concept_types: [\"Person\"]},\n  object: {concept_types: [\"Person\"]}\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "error": "SchemaSymbolConflict"
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "a Concept Type an installed package names conflicts",
+      "command": "DEFINE CONCEPT TYPE \"Person\" {\n  description: \"another person\"\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "error": "SchemaSymbolConflict"
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "a draft Predicate cannot claim a closed world",
+      "command": "DEFINE PREDICATE \"closed_relation\" {\n  description: \"authority over the data belongs to installed packages\",\n  open_world: false\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "a draft Predicate cannot claim exclusive-value completeness",
+      "command": "DEFINE PREDICATE \"exclusive_relation\" {\n  description: \"one value excludes the others\",\n  functional: true,\n  complete: true\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "a definition needs a description",
+      "command": "DEFINE PREDICATE \"unexplained\" {\n  subject: {concept_types: [\"Person\"]}\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "a member outside the definition is refused",
+      "command": "DEFINE PREDICATE \"tagged\" {\n  description: \"carries an unknown member\",\n  cardinality: 3\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "a draft Concept Type declares no required attribute",
+      "command": "DEFINE CONCEPT TYPE \"Genre\" {\n  description: \"A musical genre.\",\n  attributes: {fields: {label: {type: \"string\", required: true}}}\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "a draft Concept Type declares no Facets",
+      "command": "DEFINE CONCEPT TYPE \"Venue\" {\n  description: \"A concert venue.\",\n  facets: {MnemonicState: {}}\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "DEFINE is never a clause of MUTATE",
+      "command": "MUTATE {\n  DEFINE PREDICATE \"inside\" {description: \"not a clause\"}\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "error": "InvalidSyntax"
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "a parameterized definition binds before it is checked",
+      "command": "DEFINE PREDICATE :name {description: :description}",
+      "params": {
+        "name": "admires",
+        "description": "The subject admires the object."
+      },
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "result_contains": {
+          "ref": "kip://local/draft@0.0.0/admires"
+        }
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "a parameter cannot smuggle in a closed world",
+      "command": "DEFINE PREDICATE \"closed_by_parameter\" {description: \"bound later\", open_world: :open_world}",
+      "params": {
+        "open_world": false
+      },
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    }
+  ]
+}

@@ -65,7 +65,7 @@ Maintenance may be granted read/search/project/maintain/archive/retention/merge 
     "max_transactions": 100
   },
   "parameters": {
-    "strength_policy": {"artifact_ref": "policy:half-life-30d", "content_digest": "sha256:..."},
+    "strength_policy": {"artifact_ref": "kip:strength-half-life-30d", "content_digest": "sha256:..."},
     "event_archive_after_days": 30,
     "skill_review_after_days": 14
   }
@@ -367,7 +367,7 @@ LIMIT 20
 
 # 17. Commitment and Watch Review
 
-Review pending, due-soon, overdue, blocked, fulfilled, and cancelled Commitments. Due time passing does not automatically delete/archive. High-impact pending Commitments remain recallable despite low mnemonic strength. A due Commitment with no Watch reaches attention only through this review: record a `commitment_review` Activity whose `inputs` name the Commitments found due; that commit's `space_seq` is the `raised_seq` of the `commitment_due` attention item (Profile §5.7, Memory Interface §4).
+Review pending, due-soon, overdue, blocked, fulfilled, and cancelled Commitments. Due time passing does not automatically delete/archive. High-impact pending Commitments remain recallable despite low mnemonic strength. A due Commitment with no Watch reaches attention only through this review: for each `pending` or `blocked` Commitment found due, record one `commitment_review` Activity whose `inputs` name it, with `CLIENT KEY "commitment_review:<commitment id>:<due_at>"`; that commit's `space_seq` is the `raised_seq` of the `commitment_due` attention item (Profile §5.7, §17, Memory Interface §4). The key is what keeps the next cycle from raising it again: a replayed key is `no_effect`, and only a new `due_at` raises the Commitment anew.
 
 ```prolog
 FIND(?commitment.id, ?commitment.name, ?commitment.attributes.due_at, ?commitment.attributes.status)
@@ -527,6 +527,8 @@ On stale version: re-read, re-evaluate, retry once with fresh precondition. Do n
 # 31. Schema
 
 Maintenance may inspect Schema but cannot activate/migrate Packages without `manage_schema`. Schema is protected control state.
+
+A `review_schema` SleepTask (keyed `review_schema:<exact symbol ref>`) names one draft symbol (Spec §20.16). Compare it with `LIST TYPES` / `LIST PREDICATES`: a near-synonym of an existing symbol is recorded as an Insight about using that symbol, never as another `DEFINE`; a symbol worth keeping becomes a proposed promotion `{from, to}` in the report for the owner, who alone holds `manage_schema`; an unused one is resolved. Maintenance never promotes a symbol itself.
 
 # 32. Trust
 

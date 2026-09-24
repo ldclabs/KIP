@@ -1865,5 +1865,95 @@
     },
     "comparable": true,
     "uncertainty_passed": true
-  }
+  },
+  "strength": [
+    {
+      "id": "MEM-030a",
+      "name": "one half-life halves the base; before the anchor it is the base",
+      "state": {
+        "memory_strength": 0.8,
+        "last_metabolized_at": "2026-08-01T00:00:00.000Z",
+        "strength_policy": {
+          "artifact_ref": "kip:strength-half-life-30d",
+          "content_digest": "sha256:a50a89b83f937c97cabf0f8371cccfd326f4fdd438b6d7b9ead507d77927b227"
+        }
+      },
+      "reads": [
+        {
+          "at": "2026-08-31T00:00:00.000Z",
+          "expected": 0.4
+        },
+        {
+          "at": "2026-09-30T00:00:00.000Z",
+          "expected": 0.2
+        },
+        {
+          "at": "2026-07-01T00:00:00.000Z",
+          "expected": 0.8
+        },
+        {
+          "at": "2026-08-01T00:00:00.000Z",
+          "expected": 0.8
+        }
+      ]
+    },
+    {
+      "id": "MEM-030b",
+      "name": "a missing base, anchor or pin is unknown, never a default",
+      "state": {
+        "memory_strength": 0.8,
+        "last_metabolized_at": "2026-08-01T00:00:00.000Z"
+      },
+      "variants": [
+        {
+          "last_metabolized_at": "2026-08-01T00:00:00.000Z",
+          "strength_policy": {
+            "artifact_ref": "kip:strength-half-life-30d",
+            "content_digest": "sha256:a50a89b83f937c97cabf0f8371cccfd326f4fdd438b6d7b9ead507d77927b227"
+          }
+        },
+        {
+          "memory_strength": 0.8,
+          "strength_policy": {
+            "artifact_ref": "kip:strength-half-life-30d",
+            "content_digest": "sha256:a50a89b83f937c97cabf0f8371cccfd326f4fdd438b6d7b9ead507d77927b227"
+          }
+        }
+      ],
+      "reads": [
+        {
+          "at": "2026-08-31T00:00:00.000Z",
+          "expected": null
+        }
+      ]
+    },
+    {
+      "id": "MEM-030c",
+      "name": "an unknown policy or a mismatched digest is unknown, never another policy",
+      "state": {
+        "memory_strength": 0.8,
+        "last_metabolized_at": "2026-08-01T00:00:00.000Z",
+        "strength_policy": {
+          "artifact_ref": "kip:strength-half-life-30d",
+          "content_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      },
+      "variants": [
+        {
+          "memory_strength": 0.8,
+          "last_metabolized_at": "2026-08-01T00:00:00.000Z",
+          "strength_policy": {
+            "artifact_ref": "deployment:unknown-policy",
+            "content_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      ],
+      "reads": [
+        {
+          "at": "2026-08-31T00:00:00.000Z",
+          "expected": null
+        }
+      ]
+    }
+  ]
 }

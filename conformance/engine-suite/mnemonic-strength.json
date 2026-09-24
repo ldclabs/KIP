@@ -1,0 +1,107 @@
+{
+  "name": "mnemonic-strength",
+  "status": "pending_engine",
+  "description": "Decay is computed, not written (§59.1, Profile §6.1): effective_strength is derived at read time from the base memory_strength, its anchor last_metabolized_at and the pinned strength_policy — here the standard kip:strength-half-life-30d. A missing base, anchor or pin, or a pin whose digest does not match, leaves it null, never a default; before its anchor it is the base; far past its anchor it has decayed. Reading never writes it back, and writing it fails like any computed member (§18.2). Results that depend on the read's wall-clock instant are pinned only by bounds far from any test date.",
+  "setup": [
+    {
+      "command": "MUTATE {\n  CREATE CONCEPT ?old { TYPE \"Person\" NAME \"Old\" SET FACET \"MnemonicState\" {memory_strength: 0.8, last_metabolized_at: \"2000-01-01T00:00:00.000Z\", strength_policy: :policy} }\n  CREATE CONCEPT ?ahead { TYPE \"Person\" NAME \"Ahead\" SET FACET \"MnemonicState\" {memory_strength: 0.8, last_metabolized_at: \"2999-01-01T00:00:00.000Z\", strength_policy: :policy} }\n  CREATE CONCEPT ?unpinned { TYPE \"Person\" NAME \"Unpinned\" SET FACET \"MnemonicState\" {memory_strength: 0.8, last_metabolized_at: \"2026-01-01T00:00:00.000Z\"} }\n  CREATE CONCEPT ?unanchored { TYPE \"Person\" NAME \"Unanchored\" SET FACET \"MnemonicState\" {memory_strength: 0.8, strength_policy: :policy} }\n  CREATE CONCEPT ?mismatched { TYPE \"Person\" NAME \"Mismatched\" SET FACET \"MnemonicState\" {memory_strength: 0.8, last_metabolized_at: \"2026-01-01T00:00:00.000Z\", strength_policy: :mismatched_policy} }\n}",
+      "params": {
+        "policy": {
+          "artifact_ref": "kip:strength-half-life-30d",
+          "content_digest": "sha256:a50a89b83f937c97cabf0f8371cccfd326f4fdd438b6d7b9ead507d77927b227"
+        },
+        "mismatched_policy": {
+          "artifact_ref": "kip:strength-half-life-30d",
+          "content_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "no pinned policy leaves effective strength unknown, never a default",
+      "command": "FIND(?c.facets[\"MnemonicState\"].effective_strength) WHERE { ?c CONCEPT {name: \"Unpinned\"} }",
+      "expect": {
+        "result": [
+          null
+        ]
+      },
+      "vectors": [
+        "MEM-030"
+      ]
+    },
+    {
+      "name": "no anchor leaves it unknown",
+      "command": "FIND(?c.facets[\"MnemonicState\"].effective_strength) WHERE { ?c CONCEPT {name: \"Unanchored\"} }",
+      "expect": {
+        "result": [
+          null
+        ]
+      },
+      "vectors": [
+        "MEM-030"
+      ]
+    },
+    {
+      "name": "a pin whose digest does not match leaves it unknown",
+      "command": "FIND(?c.facets[\"MnemonicState\"].effective_strength) WHERE { ?c CONCEPT {name: \"Mismatched\"} }",
+      "expect": {
+        "result": [
+          null
+        ]
+      },
+      "vectors": [
+        "MEM-030"
+      ]
+    },
+    {
+      "name": "before its anchor the effective strength is the base",
+      "command": "FIND(?c.facets[\"MnemonicState\"].effective_strength) WHERE { ?c CONCEPT {name: \"Ahead\"} }",
+      "expect": {
+        "result": [
+          0.8
+        ]
+      },
+      "vectors": [
+        "MEM-030"
+      ]
+    },
+    {
+      "name": "far past its anchor the half-life has decayed it",
+      "command": "FIND(?c.name) WHERE { ?c CONCEPT {name: \"Old\"} FILTER(?c.facets[\"MnemonicState\"].effective_strength < 0.001) }",
+      "expect": {
+        "result": [
+          "Old"
+        ]
+      },
+      "vectors": [
+        "MEM-030"
+      ]
+    },
+    {
+      "name": "a read never writes strength back",
+      "command": "FIND(?c.facets[\"MnemonicState\"].memory_strength, ?c.facets[\"MnemonicState\"].last_metabolized_at) WHERE { ?c CONCEPT {name: \"Old\"} }",
+      "expect": {
+        "result": [
+          [
+            0.8,
+            "2000-01-01T00:00:00.000Z"
+          ]
+        ]
+      },
+      "vectors": [
+        "MEM-030"
+      ]
+    },
+    {
+      "name": "effective strength is computed, never written",
+      "command": "UPDATE ?c SET FACET \"MnemonicState\" { effective_strength: 0.9 } WHERE { ?c CONCEPT {name: \"Old\"} }",
+      "expect": {
+        "error": "ConstraintViolation"
+      },
+      "vectors": [
+        "MEM-030"
+      ]
+    }
+  ]
+}

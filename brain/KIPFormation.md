@@ -68,8 +68,11 @@ installed type names the kind, `DEFINE CONCEPT TYPE` it first; never type option
 a catch-all such as `Topic`, under which every preference would compete with every other.
 
 A relation no package names is added once with `DEFINE PREDICATE` (Spec §20.16) when
-the deployment grants `propose_schema`; otherwise keep the material Evidence-only and
-queue a `review_schema` SleepTask. Never bend an unrelated Predicate to fit.
+the deployment grants `propose_schema`, in its own request before the MUTATE that uses
+it, followed by one `review_schema` SleepTask with `CLIENT KEY "review_schema:<ref>"`;
+`SchemaSymbolConflict` means it already exists. Otherwise keep the material
+Evidence-only and queue a `review_schema` SleepTask naming the missing relation for the
+owner. Never bend an unrelated Predicate to fit.
 
 Only observed, supplied process is recorded. Feedback has its actual origin:
 self-report is never a gradable outcome. Ordinary facts and feedback need no trial.

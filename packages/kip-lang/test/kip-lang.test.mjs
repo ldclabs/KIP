@@ -1110,18 +1110,39 @@ describe('draft vocabulary and search patterns', () => {
 
   test('DEFINE cannot claim authority or required structure (Spec §20.15, §20.16)', () => {
     const errors = (source) => diagnose(source).filter((d) => d.severity === 'error').map((d) => d.message)
-    assert.deepEqual(errors('DEFINE PREDICATE "mentors" {description: "d", functional_by: "object_type", object: {concept_types: ["Person"]}}'), [])
-    assert.deepEqual(errors('DEFINE CONCEPT TYPE "Recipe" {description: "d", attributes: {open: true, fields: {cuisine: {type: "string"}}}}'), [])
-    assert.equal(errors('DEFINE PREDICATE "p" {description: "d", open_world: false}').length, 1)
-    assert.equal(errors('DEFINE PREDICATE "p" {description: "d", complete: true}').length, 1)
-    assert.equal(errors('DEFINE PREDICATE "p" {functional: true, functional_by: "object_type"}').length, 1)
-    assert.equal(errors('DEFINE PREDICATE "p" {functional_by: "object_type", object: {literal_types: ["string"]}}').length, 1)
-    assert.equal(errors('DEFINE PREDICATE "p" {functional_by: "object_type", object: {kinds: ["Evidence"]}}').length, 1)
-    assert.deepEqual(errors('DEFINE PREDICATE "p" {description: "d", functional_by: "object_type", object: {kinds: ["Concept"]}}'), [])
-    assert.equal(errors('DEFINE PREDICATE "p" {functional_by: "subject_type"}').length, 1)
-    assert.equal(errors('DEFINE CONCEPT TYPE "T" {facets: ["X"]}').length, 2)
-    assert.equal(errors('DEFINE CONCEPT TYPE "T" {description: "d", attributes: {open: false}}').length, 1)
-    assert.equal(errors('DEFINE CONCEPT TYPE "T" {description: "d", attributes: {fields: {a: {type: "string", required: true}}}}').length, 1)
+    const person = 'object: {concept_types: ["Person"]}'
+    for (const clean of [
+      `DEFINE PREDICATE "mentors" {description: "d", functional_by: "object_type", ${person}}`,
+      'DEFINE PREDICATE "p" {description: "d", functional_by: "object_type", object: {kinds: ["Concept"]}}',
+      'DEFINE PREDICATE "p" {description: :d, open_world: :open_world, complete: :complete}',
+      'DEFINE PREDICATE "p" {description: "d", subject: {concept_types: ["Person"]}, boolean_completeness: false, temporal_conflict: "none"}',
+      'DEFINE CONCEPT TYPE "Recipe" {description: "d", attributes: {open: true, fields: {cuisine: {type: "string", description: "a cuisine"}}}}',
+      'DEFINE CONCEPT TYPE "T" {description: "d", attributes: {fields: {a: {type: ["string", "null"]}}}}'
+    ]) assert.deepEqual(errors(clean), [], clean)
+    for (const [source, count] of [
+      ['DEFINE PREDICATE "p" {description: "d", open_world: false}', 1],
+      ['DEFINE PREDICATE "p" {description: "d", complete: true}', 1],
+      [`DEFINE PREDICATE "p" {description: "d", functional: true, functional_by: "object_type", ${person}}`, 1],
+      ['DEFINE PREDICATE "p" {description: "d", functional_by: "object_type", object: {literal_types: ["string"]}}', 1],
+      ['DEFINE PREDICATE "p" {description: "d", functional_by: "object_type", object: {kinds: ["Evidence"]}}', 1],
+      [`DEFINE PREDICATE "p" {description: "d", functional_by: "subject_type", ${person}}`, 1],
+      // An omitted object is unconstrained, so there is no Concept Type to partition by.
+      ['DEFINE PREDICATE "p" {description: "d", functional_by: "object_type"}', 1],
+      // A description is the only meaning a later reader gets.
+      [`DEFINE PREDICATE "p" {${person}}`, 1],
+      ['DEFINE PREDICATE "p" {description: 3}', 1],
+      ['DEFINE PREDICATE "p" {description: "d", cardinality: 3}', 1],
+      ['DEFINE CONCEPT TYPE "T" {facets: ["X"]}', 2],
+      ['DEFINE CONCEPT TYPE "T" {description: "d", structural_fields: {}}', 1],
+      ['DEFINE CONCEPT TYPE "T" {description: "d", identity: {key: "name"}}', 1],
+      ['DEFINE CONCEPT TYPE "T" {description: "d", attributes: {open: false}}', 1],
+      ['DEFINE CONCEPT TYPE "T" {description: "d", attributes: {value_schema: {}, fields: {}}}', 1],
+      ['DEFINE CONCEPT TYPE "T" {description: "d", attributes: {fields: {a: {type: "string", required: true}}}}', 1],
+      ['DEFINE CONCEPT TYPE "T" {description: "d", attributes: {fields: {a: {type: "string", required: false}}}}', 1],
+      ['DEFINE CONCEPT TYPE "T" {description: "d", attributes: {fields: {a: {type: "string", mutable: false}}}}', 1],
+      ['DEFINE CONCEPT TYPE "T" {description: "d", attributes: {fields: {a: {type: "timestamp"}}}}', 1],
+      ['DEFINE CONCEPT TYPE "T" {description: "d", attributes: {fields: {a: {description: "untyped"}}}}', 1]
+    ]) assert.equal(errors(source).length, count, `${source}: ${errors(source).join(' | ')}`)
   })
 
   test('a Search Pattern binds hits inside FIND and requires LIMIT', () => {

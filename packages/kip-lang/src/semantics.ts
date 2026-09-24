@@ -541,18 +541,44 @@ function checkContext(value: Expression, diags: Diagnostic[]): void {
 // ---------------------------------------------------------------------------
 
 /**
- * What a draft symbol may not declare (Spec §20.15, §20.16): authority over
- * the data is a claim only an installed package makes, and a draft type is
- * open and optional. Only written literals are judged.
+ * What a draft symbol may declare (Spec §20.15, §20.16): a description, the
+ * members of its kind's package definition and nothing else. Authority over the
+ * data is a claim only an installed package makes, and a draft type is open and
+ * optional. Only written literals are judged; a parameter is bound and checked
+ * by the engine.
  */
+const DRAFT_PREDICATE_MEMBERS = new Set([
+  'description', 'subject', 'object', 'functional', 'functional_by', 'open_world',
+  'complete', 'boolean_completeness', 'temporal_conflict'
+])
+const DRAFT_TYPE_MEMBERS = new Set(['description', 'attributes'])
+const DRAFT_ATTRIBUTES_MEMBERS = new Set(['open', 'fields'])
+const DRAFT_FIELD_MEMBERS = new Set(['type', 'description'])
+/** The baseline scalar types (Spec §9.2): the only attribute types a draft type names. */
+const BASELINE_TYPES = new Set(['string', 'number', 'boolean', 'null'])
+
 function checkDefine(stmt: DefineStatement, diags: Diagnostic[]): void {
   const members = new Map(stmt.definition.entries.map((e) => [e.key, e.value]))
   const reject = (range: Range, message: string): void => {
     const cited = message.includes('(Spec §') ? message : `${message} (Spec §20.16)`
     diags.push({ range, severity: 'error', message: cited, code: 'KIP_2001' })
   }
+  const onlyMembers = (object: ObjectLiteral, allowed: Set<string>, what: string): void => {
+    for (const entry of object.entries) {
+      if (!allowed.has(entry.key)) reject(entry.range, `${what} declares no ${entry.key}`)
+    }
+  }
+
+  // Both kinds need a meaning a later reader can use.
+  const description = members.get('description')
+  if (!description) {
+    reject(stmt.definition.range, `a draft ${stmt.defineKind === 'PREDICATE' ? 'Predicate' : 'Concept Type'} declares a description`)
+  } else if (description.kind !== 'StringLiteral' && description.kind !== 'ParameterRef') {
+    reject(description.range, 'a draft symbol\'s description is a string')
+  }
 
   if (stmt.defineKind === 'PREDICATE') {
+    onlyMembers(stmt.definition, DRAFT_PREDICATE_MEMBERS, 'a draft Predicate')
     const openWorld = members.get('open_world')
     if (openWorld?.kind === 'BooleanLiteral' && !openWorld.value) {
       reject(openWorld.range, 'a draft Predicate cannot declare open_world: false; a closed-world reading is authority only an installed package claims')
@@ -569,9 +595,12 @@ function checkDefine(stmt: DefineStatement, diags: Diagnostic[]): void {
         reject(functionalBy.range, 'functional_by cannot be combined with functional: true (Spec §20.15)')
       }
       // The partition is the object's Concept Type, so the object is declared as
-      // Concepts: `concept_types`, or `kinds` naming only "Concept".
+      // Concepts: `concept_types`, or `kinds` naming only "Concept". An omitted
+      // object is unconstrained and has no Concept Type to partition by.
       const object = members.get('object')
-      if (object?.kind === 'ObjectLiteral') {
+      if (!object) {
+        reject(functionalBy.range, 'functional_by partitions by the object\'s Concept Type, so a draft Predicate that uses it declares its object as Concepts')
+      } else if (object.kind === 'ObjectLiteral') {
         const kinds = object.entries.find((e) => e.key === 'kinds')?.value
         const nonConcept =
           object.entries.some((e) => e.key === 'literal_types') ||
@@ -585,15 +614,10 @@ function checkDefine(stmt: DefineStatement, diags: Diagnostic[]): void {
     return
   }
 
-  if (!members.has('description')) {
-    reject(stmt.definition.range, 'a draft Concept Type declares a description')
-  }
-  for (const key of ['facets', 'structural_fields']) {
-    const value = members.get(key)
-    if (value) reject(value.range, `a draft Concept Type declares no ${key}`)
-  }
+  onlyMembers(stmt.definition, DRAFT_TYPE_MEMBERS, 'a draft Concept Type')
   const attributes = members.get('attributes')
   if (attributes?.kind !== 'ObjectLiteral') return
+  onlyMembers(attributes, DRAFT_ATTRIBUTES_MEMBERS, 'draft Concept Type attributes')
   for (const entry of attributes.entries) {
     if (entry.key === 'open' && entry.value.kind === 'BooleanLiteral' && !entry.value.value) {
       reject(entry.value.range, 'draft Concept Type attributes are open')
@@ -601,9 +625,20 @@ function checkDefine(stmt: DefineStatement, diags: Diagnostic[]): void {
     if (entry.key !== 'fields' || entry.value.kind !== 'ObjectLiteral') continue
     for (const field of entry.value.entries) {
       if (field.value.kind !== 'ObjectLiteral') continue
-      const required = field.value.entries.find((e) => e.key === 'required')
-      if (required?.value.kind === 'BooleanLiteral' && required.value.value) {
-        reject(required.value.range, `draft Concept Type attribute ${field.key} cannot be required`)
+      for (const member of field.value.entries) {
+        if (member.key === 'required') {
+          reject(member.range, `draft Concept Type attribute ${field.key} declares no required member; draft attributes are always optional`)
+        } else if (!DRAFT_FIELD_MEMBERS.has(member.key)) {
+          reject(member.range, `draft Concept Type attribute ${field.key} declares only type and description, not ${member.key}`)
+        }
+      }
+      const type = field.value.entries.find((e) => e.key === 'type')?.value
+      const names = type?.kind === 'ArrayLiteral' ? type.elements : type ? [type] : []
+      if (!type) reject(field.value.range, `draft Concept Type attribute ${field.key} declares its type`)
+      for (const name of names) {
+        if (name.kind === 'StringLiteral' && !BASELINE_TYPES.has(name.parsed)) {
+          reject(name.range, `draft Concept Type attribute ${field.key} has type "${name.parsed}"; draft attributes use the baseline types string, number, boolean, null (Spec §9.2)`)
+        }
       }
     }
   }

@@ -2,6 +2,26 @@
 
 All notable changes to `@ldclabs/kip-lang` are documented here.
 
+## 2.4.1
+
+Tracks the draft-vocabulary clarifications of the 2.0 draft (Spec §20.16). No
+syntax or executable-AST change; only `DEFINE` diagnostics are stricter.
+
+- `DEFINE` bodies are checked against the members §20.16 allows (`KIP_2001`):
+  both kinds need a string `description`; a draft Predicate declares only
+  `subject`, `object`, `functional`, `functional_by`, `open_world`, `complete`,
+  `boolean_completeness` and `temporal_conflict`; a draft Concept Type declares
+  only `description` and `attributes: {open, fields}`, each field only `type`
+  (a baseline type of §9.2: `string`, `number`, `boolean`, `null`) and
+  `description`. `required` in any form, `value_schema`, `identity`, Facets and
+  Structural Fields are refused, as is `functional_by` without a declared
+  Concept object. Parameters are left to the engine, which binds them first.
+- The conformance oracles gain `effectiveStrength` (the standard
+  `kip:strength-half-life-30d` policy, Profile §6.1), `supersessionCompatible`
+  (§14.2), a paging attention cursor ordered by `(raised_seq, ref)` and
+  `commitmentReviewKey` (Memory Interface §4, Profile §17). `MemorySession`
+  keeps treating the attention cursor as opaque.
+
 ## 2.4.0
 
 Tracks the memory-brain revision of the 2.0 draft. Consumers that switch

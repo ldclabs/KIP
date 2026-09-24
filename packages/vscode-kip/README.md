@@ -97,7 +97,7 @@ structure.
 cd packages/vscode-kip
 pnpm install
 pnpm build
-pnpm package   # produces vscode-kip-2.4.0.vsix
+pnpm package   # produces vscode-kip-2.4.0.vsix, https://marketplace.visualstudio.com/manage/publishers/ldclabs
 ```
 
 Then install the `.vsix`:
@@ -119,8 +119,8 @@ Use `pnpm watch` for live rebuild during development.
 The extension works out of the box. Formatting follows the editor's tab size
 and leaves the order of keys as you wrote them.
 
-| Setting                     | Default | Description                                                                                                             |
-| --------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Setting                     | Default | Description                                                                                                              |
+| --------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `kip.format.sortAttributes` | `false` | Alphabetize keys inside `SET ATTRIBUTES` blocks. A block holding a comment keeps author order, so the comment stays put. |
 
 ## KIP Language

@@ -1,7 +1,6 @@
 {
   "name": "world-time",
-  "status": "pending_engine",
-  "description": "This revision's memory behavior, written before an engine implements it (Specification Status: a case may enter marked pending_engine; the release requires every case verified). Temporal succession (§25.4): a world change is one Assertion, the old value answers for its time, nothing is superseded; a claim with no stated start is indeterminate before it was made (§25.2); time bounds are three-valued (§25.5); functional_by partitions preferences by option kind (§20.15); kip:memory-default decides by context specificity, first-person testimony and recency, and discloses the rule (§21.13); two inferences without a written start never succeed one another; DEFINE adds to the draft vocabulary (§20.16); the Search Pattern is bounded and never inside NOT (§43.8).",
+  "description": "This revision's memory behavior. Temporal succession (§25.4): a world change is one Assertion, the old value answers for its time, nothing is superseded; a claim with no stated start is indeterminate before it was made (§25.2); time bounds are three-valued (§25.5); functional_by partitions preferences by option kind (§20.15); kip:memory-default decides by context specificity, first-person testimony and recency, and discloses the rule (§21.13); two inferences without a written start never succeed one another; the Search Pattern is bounded and never inside NOT (§43.8); a value-only correction keeps its world interval (§14.2). The DEFINE cases moved to draft-vocabulary.json.",
   "packages": [
     {
       "format": "KIP-Schema-Package",
@@ -312,65 +311,6 @@
       "vectors": [
         "EPI-031",
         "MEM-026"
-      ]
-    },
-    {
-      "name": "DEFINE adds a Predicate to the draft vocabulary",
-      "command": "DEFINE PREDICATE \"mentors\" {\n  description: \"The subject mentors the object.\",\n  subject: {concept_types: [\"Person\"]},\n  object: {concept_types: [\"Person\"]}\n}",
-      "envelope": {
-        "requires": {
-          "draft_vocabulary": true
-        }
-      },
-      "expect": {},
-      "vectors": [
-        "SCHEMA-022",
-        "GOV-031"
-      ]
-    },
-    {
-      "name": "the draft symbol resolves for the next operation",
-      "command": "FIND(?p) WHERE { ?p (?x, \"mentors\", ?y) }",
-      "envelope": {
-        "requires": {
-          "draft_vocabulary": true
-        }
-      },
-      "expect": {
-        "result": []
-      },
-      "vectors": [
-        "SCHEMA-022"
-      ]
-    },
-    {
-      "name": "a name that already resolves fails SchemaSymbolConflict",
-      "command": "DEFINE PREDICATE \"prefers\" {\n  description: \"already a Profile Predicate\"\n}",
-      "envelope": {
-        "requires": {
-          "draft_vocabulary": true
-        }
-      },
-      "expect": {
-        "error": "SchemaSymbolConflict"
-      },
-      "vectors": [
-        "SCHEMA-022"
-      ]
-    },
-    {
-      "name": "a draft Predicate cannot claim a closed world",
-      "command": "DEFINE PREDICATE \"closed_relation\" {\n  description: \"authority over the data belongs to installed packages\",\n  open_world: false\n}",
-      "envelope": {
-        "requires": {
-          "draft_vocabulary": true
-        }
-      },
-      "expect": {
-        "error": "ConstraintViolation"
-      },
-      "vectors": [
-        "SCHEMA-022"
       ]
     },
     {

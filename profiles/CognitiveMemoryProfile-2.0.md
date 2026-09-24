@@ -290,7 +290,7 @@ from new local trials.
 
 ## 5.9 SleepTask
 
-A durable maintenance work item. Suggested classes include consolidate, review_conflict, review_skill, resolve_identity, review_retention, review_derived, review_schema, refresh_self_model, and inspect_quarantine. `review_schema` queues draft vocabulary symbols (Specification §20.16) for review and promotion.
+A durable maintenance work item. Suggested classes include consolidate, review_conflict, review_skill, resolve_identity, review_retention, review_derived, review_schema, refresh_self_model, and inspect_quarantine. `review_schema` queues draft vocabulary symbols (Specification §20.16) for review and promotion: the Brain that defines a symbol queues one SleepTask for it with `client_key` `review_schema:<exact symbol ref>`, so a retried definition never queues twice. Review may merge a near-synonym into an existing symbol's use, propose a promotion, or resolve the task; only a Principal with `manage_schema` performs a promotion.
 
 Where `durable_brain_runtime` is advertised, a SleepTask's claim and completion follow the lease contract of the [Brain Runtime companion](../brain/KIP-2.0-Brain-Runtime.md) §3.
 
@@ -398,7 +398,7 @@ A Space SHOULD keep at most one active WorkingState per actor and canonical task
   "salience": 0.9,
   "utility": 0.6,
   "last_metabolized_at": "2026-08-14T00:00:00.000Z",
-  "strength_policy": {"artifact_ref": "policy:half-life-30d", "content_digest": "sha256:..."}
+  "strength_policy": {"artifact_ref": "kip:strength-half-life-30d", "content_digest": "sha256:..."}
 }
 ```
 
@@ -410,7 +410,15 @@ salience ≠ trust
 utility ≠ truth, salience, or permission
 ```
 
-`memory_strength` is the last explicitly written **base**, `last_metabolized_at` its **anchor** and `strength_policy` a pinned policy artifact (for example a half-life). The computed, read-only member `effective_strength` (Specification §18.2) is derived from them when a read is evaluated, and is `null` when any of the three is missing — unknown, never a default such as `0.5` (Specification §59.1). A read never writes it back. Idle memory therefore costs no writes.
+`memory_strength` is the last explicitly written **base**, `last_metabolized_at` its **anchor** and `strength_policy` a pinned policy artifact (`schemas/kip-cognitive-records.schema.json#/$defs/StrengthPolicy`). The computed, read-only member `effective_strength` (Specification §18.2) is derived from them when a read is evaluated, and is `null` when any of the three is missing — unknown, never a default such as `0.5` (Specification §59.1). A read never writes it back. Idle memory therefore costs no writes.
+
+The standard strength policy is `kip:strength-half-life-30d` (`profiles/policy-strength-half-life-30d.json`), pinned as `{"artifact_ref": "kip:strength-half-life-30d", "content_digest": <its digest>}`. A `half_life` policy computes
+
+```text
+effective_strength = memory_strength × 2^(−max(0, t − last_metabolized_at) / half_life_ms)
+```
+
+where `t` is the instant the read is evaluated — never `FOR TIME`, because strength is how available a memory is now, not a claim about the world. Before its anchor the value is the base. A runtime resolves the pin by `artifact_ref` and verifies its digest; a policy it does not know, or a digest that does not match, leaves `effective_strength` `null`, and it never substitutes another policy. A deployment MAY pin its own artifact of the same shape; two runtimes that resolve the same pin compute the same value.
 
 Mnemonic metabolism MUST NOT rewrite Assertion confidence, trust, valid time, or Governance authority.
 
@@ -730,7 +738,7 @@ SelfModel evolution SHOULD be conservative. Prefer multiple observations, explic
 
 A due time passing does not necessarily transition status until policy/Evidence does so. A Commitment may remain highly salient even without recent recall. Disuse alone is not justification to weaken its importance.
 
-The waiting half of a Commitment — escalate if nothing happens — is a Watch (§5.11) referencing the Commitment through `watches`. The due date stays on the Commitment; the trigger stays on the Watch. A Commitment with no Watch is raised to attention by Maintenance's `commitment_review` Activity, whose inputs name the Commitments it found due (§5.7); the review is the commit whose `space_seq` orders the attention item.
+The waiting half of a Commitment — escalate if nothing happens — is a Watch (§5.11) referencing the Commitment through `watches`. The due date stays on the Commitment; the trigger stays on the Watch. A Commitment with no Watch is raised to attention by Maintenance's review: one `commitment_review` Activity per Commitment it found due, whose `inputs` name that Commitment and whose `client_key` is `commitment_review:<commitment id>:<due_at>` (§5.7). The review is the commit whose `space_seq` orders the attention item. The key makes the review idempotent the way `watch_fire` keys make firing idempotent: a concurrent or later review of the same Commitment at the same `due_at` replays the Activity instead of raising it again, so a due Commitment reaches attention once per due time, and a rescheduled one — a new `due_at` — can be raised again. A Commitment that is no longer `pending` or `blocked` is not raised.
 
 # 18. Mnemonic Metabolism
 

@@ -89,10 +89,10 @@
     },
     {
       "name": "a projection reports the policy it ran under",
-      "command": "FIND(?b.policy.id) WHERE {\n  ?s CONCEPT {name: \"Alice\"}\n  ?o CONCEPT {name: \"Quiet\"}\n  ?p PROPOSITION (?s, \"prefers\", ?o)\n  ?b BELIEF (?p)\n}",
+      "command": "FIND(?b.basis.policy.id) WHERE {\n  ?s CONCEPT {name: \"Alice\"}\n  ?o CONCEPT {name: \"Quiet\"}\n  ?p PROPOSITION (?s, \"prefers\", ?o)\n  ?b BELIEF (?p)\n}\nWITH EPISTEMIC {policy: \"kip:memory-default\"}",
       "expect": {
         "result": [
-          "kip:policy:baseline"
+          "kip:memory-default"
         ]
       }
     },

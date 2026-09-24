@@ -5,7 +5,7 @@ import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import { parseCanonicalJson, parse, lower } from '../dist/index.js'
 import { IntakeLedger, advanceProgress, processingBarrier, recallEligibility, scopeMatches,
-  validateBundles, channels, routeRevision, attentionAfter } from '../../../conformance/reference/memory-interface.mjs'
+  validateBundles, channels, routeRevision, attentionAfter, commitmentReviewKey } from '../../../conformance/reference/memory-interface.mjs'
 
 const base = new URL('../../../', import.meta.url)
 const json = async path => parseCanonicalJson(await readFile(new URL(path, base), 'utf8'))
@@ -287,7 +287,7 @@ test('MIF-019: attention recall is read-only, cursor-ordered and repeatable', ()
   const before = JSON.stringify(items)
   const first = attentionAfter(items)
   assert.deepEqual(first.attention.map(i => i.ref), ['watch-1', 'watch-2'])
-  assert.equal(first.attention_cursor, 'attention:41')
+  assert.equal(first.attention_cursor, 'attention:41:watch-2')
   assert.deepEqual(attentionAfter(items, first.attention_cursor).attention, [])
   assert.equal(JSON.stringify(items), before)
   assert.ok(validate('Request')({ kip_memory: '2.0', operation: 'recall',
@@ -304,4 +304,35 @@ test('MIF-019: attention recall is read-only, cursor-ordered and repeatable', ()
     input: { mode: 'attention', attention_cursor: empty.attention_cursor } }), JSON.stringify(validate('Request').errors))
   assert.deepEqual(attentionAfter(items, empty.attention_cursor), first)
   assert.deepEqual(attentionAfter([], empty.attention_cursor), empty)
+})
+
+test('MIF-019: a page may end inside one raised_seq without losing the rest of it', () => {
+  // One review commit (seq 50) raises three due Commitments; a Watch fires at 51.
+  const items = ['c', 'a', 'b'].map(id => ({ ref: 'review-' + id, kind: 'commitment_due', summary: 'Due ' + id,
+    raised_seq: 50, target_refs: ['commitment-' + id] }))
+    .concat([{ ref: 'watch-9', kind: 'watch_fired', summary: 'Silence', raised_seq: 51, target_refs: [] }])
+  const pages = []
+  let cursor = null
+  for (;;) {
+    const page = attentionAfter(items, cursor, 2)
+    if (!page.attention.length) { assert.equal(page.attention_cursor, cursor); break }
+    pages.push(page.attention.map(i => i.ref)); cursor = page.attention_cursor
+  }
+  assert.deepEqual(pages, [['review-a', 'review-b'], ['review-c', 'watch-9']])
+  assert.equal(cursor, 'attention:51:watch-9')
+  // A cursor that names only a sequence covers all of it; a malformed one fails.
+  assert.deepEqual(attentionAfter(items, 'attention:50').attention.map(i => i.ref), ['watch-9'])
+  assert.throws(() => attentionAfter(items, 'attention:x'), /CursorInvalid/)
+})
+
+test('MIF-019: a due Commitment is raised once per due time, keyed like a Watch firing', () => {
+  const commitment = { id: 'C-7', status: 'pending', due_at: '2026-09-24T09:00:00.000Z' }
+  assert.equal(commitmentReviewKey(commitment), 'commitment_review:C-7:2026-09-24T09:00:00.000Z')
+  // Two reviews of the unchanged Commitment compute one key: the second replays.
+  assert.equal(commitmentReviewKey({ ...commitment }), commitmentReviewKey(commitment))
+  // Rescheduling makes it eligible again; a settled Commitment is not raised.
+  assert.notEqual(commitmentReviewKey({ ...commitment, due_at: '2026-09-25T09:00:00.000Z' }), commitmentReviewKey(commitment))
+  assert.equal(commitmentReviewKey({ ...commitment, status: 'blocked' }), commitmentReviewKey(commitment))
+  assert.equal(commitmentReviewKey({ ...commitment, status: 'fulfilled' }), null)
+  assert.throws(() => commitmentReviewKey({ id: 'C-8', status: 'pending' }), /ConstraintViolation/)
 })

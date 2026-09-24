@@ -9,6 +9,7 @@ const write = process.argv.includes('--write')
 const files = ['profiles/cognitive-memory-2.0.0.schema.json',
   'profiles/general-domain-1.0.0.schema.json',
   'profiles/policy-memory-default.json',
+  'profiles/policy-strength-half-life-30d.json',
   'conformance/fixtures/test-core-domain-1.0.0.schema.json',
   'conformance/fixtures/test-secondary-1.0.0.schema.json',
   'conformance/fixtures/epistemic-test-deterministic.json']
@@ -64,6 +65,26 @@ for (const file of files) {
   } else if (integrity.digest_profile !== 'kip-jcs-safe-v1' || integrity.content_digest !== digest) {
     failures++; console.error('FAIL digest:', file)
   }
+}
+// Vectors that pin a policy artifact by digest: the pin must name the artifact
+// as it ships, or an engine rightly reports the strength as unknown. Deliberately
+// mismatched pins live elsewhere in those files and are never selected here.
+const pinned = [
+  { file: 'conformance/engine-suite/mnemonic-strength.json', artifact: 'profiles/policy-strength-half-life-30d.json',
+    pins: doc => doc.setup.map(step => step.params?.policy).filter(Boolean) },
+  { file: 'conformance/vectors/cognitive-contracts.json', artifact: 'profiles/policy-strength-half-life-30d.json',
+    pins: doc => doc.strength.filter(c => ['MEM-030a', 'MEM-030b'].includes(c.id))
+      .flatMap(c => [c.state, ...(c.variants ?? [])]).map(state => state.strength_policy).filter(Boolean) }]
+for (const pin of pinned) {
+  const artifact = parseCanonicalJson(await readFile(new URL(pin.artifact, base), 'utf8'))
+  const doc = parseCanonicalJson(await readFile(new URL(pin.file, base), 'utf8'))
+  let changed = false
+  for (const value of pin.pins(doc)) {
+    if (value.artifact_ref === artifact.policy_id && value.content_digest === artifact.integrity.content_digest) continue
+    if (write) { value.artifact_ref = artifact.policy_id; value.content_digest = artifact.integrity.content_digest; changed = true }
+    else { failures++; console.error('FAIL pinned policy digest:', pin.file) }
+  }
+  if (changed) await writeFile(new URL(pin.file, base), JSON.stringify(doc, null, 2) + '\n')
 }
 if (failures) process.exitCode = 1
 else console.log(`${write ? 'Updated' : 'Verified'} ${files.length} artifact digests.`)

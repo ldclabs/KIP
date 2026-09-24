@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0",
+  "id": "KIP2-MEM-030",
+  "title": "Computed strength under a pinned policy",
+  "description": "effective_strength is computed at read time from the base, its anchor and the pinned kip:strength-half-life-30d policy; a missing base, anchor or matching pin leaves it null, never a default, and reading or attempting to write it changes no stored state.",
+  "level": "MUST",
+  "class": "black_box",
+  "profiles": [
+    "KIP-CognitiveMemory"
+  ],
+  "fixture": {
+    "name": "cognitive-consistency",
+    "reset": true
+  },
+  "spec_refs": [
+    "SPECIFICATION.md#591-mnemonic-decay",
+    "profiles/CognitiveMemoryProfile-2.0.md#61-mnemonicstate"
+  ],
+  "steps": [
+    {
+      "id": "exercise",
+      "kind": "harness",
+      "action": "exercise_memory_scenario",
+      "args": {
+        "id": "KIP2-MEM-030"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/before_anchor",
+      "operator": "equals",
+      "expected": 0.8
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/one_half_life",
+      "operator": "equals",
+      "expected": 0.4
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/missing_policy",
+      "operator": "equals",
+      "expected": null
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/digest_mismatch",
+      "operator": "equals",
+      "expected": null
+    },
+    {
+      "source": "step",
+      "step": "exercise",
+      "path": "/write_error",
+      "operator": "equals",
+      "expected": "ConstraintViolation"
+    }
+  ],
+  "postconditions": [
+    {
+      "source": "state",
+      "path": "/stored_strength_writes",
+      "operator": "equals",
+      "expected": 0
+    }
+  ]
+}

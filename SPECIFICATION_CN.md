@@ -24,6 +24,7 @@
 - `profiles/CognitiveMemoryProfile-2.0_CN.md` 与 `profiles/cognitive-memory-2.0.0.schema.json` —— 标准 Profile 及其包
 - `profiles/general-domain-1.0.0.schema.json` —— 最小通用领域包（人物、地点、组织）
 - `profiles/policy-memory-default.json` —— `kip:memory-default` 认知投影策略（§21.13）
+- `profiles/policy-strength-half-life-30d.json` —— 标准记忆强度策略（§59.1，Profile §6.1）
 - `KIP-2.0-Memory-Interface_CN.md`、`schemas/kip-memory.schema.json` 与 `profiles/memory-bundles.json` —— 可选的智能体到大脑（Agent-to-Brain）绑定及其级别
 - `KIP-2.0-Capsule-Specification_CN.md` —— 本规范的 §37–§41 与 §95，以相同章节编号在伴随文档中承载
 - `KIP-2.0-Optional-Profiles-and-Migration_CN.md` —— §100、§101、§103 及附录 I：历史读取、高保证加固与 KIP 1.x 迁移，每一项均为一项能力（§67.4）
@@ -1198,6 +1199,8 @@ expired (已过期)
 
 替代意味着在兼容的主体、上下文与修订血统中，一个较新的断言取代了较旧的断言。
 
+兼容指三者同时满足：相同的规范 `asserted_by` 行动者；相同的命题，或者（对于数值更正）具有相同规范主语与相同谓词谱系（§20.14）的命题；以及相同的规范 `context_refs` 集合（§25.3）。任一项不同的替换断言都将失败并报错 `SupersessionMismatch`：废弃替代绝不会把主张转移给另一个行动者，也绝不会把它移入另一个作用域。仅在作用域上出错的主张（例如只在工作中成立，却被陈述为普遍成立）应当撤回（§14.1），并重新断言带作用域的主张。
+
 替代属于**修订**：取代的断言声称被取代的断言在其覆盖的时间范围内是错误的 —— 无论是取值错误，还是其声称的区间错误。因此，认知投影针对每一次 `FOR TIME`（而不仅限于当前）都会丢弃被取代的断言。
 
 若只更正数值，Formation **必须**显式保留被更正的现实世界有效区间，同时将 `asserted_at` 设为此次更正的时间。复制原先写明的各端点；若原 `from` 缺失，将其显式具体化为 `{latest: <原 asserted_at>}`，而不能再次省略。在替换断言上省略 `from` 会使用更正时间（§25.2），使更正后的数值在更早时间处于未决状态。若更正同时修改区间，则写入来源实际更正后的区间；supersession 绝不自动推断或继承区间。
@@ -1931,16 +1934,18 @@ DEFINE PREDICATE "main_instrument" {
 
 规则：
 
-- 模式包路径前缀 `local/` 保留给 Space 本地包。草稿谱系由其宿主 Space 限定：胶囊身份映射（§38.2）保持源端的 `kip://local/...` 符号带有源命名空间，**严禁**按名称与目标端的草稿符号合并。
-- `DEFINE` 仅可追加。若本地名称已在模式环境中解析（来自 Core、Profile、已安装包或较早的草稿符号），则失败并报错 `SchemaSymbolConflict`。草稿符号绝不遮蔽其他符号，且定义后绝不变更。
-- 草稿谓词使用 §20.15 的字段及其默认值。它**严禁**声明 `open_world: false` 或 `complete: true`：封闭世界解读与排他值完备性是对数据权威性的主张，唯有已安装的正式包方可声明。
-- 草稿概念类型声明 `description`，且**可以**声明带有来自 §9.2 之 `type` 名称的开放可选 `attributes`；它不声明任何必填属性、切面（Facet）或结构字段。
-- `DEFINE` 是一项独立操作。它**严禁**出现在 `MUTATE` 内部或与其他操作一同出现在 `atomic` 请求中（§75.3）。它作为自身的独立事务进行提交，推进 `schema_environment_version`，发布 `schema` 控制变更（§36.1），并使该符号可供后续操作解析。
+- 模式包路径前缀 `local/` 保留给 Space 本地包。草稿谱系由其宿主 Space 限定：胶囊身份映射（§38.2）保持源端的 `kip://local/...` 符号带有源命名空间，**严禁**按名称与目标端的草稿符号合并。若导入要在某个源草稿符号下写入元素，则需要在导入的映射工件（胶囊配套规范 §41.7）中，把该符号显式映射到目标端同一类别的符号 —— 目标端的草稿符号或某个已安装包的符号。未映射的源草稿符号将失败并报错 `SchemaPackageUnavailable`，错误中列出每一个未映射的符号；导入方绝不按名称映射，也绝不为它们合成目标端模式包。
+- `DEFINE` 仅可追加。若该名称已是模式环境中同一类别的某个符号 —— 来自 Core、Profile、Space 模式锁中任何状态的任何包，或较早的草稿符号 —— 则失败并报错 `SchemaSymbolConflict`；保留的 Core 名称（§20.13）对所有类别都冲突。符号类别是各自独立的命名空间，与模式包内部一致。草稿符号绝不遮蔽其他符号，且定义后绝不变更。之后激活的包若导出了与某个草稿符号同名的符号，则该本地名称变为歧义（§20.7），直至该草稿符号晋升到它为止。
+- 定义体是该类别之包定义（`schemas/kip-schema-package.schema.json`）去掉 `ref` 与 `kind` 后的主体，这两项由运行时补全。两种类别都**必须**提供字符串 `description`：它是后来的读者所能获得的该符号的唯一含义。参数在任何检查之前完成绑定；下文未列出的成员一律失败并报错 `ConstraintViolation`。
+- 草稿谓词**可以**声明 `subject`、`object`、`functional`、`functional_by`、`open_world`、`complete`、`boolean_completeness` 与 `temporal_conflict`，其含义与默认值见 §20.15。省略的 `subject` 或 `object` 表示该端点不受约束，因此按宾语概念类型分区的 `functional_by` 需要声明为概念的宾语。它**严禁**声明 `open_world: false` 或 `complete: true`：封闭世界解读与排他值完备性是对数据权威性的主张，唯有已安装的正式包方可声明。
+- 草稿概念类型**可以**声明 `attributes: {open: true, fields: {...}}`，每个字段声明 `type`（§9.2 的名称或其数组），并可选声明 `description`。它不声明任何必填属性、其他字段成员、切面（Facet）或结构字段；其属性是开放且可选的。
+- `DEFINE` 是一项独立操作。它**严禁**出现在 `MUTATE` 内部或与其他操作一同出现在 `atomic` 请求中（§75.3）。它作为自身的独立事务进行提交，推进 `schema_environment_version`，发布 `schema` 控制变更（§36.1），并使该符号可供后续操作解析。其结果为 `{ref, schema_environment_version}`：新符号的确切引用，以及此次定义所产生的环境版本。`DEFINE` 没有 `CLIENT KEY`：重试的请求依靠其 `idempotency_key`（§34）去重，没有幂等键的重复定义即使完全相同也会失败并报错 `SchemaSymbolConflict`。
 - 草稿包具有唯一的固定版本 `kip://local/draft@0.0.0`：草稿符号在定义后绝不改变，因此版本号不承载任何信息，且单一版本使得草稿符号不会作为不断增长的版本列表出现在胶囊嵌入、模式锁与 `DESCRIBE PACKAGE` 中。元素持久化保存该确切引用（§20.4）。每次 `DEFINE` 依然推进 `schema_environment_version`，这正是缓存与基准进行索引的依据。
-- 晋升属于 `manage_schema` 下的模式迁移，记录在 Space 的模式环境中：从草稿符号到已安装包符号的谱系映射，遵循 §20.14 的重命名语义。它绝不在模式包工件内部声明 —— 可移植的模式包不能指名某个特定 Space 的草稿符号。任何内容均不会被隐式晋升，且在草稿符号下写入的元素依然可通过其谱系保持可读。
+- 草稿包由运行时按 Space、依据该 Space 的模式环境历史合成，绝不在整个 Nexus 范围内安装。自其第一次 `DEFINE` 起，它属于该 Space 之后的每一个模式环境；激活或迁移其他包绝不会移除它。`LIST SCHEMA PACKAGES` 与 `DESCRIBE PACKAGE` 报告其状态为 `active`、迄今为止的定义，以及运行时按 `kip-jcs-safe-v1`（§37.7）计算的 `integrity.content_digest`，因此其摘要随每次 `DEFINE` 变化，而其引用保持不变。
+- 晋升属于 `manage_schema` 下的模式迁移，记录在 Space 的模式环境中：从草稿符号到某个已安装包中同一类别符号的谱系映射，遵循 §20.14 的重命名语义。它绝不在模式包工件内部声明 —— 可移植的模式包不能指名某个特定 Space 的草稿符号。任何内容均不会被隐式晋升，且一个草稿符号至多晋升一次。`DESCRIBE SCHEMA ENVIRONMENT` 以 `lineage_maps` 报告晋升：每个已晋升符号一个条目 `{kind, from, to}`，从其草稿谱系（`kip://local/draft/<name>`）指向其目标谱系 —— 条目写明类别，因为符号类别是各自独立的命名空间，而谱系身份不含类别；晋升之前的 `AS OF` 读取看不到它。此后所有按谱系匹配的规则（§20.14）都把两个谱系视为一个，而在草稿符号下写入的元素保留其确切的 `kip://local/draft@0.0.0/<name>` 引用，并依然可通过其谱系读取。
 - `propose_schema` 绝不授予 `manage_schema`、`manage_policy` 或对现有符号的任何管辖权。未声明 `draft_vocabulary` 的运行时将拒绝 `DEFINE` 并报错 `UnsupportedCapability`。
 
-认知记忆 Profile 的 `review_schema` 睡眠任务类别将草稿符号排队以供审阅与晋升。
+认知记忆 Profile 的 `review_schema` 睡眠任务类别将草稿符号排队以供审阅与晋升。定义符号的大脑以 `client_key` `review_schema:<确切符号引用>` 为其排队审阅，因此重试的定义绝不会重复排队。审阅**可以**提议晋升；只有持有 `manage_schema` 的主体（Principal）才能执行晋升。
 
 ---
 
@@ -2363,16 +2368,16 @@ until  null 或缺失      开放式：该断言未声明结束时间
 **继承 (Succession)**。同一条链上的两条断言在位于槽位链上、或位于命题链上但具有不同立场时发生**分歧 (disagree)**。与较早断言达成一致（相同命题且相同立场）的较晚断言既不终结也不收窄较早断言。对于链上的一条断言 P，其**继任断言 (successors)** 是链上与 P 发生分歧且具有更大起始键的合格断言；其**前任断言 (predecessor)** 是链上与 P 发生分歧且具有小于 P 之最大起始键的合格断言。相等的起始键代表同时发生：彼此互不继承，它们之间的分歧保持为冲突。
 
 ```text
-起始点 (start)    若 P 的 from 不是精确值且 P 拥有前任断言 Q，则 P 的有效起始点为
+起始点 (start)    若 P 的 from 不是精确值且 P 拥有前任断言 Q，则 P 的链上起始点为
                  {earliest: max(P.from.earliest, Q 的起始键), latest: P 的起始键}
                  否则取 P 写明的 from
-结束点 (end)      若 P 的 until 为开放式且 P 拥有继任断言，则 P 的有效结束点为具有最小起始键
-                 的继任断言的有效起始点 —— 当多个继任断言共享该键时，将其有效起始点逐个界限
+结束点 (end)      若 P 的 until 为开放式且 P 拥有继任断言，则 P 的链上结束点为具有最小起始键
+                 的继任断言的链上起始点 —— 当多个继任断言共享该键时，将其链上起始点逐个界限
                  合并，取各界限的最早值
                  否则取 P 写明的 until
 ```
 
-跨多条链的断言逐个界限合并各链的要求：其有效起始点取各链赋予的最大的 `earliest` 和最大的 `latest`，有效结束点取各界限的最早值（精确瞬间等同于 `earliest` 与 `latest` 相等的界限）。有效区间只会收窄所写明的区间：时间继承绝不会使断言在其写明的区间之外变为合格，绝不改变存储状态，且在每次基准计算时均从合格集合中重新推导。对于当前投影不合格的断言（已撤回、已被废弃替代、处于隔离、调用方不可见、被模式或上下文排除），不属于任何链，因此撤回继任者会恢复其前任者的开放结束点，且隐藏的断言绝不会改变可见断言的区间。
+两者都按链分别计算：继任断言以它在 P 所在链上的起始点结束 P，绝不以另一条链进一步收窄后的起始点结束 P。跨多条链的断言逐个界限合并各链的结果：其有效起始点取其各链上起始点中最大的 `earliest` 和最大的 `latest`，有效结束点取其各链上结束点中各界限的最早值（精确瞬间等同于 `earliest` 与 `latest` 相等的界限）。有效区间只会收窄所写明的区间：时间继承绝不会使断言在其写明的区间之外变为合格，绝不改变存储状态，且在每次基准计算时均从合格集合中重新推导。对于当前投影不合格的断言（已撤回、已被废弃替代、处于隔离、调用方不可见、被模式或上下文排除），不属于任何链，因此撤回继任者会恢复其前任者的开放结束点，且隐藏的断言绝不会改变可见断言的区间。
 
 推论：
 
@@ -2511,21 +2516,18 @@ explanation level (解释详细程度)
     "reasons": []
   },
 
-  "temporal": {
+  "explanation": {},
+
+  "basis": {
+    "snapshot_seq": 1500,
+    "policy": {"id": "...", "version": "..."},
     "valid_at": "...",
-    "as_of_seq": 1500
-  },
-
-  "policy": {
-    "id": "...",
-    "version": "..."
-  },
-
-  "explanation": {}
+    "next_invalid_at": null
+  }
 }
 ```
 
-上述概念示例为节省篇幅省略了 `basis`；实际结果**必须**包含完整的 ProjectionBasis。`candidate_status` 属于诊断信息；消费者应使用最终的 `status`。即使对于单个接地的候选命题，也必须包含功能性冲突（[一致性 §1](./KIP-2.0-Cognitive-Consistency_CN.md#1-冲突完备信念-conflict-complete-belief)）。
+该示例对 `basis` 做了节略；实际结果**必须**包含完整的 ProjectionBasis（§21.12）。投影通过基准报告其所用的策略、`valid_at` 与快照：投影没有单独的 `policy` 或 `temporal` 成员，线上契约为 `schemas/kip-projection.schema.json#/$defs/Projection`。`candidate_status` 属于诊断信息；消费者应使用最终的 `status`。即使对于单个接地的候选命题，也必须包含功能性冲突（§21.11）。
 
 `leading` 指明如果策略被迫做出抉择时所倾向的一方：在 `accepted` 下为 `support`，在 `rejected` 下为 `opposition`，而在 `contested` 下则为拥有更多合格独立受信根源的一方，采用策略所声明的决胜规则（§27.1）；完全平局、`uncertain` 以及 `insufficient` 报告 `none`。`leading` 是面向必须采取行动的消费者的信息披露（Brain Recall 会同时呈现双方并标出权重更大的一方）；它绝不改变 `status`。
 
@@ -3955,19 +3957,26 @@ BELIEF SLOT 用于评估特定主语-谓词语义槽位的候选值/冲突集合
 
 ## 47.3 输出结构 (Output)
 
-概念结构：
+结构（`schemas/kip-projection.schema.json#/$defs/Slot`）：
 
 ```json
 {
   "status": "accepted|contested|uncertain|insufficient",
   "accepted_values": [],
   "candidate_projections": [],
+  "subject": {"id": "C-1"},
+  "predicate_ref": "kip://...",
   "uncertainty": {},
-  "policy": {},
-  "temporal": {},
-  "explanation": {}
+  "explanation": {},
+  "basis": {}
 }
 ```
+
+`basis` 为**必需**，并与投影（§27.2）一样承载策略、`valid_at` 与快照；槽位没有单独的 `policy` 或 `temporal` 成员。`subject`（引用，§8）与 `predicate_ref`（确切解析出的谓词）**可以**用于标识该槽位。`candidate_projections` 的每个条目都是一个投影，并各自携带其 `leading`。
+
+---
+
+槽位没有 `rejected` 状态：槽位不是主张，因此无可拒绝。拒绝属于 `candidate_projections` 中某个候选自身的投影。
 
 ---
 
@@ -4764,7 +4773,7 @@ COALESCE
 
 记忆代谢机制**可以**降低 `memory_strength`；**严禁**仅仅因为时间流逝就定期衰减 Assertion 的置信度。时间相关性由认识论投影（Projection）负责处理。
 
-衰减是计算得出的，而非显式写入的。在 Cognitive Memory Profile 中，`MnemonicState.memory_strength` 是最后显式写入的基准值，`last_metabolized_at` 是其基准锚点时间，`strength_policy` 是固定的策略工件（例如半衰期）；只读虚拟成员 `effective_strength` 在评估读取时由它们动态计算得出 (Profile §18)。读取操作绝不会将其写回。当基准值、锚点时间或策略缺失时，有效强度为 `null`（未知），运行时或 Brain **严禁**擅自代入默认值（如 `0.5`）。因此，空闲闲置的记忆不会产生写入开销、变更信封或缓存失效。
+衰减是计算得出的，而非显式写入的。在 Cognitive Memory Profile 中，`MnemonicState.memory_strength` 是最后显式写入的基准值，`last_metabolized_at` 是其基准锚点时间，`strength_policy` 是固定的策略工件 —— 标准策略为半衰期策略 `kip:strength-half-life-30d`（`profiles/policy-strength-half-life-30d.json`）；只读虚拟成员 `effective_strength` 在评估读取时由它们动态计算得出 (Profile §6.1, §18)。读取操作绝不会将其写回。当基准值、锚点时间或策略缺失时，有效强度为 `null`（未知），运行时或 Brain **严禁**擅自代入默认值（如 `0.5`）。因此，空闲闲置的记忆不会产生写入开销、变更信封或缓存失效。
 
 强化是一项显式变更，用于写入新的基准值与锚点时间：
 

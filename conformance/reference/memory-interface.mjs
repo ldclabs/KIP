@@ -133,12 +133,31 @@ export function routeRevision(changeKind, capabilities = [], grants = []) {
 }
 
 /** Attention recall (Memory Interface §4): read-only, cursor-ordered, monotone.
- * The cursor is the highest raised_seq delivered; the host keeps it. */
-export function attentionAfter(items, cursor = null) {
-  const after = cursor === null ? -1 : Number(String(cursor).replace(/^attention:/, ''))
-  if (!Number.isSafeInteger(after) && after !== -1) throw error('CursorInvalid')
-  const fresh = items.filter(item => item.raised_seq > after)
+ * Items are ordered by (raised_seq, ref) and the cursor is the position of the
+ * last item delivered, so a page may end inside one raised_seq without losing
+ * the rest of it. An empty page returns the cursor it was given; the host keeps it. */
+export function attentionAfter(items, cursor = null, limit = Infinity) {
+  // `attention:start` is the position before every item: nothing delivered yet.
+  let after = [-1, '']
+  if (cursor !== null && cursor !== 'attention:start') {
+    const match = /^attention:(\d+)(?::(.+))?$/.exec(String(cursor))
+    if (!match || !Number.isSafeInteger(Number(match[1]))) throw error('CursorInvalid')
+    // A cursor without a ref covers its whole raised_seq.
+    after = [Number(match[1]), match[2] ?? null]
+  }
+  const position = item => [item.raised_seq, item.ref]
+  const later = (a, b) => a[0] !== b[0] ? a[0] > b[0] : b[1] !== null && a[1] > b[1]
+  const fresh = items.filter(item => later(position(item), after))
     .sort((a, b) => a.raised_seq - b.raised_seq || (a.ref < b.ref ? -1 : a.ref > b.ref ? 1 : 0))
-  const last = fresh.length ? fresh[fresh.length - 1].raised_seq : after
-  return { attention: clone(fresh), attention_cursor: 'attention:' + last }
+    .slice(0, limit)
+  const last = fresh[fresh.length - 1]
+  return { attention: clone(fresh), attention_cursor: last ? `attention:${last.raised_seq}:${last.ref}` : cursor ?? 'attention:start' }
+}
+
+/** The client_key that makes a Commitment review idempotent (Profile §17):
+ * one review per Commitment and due time; a rescheduled Commitment gets a new key. */
+export function commitmentReviewKey(commitment) {
+  if (!commitment?.id || typeof commitment.due_at !== 'string') throw error('ConstraintViolation')
+  if (!['pending', 'blocked'].includes(commitment.status)) return null
+  return `commitment_review:${commitment.id}:${commitment.due_at}`
 }

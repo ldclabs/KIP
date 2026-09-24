@@ -1,0 +1,31 @@
+{
+  "format": "KIP-Strength-Policy",
+  "format_version": "2.0-draft",
+  "policy_id": "kip:strength-half-life-30d",
+  "version": 1,
+  "name": "KIP Standard Strength Policy",
+  "description": "The standard mnemonic strength policy (Profile §6.1, Spec §59.1): effective_strength = memory_strength × 2^(−max(0, t − last_metabolized_at) / half_life_ms), where t is the instant the read is evaluated, never FOR TIME. Before its anchor the value is the base. A missing base, anchor or pin, an unknown policy or a digest mismatch leaves effective_strength null.",
+  "method": {
+    "kind": "half_life",
+    "half_life_ms": 2592000000,
+    "before_anchor": "base",
+    "range": "[0,1]"
+  },
+  "non_effects": [
+    "is_computed_on_read_and_never_written_back",
+    "does_not_mutate_assertion_confidence",
+    "does_not_invalidate_projection_basis",
+    "does_not_produce_change_envelopes"
+  ],
+  "canonicalization": {
+    "profile": "kip-jcs-safe-v1",
+    "status": "normative-draft",
+    "description": "RFC 8785 JCS, narrowed to KIP portable safe integral values; no nonzero underflow; strict decoded-key/Unicode validation; integrity excluded from its own digest."
+  },
+  "integrity": {
+    "digest_profile": "kip-jcs-safe-v1",
+    "content_digest": "sha256:a50a89b83f937c97cabf0f8371cccfd326f4fdd438b6d7b9ead507d77927b227",
+    "covers": "all top-level fields except integrity",
+    "signatures": []
+  }
+}

@@ -345,7 +345,7 @@ LIMIT 20
 
 # 17. 承诺与守望审查 (Commitment and Watch Review)
 
-审查处于 pending、due-soon、overdue、blocked、fulfilled 与 cancelled 状态的 Commitment。截止时间到达绝不会自动删除或归档该事项。重要性高的未决承诺即使记忆可及性较低，也必须保持可回忆。未关联 Watch 的到期 Commitment 仅能通过本审查触达注意力：记录一条 `commitment_review` Activity，其 `inputs` 指明已到期的 Commitment；该次提交的 `space_seq` 即为 `commitment_due` 注意力项的 `raised_seq`（Profile §5.7，记忆接口 §4）。
+审查处于 pending、due-soon、overdue、blocked、fulfilled 与 cancelled 状态的 Commitment。截止时间到达绝不会自动删除或归档该事项。重要性高的未决承诺即使记忆可及性较低，也必须保持可回忆。未关联 Watch 的到期 Commitment 仅能通过本审查触达注意力：对每个已到期且处于 `pending` 或 `blocked` 的 Commitment，记录一条 `commitment_review` Activity，其 `inputs` 指明该承诺，并带 `CLIENT KEY "commitment_review:<承诺 id>:<due_at>"`；该次提交的 `space_seq` 即为 `commitment_due` 注意力项的 `raised_seq`（Profile §5.7、§17，记忆接口 §4）。正是这个键使下一个周期不会再次提升它：重放的键为 `no_effect`，只有新的 `due_at` 才会再次提升该承诺。
 
 ```prolog
 FIND(?commitment.id, ?commitment.name, ?commitment.attributes.due_at, ?commitment.attributes.status)
@@ -510,6 +510,8 @@ LIST DEPENDENTS :revised_root DEPTH 2 LIMIT 100
 # 31. 模式管理边界 (Schema Boundary)
 
 Maintenance 可以自省检查 Schema，但在未获得 `manage_schema` 授权前，严禁激活或迁移 Schema Packages。Schema 属于受保护的控制平面状态。
+
+`review_schema` 睡眠任务（键为 `review_schema:<确切符号引用>`）指名一个草稿符号（规范 §20.16）。将其与 `LIST TYPES` / `LIST PREDICATES` 比较：既有符号的近义词记录为"改用该符号"的 Insight，绝不再次 `DEFINE`；值得保留的符号在报告中作为晋升提议 `{from, to}` 交给唯一持有 `manage_schema` 的所有者；无用的符号予以了结。Maintenance 绝不自行晋升符号。
 
 # 32. 信任策略边界 (Trust Boundary)
 

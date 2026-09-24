@@ -153,6 +153,7 @@
       ]
     },
     "Projection": {
+      "description": "One candidate's projection (Spec §27.2). The basis carries the policy, valid_at and snapshot; a projection has no separate policy or temporal member.",
       "type": "object",
       "properties": {
         "proposition_id": {
@@ -438,6 +439,7 @@
       ]
     },
     "Slot": {
+      "description": "BELIEF SLOT output (Spec §47.3). The basis carries the policy, valid_at and snapshot; a slot has no separate policy or temporal member, and each candidate projection carries its own leading.",
       "type": "object",
       "properties": {
         "status": {
@@ -460,6 +462,38 @@
             "$ref": "#/$defs/Projection"
           },
           "minItems": 0
+        },
+        "subject": {
+          "type": "object",
+          "description": "The slot's subject as a reference (Spec §8), for example {\"id\": \"C-1\"}."
+        },
+        "predicate_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The exact Predicate the slot resolved to (Spec §20.14)."
+        },
+        "uncertainty": {
+          "type": "object",
+          "properties": {
+            "level": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "reasons": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Includes temporal_indeterminate (Spec §25.5) and outranked (Spec §21.13) where they apply."
+            }
+          },
+          "additionalProperties": false
+        },
+        "explanation": {
+          "type": "object"
         },
         "basis": {
           "$ref": "urn:kip:2.0:schema:projection#/$defs/ProjectionBasis"

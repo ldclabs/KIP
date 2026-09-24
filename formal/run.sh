@@ -2,7 +2,7 @@
 # Run the complete KIP 2.0 formal verification suite.
 #
 # Requirements:
-#   - Python 3.10+                                  (suites 3–8)
+#   - Python 3.10+                                  (suites 3–9)
 #   - Java 17+ on PATH (or set JAVA)                (suites 1–2)
 #   - org.alloytools.alloy.dist.jar (Alloy 6.2+)  — set ALLOY_JAR
 #   - tla2tools.jar (TLA+ tools / TLC)            — set TLA_JAR
@@ -151,7 +151,15 @@ run_py "$HERE/temporal/check_temporal.py" "bug: testimony outranks observation" 
 run_py "$HERE/temporal/check_temporal.py" "bug: inferences succeed one another" --infer-succeeds
 run_py "$HERE/temporal/check_temporal.py" "bug: recency before the other rules" --recency-first
 
-echo "==================== 9. Contracts, artifacts and the engine-suite shape ===================="
+echo "==================== 9. Draft vocabulary governance ===================="
+run_py "$HERE/governance/check_draft_vocabulary.py" "spec"
+run_py "$HERE/governance/check_draft_vocabulary.py" "bug: propose_schema implies manage_schema" --propose-implies-manage
+run_py "$HERE/governance/check_draft_vocabulary.py" "bug: DEFINE overwrites a symbol"          --define-overwrites
+run_py "$HERE/governance/check_draft_vocabulary.py" "bug: authority claim accepted"            --no-claim-check
+run_py "$HERE/governance/check_draft_vocabulary.py" "bug: ungated propose_schema grant"        --ungated-grant
+run_py "$HERE/governance/check_draft_vocabulary.py" "bug: repeated or cross-kind promotion"    --repromote
+
+echo "==================== 10. Contracts, artifacts and the engine-suite shape ===================="
 if command -v node >/dev/null 2>&1 && [ -f "$HERE/../packages/kip-lang/dist/index.js" ]; then
   node "$HERE/../conformance/update-digests.mjs" || fail=1
   node --test "$HERE/../packages/kip-lang/test/canonical.test.mjs" \

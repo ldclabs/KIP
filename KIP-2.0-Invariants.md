@@ -63,10 +63,10 @@ A conforming native KIP 2.0 implementation MUST preserve these cross-cutting inv
 | 41 | Portable numbers and canonical artifacts reject silent numeric loss and ambiguous JSON. | §9.3, Capsule §37.7 | MEM-011 |
 | 42 | Identity decisions preserve input bindings; supported repair retains raw history and exposes unresolved attribution. | §11.5 | MEM-008 |
 | 43 | Governed control changes invalidate dependent computation bases; incomplete stream coverage is not silence. | §36.1, §21.12; Brain Runtime §2 | MEM-007, MEM-009 |
-| 44 | A world change is one new Assertion: an open-ended claim ends only at a later start on the same actor's own line — stated or observed, or with a written start — and no one is recorded as having been wrong; two inferences never succeed one another. | §14.2, §25.4 | EPI-031, MEM-026 |
+| 44 | A world change is one new Assertion: an open-ended claim ends only at a later start on the same actor's own line — stated or observed, or with a written start — and no one is recorded as having been wrong; two inferences never succeed one another. | §14.2, §25.4 | EPI-031, MEM-026, X-018 |
 | 45 | Coarse time is a bound, never an invented instant; a claim with no stated start began no later than it was made, and indeterminate support never decides a status. | §25.2, §25.5 | EPI-032, MEM-026, MEM-027 |
 | 46 | A projection policy resolves a conflict only by its declared rules and discloses the rule; the structural baseline resolves none, and recency compares when values were claimed to hold, never when they were recorded. | §21.10, §21.13 | EPI-033, MEM-029 |
-| 47 | Draft vocabulary only adds, commits alone and confers no Schema authority. | §20.16, §29 | SCHEMA-022, GOV-031 |
+| 47 | Draft vocabulary only adds, commits alone and confers no Schema authority. | §20.16, §29 | SCHEMA-022, SCHEMA-023, GOV-031 |
 | 48 | A search hit never proves absence and never selects a mutation or export target. | §43.8, §66.6 | KQL-032, KQL-033 |
 | 49 | A misrecording is repaired, never written as the actor's retraction, supersession or correction; exposure is never cognition. | §57.8, §66.8 | REL-004, MIF-017, RT-035 |
 
@@ -125,7 +125,7 @@ An implementation that claims the Cognitive Memory Profile MUST additionally pre
 | P45 | Erased replay inputs make historical replay unavailable, never reconstructed or fabricated. | §60.7; Validated Learning §4 | MEM-024 |
 | P46 | Conformance models and runtime checks do not substitute for measured behavioral learning. | BrainEvaluation | MEM-012, MEM-025 |
 | P47 | A preference is among options of one kind: a newer one succeeds the older within its kind, and kinds coexist. | Profile §7, §15 | MEM-028, MIF-016 |
-| P48 | Decay is computed and a read never writes it back; a missing strength is unknown, never a default. | Profile §6.1, §18 | REL-011 |
+| P48 | Decay is computed and a read never writes it back; a missing strength is unknown, never a default. | Profile §6.1, §18 | REL-011, MEM-030 |
 | P49 | Raised attention reaches the business Agent through attention recall and grants nothing. | Profile §5.11; Memory Interface §4 | MIF-019, X-019 |
 
 ---

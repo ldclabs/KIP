@@ -58,6 +58,23 @@ test('engine suite: the runner passes a faithful engine and fails a wrong one', 
   for (const file of (await readdir(new URL('schemas/', root))).filter(f => f.endsWith('.json')))
     ajv.addSchema(await json('schemas/' + file))
   const validate = ajv.compile(reportSchema)
+  // A setup read answers with a value at every pointer the fixture captures.
+  const captured = capture => {
+    const paths = Object.values(capture).map(path => path.slice(1).split('/')).sort((x, y) => y.length - x.length)
+    if (!paths.length) return null
+    let root = null
+    for (const segments of paths) {
+      const container = segment => /^\d+$/.test(segment) ? [] : {}
+      root ??= container(segments[0])
+      let node = root
+      segments.forEach((segment, i) => {
+        if (i === segments.length - 1) { node[segment] ??= 'C-' + segments.join('-'); return }
+        node[segment] ??= container(segments[i + 1])
+        node = node[segment]
+      })
+    }
+    return root
+  }
   // A scripted engine: after resetSpace it answers setup, then each case in order.
   const scripted = transform => {
     let queue = []
@@ -70,9 +87,7 @@ test('engine suite: the runner passes a faithful engine and fails a wrong one', 
       execute: async () => {
         const c = queue.shift()
         if (!c) return { results: [{ result: null }] }
-        if (c.setup) return { results: [{ result: c.setup.capture.inference_basis
-          ? [['C-campus', 'C-austin', 'C-dallas', 'C-brain', 'E-austin', 1, 'E-dallas', 1, { snapshot_seq: 1 }]]
-          : [['C-alice', 'A-old']] }] }
+        if (c.setup) return { results: [{ result: captured(c.setup.capture ?? {}) }] }
         return transform(c)
       }
     }

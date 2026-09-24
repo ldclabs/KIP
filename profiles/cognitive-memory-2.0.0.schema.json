@@ -15,11 +15,11 @@
     "validation_schemas": [
       {
         "id": "urn:kip:2.0:schema:projection",
-        "content_digest": "sha256:a4faae39c8cb0d41b28ed84e13c37d6cf604b054dde94746ccbe61a01ccca13f"
+        "content_digest": "sha256:e6db68772133abd5f5685b710d407a88cf11155c323db798378309f18fdfee68"
       },
       {
         "id": "urn:kip:2.0:schema:cognitive-records",
-        "content_digest": "sha256:82d2ce4801c1e689a31836375a731e780e1d6c4d8ca52925956f674c6d3ca4d1"
+        "content_digest": "sha256:3a844f410f19f7cae6c81253d46260f0e17d7c4a097d1f40ed79cb2f95b7c8c1"
       },
       {
         "id": "urn:kip:2.0:schema:element",
@@ -435,7 +435,8 @@
         },
         "model_hints": {
           "temporal_invariant": "due_at != retention.expires_at",
-          "authority_invariant": "Commitment does not automatically schedule or authorize an external action."
+          "authority_invariant": "Commitment does not automatically schedule or authorize an external action.",
+          "attention_invariant": "Without a Watch, a due pending or blocked Commitment reaches attention through one commitment_review Activity keyed commitment_review:<id>:<due_at>; a replayed key raises nothing, a new due_at raises it again."
         }
       },
       "Skill": {
@@ -586,7 +587,8 @@
           }
         },
         "model_hints": {
-          "authority_invariant": "Semantic assignment, including to $system, does not grant Principal permission."
+          "authority_invariant": "Semantic assignment, including to $system, does not grant Principal permission.",
+          "review_schema_invariant": "review_schema names one draft vocabulary symbol and is keyed review_schema:<exact symbol ref>; review may propose a promotion, only manage_schema performs one."
         }
       },
       "Watch": {
@@ -991,7 +993,8 @@
             "utility is the admission bet, revised by outcomes; not truth, salience, or permission",
             "Facet state cannot override Core/Governance fields",
             "Skills carry it too: a Skill's expected usefulness is MnemonicState.utility; its graded record is the computed GradingState view",
-            "memory_strength is the last written base; decay is computed (effective_strength), never swept"
+            "memory_strength is the last written base; decay is computed (effective_strength), never swept",
+            "the standard strength_policy is kip:strength-half-life-30d; an unknown policy or a digest mismatch leaves effective_strength null, never another policy"
           ]
         }
       },
@@ -2947,7 +2950,7 @@
   },
   "integrity": {
     "digest_profile": "kip-jcs-safe-v1",
-    "content_digest": "sha256:3ea9e4591b403dfc196b611c3e5844be95524987ec3cf80664572e780770d8d9",
+    "content_digest": "sha256:76d73164c8e913dfde394e8fe2b13d226ba5ed2b0cfd8c90914f7ff1483cfb9e",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

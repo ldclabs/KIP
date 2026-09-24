@@ -109,3 +109,27 @@
 | 8 | §67.4 中一行折行，使注册表解析器把 `profiles/memory-bundles.json` 读成能力名 | 每个条目一行 |
 | 9 | `SPECIFICATION_CN.md` 仍保留 `SUPERSEDE ASSERTION`、`RETRACT ASSERTION`、`CORRECT EVIDENCE`、`ARCHIVE`/`TOMBSTONE` 语句、`AS OF TX/TIME` 与旧的语法草图 | 已与英文源对齐 |
 | 10 | 工具包对时间戳、时间界限、ASSERT `context` 与草稿声明的字面量形状一概接受 | 改为静态检查（`KIP_2001`），参数除外 |
+
+
+## 下游集成轮次 — 2026-09-24
+
+将 `3251912` 集成进两个参考引擎（anda-db `0312b51`、`6a67d60`）与参考大脑（anda-brain `c9dfe6b`）后，这些仓库产生了问题清单（`anda-db/debug/KIP_SYNC_TASKS.md` §13.5、`anda-brain/docs/KIP_SYNC_TASKS.md` §13.4）以及草稿词汇的开发计划（`anda-db/debug/DRAFT_VOCABULARY_PLAN.md` §2）。其中属于 KIP 一侧的条目在此处理；引擎与大脑的工作仍留在各自仓库。
+
+| # | 发现 | 处理 |
+| --- | --- | --- |
+| C0 | 两个引擎通过了 `world-time.json` 中除四个 `DEFINE` 用例以外的全部用例，这四例在没有 `draft_vocabulary` 时被跳过，导致该 fixture 无法摘掉 `pending_engine` | `DEFINE` 用例移入新的待验证 fixture `draft-vocabulary.json`；`world-time.json` 已验证（anda-db `6a67d60`，两个引擎均通过整套 388 例中的 384 例）；manifest 记录了验证所依据的提交 |
+| C1 | `commitment_review` 没有幂等键，每个维护周期都可能再次提升同一个到期承诺 | 每个承诺一个 `commitment_review` 活动，`client_key` 为 `commitment_review:<承诺 id>:<due_at>`：重放不提升任何事项，新的 `due_at` 才会再次提升（Profile §5.7、§17；记忆接口 §4；BrainMaintenance §17；包的 model hint；预言机 `commitmentReviewKey`） |
+| C2 | attention 游标只按 `raised_seq` 排序，而一次提交可以提升多个条目 | 条目按 `(raised_seq, ref)` 排序；游标是最后投递的位置，因此一页可以止于某个序号中间而不丢失其余条目（记忆接口 §4、`kip-memory.schema.json`；预言机 `attentionAfter` 分页） |
+| C3 | `strength_policy` 是 `ArtifactPin`，却没有工件格式和标准工件，`effective_strength` 无法在引擎间一致 | `kip-cognitive-records.schema.json` 新增 `StrengthPolicy`；标准工件 `profiles/policy-strength-half-life-30d.json`（`kip:strength-half-life-30d`）；公式、评估时刻、锚点之前与未知钉固的规则写入 Profile §6.1 与规范 §59.1；MEM-030、预言机 `effectiveStrength`、待验证 fixture `mnemonic-strength.json` |
+| C4 | §14.2 要求废弃替代的上下文兼容，却未定义，也没有引擎用例钉住 | §14.2 定义兼容（行动者、命题或主语+谓词谱系、规范上下文集合），并把作用域错误导向撤回；KML-036、预言机 `supersessionCompatible`、待验证 fixture `supersession-scope.json` |
+| C5 | 记忆接口没有说明无已捕获来源的修订取哪个 `asserted_at` | 每次修订都从 `source_ref` 取得；没有来源的宿主 API 把请求本身捕获为来源（记忆接口 §4） |
+| C6 | `kip-projection.schema.json` 禁止引擎套件读取的 `policy` 成员，其 `Slot` 也缺少 §47.3 列出的成员 | 基准是策略、`valid_at` 与快照的唯一位置（§27.2、§47.3）；`Slot` 增加可选的 `subject`、`predicate_ref`、`uncertainty` 与 `explanation`；套件用例在指名策略下读取 `?b.basis.policy.id`，不再依赖引擎私有的默认策略名 |
+| C7 | §25.4 说前任断言在继任者的有效起始点结束，而两个预言机与两个引擎用的都是继任者在该链上的起始点 | §25.4 改用链上起始点与链上结束点，并逐个界限合并 |
+| C8 | 草案期间 `cognitive-memory@2.0.0` 原地重写 | 按设计不变（规范 Status）：名称与摘要在发布时一同冻结；本轮摘要再次变化 |
+| K1 | §20.16 在两个引擎必须一致之处留有空白 | 同类别冲突，覆盖锁中所有包；定义体成员与必填 `description`；省略的端点不受约束；结果为 `{ref, schema_environment_version}` 且没有 `CLIENT KEY`；由运行时按 Space 合成的草稿包出现在 `LIST SCHEMA PACKAGES` / `DESCRIBE PACKAGE`；晋升记为 `lineage_maps`；胶囊导入要求为被使用的草稿符号提供显式映射；`review_schema:<ref>`（规范 §20.16、胶囊 §41.7、Profile §5.9、KIPFormation、BrainMaintenance §31、语法卡） |
+| K2–K3 | `DEFINE` 用例只覆盖了四种行为 | `draft-vocabulary.json`（23 例：列出、描述、确切引用、草稿概念类型、基于草稿谓词的投影、冲突、被拒成员、位置、参数）；SCHEMA-022 与新增的 SCHEMA-023（晋升、胶囊映射）；manifest 与套件 README |
+| K4 | 工具包只检查三个 `DEFINE` 成员 | `@ldclabs/kip-lang` 2.4.1 静态检查 §20.16 的完整成员列表 |
+| K5 | 没有模型覆盖草稿词汇的权限边界 | `formal/governance/check_draft_vocabulary.py`：在 16,476 个状态上验证 V1–V7，含五种缺陷注入模式 |
+| — | KIP2-X-018 仍把世界变化写成废弃替代，KML-024 仍描述带 `0.5` 默认值的衰减扫描 | X-018 改为一条断言加时间继承；KML-024 保留更新表达式检查，把批处理改为强化而非衰减，并使用显式初始值 |
+
+仍待完成（由所有者决定，或需要引擎）：K6（在两个引擎上验证 `draft-vocabulary.json`、`supersession-scope.json` 与 `mnemonic-strength.json`），以及发布 `@ldclabs/kip-lang` 2.4.1。

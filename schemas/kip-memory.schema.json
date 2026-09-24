@@ -157,7 +157,7 @@
         },
         "attention_cursor": {
           "$ref": "#/$defs/Ref",
-          "description": "Opaque cursor returned by an earlier attention recall; items at or before it are not returned again."
+          "description": "Opaque cursor returned by an earlier attention recall: the position of the last item delivered in (raised_seq, ref) order. Items at or before it are not returned again; a page may end inside one raised_seq."
         }
       },
       "required": [],
@@ -805,7 +805,8 @@
           "maxItems": 128
         },
         "attention_cursor": {
-          "$ref": "#/$defs/Ref"
+          "$ref": "#/$defs/Ref",
+          "description": "The position of the last attention item this page delivered, in (raised_seq, ref) order; the cursor given when the page is empty. The host keeps it (Memory Interface §4)."
         }
       },
       "required": [
@@ -1618,7 +1619,7 @@
     },
     "AttentionItem": {
       "type": "object",
-      "description": "A fired Watch or a due Commitment the Brain raised, delivered by attention recall (Memory Interface §4). Every item is raised by a commit — a watch_fire Activity or a commitment_review Activity — and raised_seq is that commit's space_seq. Attention grants nothing.",
+      "description": "A fired Watch or a due Commitment the Brain raised, delivered by attention recall (Memory Interface §4). Every item is raised by a commit — a watch_fire Activity or a commitment_review Activity keyed commitment_review:<commitment id>:<due_at> — and raised_seq is that commit's space_seq. Attention grants nothing.",
       "properties": {
         "ref": {
           "$ref": "#/$defs/Ref"
@@ -1636,7 +1637,7 @@
         },
         "raised_seq": {
           "$ref": "#/$defs/Sequence",
-          "description": "The space_seq of the commit that raised this item (the watch_fire or commitment_review Activity); the attention cursor orders by it."
+          "description": "The space_seq of the commit that raised this item (the watch_fire or commitment_review Activity). Several items can share one raised_seq; attention recall orders by (raised_seq, ref)."
         },
         "due_at": {
           "$ref": "urn:kip:2.0:schema:common#/$defs/Timestamp"

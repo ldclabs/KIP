@@ -184,6 +184,28 @@ function precedenceWinner(set, subject) {
   return null
 }
 
+/** Computed strength (Spec §59.1, Profile §6.1). `policies` maps artifact_ref to
+ *  the policy artifacts the runtime knows; `at` is the instant the read is
+ *  evaluated. Anything missing or unverifiable is null — unknown, never a default. */
+export function effectiveStrength(state, policies, at) {
+  const base = state?.memory_strength, anchor = state?.last_metabolized_at, pin = state?.strength_policy
+  if (typeof base !== 'number' || typeof anchor !== 'string' || !pin) return null
+  const policy = policies[pin.artifact_ref]
+  if (!policy || policy.integrity?.content_digest !== pin.content_digest) return null
+  if (policy.method?.kind !== 'half_life') return null
+  const elapsed = Math.max(0, parseTimestamp(at) - parseTimestamp(anchor))
+  return base * 2 ** (-elapsed / policy.method.half_life_ms)
+}
+
+/** Supersession compatibility (Spec §14.2): same actor, same Proposition or the
+ *  same subject and Predicate lineage, and the same canonical context set. */
+export function supersessionCompatible(old, replacement) {
+  const contexts = a => [...new Set(a.context_refs ?? [])].sort().join('\u0000')
+  return old.actor === replacement.actor && contexts(old) === contexts(replacement) &&
+    (old.proposition === replacement.proposition ||
+      (old.subject === replacement.subject && old.predicate_lineage === replacement.predicate_lineage))
+}
+
 export function sameBasis(a, b) {
   const inputs = basis => { const { next_invalid_at, ...rest } = basis; return rest }
   return canonicalize(inputs(a)) === canonicalize(inputs(b))

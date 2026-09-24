@@ -1,0 +1,114 @@
+{
+  "name": "supersession-scope",
+  "status": "pending_engine",
+  "description": "Supersession stays inside its actor and its scope (§14.2): the replacement has the same canonical actor, the same Proposition or one of the same subject and Predicate lineage, and the same canonical context set. A correction cannot move a general claim into a context or a scoped claim out of one — that would widen or narrow what the actor said — and fails SupersessionMismatch without writing anything; a same-scope correction commits and supersedes.",
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://conformance/supersession-scope",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "predicates": {
+          "timezone": {
+            "kind": "PredicateType",
+            "description": "Current timezone as a UTC offset string.",
+            "functional": true,
+            "object": {
+              "literal_types": [
+                "string"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?alice { TYPE \"Person\" NAME \"Alice\" }\n  CREATE CONCEPT ?work { TYPE \"Person\" NAME \"work\" }\n  ENSURE PROPOSITION ?p_general (?alice, \"timezone\", \"+08:00\")\n  ENSURE PROPOSITION ?p_work (?alice, \"timezone\", \"+09:00\")\n  CREATE ASSERTION ?general { SET FIELDS { proposition: ?p_general, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-01-01T00:00:00.000Z\" } }\n  CREATE ASSERTION ?scoped { SET FIELDS { proposition: ?p_work, asserted_by: ?alice, stance: \"support\", mode: \"stated\", asserted_at: \"2026-01-01T00:00:00.000Z\", context_refs: [?work] } }\n}",
+    {
+      "command": "FIND(?alice.id, ?work.id, ?general.id, ?scoped.id) WHERE {\n  ?alice CONCEPT {name: \"Alice\"}\n  ?work CONCEPT {name: \"work\"}\n  ?pg PROPOSITION (?alice, \"timezone\", \"+08:00\")\n  ?pw PROPOSITION (?alice, \"timezone\", \"+09:00\")\n  ?general ASSERTION {proposition: ?pg}\n  ?scoped ASSERTION {proposition: ?pw}\n}",
+      "capture": {
+        "alice": "/0/0",
+        "work": "/0/1",
+        "general": "/0/2",
+        "scoped": "/0/3"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "a correction cannot move a general claim into a context",
+      "command": "MUTATE {\n  ASSERT (:alice, \"timezone\", \"+07:00\") {\n    by: :alice, mode: \"stated\", at: \"2026-09-21T00:00:00.000Z\", context: [:work],\n    valid: {from: {latest: \"2026-01-01T00:00:00.000Z\"}}\n  } SUPERSEDING :general\n}",
+      "expect": {
+        "error": "SupersessionMismatch"
+      },
+      "vectors": [
+        "KML-036"
+      ]
+    },
+    {
+      "name": "nor a scoped claim out of its context",
+      "command": "MUTATE {\n  ASSERT (:alice, \"timezone\", \"+07:00\") {\n    by: :alice, mode: \"stated\", at: \"2026-09-21T00:00:00.000Z\",\n    valid: {from: {latest: \"2026-01-01T00:00:00.000Z\"}}\n  } SUPERSEDING :scoped\n}",
+      "expect": {
+        "error": "SupersessionMismatch"
+      },
+      "vectors": [
+        "KML-036"
+      ]
+    },
+    {
+      "name": "a refused supersession writes nothing",
+      "command": "FIND(?v, ?a.lifecycle.status) WHERE {\n  ?alice CONCEPT {name: \"Alice\"}\n  ?p PROPOSITION (?alice, \"timezone\", ?v)\n  ?a ASSERTION {proposition: ?p}\n}",
+      "expect": {
+        "result": [
+          [
+            "+08:00",
+            "active"
+          ],
+          [
+            "+09:00",
+            "active"
+          ]
+        ]
+      },
+      "vectors": [
+        "KML-036"
+      ]
+    },
+    {
+      "name": "a correction within the same scope supersedes",
+      "command": "MUTATE {\n  ASSERT (:alice, \"timezone\", \"+07:00\") {\n    by: :alice, mode: \"stated\", at: \"2026-09-21T00:00:00.000Z\", context: [:work],\n    valid: {from: {latest: \"2026-01-01T00:00:00.000Z\"}}\n  } SUPERSEDING :scoped\n}",
+      "expect": {},
+      "vectors": [
+        "KML-018",
+        "KML-036"
+      ]
+    },
+    {
+      "name": "only the scoped claim was superseded",
+      "command": "FIND(?v, ?a.lifecycle.status) WHERE {\n  ?alice CONCEPT {name: \"Alice\"}\n  ?p PROPOSITION (?alice, \"timezone\", ?v)\n  ?a ASSERTION {proposition: ?p}\n}",
+      "expect": {
+        "result": [
+          [
+            "+07:00",
+            "active"
+          ],
+          [
+            "+08:00",
+            "active"
+          ],
+          [
+            "+09:00",
+            "superseded"
+          ]
+        ]
+      },
+      "vectors": [
+        "KML-018",
+        "KML-036"
+      ]
+    }
+  ]
+}

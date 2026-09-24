@@ -40,7 +40,7 @@ ASSERT (:subject, :predicate, :new_value) {
 
 偏好是一条 `prefers` 主张，其选项为按类别分类的 Concept（如 `ColorScheme`、`Editor`）：同一类别的新偏好将继承替代旧偏好。当已安装的类型中没有对应类别时，先使用 `DEFINE CONCEPT TYPE`；切勿使用 `Topic` 这种包罗万象的类别来为选项分类，否则每项偏好都会与其他所有偏好相互竞争。
 
-当部署环境授予了 `propose_schema` 权限时，未在任何 package 中定义的关系统一通过 `DEFINE PREDICATE`（规范 §20.16）添加一次；否则将该素材保留为仅限证据，并排队等待 `review_schema` 睡眠任务。切勿强行扭曲无关的 Predicate 来迁就数据。
+当部署环境授予了 `propose_schema` 权限时，未在任何 package 中定义的关系统一通过 `DEFINE PREDICATE`（规范 §20.16）添加一次：在使用它的 MUTATE 之前单独发出请求，随后以 `CLIENT KEY "review_schema:<ref>"` 排入一个 `review_schema` 睡眠任务；`SchemaSymbolConflict` 表示它已存在。否则将该素材保留为仅限证据，并排入一个指名所缺关系的 `review_schema` 睡眠任务交给所有者。切勿强行扭曲无关的 Predicate 来迁就数据。
 
 仅记录所观测到、由外部提供的过程。反馈保持其真实来源：自述绝非可评分的客观结果。普通事实与反馈无需试验。切勿为了填满可选字段而人为编造置信度、显著性或效用。
 

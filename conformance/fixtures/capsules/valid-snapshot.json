@@ -16,7 +16,7 @@
     "schema_dependencies": [
       {
         "package_ref": "kip://profiles/cognitive-memory@2.0.0",
-        "content_digest": "sha256:3ea9e4591b403dfc196b611c3e5844be95524987ec3cf80664572e780770d8d9"
+        "content_digest": "sha256:76d73164c8e913dfde394e8fe2b13d226ba5ed2b0cfd8c90914f7ff1483cfb9e"
       }
     ],
     "records": [
@@ -44,7 +44,7 @@
   },
   "integrity": {
     "digest_profile": "kip-jcs-safe-v1",
-    "content_digest": "sha256:1e7e2e0808c1c725e6bd2715a5a1fad76fea1003c75336324dd6cafb39396e4a",
+    "content_digest": "sha256:1e4712c72711b970eecdac9a66dc73bc91bc817357bbd464d0520f345b3dfde2",
     "signatures": []
   }
 }

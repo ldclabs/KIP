@@ -24,6 +24,7 @@ The following artifacts are normative companions to this Specification:
 - `profiles/CognitiveMemoryProfile-2.0.md` and `profiles/cognitive-memory-2.0.0.schema.json` — the standard Profile and its package
 - `profiles/general-domain-1.0.0.schema.json` — a minimal general-purpose domain package (people, places, organizations)
 - `profiles/policy-memory-default.json` — the `kip:memory-default` Projection Policy (§21.13)
+- `profiles/policy-strength-half-life-30d.json` — the standard mnemonic strength policy (§59.1, Profile §6.1)
 - `KIP-2.0-Memory-Interface.md`, `schemas/kip-memory.schema.json` and `profiles/memory-bundles.json` — the optional Agent-to-Brain binding and its levels
 - `KIP-2.0-Capsule-Specification.md` — §37–§41 and §95 of this Specification, carried in a companion under the same numbering
 - `KIP-2.0-Optional-Profiles-and-Migration.md` — §100, §101, §103 and Appendix I: historical reads, high-assurance hardening and KIP 1.x migration, each a capability (§67.4)
@@ -1236,6 +1237,8 @@ Administrative moderation MUST NOT falsely mark an Assertion as retracted if no 
 
 Supersession means a newer Assertion replaces the older Assertion in a compatible actor/context/revision lineage.
 
+Compatible means all three: the same canonical `asserted_by` actor; the same Proposition, or — for a value correction — a Proposition with the same canonical subject and Predicate lineage (§20.14); and the same canonical `context_refs` set (§25.3). A replacement that differs in any of them fails `SupersessionMismatch`: supersession never moves a claim to another actor or into another scope. A claim that was wrong only in its scope — stated generally when it held only at work — is withdrawn (§14.1) and the scoped claim asserted anew.
+
 Supersession is **revision**: the superseding Assertion says the superseded one was wrong — in its value, or in the interval it claimed — for the time it covered. Projection therefore drops a superseded Assertion for every `FOR TIME`, not only for the present.
 
 For a value-only correction, Formation MUST explicitly preserve the world interval being corrected while setting `asserted_at` to the time of the correction. Copy the original written endpoints; if its `from` was absent, materialize `{latest: <original asserted_at>}` instead of omitting it again. Omitting `from` on the replacement would use the correction time (§25.2), making the corrected value indeterminate for earlier times. When the correction also changes the interval, write the interval the source actually corrects; supersession never infers or inherits one automatically.
@@ -2002,16 +2005,18 @@ DEFINE PREDICATE "main_instrument" {
 
 Rules:
 
-- The package path prefix `local/` is reserved for Space-local packages. A draft lineage is qualified by its home Space: Capsule identity mapping (§38.2) keeps a source's `kip://local/...` symbols source-namespaced and MUST NOT merge them by name with the destination's draft symbols.
-- `DEFINE` only adds. A local name that already resolves in the Schema Environment — from Core, a Profile, an installed package or an earlier draft symbol — fails `SchemaSymbolConflict`. A draft symbol never shadows another symbol and never changes after it is defined.
-- A draft Predicate uses the fields of §20.15 with their defaults. It MUST NOT declare `open_world: false` or `complete: true`: a closed-world reading and exclusive-value completeness are claims about authority over the data, which only an installed package makes.
-- A draft Concept Type declares `description` and MAY declare open, optional `attributes` with `type` names from §9.2; it declares no required attributes, Facets or Structural Fields.
-- `DEFINE` is a standalone operation. It MUST NOT appear inside `MUTATE` or in an `atomic` request with other operations (§75.3). It commits as its own transaction, advances `schema_environment_version`, publishes a `schema` control change (§36.1) and makes the symbol resolvable for later operations.
+- The package path prefix `local/` is reserved for Space-local packages. A draft lineage is qualified by its home Space: Capsule identity mapping (§38.2) keeps a source's `kip://local/...` symbols source-namespaced and MUST NOT merge them by name with the destination's draft symbols. An import that writes elements under a source draft symbol needs an explicit mapping of that symbol, in the import's mapping artifact (Capsule companion §41.7), to a destination symbol of the same kind — a destination draft symbol or a symbol of an installed package. An unmapped source draft symbol fails `SchemaPackageUnavailable`, and the error names every unmapped symbol; the importer never maps by name and never synthesizes a destination package for them.
+- `DEFINE` only adds. A name that already names a symbol of the same kind in the Schema Environment — from Core, a Profile, any package in the Space's Schema Lock whatever its state, or an earlier draft symbol — fails `SchemaSymbolConflict`, and a reserved Core name (§20.13) conflicts for every kind. Symbol kinds are separate namespaces, as they are inside a package. A draft symbol never shadows another symbol and never changes after it is defined. A package activated later that exports a draft symbol's name makes that local name ambiguous (§20.7) until the draft symbol is promoted to it.
+- The definition is the body of the package definition of that kind (`schemas/kip-schema-package.schema.json`) without `ref` and `kind`, which the runtime supplies. Both kinds REQUIRE a string `description`: it is the only meaning a later reader of the symbol gets. Parameters are bound before any check, and a member not listed below fails `ConstraintViolation`.
+- A draft Predicate MAY declare `subject`, `object`, `functional`, `functional_by`, `open_world`, `complete`, `boolean_completeness` and `temporal_conflict` with the meanings and defaults of §20.15. An omitted `subject` or `object` leaves that endpoint unconstrained, so `functional_by`, which partitions by the object's Concept Type, needs a declared Concept object. It MUST NOT declare `open_world: false` or `complete: true`: a closed-world reading and exclusive-value completeness are claims about authority over the data, which only an installed package makes.
+- A draft Concept Type MAY declare `attributes: {open: true, fields: {...}}`, each field declaring `type` — a §9.2 name or an array of them — and optionally `description`. It declares no required attributes, no other field members, no Facets and no Structural Fields; its attributes are open and optional.
+- `DEFINE` is a standalone operation. It MUST NOT appear inside `MUTATE` or in an `atomic` request with other operations (§75.3). It commits as its own transaction, advances `schema_environment_version`, publishes a `schema` control change (§36.1) and makes the symbol resolvable for later operations. Its result is `{ref, schema_environment_version}`: the new symbol's exact reference and the environment version the definition created. `DEFINE` has no `CLIENT KEY`: a retried request is deduplicated by its `idempotency_key` (§34), and a repeated definition without one fails `SchemaSymbolConflict`, even when it is identical.
 - The draft package has one fixed version, `kip://local/draft@0.0.0`: a draft symbol never changes after it is defined, so a version number would carry no information, and one version keeps every draft symbol out of Capsule embeddings, Schema Locks and `DESCRIBE PACKAGE` as a growing list of versions. Elements persist that exact reference (§20.4). Each `DEFINE` still advances `schema_environment_version`, which is what caches and bases key on.
-- Promotion is a Schema migration under `manage_schema`, recorded in the Space's Schema Environment: a lineage mapping from the draft symbol to a symbol of an installed package, with the rename semantics of §20.14. It is never declared inside a package artifact — a portable package cannot name one Space's draft symbols. Nothing is promoted implicitly, and elements written under a draft symbol remain readable through its lineage.
+- The draft package is synthesized by the runtime, per Space, from the Space's Schema Environment history, never installed Nexus-wide. From its first `DEFINE` it is part of every later Schema Environment of the Space; activating or migrating other packages never removes it. `LIST SCHEMA PACKAGES` and `DESCRIBE PACKAGE` report it with status `active`, its definitions so far and an `integrity.content_digest` the runtime computes under `kip-jcs-safe-v1` (§37.7), so its digest changes with every `DEFINE` while its reference does not.
+- Promotion is a Schema migration under `manage_schema`, recorded in the Space's Schema Environment: a lineage mapping from the draft symbol to a symbol of the same kind in an installed package, with the rename semantics of §20.14. It is never declared inside a package artifact — a portable package cannot name one Space's draft symbols. Nothing is promoted implicitly, and a draft symbol is promoted at most once. `DESCRIBE SCHEMA ENVIRONMENT` reports the promotions as `lineage_maps`, one entry `{kind, from, to}` per promoted symbol, from its draft lineage (`kip://local/draft/<name>`) to its target lineage — the entry names the kind because symbol kinds are separate namespaces and a lineage identity does not; an `AS OF` read before a promotion does not see it. Afterwards every rule that matches by lineage (§20.14) treats the two lineages as one, while elements written under the draft symbol keep their exact `kip://local/draft@0.0.0/<name>` reference and stay readable through its lineage.
 - `propose_schema` never confers `manage_schema`, `manage_policy` or any authority over existing symbols. A runtime that does not advertise `draft_vocabulary` rejects `DEFINE` with `UnsupportedCapability`.
 
-The Cognitive Memory Profile's `review_schema` SleepTask class queues draft symbols for review and promotion.
+The Cognitive Memory Profile's `review_schema` SleepTask class queues draft symbols for review and promotion. The Brain that defines a symbol queues its review with `client_key` `review_schema:<exact symbol ref>`, so a retried definition never queues twice. Review MAY propose a promotion; only a Principal holding `manage_schema` performs one.
 
 ---
 
@@ -2451,17 +2456,17 @@ slot line          stance support, distinct Propositions of one functional slot 
 **Succession.** Two Assertions on a line **disagree** when they are on a slot line, or when they are on a proposition line with different stances. A later Assertion that agrees with an earlier one — the same Proposition and stance — neither ends nor narrows it. For an Assertion P on a line, its **successors** are the eligible Assertions on the line that disagree with P and have a greater start key; its **predecessor** is the disagreeing eligible Assertion on the line with the greatest start key smaller than P's. Equal start keys are simultaneous: neither succeeds the other, and a disagreement between them stays a conflict.
 
 ```text
-start    if P's from is not exact and P has a predecessor Q, P's effective start is
+start    if P's from is not exact and P has a predecessor Q, P's line start is
              {earliest: max(P.from.earliest, start key of Q), latest: start key of P}
          otherwise P's written from
-end      if P's until is open and P has successors, P's effective until is the
-             effective start of the successor with the smallest start key — when
-             several share that key, their effective starts combined bound by
-             bound, taking the earliest of each
+end      if P's until is open and P has successors, P's line end is the line
+             start of the successor with the smallest start key — when several
+             share that key, their line starts combined bound by bound, taking
+             the earliest of each
          otherwise P's written until
 ```
 
-An Assertion on several lines combines them bound by bound: its effective start takes the latest `earliest` and the latest `latest` any line gives it, and its effective end the earliest of each (an exact instant counts as a bound whose `earliest` and `latest` are equal). Effective intervals only ever narrow written ones: succession never makes an Assertion eligible where its written interval excludes it, never changes stored state, and is recomputed from the eligible set at every basis. An Assertion that is not eligible for the projection — retracted, superseded, quarantined, invisible to the caller, excluded by mode or context — is on no line, so withdrawing a successor restores its predecessor's open end, and a hidden Assertion never changes a visible one's interval.
+Both are computed per line: a successor ends P at the start it has on P's line, never at a start that another line narrowed further. An Assertion on several lines combines them bound by bound: its effective start takes the latest `earliest` and the latest `latest` any of its line starts gives it, and its effective end the earliest of each of its line ends (an exact instant counts as a bound whose `earliest` and `latest` are equal). Effective intervals only ever narrow written ones: succession never makes an Assertion eligible where its written interval excludes it, never changes stored state, and is recomputed from the eligible set at every basis. An Assertion that is not eligible for the projection — retracted, superseded, quarantined, invisible to the caller, excluded by mode or context — is on no line, so withdrawing a successor restores its predecessor's open end, and a hidden Assertion never changes a visible one's interval.
 
 Consequences:
 
@@ -2601,21 +2606,18 @@ Conceptual output:
     "reasons": []
   },
 
-  "temporal": {
+  "explanation": {},
+
+  "basis": {
+    "snapshot_seq": 1500,
+    "policy": {"id": "...", "version": "..."},
     "valid_at": "...",
-    "as_of_seq": 1500
-  },
-
-  "policy": {
-    "id": "...",
-    "version": "..."
-  },
-
-  "explanation": {}
+    "next_invalid_at": null
+  }
 }
 ```
 
-The conceptual example above elides `basis` for space; actual results MUST include the full ProjectionBasis. `candidate_status` is diagnostic; consumers use final `status`. Functional conflicts are included even for a single grounded candidate (§21.11).
+The example abbreviates `basis`; actual results MUST include the full ProjectionBasis (§21.12). The basis is where a projection reports the policy it ran under, its `valid_at` and its snapshot: a projection has no separate `policy` or `temporal` member, and `schemas/kip-projection.schema.json#/$defs/Projection` is the wire contract. `candidate_status` is diagnostic; consumers use final `status`. Functional conflicts are included even for a single grounded candidate (§21.11).
 
 `leading` names the side the policy would favor if it were forced to choose: `support` under `accepted`, `opposition` under `rejected`, and under `contested` the side with more eligible independent trusted roots, using the tie-break the policy declares (§27.1); an exact tie, `uncertain` and `insufficient` report `none`. `leading` is disclosure for a consumer that must act anyway (Brain Recall surfaces both sides and names the heavier one); it never changes `status`.
 
@@ -4082,19 +4084,22 @@ BELIEF SLOT evaluates the candidate/conflict set for one subject-predicate seman
 
 ## 47.3 Output
 
-Conceptual:
+Shape (`schemas/kip-projection.schema.json#/$defs/Slot`):
 
 ```json
 {
   "status": "accepted|contested|uncertain|insufficient",
   "accepted_values": [],
   "candidate_projections": [],
+  "subject": {"id": "C-1"},
+  "predicate_ref": "kip://...",
   "uncertainty": {},
-  "policy": {},
-  "temporal": {},
-  "explanation": {}
+  "explanation": {},
+  "basis": {}
 }
 ```
+
+`basis` is REQUIRED and, as for a projection (§27.2), carries the policy, `valid_at` and snapshot; a slot has no separate `policy` or `temporal` member. `subject` (a reference, §8) and `predicate_ref` (the exact resolved Predicate) MAY identify the slot. Each entry of `candidate_projections` is a Projection and carries its own `leading`.
 
 ---
 
@@ -4996,7 +5001,7 @@ expression.
 
 Memory metabolism MAY lower `memory_strength`; it MUST NOT periodically decay Assertion confidence merely because time passed. Temporal relevance belongs in Projection.
 
-Decay is computed, not written. With the Cognitive Memory Profile, `MnemonicState.memory_strength` is the last explicitly written base, `last_metabolized_at` its anchor and `strength_policy` a pinned policy artifact (for example a half-life); the read-only virtual member `effective_strength` is computed from them when a read is evaluated (Profile §18). A read never writes it back. When the base, anchor or policy is missing, effective strength is `null` — unknown — and a runtime or Brain MUST NOT substitute a default such as `0.5`. Idle memory therefore costs no writes, no Change Envelopes and no invalidations.
+Decay is computed, not written. With the Cognitive Memory Profile, `MnemonicState.memory_strength` is the last explicitly written base, `last_metabolized_at` its anchor and `strength_policy` a pinned policy artifact — the standard one is the half-life policy `kip:strength-half-life-30d` (`profiles/policy-strength-half-life-30d.json`); the read-only virtual member `effective_strength` is computed from them when a read is evaluated (Profile §6.1, §18). A read never writes it back. When the base, anchor or policy is missing, effective strength is `null` — unknown — and a runtime or Brain MUST NOT substitute a default such as `0.5`. Idle memory therefore costs no writes, no Change Envelopes and no invalidations.
 
 Reinforcement is an explicit mutation that writes a new base and anchor:
 

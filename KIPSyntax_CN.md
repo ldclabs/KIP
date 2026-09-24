@@ -159,7 +159,7 @@ STRUCTURAL (?experience, "has_step", ?step)          // 边的绑定变量是可
 ?slot BELIEF SLOT (?person, "timezone")              // 整个函数槽位：候选值 + 冲突集
 ```
 
-**BELIEF 输出**：`status` ∈ `accepted | rejected | contested | uncertain | insufficient`，`leading` ∈ `support | opposition | none`（在 `contested` 状态下占优势的一方；仅作信息披露，绝非最终裁定），加上支持/反对依据、不确定性信息、生效策略标识与时间基准。对一个从未存储过的命题进行充分绑定的 BELIEF 查询将返回 `insufficient`（而非 0 行结果）。BELIEF SLOT 返回 `accepted_values` + `candidate_projections`。支持度与反对度得分之和不强制为 1。`BELIEF` / `BELIEF SLOT` 仅用于 `FIND`：绝不能出现在 mutation 的 `WHERE` 块或 `EXPORT` 选择集内，且其谓词必须是精确名称（不支持路径运算符）。
+**BELIEF 输出**：`status` ∈ `accepted | rejected | contested | uncertain | insufficient`，`leading` ∈ `support | opposition | none`（在 `contested` 状态下占优势的一方；仅作信息披露，绝非最终裁定），加上支持/反对依据、不确定性信息与 `basis` —— 生效策略标识（`?b.basis.policy.id`）、`valid_at` 与快照都在其中，而非单独的成员。对一个从未存储过的命题进行充分绑定的 BELIEF 查询将返回 `insufficient`（而非 0 行结果）。BELIEF SLOT 返回 `accepted_values` + `candidate_projections`。支持度与反对度得分之和不强制为 1。`BELIEF` / `BELIEF SLOT` 仅用于 `FIND`：绝不能出现在 mutation 的 `WHERE` 块或 `EXPORT` 选择集内，且其谓词必须是精确名称（不支持路径运算符）。
 
 **合并（Merges）**：原始 Proposition 模式会穿透 `merged_into` 匹配——查询 term 包含 `B` 能检索出记录在已合并至 `B` 的 `A` 上的元组，term 包含 `A` 也能检索出来。`?p.subject` / `?p.object` 暴露物理存储端点，`?p.canonical_subject` / `?p.canonical_object` 暴露经合并解析后的端点；元组本身永远不会被改写。
 
@@ -394,7 +394,7 @@ DEFINE PREDICATE "mentors" {
 }
 ```
 
-`DEFINE CONCEPT TYPE "Instrument" {description: "..."}` 用于新增类型（不得与已安装模式包中的名称重复：`Place` 已由 `kip://domains/general@1.0.0` 提供）。草稿谓词是开放世界的，可声明 `functional` 或 `functional_by: "object_type"`，不能声明封闭世界或 `complete`。名称已存在时返回 `SchemaSymbolConflict`。提升为正式包是所有者的 Schema 迁移。
+`DEFINE CONCEPT TYPE "Instrument" {description: "..."}` 用于新增类型（不得与已安装模式包中的名称重复：`Place` 已由 `kip://domains/general@1.0.0` 提供）；其可选的 `attributes: {fields: {family: {type: "string"}}}` 是开放的，绝不必填。每个定义都需要 `description`，且只能包含其类别的成员。草稿谓词是开放世界的，可声明 `functional` 或 `functional_by: "object_type"`（宾语须为概念），不能声明封闭世界或 `complete`。该类别下名称已存在时返回 `SchemaSymbolConflict` —— 视为"已存在"，绝不重新定义。结果为 `{ref, schema_environment_version}`；随后以 `CLIENT KEY "review_schema:<ref>"` 排入一个 `review_schema` 睡眠任务。提升为正式包是所有者的 Schema 迁移。
 
 `MERGE CONCEPT` 属于非破坏性操作：源实体作为历史合并记录依然保持可寻址；未来的写入将自动规范化指向目标实体。导致环状依赖的合并（目标已解析回源实体）将被拒绝。
 

@@ -321,7 +321,7 @@ SkillRevision 包含必填的 `task_family`、`procedure`、`behavior_digest`，
 
 ## 5.9 SleepTask（睡眠任务）
 
-持久的维护工作项。建议的类别包括 consolidate、review_conflict、review_skill、resolve_identity、review_retention、review_derived、review_schema、refresh_self_model 以及 inspect_quarantine。`review_schema` 将草稿词汇符号（规范 §20.16）排队以供审阅与晋升。
+持久的维护工作项。建议的类别包括 consolidate、review_conflict、review_skill、resolve_identity、review_retention、review_derived、review_schema、refresh_self_model 以及 inspect_quarantine。`review_schema` 将草稿词汇符号（规范 §20.16）排队以供审阅与晋升：定义符号的大脑为该符号排入一个睡眠任务，其 `client_key` 为 `review_schema:<确切符号引用>`，因此重试的定义绝不会重复排队。审阅可以把近义词并入既有符号的用法、提议晋升或了结该任务；只有持有 `manage_schema` 的主体才执行晋升。
 
 在声明了 `durable_brain_runtime` 的实现中，SleepTask 的认领与完成遵循配套规范[大脑运行时](../brain/KIP-2.0-Brain-Runtime_CN.md) §3 的租约契约。
 
@@ -412,7 +412,7 @@ WorkingState 回答“我的当前处境如何”；SelfModel 回答“我是谁
   "salience": 0.9,
   "utility": 0.6,
   "last_metabolized_at": "2026-08-14T00:00:00.000Z",
-  "strength_policy": {"artifact_ref": "policy:half-life-30d", "content_digest": "sha256:..."}
+  "strength_policy": {"artifact_ref": "kip:strength-half-life-30d", "content_digest": "sha256:..."}
 }
 ```
 
@@ -422,7 +422,15 @@ WorkingState 回答“我的当前处境如何”；SelfModel 回答“我是谁
 效用 utility ≠ 事实真值、显著性或权限许可
 ```
 
-`memory_strength` 是最后显式写入的**基准**（base），`last_metabolized_at` 是其**锚点**（anchor），`strength_policy` 是钉固的策略工件（例如半衰期）。只读计算成员 `effective_strength`（规范 §18.2）在读取评估时由此三者派生计算得出，当其中任何一项缺失时为 `null` —— 即未知，绝不可填充默认值（例如 `0.5`，规范 §59.1）。读取绝不会将其写回。因此，闲置的记忆不产生写入开销。
+`memory_strength` 是最后显式写入的**基准**（base），`last_metabolized_at` 是其**锚点**（anchor），`strength_policy` 是钉固的策略工件（`schemas/kip-cognitive-records.schema.json#/$defs/StrengthPolicy`）。只读计算成员 `effective_strength`（规范 §18.2）在读取评估时由此三者派生计算得出，当其中任何一项缺失时为 `null` —— 即未知，绝不可填充默认值（例如 `0.5`，规范 §59.1）。读取绝不会将其写回。因此，闲置的记忆不产生写入开销。
+
+标准强度策略为 `kip:strength-half-life-30d`（`profiles/policy-strength-half-life-30d.json`），钉固为 `{"artifact_ref": "kip:strength-half-life-30d", "content_digest": <其摘要>}`。`half_life` 策略的计算为
+
+```text
+effective_strength = memory_strength × 2^(−max(0, t − last_metabolized_at) / half_life_ms)
+```
+
+其中 `t` 是读取被评估的时刻 —— 绝不是 `FOR TIME`，因为强度描述的是记忆当下的可及程度，而不是关于世界的主张。锚点之前的值即为基准。运行时按 `artifact_ref` 解析该钉固并校验其摘要；未知的策略或不匹配的摘要使 `effective_strength` 为 `null`，且绝不替换为另一策略。部署**可以**钉固其自有的同形工件；解析同一钉固的两个运行时计算出相同的值。
 
 记忆代谢**严禁篡改断言置信度**、信任度、有效时间或治理权限。
 
@@ -732,7 +740,7 @@ SelfModel 构建应当保持审慎。优先依赖多次观察、显式用户反�
 
 到期时间的推移不会自动流转状态，直至策略或证据执行流转。即使近期未被召回，承诺仍可保持高显著性。单纯闲置绝不是削弱其重要性的理由。
 
-承诺的等待半边 —— 如果没有发生任何事则升级 —— 是通过 `watches` 引用该承诺的 Watch（§5.11）。到期日保留在承诺上；触发条件保留在 Watch 上。不带 Watch 的承诺由 Maintenance 的 `commitment_review` 活动提升到注意力中，该活动的 inputs 列出其发现到期的承诺（§5.7）；该复审活动即是其 `space_seq` 为该注意力项定序的提交。
+承诺的等待半边 —— 如果没有发生任何事则升级 —— 是通过 `watches` 引用该承诺的 Watch（§5.11）。到期日保留在承诺上；触发条件保留在 Watch 上。不带 Watch 的承诺由 Maintenance 的复审提升到注意力中：对每个发现到期的承诺写入一个 `commitment_review` 活动，其 `inputs` 指名该承诺，其 `client_key` 为 `commitment_review:<承诺 id>:<due_at>`（§5.7）。该复审即是其 `space_seq` 为该注意力项定序的提交。该键使复审具备幂等性，正如 `watch_fire` 键使触发具备幂等性：对同一承诺、同一 `due_at` 的并发或后续复审会重放该活动，而不会再次提升它，因此一个到期承诺在每个到期时间只进入注意力一次，而改期后的承诺（新的 `due_at`）可以再次被提升。不再处于 `pending` 或 `blocked` 的承诺不会被提升。
 
 ---
 
