@@ -1945,7 +1945,7 @@ DEFINE PREDICATE "main_instrument" {
 - 晋升属于 `manage_schema` 下的模式迁移，记录在 Space 的模式环境中：从草稿符号到某个已安装包中同一类别符号的谱系映射，遵循 §20.14 的重命名语义。它绝不在模式包工件内部声明 —— 可移植的模式包不能指名某个特定 Space 的草稿符号。任何内容均不会被隐式晋升，且一个草稿符号至多晋升一次。`DESCRIBE SCHEMA ENVIRONMENT` 以 `lineage_maps` 报告晋升：每个已晋升符号一个条目 `{kind, from, to}`，从其草稿谱系（`kip://local/draft/<name>`）指向其目标谱系 —— 条目写明类别，因为符号类别是各自独立的命名空间，而谱系身份不含类别；晋升之前的 `AS OF` 读取看不到它。此后所有按谱系匹配的规则（§20.14）都把两个谱系视为一个，而在草稿符号下写入的元素保留其确切的 `kip://local/draft@0.0.0/<name>` 引用，并依然可通过其谱系读取。
 - `propose_schema` 绝不授予 `manage_schema`、`manage_policy` 或对现有符号的任何管辖权。未声明 `draft_vocabulary` 的运行时将拒绝 `DEFINE` 并报错 `UnsupportedCapability`。
 
-认知记忆 Profile 的 `review_schema` 睡眠任务类别将草稿符号排队以供审阅与晋升。定义符号的大脑以 `client_key` `review_schema:<确切符号引用>` 为其排队审阅，因此重试的定义绝不会重复排队。审阅**可以**提议晋升；只有持有 `manage_schema` 的主体（Principal）才能执行晋升。
+认知记忆 Profile 的 `review_schema` 睡眠任务类别将草稿符号排队以供审阅与晋升。定义符号的大脑以 `client_key` `review_schema:<kind>:<确切符号引用>` 为其排队审阅，其中 `kind` 为 `ConceptType` 或 `PredicateType`。任务同时指明类别和确切引用：不同类别的同名符号各有独立任务，而重试的定义绝不会重复排队。审阅**可以**提议晋升；只有持有 `manage_schema` 的主体（Principal）才能执行晋升。
 
 ---
 
@@ -4651,6 +4651,8 @@ current        其他情况
 公布了 `recording_repair` (§67.4) 的运行时提供符合 `RecordingRepair` 输入结构 (`schemas/kip-cognitive-records.schema.json`) 的受保护操作。该操作需要 `repair_recording` 权限 (§29) 以及针对任何替换断言的常规权限；无论是记录归属权限还是 `update` 均不赋予修复权限。默认情况下，该权限仅限于经认证的录入者自身基于源数据的输出；更广泛的复审需要显式的受保护授权（protected grant）。
 
 在一个事务内，引擎**必须**校验不可变源标识与摘要、源定位符、录入者的主体来源、预期版本、替换项的引用闭包以及 actor/上下文绑定；随后追加一个终态 `recording_repair` Activity，以及对错误提取的受保护作废标记，暴露为受治理的虚拟字段 `_system.recording_validity`（`valid | invalidated`，带有可发现的 `repair_ref` 或 `null`）。作废操作会在不重写元素认识论载荷的前提下推进受影响元素的版本；源数据字节、原始断言载荷以及 actor 的生命周期均得以完整保留。当前的投影会排除已作废的提取，其下游依赖变为 `needs_review` (§57.6)；原始历史指明该修复，而历史读取在当前授权下使用其快照处的修复状态。修复操作推进 Space 序列号及相关的控制坐标 (§36.1)。
+
+替换断言描述的是原始主张：其 `asserted_at` **必须**从该原始来源恢复（§13.2），绝不能取修复请求或修复事务的时间。
 
 源定位符——由摘要绑定的字节范围、JSON Pointer 或特定格式的选择器——有助于复审提取的保真度；它绝不能证明语义蕴涵。不支持此能力的运行时必须拒绝该操作。它**可以**依据独立权限对该提取进行隔离（quarantine，§31.6），但**严禁**伪造参与者的撤回或纠正完好的 Evidence。
 

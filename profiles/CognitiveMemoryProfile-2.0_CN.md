@@ -321,7 +321,7 @@ SkillRevision 包含必填的 `task_family`、`procedure`、`behavior_digest`，
 
 ## 5.9 SleepTask（睡眠任务）
 
-持久的维护工作项。建议的类别包括 consolidate、review_conflict、review_skill、resolve_identity、review_retention、review_derived、review_schema、refresh_self_model 以及 inspect_quarantine。`review_schema` 将草稿词汇符号（规范 §20.16）排队以供审阅与晋升：定义符号的大脑为该符号排入一个睡眠任务，其 `client_key` 为 `review_schema:<确切符号引用>`，因此重试的定义绝不会重复排队。审阅可以把近义词并入既有符号的用法、提议晋升或了结该任务；只有持有 `manage_schema` 的主体才执行晋升。
+持久的维护工作项。建议的类别包括 consolidate、review_conflict、review_skill、resolve_identity、review_retention、review_derived、review_schema、refresh_self_model 以及 inspect_quarantine。`review_schema` 将草稿词汇符号（规范 §20.16）排队以供审阅与晋升：定义符号的大脑为该符号排入一个睡眠任务，其 `client_key` 为 `review_schema:<kind>:<确切符号引用>`，其中 `kind` 为 `ConceptType` 或 `PredicateType`。任务同时指明类别和确切引用，因此不同类别即使同名也保持独立，而重试的定义绝不会重复排队。审阅可以把近义词并入既有符号的用法、提议晋升或了结该任务；只有持有 `manage_schema` 的主体才执行晋升。
 
 在声明了 `durable_brain_runtime` 的实现中，SleepTask 的认领与完成遵循配套规范[大脑运行时](../brain/KIP-2.0-Brain-Runtime_CN.md) §3 的租约契约。
 

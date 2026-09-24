@@ -588,7 +588,7 @@
         },
         "model_hints": {
           "authority_invariant": "Semantic assignment, including to $system, does not grant Principal permission.",
-          "review_schema_invariant": "review_schema names one draft vocabulary symbol and is keyed review_schema:<exact symbol ref>; review may propose a promotion, only manage_schema performs one."
+          "review_schema_invariant": "review_schema identifies one draft vocabulary symbol by kind (ConceptType or PredicateType) and exact ref, and is keyed review_schema:<kind>:<exact symbol ref>; review may propose a promotion, only manage_schema performs one."
         }
       },
       "Watch": {
@@ -2950,7 +2950,7 @@
   },
   "integrity": {
     "digest_profile": "kip-jcs-safe-v1",
-    "content_digest": "sha256:76d73164c8e913dfde394e8fe2b13d226ba5ed2b0cfd8c90914f7ff1483cfb9e",
+    "content_digest": "sha256:734aa0fd93b6258d433a6f71915d9d5118552e2ea0458a3050d368dcfcc1d1b3",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

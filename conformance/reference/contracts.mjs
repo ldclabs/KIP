@@ -206,6 +206,15 @@ export function supersessionCompatible(old, replacement) {
       (old.subject === replacement.subject && old.predicate_lineage === replacement.predicate_lineage))
 }
 
+/** Draft-symbol review identity (Spec §20.16, Profile §5.9).
+ * Exact references omit kind, so a reference alone cannot identify a review. */
+export function schemaReviewKey(symbol) {
+  const { kind, ref } = symbol ?? {}
+  if (!['ConceptType', 'PredicateType'].includes(kind) || typeof ref !== 'string' || !ref)
+    throw new Error('ConstraintViolation')
+  return `review_schema:${kind}:${ref}`
+}
+
 export function sameBasis(a, b) {
   const inputs = basis => { const { next_invalid_at, ...rest } = basis; return rest }
   return canonicalize(inputs(a)) === canonicalize(inputs(b))

@@ -393,6 +393,67 @@
       "vectors": [
         "SCHEMA-022"
       ]
+    },
+    {
+      "name": "a Predicate and a Concept Type may share a name and exact reference",
+      "command": "DEFINE PREDICATE \"Instrument\" {description: \"The subject uses the object as an instrument.\"}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "result_contains": {
+          "ref": "kip://local/draft@0.0.0/Instrument"
+        }
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "same-named symbols queue separate reviews by kind and exact reference",
+      "command": "MUTATE {\n  CREATE CONCEPT ?type_review {\n    TYPE \"SleepTask\" NAME \"Review ConceptType Instrument\"\n    CLIENT KEY \"review_schema:ConceptType:kip://local/draft@0.0.0/Instrument\"\n    SET ATTRIBUTES {task_class: \"review_schema\", summary: \"ConceptType kip://local/draft@0.0.0/Instrument\", status: \"pending\"}\n  }\n  CREATE CONCEPT ?predicate_review {\n    TYPE \"SleepTask\" NAME \"Review PredicateType Instrument\"\n    CLIENT KEY \"review_schema:PredicateType:kip://local/draft@0.0.0/Instrument\"\n    SET ATTRIBUTES {task_class: \"review_schema\", summary: \"PredicateType kip://local/draft@0.0.0/Instrument\", status: \"pending\"}\n  }\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {},
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "retrying both reviews replays each creation independently",
+      "command": "MUTATE {\n  CREATE CONCEPT ?type_review {\n    TYPE \"SleepTask\" NAME \"Review ConceptType Instrument\"\n    CLIENT KEY \"review_schema:ConceptType:kip://local/draft@0.0.0/Instrument\"\n    SET ATTRIBUTES {task_class: \"review_schema\", summary: \"ConceptType kip://local/draft@0.0.0/Instrument\", status: \"pending\"}\n  }\n  CREATE CONCEPT ?predicate_review {\n    TYPE \"SleepTask\" NAME \"Review PredicateType Instrument\"\n    CLIENT KEY \"review_schema:PredicateType:kip://local/draft@0.0.0/Instrument\"\n    SET ATTRIBUTES {task_class: \"review_schema\", summary: \"PredicateType kip://local/draft@0.0.0/Instrument\", status: \"pending\"}\n  }\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {},
+      "vectors": [
+        "SCHEMA-022"
+      ]
+    },
+    {
+      "name": "two reviews remain after retry, each identifying its symbol kind",
+      "command": "FIND(?task.attributes.summary) WHERE { ?task CONCEPT {type: \"SleepTask\"} FILTER(?task.attributes.task_class == \"review_schema\") }",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
+      "expect": {
+        "result": [
+          "ConceptType kip://local/draft@0.0.0/Instrument",
+          "PredicateType kip://local/draft@0.0.0/Instrument"
+        ]
+      },
+      "vectors": [
+        "SCHEMA-022"
+      ]
     }
   ]
 }

@@ -15,7 +15,7 @@
     "verified_head": "6a67d602a03d0ed8a1a855b651bf2ee6315d7034"
   },
   "fixtures": 25,
-  "cases": 419,
+  "cases": 423,
   "revised_on_import": [
     {
       "fixture": "core-truth-neutrality.json",
@@ -95,6 +95,10 @@
       "fixture": "epistemic-projection.json",
       "name": "a projection reports the policy it ran under",
       "change": "reads ?b.basis.policy.id under WITH EPISTEMIC {policy: \"kip:memory-default\"}: a projection reports its policy in its basis and has no separate policy member (§27.2), and the case no longer depends on an engine's private default policy name"
+    },
+    {
+      "fixture": "draft-vocabulary.json",
+      "change": "four pending review regressions: a Predicate can share a Concept Type name and exact ref; review_schema keys include ConceptType/PredicateType so both reviews are created and retry independently"
     }
   ],
   "not_yet_covered": "The pending fixtures pin contracts no engine has verified yet: draft-vocabulary.json (DEFINE, §20.16), supersession-scope.json (context-compatible supersession, §14.2) and mnemonic-strength.json (computed strength under a pinned policy, §59.1). Promotion of a draft symbol, Capsule mapping of draft symbols, a Principal holding only propose_schema, the exposure log and attention recall have Conformance/Memory Interface vectors and oracle cases only.",

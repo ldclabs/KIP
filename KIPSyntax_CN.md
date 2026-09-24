@@ -250,7 +250,7 @@ ASSERT (:alice, "timezone", "+01:00") {by: :alice, mode: "stated", valid: {from:
 ASSERT (:alice, "works_for", :acme) {by: :alice, mode: "stated", stance: "reject", valid: {from: :left_at}, evidence: :msg}
 ```
 
-误录——大脑记下了行动者从未说过的内容（“你听错了”）：既不是更正也不是变迁，而是受保护的录入修复（规范 §57.8，Memory Interface `revise` 的 `change_kind: "misrecorded"`）；绝不能代替行动者废弃或撤回。
+误录——大脑记下了行动者从未说过的内容（“你听错了”）：既不是更正也不是变迁，而是受保护的录入修复（规范 §57.8，Memory Interface `revise` 的 `change_kind: "misrecorded"`）；绝不能代替行动者废弃或撤回。替换断言保留原始来源的主张时间，绝不取修复请求的时间。
 
 该语法糖精确脱糖为 `ENSURE PROPOSITION` + `CREATE ASSERTION`（+ 通过新断言 `TRANSITION ... TO "superseded" BY` 旧断言）。绝不无端捏造额外状态。三元组必须是结构化的 `(s, "p", o)`：`(id: …)` 仅用于读取匹配，在写入时会被拒绝。用于 `challenge` / `context` 证据引用或精细控制的完整写法：
 
@@ -394,7 +394,7 @@ DEFINE PREDICATE "mentors" {
 }
 ```
 
-`DEFINE CONCEPT TYPE "Instrument" {description: "..."}` 用于新增类型（不得与已安装模式包中的名称重复：`Place` 已由 `kip://domains/general@1.0.0` 提供）；其可选的 `attributes: {fields: {family: {type: "string"}}}` 是开放的，绝不必填。每个定义都需要 `description`，且只能包含其类别的成员。草稿谓词是开放世界的，可声明 `functional` 或 `functional_by: "object_type"`（宾语须为概念），不能声明封闭世界或 `complete`。该类别下名称已存在时返回 `SchemaSymbolConflict` —— 视为"已存在"，绝不重新定义。结果为 `{ref, schema_environment_version}`；随后以 `CLIENT KEY "review_schema:<ref>"` 排入一个 `review_schema` 睡眠任务。提升为正式包是所有者的 Schema 迁移。
+`DEFINE CONCEPT TYPE "Instrument" {description: "..."}` 用于新增类型（不得与已安装模式包中的名称重复：`Place` 已由 `kip://domains/general@1.0.0` 提供）；其可选的 `attributes: {fields: {family: {type: "string"}}}` 是开放的，绝不必填。每个定义都需要 `description`，且只能包含其类别的成员。草稿谓词是开放世界的，可声明 `functional` 或 `functional_by: "object_type"`（宾语须为概念），不能声明封闭世界或 `complete`。该类别下名称已存在时返回 `SchemaSymbolConflict` —— 视为"已存在"，绝不重新定义。结果为 `{ref, schema_environment_version}`；随后以 `CLIENT KEY "review_schema:<kind>:<ref>"` 排入一个 `review_schema` 睡眠任务，同时指明类别（`ConceptType` 或 `PredicateType`）和确切引用。提升为正式包是所有者的 Schema 迁移。
 
 `MERGE CONCEPT` 属于非破坏性操作：源实体作为历史合并记录依然保持可寻址；未来的写入将自动规范化指向目标实体。导致环状依赖的合并（目标已解析回源实体）将被拒绝。
 

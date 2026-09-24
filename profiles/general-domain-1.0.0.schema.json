@@ -25,7 +25,7 @@
       "version": "2.0.0",
       "package_ref": "kip://profiles/cognitive-memory@2.0.0",
       "required": true,
-      "content_digest": "sha256:76d73164c8e913dfde394e8fe2b13d226ba5ed2b0cfd8c90914f7ff1483cfb9e"
+      "content_digest": "sha256:734aa0fd93b6258d433a6f71915d9d5118552e2ea0458a3050d368dcfcc1d1b3"
     }
   ],
   "definitions": {
@@ -250,6 +250,6 @@
   },
   "integrity": {
     "digest_profile": "kip-jcs-safe-v1",
-    "content_digest": "sha256:4f6fde04ad30de5350400ac7e5b68dfe075523423da3a746243e992b717bc7f8"
+    "content_digest": "sha256:454f59b9d54dbeded59a24e167e5c5cbf880e015622ba7b713d43ab521e55b87"
   }
 }

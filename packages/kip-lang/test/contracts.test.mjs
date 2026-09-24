@@ -380,6 +380,20 @@ test('KML-036: supersession keeps its actor and its scope', () => {
   assert.equal(model.supersessionCompatible({ ...old, context_refs: ['C-a', 'C-b'] }, { ...old, context_refs: ['C-b', 'C-a', 'C-b'] }), true)
 })
 
+test('SCHEMA-022: same-named symbols of different kinds have independent retry-safe review keys', () => {
+  const ref = 'kip://local/draft@0.0.0/Instrument'
+  const type = { kind: 'ConceptType', ref }
+  const predicate = { kind: 'PredicateType', ref }
+  assert.equal(model.schemaReviewKey(type), `review_schema:ConceptType:${ref}`)
+  assert.equal(model.schemaReviewKey(predicate), `review_schema:PredicateType:${ref}`)
+  assert.notEqual(model.schemaReviewKey(type), model.schemaReviewKey(predicate))
+  assert.equal(model.schemaReviewKey({ ...type }), model.schemaReviewKey(type))
+  assert.equal(model.schemaReviewKey({ ...predicate }), model.schemaReviewKey(predicate))
+  assert.throws(() => model.schemaReviewKey({ ref }), /ConstraintViolation/)
+  for (const missing of [undefined, null, {}, { kind: 'Predicate', ref }, { kind: 'ConceptType', ref: '' }])
+    assert.throws(() => model.schemaReviewKey(missing), /ConstraintViolation/)
+})
+
 test('world time: succession narrows written intervals and ignores arrival order', () => {
   const t = s => `2026-${s}T00:00:00.000Z`
   const a = (value, from, extra = {}) => ({ id: value, value, assertions: [{ root: value, status: 'active', mode: 'stated',

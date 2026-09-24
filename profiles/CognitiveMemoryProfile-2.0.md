@@ -290,7 +290,7 @@ from new local trials.
 
 ## 5.9 SleepTask
 
-A durable maintenance work item. Suggested classes include consolidate, review_conflict, review_skill, resolve_identity, review_retention, review_derived, review_schema, refresh_self_model, and inspect_quarantine. `review_schema` queues draft vocabulary symbols (Specification §20.16) for review and promotion: the Brain that defines a symbol queues one SleepTask for it with `client_key` `review_schema:<exact symbol ref>`, so a retried definition never queues twice. Review may merge a near-synonym into an existing symbol's use, propose a promotion, or resolve the task; only a Principal with `manage_schema` performs a promotion.
+A durable maintenance work item. Suggested classes include consolidate, review_conflict, review_skill, resolve_identity, review_retention, review_derived, review_schema, refresh_self_model, and inspect_quarantine. `review_schema` queues draft vocabulary symbols (Specification §20.16) for review and promotion: the Brain that defines a symbol queues one SleepTask for it with `client_key` `review_schema:<kind>:<exact symbol ref>`, where `kind` is `ConceptType` or `PredicateType`. The task identifies both kind and exact reference, so different kinds remain distinct even when their names match, and a retried definition never queues twice. Review may merge a near-synonym into an existing symbol's use, propose a promotion, or resolve the task; only a Principal with `manage_schema` performs a promotion.
 
 Where `durable_brain_runtime` is advertised, a SleepTask's claim and completion follow the lease contract of the [Brain Runtime companion](../brain/KIP-2.0-Brain-Runtime.md) §3.
 

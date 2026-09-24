@@ -260,7 +260,7 @@ End — the value simply stopped (left a job, no new one): the same actor's oppo
 ASSERT (:alice, "works_for", :acme) {by: :alice, mode: "stated", stance: "reject", valid: {from: :left_at}, evidence: :msg}
 ```
 
-Misrecording — the Brain wrote down what the actor never said ("you misheard me"): not a correction and not a change. It is a protected recording repair (Spec §57.8, Memory Interface `revise` with `change_kind: "misrecorded"`); never supersede or retract on the actor's behalf.
+Misrecording — the Brain wrote down what the actor never said ("you misheard me"): not a correction and not a change. It is a protected recording repair (Spec §57.8, Memory Interface `revise` with `change_kind: "misrecorded"`); never supersede or retract on the actor's behalf. A replacement keeps the original source's claim time, never the repair request's time.
 
 Desugars exactly to `ENSURE PROPOSITION` + `CREATE ASSERTION` (+ `TRANSITION ... TO "superseded" BY` the new Assertion). Never fabricates extra state. The tuple must be a structural `(s, "p", o)`: the `(id: …)` form is match-only and rejected here. The long form — needed for `challenge` / `context` citations or fine control:
 
@@ -404,7 +404,7 @@ DEFINE PREDICATE "mentors" {
 }
 ```
 
-`DEFINE CONCEPT TYPE "Instrument" {description: "..."}` adds a type (never one an installed package already names: `Place` comes from `kip://domains/general@1.0.0`); its optional `attributes: {fields: {family: {type: "string"}}}` are open, never required. Every definition needs a `description` and only the members of its kind. Draft Predicates are open-world, and may be `functional` or `functional_by: "object_type"` (with a Concept object); they cannot be closed-world or `complete`. A name that already resolves as that kind fails `SchemaSymbolConflict` — treat it as "already there", never redefine. The result is `{ref, schema_environment_version}`; queue one `review_schema` SleepTask with `CLIENT KEY "review_schema:<ref>"`. Promotion into an installed package is an owner's Schema migration.
+`DEFINE CONCEPT TYPE "Instrument" {description: "..."}` adds a type (never one an installed package already names: `Place` comes from `kip://domains/general@1.0.0`); its optional `attributes: {fields: {family: {type: "string"}}}` are open, never required. Every definition needs a `description` and only the members of its kind. Draft Predicates are open-world, and may be `functional` or `functional_by: "object_type"` (with a Concept object); they cannot be closed-world or `complete`. A name that already resolves as that kind fails `SchemaSymbolConflict` — treat it as "already there", never redefine. The result is `{ref, schema_environment_version}`; queue one `review_schema` SleepTask with `CLIENT KEY "review_schema:<kind>:<ref>"`, identifying the kind (`ConceptType` or `PredicateType`) and exact reference. Promotion into an installed package is an owner's Schema migration.
 
 `MERGE CONCEPT` is non-destructive: source stays addressable as merged history; future writes canonicalize to target. Cycle-creating merges (target already resolves back to source) are rejected.
 

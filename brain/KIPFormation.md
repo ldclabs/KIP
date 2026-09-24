@@ -48,7 +48,8 @@ the corrected interval in `valid`, materializing a missing original start as
 `{latest: <original asserted_at>}`; `at` remains the time of the correction. A world change — the claim was true for its
 time — is one new Assertion from when the change began; temporal succession ends the
 old one and it still answers for its time. A misrecording — you wrote down what the
-actor never said — is a recording repair, never a retraction on their behalf. Do not
+actor never said — is a recording repair, never a retraction on their behalf. A replacement recovers
+the original source's claim time, not the repair request's time. Do not
 supersede another actor's claim because you disagree.
 
 ```kip
@@ -69,7 +70,7 @@ a catch-all such as `Topic`, under which every preference would compete with eve
 
 A relation no package names is added once with `DEFINE PREDICATE` (Spec §20.16) when
 the deployment grants `propose_schema`, in its own request before the MUTATE that uses
-it, followed by one `review_schema` SleepTask with `CLIENT KEY "review_schema:<ref>"`;
+it, followed by one `review_schema` SleepTask with `CLIENT KEY "review_schema:PredicateType:<ref>"`;
 `SchemaSymbolConflict` means it already exists. Otherwise keep the material
 Evidence-only and queue a `review_schema` SleepTask naming the missing relation for the
 owner. Never bend an unrelated Predicate to fit.

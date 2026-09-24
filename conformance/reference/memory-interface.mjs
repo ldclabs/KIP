@@ -117,13 +117,14 @@ export function recallEligibility({ channelStates, notApplicable = [], barrier, 
 }
 
 /** revise.change_kind routing (Memory Interface §4, Spec §14.2, §25.4, §57.8).
- * Each kind is its own history; misrecorded never falls back to a correction. */
+ * Each kind is its own history; misrecorded never falls back to a correction.
+ * asserted_at_source names the source of the actor's claim, not processing time. */
 export function routeRevision(changeKind, capabilities = [], grants = []) {
   switch (changeKind) {
-    case 'correction': return { history: 'supersession', actor_withdrawal: false }
-    case 'world_change': return { history: 'succession', assertions: 1, actor_withdrawal: false }
+    case 'correction': return { history: 'supersession', actor_withdrawal: false, asserted_at_source: 'revision' }
+    case 'world_change': return { history: 'succession', assertions: 1, actor_withdrawal: false, asserted_at_source: 'revision' }
     case 'misrecorded':
-      if (capabilities.includes('recording_repair')) return { history: 'recording_repair', actor_withdrawal: false }
+      if (capabilities.includes('recording_repair')) return { history: 'recording_repair', actor_withdrawal: false, asserted_at_source: 'original' }
       if (grants.includes('quarantine')) return { history: 'quarantine', status: 'partial', actor_withdrawal: false }
       throw error('UnsupportedCapability')
     case 'unspecified':

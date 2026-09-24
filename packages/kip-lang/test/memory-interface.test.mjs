@@ -6,6 +6,7 @@ import addFormats from 'ajv-formats'
 import { parseCanonicalJson, parse, lower } from '../dist/index.js'
 import { IntakeLedger, advanceProgress, processingBarrier, recallEligibility, scopeMatches,
   validateBundles, channels, routeRevision, attentionAfter, commitmentReviewKey } from '../../../conformance/reference/memory-interface.mjs'
+import { project } from '../../../conformance/reference/contracts.mjs'
 
 const base = new URL('../../../', import.meta.url)
 const json = async path => parseCanonicalJson(await readFile(new URL(path, base), 'utf8'))
@@ -237,7 +238,8 @@ test('MIF: portable binding vectors are independently asserted and schema-valid'
     assert.ok(vectorAjv.validate(vectorSchema.$id, vector), JSON.stringify(vectorAjv.errors))
     assert.equal(ids.has(vector.id), false)
     ids.add(vector.id)
-    assert.deepEqual(vector.capabilities, ['memory_interface'])
+    assert.deepEqual(vector.capabilities, vector.id === 'KIP2-MIF-017'
+      ? ['memory_interface', 'recording_repair'] : ['memory_interface'])
     assert.equal(vector.steps[0].action, 'exercise_memory_interface_scenario')
     assert.ok(vector.assertions.length > 0 && vector.postconditions.length > 0)
   }
@@ -269,7 +271,7 @@ test('MIF: an after barrier cannot silently move a requested historical snapshot
 
 test('MIF-014/015/017: each revision kind keeps its own history and misrecorded never becomes a correction', () => {
   assert.equal(routeRevision('correction').history, 'supersession')
-  assert.deepEqual(routeRevision('world_change'), { history: 'succession', assertions: 1, actor_withdrawal: false })
+  assert.deepEqual(routeRevision('world_change'), { history: 'succession', assertions: 1, actor_withdrawal: false, asserted_at_source: 'revision' })
   assert.equal(routeRevision('misrecorded', ['recording_repair']).history, 'recording_repair')
   assert.equal(routeRevision('misrecorded', [], ['quarantine']).status, 'partial')
   assert.throws(() => routeRevision('misrecorded'), /UnsupportedCapability/)
@@ -278,6 +280,30 @@ test('MIF-014/015/017: each revision kind keeps its own history and misrecorded 
       input: { source_ref: 'source-1', change_kind: kind } }), JSON.stringify(validate('Request').errors))
   assert.equal(validate('Request')({ kip_memory: '2.0', operation: 'revise', idempotency_key: 'r',
     input: { source_ref: 'source-1', change_kind: 'retract_for_them' } }), false)
+})
+
+test('MIF-017: repairing an old extraction preserves history without displacing a later claim', () => {
+  // The January source said dark, but was extracted incorrectly. The September
+  // repair request fixes that extraction; it does not state a new preference.
+  const claimTimes = { original: '2026-01-01T00:00:00.000Z', revision: '2026-09-24T00:00:00.000Z' }
+  const candidate = (id, value, asserted_at) => ({ id, value, assertions: [
+    { root: id, actor: 'alice', status: 'active', stance: 'support', mode: 'stated', trusted: true, asserted_at }
+  ] })
+  const later = candidate('later', 'light', '2026-09-01T00:00:00.000Z')
+  later.assertions[0].from = '2026-09-01T00:00:00.000Z'
+  const route = routeRevision('misrecorded', ['recording_repair'])
+  const repaired = candidate('repaired', 'dark', claimTimes[route.asserted_at_source])
+  assert.equal(repaired.assertions[0].asserted_at, claimTimes.original)
+  const recall = (replacement, at) => project([replacement, later], { functional: true, valid_at: at }).accepted_values
+  assert.deepEqual(recall(repaired, '2026-09-25T00:00:00.000Z'), ['light'])
+  assert.deepEqual(recall(repaired, claimTimes.original), ['dark'])
+  // An actual new statement uses the revision source's time and can succeed light.
+  for (const kind of ['correction', 'world_change']) {
+    const newRoute = routeRevision(kind)
+    assert.equal(claimTimes[newRoute.asserted_at_source], claimTimes.revision)
+  }
+  const newStatement = candidate('new', 'dark', claimTimes[routeRevision('world_change').asserted_at_source])
+  assert.deepEqual(recall(newStatement, '2026-09-25T00:00:00.000Z'), ['dark'])
 })
 
 test('MIF-019: attention recall is read-only, cursor-ordered and repeatable', () => {

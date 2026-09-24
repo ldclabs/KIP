@@ -511,7 +511,7 @@ LIST DEPENDENTS :revised_root DEPTH 2 LIMIT 100
 
 Maintenance 可以自省检查 Schema，但在未获得 `manage_schema` 授权前，严禁激活或迁移 Schema Packages。Schema 属于受保护的控制平面状态。
 
-`review_schema` 睡眠任务（键为 `review_schema:<确切符号引用>`）指名一个草稿符号（规范 §20.16）。将其与 `LIST TYPES` / `LIST PREDICATES` 比较：既有符号的近义词记录为"改用该符号"的 Insight，绝不再次 `DEFINE`；值得保留的符号在报告中作为晋升提议 `{from, to}` 交给唯一持有 `manage_schema` 的所有者；无用的符号予以了结。Maintenance 绝不自行晋升符号。
+`review_schema` 睡眠任务（键为 `review_schema:<kind>:<确切符号引用>`）通过类别（`ConceptType` 或 `PredicateType`）和确切引用指名一个草稿符号（规范 §20.16）。将其与 `LIST TYPES` / `LIST PREDICATES` 比较：既有符号的近义词记录为"改用该符号"的 Insight，绝不再次 `DEFINE`；值得保留的符号在报告中作为晋升提议 `{kind, from, to}` 交给唯一持有 `manage_schema` 的所有者；无用的符号予以了结。Maintenance 绝不自行晋升符号。
 
 # 32. 信任策略边界 (Trust Boundary)
 

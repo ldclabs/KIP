@@ -133,3 +133,12 @@ Integrating `3251912` into both reference engines (anda-db `0312b51`, `6a67d60`)
 | — | KIP2-X-018 still described a world change as a supersession, and KML-024 a decay sweep with a `0.5` default | X-018 is one Assertion plus succession; KML-024 keeps its update-expression checks, batches reinforcement instead of decay and takes an explicit initial value |
 
 Still open, by owner decision or because they need engines: K6 (verifying `draft-vocabulary.json`, `supersession-scope.json` and `mnemonic-strength.json` on both engines), and publishing `@ldclabs/kip-lang` 2.4.1.
+
+## Review follow-up to `5cb7d94`
+
+Two contracts above are corrected without changing the toolkit API or package identities:
+
+- A `misrecorded` replacement recovers the original source's claim time; it never takes the time of the request reporting the error. Memory Interface §4 and Specification §57.8 now distinguish this from an actor's correction or world change. The MIF-017 replacement variant and the routing/projection oracle check that repairing January's `dark` preference in September preserves the later, genuine `light` preference while restoring the January answer. The positive portable variant requires `recording_repair` and checks the persisted replacement timestamp.
+- A `review_schema` task identifies both symbol kind and exact reference, keyed `review_schema:<kind>:<ref>` with `ConceptType` or `PredicateType`. Same-named types and Predicates therefore have distinct tasks, and retries remain idempotent. The Profile, Brain cards, syntax cards and Chinese mirrors agree. SCHEMA-022 has a key oracle and four more pending engine cases covering the shared name, separate tasks and retries; the engine suite now has 423 cases, 39 pending.
+
+The changed Profile hint's digest and dependent package/Capsule pins are regenerated. These additions are contract/model evidence; the pending engine cases and revised Memory Interface scenario still require fresh downstream execution.

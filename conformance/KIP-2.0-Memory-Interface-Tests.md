@@ -158,9 +158,13 @@ Durable postconditions: retracted_count=0.
 
 The Brain recorded that Alice is vegetarian from a message that said nothing of the kind. Revise with change_kind misrecorded. Where recording_repair is advertised the extraction is invalidated through recording repair and recall no longer states it; Alice's history shows no retraction or supersession. Where it is not advertised the request fails UnsupportedCapability (or is quarantined under a quarantine grant) and is never mapped to a correction.
 
-Expected observations: actor_withdrawal_recorded=false, recall_states_misrecording=false, without_capability="UnsupportedCapability".
+Replacement variant (requires recording_repair): Alice said dark at 2026-01-01T00:00:00.000Z, but the Brain extracted another preference. She actually changed to light at 2026-09-01T00:00:00.000Z, with that exact valid_time.from written on the September Assertion. A newly captured repair request at 2026-09-24T00:00:00.000Z corrects only the January extraction. With no written valid_time.from on the January claim or its replacement, the replacement takes asserted_at from the January source, so recall at the January statement returns dark and current recall at 2026-09-25T00:00:00.000Z still returns light; the repair request is not a new preference statement.
 
-Durable postconditions: source_bytes_preserved=true.
+The vector requires `recording_repair`: an adapter that does not advertise it reports the whole scenario `SKIP_UNSUPPORTED` and never exercises the refusal; on one that does, `without_capability` is the refusal a Brain returns when its Nexus withholds the capability.
+
+Expected observations: actor_withdrawal_recorded=false, recall_states_misrecording=false, without_capability="UnsupportedCapability", repaired_past_preference="dark", repaired_current_preference="light".
+
+Durable postconditions: source_bytes_preserved=true, replacement_asserted_at="2026-01-01T00:00:00.000Z".
 
 ## KIP2-MIF-018 — An unasked constraint surfaces
 

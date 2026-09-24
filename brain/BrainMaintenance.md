@@ -528,7 +528,7 @@ On stale version: re-read, re-evaluate, retry once with fresh precondition. Do n
 
 Maintenance may inspect Schema but cannot activate/migrate Packages without `manage_schema`. Schema is protected control state.
 
-A `review_schema` SleepTask (keyed `review_schema:<exact symbol ref>`) names one draft symbol (Spec §20.16). Compare it with `LIST TYPES` / `LIST PREDICATES`: a near-synonym of an existing symbol is recorded as an Insight about using that symbol, never as another `DEFINE`; a symbol worth keeping becomes a proposed promotion `{from, to}` in the report for the owner, who alone holds `manage_schema`; an unused one is resolved. Maintenance never promotes a symbol itself.
+A `review_schema` SleepTask (keyed `review_schema:<kind>:<exact symbol ref>`) names one draft symbol by kind (`ConceptType` or `PredicateType`) and exact reference (Spec §20.16). Compare it with `LIST TYPES` / `LIST PREDICATES`: a near-synonym of an existing symbol is recorded as an Insight about using that symbol, never as another `DEFINE`; a symbol worth keeping becomes a proposed promotion `{kind, from, to}` in the report for the owner, who alone holds `manage_schema`; an unused one is resolved. Maintenance never promotes a symbol itself.
 
 # 32. Trust
 

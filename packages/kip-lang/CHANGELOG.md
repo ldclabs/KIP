@@ -19,8 +19,11 @@ syntax or executable-AST change; only `DEFINE` diagnostics are stricter.
 - The conformance oracles gain `effectiveStrength` (the standard
   `kip:strength-half-life-30d` policy, Profile §6.1), `supersessionCompatible`
   (§14.2), a paging attention cursor ordered by `(raised_seq, ref)` and
-  `commitmentReviewKey` (Memory Interface §4, Profile §17). `MemorySession`
-  keeps treating the attention cursor as opaque.
+  `commitmentReviewKey` (Memory Interface §4, Profile §17) and `schemaReviewKey`
+  (`review_schema:<kind>:<exact symbol ref>`, Spec §20.16, Profile §5.9);
+  `routeRevision` reports `asserted_at_source` (`original` for a `misrecorded`
+  replacement, `revision` otherwise; Memory Interface §4, Spec §57.8).
+  `MemorySession` keeps treating the attention cursor as opaque.
 
 ## 2.4.0
 
