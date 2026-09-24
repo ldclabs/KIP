@@ -27,7 +27,7 @@ Recall 负责将业务任务或查询问题转化为：
 
 # 1. 严格只读不变式
 
-Recall **严禁**执行以下操作：写入 Assertion、提高置信度、修改 `memory_strength`、递增召回计数器、调整 `GradingState`、归档或标记墓碑。任何新知识的学习必须走独立的 Formation 或 Maintenance 路径。简报的具体使用情况由行动端记录在 `action_gate` Activity 的 `inputs` 中，绝不由 Recall 记录。
+Recall **严禁**执行以下操作：写入 Assertion、提高置信度、修改 `memory_strength`、递增召回计数器、改变资格地位、归档或标记墓碑。任何新知识的学习必须走独立的 Formation 或 Maintenance 路径。简报的具体使用情况由行动端记录在 `action_gate` Activity 的 `inputs` 中，绝不由 Recall 记录。
 
 # 2. 身份与空间隔离
 
@@ -191,7 +191,7 @@ insufficient  缺乏依据 —— 诚实表达“我没有根据”，绝不能�
 
 # 16. 程序性技能召回 (Procedural Recall)
 
-解析 current_revision。当存在 GradingState 时，仅当其 revision_ref 与所引用的、在运行时经过验证的 EvaluationRecord 与当前修订版本及资格地位相匹配时，才允许使用其评分；绝不能将新行为与旧评分搭配。未评级的 proposed 或 trialed 技能仍可作为未经证实的候选被召回。对于声称已采纳 (adopted) 的 Skill，若其评级证据缺失、不匹配或无法验证，必须予以披露，且绝不能产生经过验证的推荐。召回过程不负责修复这些记录，也不改变资格地位。
+解析 current_revision。当存在计算得出的 GradingState 视图时，仅当其 revision_ref 与 `current_evaluation` 背后的、在运行时经过验证的 EvaluationRecord 与当前修订版本及资格地位相匹配时，才允许使用其评分；绝不能将新行为与旧评分搭配。未评级的 proposed 或 trialed 技能仍可作为未经证实的候选被召回。对于声称已采纳 (adopted) 的 Skill，若其评级证据缺失、不匹配或无法验证，必须予以披露，且绝不能产生经过验证的推荐。召回过程不负责修复这些记录，也不改变资格地位。
 
 根据目标/任务相关性、适用范围、先决条件、当前环境、经过验证的生命周期地位、可用的已评定效用分、裁决新鲜度及授权状态对合格的 Skill 进行排序。随后关联检索支持性的成功经验、相关失败经验与典型反例。
 
@@ -242,7 +242,7 @@ SelfModel 属于描述性认知，绝非系统治理策略。
 
 # 21. 偏好召回
 
-通过偏好命题上的 BELIEF 投影进行查询，辅以可选的 Preference 概要制品及近期的纠错/反例。当存在相互冲突的 Assertion 时，严禁仅凭可变的 Preference 概要作答。
+按选项类别（option kind）在 `prefers` 槽位上执行 `BELIEF SLOT`，辅以近期的更正/反例。用于总结的 Insight 仅是上下文，绝非最终答案：当槽位中存在相互冲突或更新的 Assertion 时，严禁仅凭总结作答。
 
 # 22. 检索时效性与新鲜度
 
@@ -266,7 +266,7 @@ SEARCH 索引可能存在一定落后。若已知精确实体标识且对准确�
 
 记忆排序可综合利用：任务相关性、语义相似度、记忆强度、显著性、程序效用分、现实时效性、Experience 结果极性、已评定结果地位及反例相关性。独立查询约束/承诺、依赖项、失败/反例、成功经验、技能与证据。上报带有基线、已完成通道、截断情况与未验证先决条件的 RecallCoverage。必需的约束与关键警告优先于已评定地位；预算截断会导致覆盖不完全并阻止缺乏支持的自动行动。最终的涉真信念判定仍必须来自认识投影，而非排序得分。
 
-派生制品上的 `DerivationState.status = stale` 标记必须如实呈现，严禁隐匿：该标记表明其某个溯源根节点在制品构建后发生了修订、且复审尚未完成 —— 制品本身依然可作为原始数据被召回，但应附带该待审状态提示。在 Maintenance 写入该标记之前，还必须检查计算得出的 `_system.dependency_validity`：needs_review/unverifiable 将阻止自动应用。存储的当前标记不能凌驾于无效的基线之上。
+如实呈现计算得出的 `_system.dependency_validity` 处于 `needs_review` 或 `unverifiable` 的派生制品，严禁隐匿：这表明其某个溯源根节点在制品构建后发生了修订，或其基准无法验证。制品本身依然可作为原始数据被召回，但调用方理应知晓该风险警示，在复审重新验证之前不建议将其用于自动执行。
 
 # 27. 渐进深化查询流程 (Iterative Deepening)
 

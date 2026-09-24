@@ -1,7 +1,7 @@
 # KIP 2.0 大脑经验学习架构 (Experience Learning Architecture)
 
 
-规范的[认知一致性契约](../KIP-2.0-Cognitive-Consistency_CN.md)约束了终态信念、不可变技能修订版本、独立尝试、可重放试验/评估、依赖有效性、同一性修复以及持久工作者。生命周期计数器聚合尝试计数；未关联的家族结果绝不会自动作为对照组。仅在计算基线通过验证时才允许使用存储的摘要。
+规范性契约：[规范 (Specification)](../SPECIFICATION_CN.md)（终态信念 §21.11、时间继承 §25.4、依赖有效性 §57.6、录入修复 §57.8）、[认知记忆 Profile](../profiles/CognitiveMemoryProfile-2.0_CN.md)，以及可选的[已验证学习 (Validated Learning)](../brain/KIP-2.0-Validated-Learning_CN.md)与[大脑运行时 (Brain Runtime)](../brain/KIP-2.0-Brain-Runtime_CN.md)配套规范。现实世界的改变对应一条新 Assertion；仅在计算基线通过验证时才允许使用存储的摘要；未关联的家族结果绝不会成为对照组。
 
 **[English](./ExperienceLearningArchitecture.md) | [中文](./ExperienceLearningArchitecture_CN.md)**
 
@@ -188,7 +188,7 @@ Experiences / Evidence
 通过 `memory_strength` 与 `salience` 调整未来召回的可提取性，客观真值保持不变。
 
 ## 程序性学习 (Procedural learning)
-通过 Skill、GradingState、适用条件及反例，优化未来的行动策略。
+通过 Skill 修订版本、经过验证的资格地位 (validated standing)、适用条件及反例，优化未来的行动策略。
 
 ## 自我模型学习 (Self-model learning)
 通过更新大脑对自身能力、局限、偏好、身份连续性或长期策略的认知，改善未来决策。SelfModel 绝不能自行赋予系统执行权限。
@@ -305,7 +305,7 @@ SelfModel 的更新节奏应显著慢于日常 Event 形成。推荐的数据源
 Evidence + Proposition + Assertion
 Experience + Steps + Formation Activity
 新 Assertion + 废弃替代 + revision Activity
-Skill + compiled_from + 编译 Activity
+Skill + SkillRevision + 编译 Activity（compiled_from 由此计算得出）
 ```
 
 外部世界的真实行动始终在 KIP 事务回滚范畴之外。

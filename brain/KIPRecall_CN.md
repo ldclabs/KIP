@@ -16,6 +16,18 @@ DESCRIBE PRIMER MODE "compact"
 SEARCH CONCEPT :query MODE "keyword" LIMIT 10
 ```
 
+当需要在单次读取中同时完成实体接地与信念查询时，可在查询内部绑定匹配项；模式上的 LIMIT 约束候选数量，得分仅代表相关性，绝非置信度：
+
+```kip
+FIND(?person.name, ?home)
+WHERE {
+  ?person SEARCH CONCEPT :query WITH TYPE "Person" LIMIT 10
+  ?home BELIEF SLOT (?person, "lives_in")
+}
+WITH EPISTEMIC {context_refs: :contexts, purpose: "answer_user", policy: "kip:memory-default"}
+LIMIT 5
+```
+
 使用最终 BELIEF 查询事实。以下所有参数均为完整绑定的具体值与确切已知引用；上下文由外部提供，绝不能盲目假定为全局通用。
 
 ```kip
@@ -24,7 +36,7 @@ WHERE { ?belief BELIEF (:subject, :predicate, :object) }
 WITH EPISTEMIC {context_refs: :contexts, purpose: "answer_user", explanation: "summary"}
 ```
 
-使用槽位（slot）检查备选值。两种形式均充分核算适用的冲突。
+使用槽位（slot）检查备选值。两种形式均充分核算适用的冲突。在 `kip:memory-default` 下，任务范围内的取值在其任务中优先于通用取值，本人的陈述优先于传闻；被排挤的取值为 `uncertain`，绝非 `rejected`。发生变迁的取值不是冲突：其继承替代者会终结它，而在变迁之前的 `FOR TIME` 依然会返回旧取值。
 
 ```kip
 FIND(?slot)

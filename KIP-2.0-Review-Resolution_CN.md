@@ -1,5 +1,7 @@
 # KIP v2 设计审查决议 (Design Review Resolution)
 
+> **历史记录。** 本文记录其所指名的特定修订版本。后来的[记忆-大脑修订](./KIP-2.0-Memory-Brain-Resolution_CN.md)移除了保留的草案包（仅保留单一 `cognitive-memory@2.0.0`），将《认知一致性》伴随文档解构并入规范正文与 `brain/` 伴随文档中，并替换了 TrialState 和 DerivationState。
+
 **2026-09-06 — 本仓库已全面解决十二项设计审查意见。**
 
 范围说明：包括当前的英文规范文档、标准 Profile 包、参考 Brain 策略、语言工具包、Schema、测试固件（fixtures）、契约预言机（contract oracles）、有限模型、适配器运行器（runner）以及 CI。中文镜像文档与冻结的设计说明保持同步更新。本次修订属于草案契约层面的演进，并不代表外部 Nexus 引擎的部署，也不代表对 Brain 已经获得行为学习成效的经验性断言。
@@ -9,7 +11,7 @@
 | 意见项 | 决议说明 | 主要工件 | 验收依据 |
 | --- | --- | --- | --- |
 | R1 | 最终 BELIEF 包含适用的槽位冲突；候选状态属于诊断信息 | [一致性 §1](./KIP-2.0-Cognitive-Consistency_CN.md#1-冲突完备信念-conflict-complete-belief), [投影 Schema](./schemas/kip-projection.schema.json) | MEM-001；修订 SCHEMA-020；接地/非功能预言机用例 |
-| R2 | 稳定技能选择不可变的 SkillRevision；资格、评分与权限绑定至特定修订版本/摘要 | [Profile](./profiles/CognitiveMemoryProfile-2.0_CN.md), [2.1.0 模式包](./profiles/cognitive-memory-2.1.0.schema.json) | MEM-002；修订版本重置与授权规则检查 |
+| R2 | 稳定技能选择不可变的 SkillRevision；资格、评分与权限绑定至特定修订版本/摘要 | [Profile](./profiles/CognitiveMemoryProfile-2.0_CN.md), `profiles/cognitive-memory-2.1.0.schema.json`（已移除；参见 git 历史） | MEM-002；修订版本重置与授权规则检查 |
 | R3 | 决策、尝试（Attempt）与观察（Observation）拥有独立身份；配额基于独立尝试聚合进行计数 | [一致性 §5](./KIP-2.0-Cognitive-Consistency_CN.md#5-修订版本尝试试用与评估标识-revision-attempt-trial-and-evaluation-identities), [记录 Schema](./schemas/kip-cognitive-records.schema.json) | MEM-003；观察扩散（observation fan-out）故障注入 |
 | R4 | 受保护的评估策略；显式可比对照组、抽样/相关性、缺失度与不确定性 | [一致性 §6](./KIP-2.0-Cognitive-Consistency_CN.md#6-可比的学习而非单纯可复现的算术-comparable-learning-not-just-repeatable-arithmetic) | MEM-004/019/022；聚合反转、分层缺失与未授权规则测试 |
 | R5 | 不可变的 TrialRecord/EvaluationRecord 与保留的精确回放工件；可变状态仅为指针/缓存 | [Profile §6](./profiles/CognitiveMemoryProfile-2.0_CN.md#6-标准切面-standard-facets) | MEM-005/020；迟到结果、重新试用、更正与保留回放检查 |

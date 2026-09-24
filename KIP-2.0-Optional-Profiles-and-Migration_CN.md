@@ -20,7 +20,7 @@
 AS OF SEQ                (按序列号的时间旅行读取)
 lifecycle reconstruction (生命周期状态历史重构)
 historical Schema Environment (历史生效模式环境解析)
-historical identity, trust and Projection Policy versions (Consistency §2) (历史身份、信任与投影策略版本，一致性 §2)
+historical identity, trust and Projection Policy versions (Specification §48.6) (历史身份、信任与投影策略版本，规范 §48.6)
 historical cognitive read     (历史认知状态一致性读取)
 current authorization         (基于当前权限的访问控制)
 transaction chronology        (事务时间序列编年史)

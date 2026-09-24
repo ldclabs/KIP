@@ -269,30 +269,18 @@ new_strength = clamp(old_strength × decay + salience protection + explicit rein
 
 `MnemonicState.utility` 遵循相同的校准纪律：显式地依据结果进行校准 —— 一段简报所使用并产生了助益的记忆、或一次未曾获得回报的下注 —— 绝不能作为读取的副作用随意提高。沿着结果追踪至其尝试与决策；仅实际的 used_refs 是效用校准的候选对象。记录归因方法与不确定性。检索到的记忆或共同应用的修订版本绝不会自动继承整个结果的全部因果信用。它是结果驱动之信任校准（规范 §22.6）在记忆领域的镜像。
 
-通过 `UPDATE ... SET FACET "MnemonicState" { ... }` 结合有界的 `WHERE` + `LIMIT` 扫描执行（规范 §58），使用 `CLAMP`/`MUL` 更新表达式，并结合 `EXPECT VERSION` 保证读-改-写安全。在同一语句中为 `MnemonicState.last_metabolized_at` 打上时间戳，防止重放扫描对同一元素重复衰减。
-
-具体计算公式由各实现自行决定。读取频次不是协议强制要求的信号。
-
-按类型分批进行有界扫描，并在同一语句中打上 `last_metabolized_at` 时间戳：
+分批进行有界强化，在平面保护（plane guard）下将基准值与时间锚点一同写入；新基准来自当前的 `effective_strength` 与你的策略：
 
 ```prolog
-UPDATE ?element
+UPDATE :element_id
 SET FACET "MnemonicState" {
-  memory_strength: CLAMP(MUL(?element.facets["MnemonicState"].memory_strength, :decay_factor), 0, 1),
+  memory_strength: :reinforced_strength,
   last_metabolized_at: :cycle_start
 }
-WHERE {
-  ?element {type: "Event"}
-  FILTER(?element.facets["MnemonicState"].memory_strength > 0.05)
-  FILTER(IS_NULL(?element.facets["MnemonicState"].last_metabolized_at) || ?element.facets["MnemonicState"].last_metabolized_at < :cycle_start)
-  FILTER(IS_NULL(?element.facets["MnemonicState"].salience) || ?element.facets["MnemonicState"].salience < :protection_threshold)
-}
-LIMIT 500
+EXPECT VERSION :mnemonic_version OF FACET "MnemonicState"
 ```
 
-每个周期**仅绑定一次** `:cycle_start`，并在重新运行和崩溃重试之间复用它；重复执行分片，直到受影响的元素少于 `LIMIT`。衰减下限保证扫描最终收敛。
-
-可选的懒衰减策略可以基于上一次显式写入的基准值、时间锚点与钉固策略来计算有效强度，而无需在召回期间执行写操作。当定期扫描清理的写开销占主要成本时，优先考虑此模式；更正、留存和任务相关的工作仍保持显式执行。参见 [实现指南 (ImplementationGuide_CN.md)](ImplementationGuide_CN.md)。评分/时效性缓存以及冗余谱系均可依据权威记录重新构建。
+每个周期**仅绑定一次** `:cycle_start`，并在重试时复用它。具体计算公式由各实现自行决定；读取频次不是协议强制要求的信号。GradingState 与血统字段属于只读计算视图：无需重建，严禁在这些字段上写入。
 
 # 14. 显著性保护机制 (Salience Protection)
 
@@ -357,7 +345,7 @@ LIMIT 20
 
 # 17. 承诺与守望审查 (Commitment and Watch Review)
 
-审查处于 pending、due-soon、overdue、blocked、fulfilled 与 cancelled 状态的 Commitment。截止时间到达绝不会自动删除或归档该事项。重要性高的未决承诺即使记忆可及性较低，也必须保持可回忆。
+审查处于 pending、due-soon、overdue、blocked、fulfilled 与 cancelled 状态的 Commitment。截止时间到达绝不会自动删除或归档该事项。重要性高的未决承诺即使记忆可及性较低，也必须保持可回忆。未关联 Watch 的到期 Commitment 仅能通过本审查触达注意力：记录一条 `commitment_review` Activity，其 `inputs` 指明已到期的 Commitment；该次提交的 `space_seq` 即为 `commitment_due` 注意力项的 `raised_seq`（Profile §5.7，记忆接口 §4）。
 
 ```prolog
 FIND(?commitment.id, ?commitment.name, ?commitment.attributes.due_at, ?commitment.attributes.status)
@@ -411,7 +399,7 @@ MUTATE {
 }
 ```
 
-在刷新 Activity 的 `inputs` 中列出该摘要所依托的认知，并通过 `derived_from` 从该摘要链接至它们（替换上个周期的链接）—— 若缺少该 Activity 血统，当其中某个根节点在后续被修订时，该摘要将对 `LIST DEPENDENTS` 隐形。在摘要上打上实际构建时的 `basis_seq`，并在其落后时明确声明：一个坦承自身已陈旧的摘要是诚实的；一个看起来最新但实际陈旧的摘要是谎言。
+在刷新 Activity 的 `inputs` 中列出该摘要所依托的认知；摘要的计算型 `derived_from` 自动由此生成 —— 若缺少该 Activity 血统，当其中某个根节点在后续被修订时，该摘要将对 `LIST DEPENDENTS` 隐形。在摘要上打上实际构建时的 `basis_seq`，并在其落后时明确声明：一个坦承自身已陈旧的摘要是诚实的；一个看起来最新但实际陈旧的摘要是谎言。
 
 # 19. 外部导入与隔离区认知审查
 
@@ -466,7 +454,7 @@ LIMIT 200
 
 载荷清除（`PURGE PAYLOAD`，规范 §60.6）是更为精细的数据最小化工具：在销毁原始证据载荷字节的同时，完整保留证据记录、内容摘要、引用拓扑与溯源角色。当目标是在认知消化完成后缩减存储字节而非移除证据事件本身时，应优先采用该操作；该操作同样需要 purge 权限、二次确认并受法律保全（legal hold）约束。
 
-语义遗忘遵循 ErasurePlan 契约（一致性规范 §8），涵盖语义副本、编译摘要、重放输入以及受控索引/备份。仅执行载荷清除无法满足“遗忘此事实”；未覆盖完全或受保全约束的范围属于部分遗忘或被阻断。
+语义遗忘遵循 ErasurePlan 契约（规范 §60.7），涵盖语义副本、编译摘要、重放输入以及受控索引/备份。仅执行载荷清除无法满足“遗忘此事实”；未覆盖完全或受保全约束的范围属于部分遗忘或被阻断。
 
 # 24. 清理候选处理
 
@@ -501,24 +489,19 @@ consolidated_to
 associated Activity
 ```
 
-引用实际依赖的认识论输入 —— 证据与断言，而非其外层承载 Concept。
+在巩固 Activity 的 `inputs` 中列出实际依赖的认识论输入 —— 证据与断言，而非仅包含它们的外层 Experience。当根节点后续被修订时，`LIST DEPENDENTS` 所遍历的正是该谱系。
 
-在发生废弃替代、撤回或证据纠错后，对被修订的根节点执行 `LIST DEPENDENTS` 遍历，并将派生制品标记为 `DerivationState {status: "stale"}`，为重要的派生项排队 `review_derived` 睡眠任务。`stale` 是一个复审标记：它本身绝不撤回、隐藏或归档制品，运行时绝不能仅因为根节点发生变迁就自动撤回派生认知（规范 §57.5）。
+在发生废弃替代、撤回或证据更正后，对被修订的根节点执行 `LIST DEPENDENTS` 遍历，并为受影响的制品排队 `review_derived` 睡眠任务。引擎已通过计算得出的 `_system.dependency_validity` 将它们置为 `needs_review`：无需写入任何标记，也绝不会因为根节点变动而发生任何撤回、隐藏或归档（规范 §57.5）。
 
 ```prolog
 LIST DEPENDENTS :revised_root DEPTH 2 LIMIT 100
 ```
 
-```prolog
-UPDATE :insight_id
-SET FACET "DerivationState" {status: "stale"}
-```
-
 在使用派生认知前，必须先读取 `_system.dependency_validity`；即使本审查流程尚未运行，引擎也会立即计算该有效性。分页并遍历完整受影响闭包，检查点记录水位线；DEPTH 2 / LIMIT 100 仅是第一页，绝非遍历完成。重新验证在 dependency_validation Activity 上记录新的 DependencyBasis 并标注确切输出版本。新的认识论前提必须创建新的 Assertion。
 
-# 29. 事务规范与前置断言
+# 29. 事务规范与前置条件
 
-涉及新断言+废弃替代+Activity、Skill+编译来源+Activity、lifecycle_verdict Activity+受保护的 Skill UPDATE、证据更正+修订断言以及实体合并流转的操作，必须使用原子事务提交。对于“读-改-写”操作，必须使用前置条件（Preconditions）防范并发冲突。
+涉及新断言 + 废弃替代 + Activity、Skill + SkillRevision + 编译 Activity、lifecycle_verdict Activity + 受保护的 Skill UPDATE、证据更正 + 修订断言以及实体合并流转的操作，必须使用原子事务提交。对于“读-改-写”操作，必须使用前置条件（Preconditions）防范并发冲突。
 
 # 30. 并发冲突与重试
 

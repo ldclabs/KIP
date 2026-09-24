@@ -1,172 +1,71 @@
-# KIP 2.0 认知一致性与可靠学习规范 (Cognitive Consistency and Reliable Learning)
+# KIP 2.0 认知一致性规范 —— 已迁移
 
-**[English](./KIP-2.0-Cognitive-Consistency.md) | [中文](./KIP-2.0-Cognitive-Consistency_CN.md)**
+**资料性重定向说明。本文档不再作为规范性配套规范。**
 
-**SPECIFICATION_CN.md 的规范性伴随文档，版本 2.0-draft**
+认知一致性契约已被合并至各自负责的规范文档中，使得 Core 核心语义归入规范主体，可选机制归入 Brain 配套规范。所有规范要求均完整保留。下文各级标题保留了原章节锚点，以保证既有链接正常解析。
 
-本文档定义核心规范 §9、§11、§21、§27、§57、§62 以及认知记忆 Profile 所引用的横切契约。本文档不引入新的 Core 核心元素类型。Profile 记录依然为 Concept、Activity 和 Facet。§1–§4 中的 Core 规则在其父特性得到支持的地方普遍适用；§5–§8 对标准 Cognitive Memory Profile 具有约束力。持久化工作进程（durable workers）与身份修复（identity repair）属于能力，绝非暗含的执行授权。Brain 的排序与评估算法保持可替换性，但必须受制于下述已记录的输入与验收条件。
-
-可选的[记忆接口 (Memory Interface)](./KIP-2.0-Memory-Interface_CN.md)定义了更精简、可组合的能力包，而无需声称实现整个 Profile。基础记忆保留适用的 §1–§3 与 §8 保护，而经验、学习与持久工作则激活各自对应的附加义务。声称完整实现 Profile 仍需满足本文中的每一项适用契约。存储的模式（Schema）身份标识保持不变。
+在迁移过程中有两项契约发生了调整：移除了 `DerivationState` 与 `TrialState`，改用计算得出的依赖有效性以及 Skill 的 `current_trial` 指针；GradingState 转为计算视图；四个谱系字段转为 Activity 溯源的计算视图。详见[修订记录](./KIP-2.0-Memory-Brain-Resolution_CN.md)。
 
 ## 1. 冲突完备信念 (Conflict-complete belief)
 
-认识投影包含两个阶段。首先，依据单一候选断言自身所具备的合格支持/反对证据计算 `candidate_status`。随后，在同一 ProjectionBasis（§2）下求值同一主语–谓词槽位中可见且合格的所有候选断言。
-
-实质上获得证据支撑的各候选断言之间的函数性/排他性冲突，**必须**反映在所有涉及候选断言的最终 `status` 中，包括接地的单命题 BELIEF 以及按 ID 查询的 BELIEF。在结构化基准下，这些候选断言的状态为 `contested`，其 `slot_status` 为 `contested`，且均不出现在 `accepted_values` 中。策略仅能通过其声明的规则和台账来消解冲突；查询形式**严禁**自行消解冲突。非函数性的多值槽位绝不因存在多个获得支持的值而被判定为有争议。
-
-`candidate_status` 仅为诊断性指标，绝非行动裁决。`status` 是面向消费者的最终结果。`conflict_refs` 仅包含可发现的引用；`conflict_reasons` 指明诸如 `functional_value` 等约束。该约束是对采信该候选断言的反对理由，而非将对象值 `false` 转换为一条存储的拒绝断言。直接的立场冲突保持可表示性。缺乏合格支持的候选断言，绝不因存在另一候选断言而变为已采信。`leading` 在最终冲突集合上根据策略的决胜规则重新计算；结构化平局返回 `none`。在同一基准下求值时，槽位查询与候选断言查询在最终采信结果上**必须**保持一致。
+现见[规范 §21.11](./SPECIFICATION_CN.md#2111-终态信念与槽位冲突)。
 
 ## 2. 投影基线、上下文与挂钟时钟 (ProjectionBasis, context and clocks)
 
-每个投影结果**必须**携带 `basis`，符合 `schemas/kip-projection.schema.json#/$defs/ProjectionBasis`：
-
-- Space 与认知快照序列号 (`space_seq`)；
-- 模式环境版本 (`schema_environment_version`) 与身份解析版本 (`identity_version`)；
-- 投影策略 ID/版本 (`projection_policy_version`) 与受保护的信任状态版本 (`trust_state_version`)；
-- 不透明的当前授权视图标识（而非 Grant 授权或隐蔽计数）；
-- 规范排序的上下文引用集合、目标 (`purpose`) 与风险等级 (`risk`)；
-- `valid_at`，以及下一个已知的时态失效时刻或 null。
-
-缓存键**必须**包含所有上述计算输入（已计算出的 `next_invalid_at` 除外）。复用缓存要求具备当前有效授权，并对基准的每一项依赖进行有效性验证。信任、身份、模式或授权的变更，即使没有任何 Assertion 发生改变，亦会使相关缓存结果失效。当挂钟时钟到达已知边界时刻时，结果**必须**重新计算，或显式作为历史数据提供。引擎**可以**采用基于特定依赖的失效机制，而非机械拒绝无关的 Space 提交；但必须证明其与全新计算具有等价性。WorkingState 及其他编译视图在适用的情况下携带相同的基准。
-
-核心上下文匹配采用集合包含规则：Assertion 的 `context_refs` 必须是请求集合的子集。空上下文 Assertion 属于通用性质；带有作用域限定的 Assertion 对空请求上下文而言不合格。上下文 ID 使用基线处的身份解析结果，绝不使用名称相似度或已断言的 `same_as` 主张。额外的上下文继承需要显式的带版本策略；模式包声明的冲突上下文维度必须验证失败。未知的上下文绝不被臆造为通用作用域。在允许的情况下，排除项表现为 `context_mismatch`。请求集合由 `WITH EPISTEMIC {context_refs: [...]}` 提供。
-
-现实世界时间区间采用 **[from, until)** 半开区间。缺失/null 的 from 表示下无界；缺失/null 的 until 表示上无界。有限边界要求 from < until。在时刻 t = until，旧值被排除；从 t 开始生效的值符合资格。协议时间戳**必须**采用 Core §6.5 规定的严格 UTC 毫秒格式；非规范格式输入会被直接拒绝，而非静默归一化。源端本地日期在宿主显式转换前保持为源数据，并保留其原始锚点。粗粒度或不确定的日期**应当**作为 Evidence 或 Profile 状态保留其精度/锚点；Formation 过程**严禁**臆造出精确时刻。缺失的有效时间区间遵循声明的策略，绝不套用留存过期时间。
-
-历史认知默认使用历史版本的模式、身份、信任与投影策略。当前的授权始终控制信息披露。要求在当前策略下重新解释旧数据的请求，必须显式选择该策略并在基准中予以披露；这不属于“当时相信的内容”。历史控制状态缺失时报错 `HistoricalSnapshotUnavailable`，绝不能静默替换为当今的信任状态。
+ProjectionBasis 与缓存复用：[规范 §21.12](./SPECIFICATION_CN.md#2112-projectionbasis-投影基线)。上下文匹配：[§25.3](./SPECIFICATION_CN.md#253-上下文匹配)。现实世界时间区间与日期：[§25.2](./SPECIFICATION_CN.md#252-现实世界时间区间)，时间继承见 [§25.4](./SPECIFICATION_CN.md#254-时间继承-temporal-succession)，时间界限见 [§25.5](./SPECIFICATION_CN.md#255-时间界限-time-bounds)。历史控制状态：[§48.6](./SPECIFICATION_CN.md#486-历史控制状态)。
 
 ## 3. 不重写历史的依赖健全性 (Dependency validity without rewriting history)
 
-派生的 Assertion 或 Profile 工件在其产生它的 Activity 上的 `DependencyBasis` 中**必须**包含不可变的输入契约：其基准序列号以及一组钉住的源引用。每个钉住项包括 ID、相关版本/平面，以及时态或策略依赖项。引擎在读自身写入语义下，对照留存的源版本或同一事务内的新输入来验证所提供的读取钉住项；在提交时**严禁**将旧的读取以当前版本重新打时间戳。仅当披露了该基线以及在适当时计算出的 needs_review/unverifiable 结果时，才允许提交诚实记录的旧派生结果。引用组的角色包括 `all_of`（每项先决条件均必需）、`any_of`（备选支持）或 `context`（仅用于披露）。组内成员资格对该次派生而言是固定的；改变派生关系将创建一条新记录。
-
-引擎暴露只读的虚拟字段 `_system.dependency_validity`：`current | needs_review | unverifiable`，外加可见的原因、已检查的基线以及 `action_eligible`。该字段绝非由复审员写入且持久化的 DerivationState。任何必要钉住项的改变、所有备选支持的丧失、根节点的更正/撤回、身份修复或先决条件的过期，在重新验证之前均阻止自动应用。未发生变化的备选支持可保持 any_of 组有效；上下文的变更予以披露，但单凭这一点并不拒绝派生结果。数值版本不匹配属于保守的复审触发器，而非证明主张为伪的证据。
-
-此项检查递归适用于派生 Assertion 以及 Concept。缺乏可用外部基准的环路属于 unverifiable。当遍历不完整、源不可用或缺失记录的依赖契约时，引擎**严禁**报告 current。治理策略可授权内部验证而不暴露源头；否则结果为 unverifiable，且不暴露任何隐蔽源的身份或计数。因此，未分级的遗留派生工件上缺失 DependencyBasis，绝不意味着其处于 current 状态。
-
-所有常规 Profile 召回以及推导派生的信念投影，在 Maintenance 运行之前，**必须**在其读取基准下执行此项检查。获得支持但未经核实 (unverified) 的派生结果变为 `uncertain`（若已有充分依据，则保持 contested/rejected）；绝不被静默采信。原始历史保持可读。行动简报必须暴露该检查结果，并在 `action_eligible` 为 false 时不得建议自动应用。重新验证会创建一个终结性的 `dependency_validation` Activity，携带新的 DependencyBasis 并在 outputs 中包含经过验证的元素。引擎捕获的输出版本将其与确切的工件版本严格绑定。重新验证无法为旧 Assertion 替换新的认识前提；替换前提必须创建新的 Assertion。可变的 WorkingState 刷新会通过其自身的生成 Activity 产生全新版本。检测到的变更会导致推迟或重新规划；其本身绝不直接授权执行。
+现见[规范 §57.6](./SPECIFICATION_CN.md#576-依赖有效性-dependency-validity)。
 
 ### 3.1 选择依赖与精确失效 (Selection dependencies and precise invalidation)
 
-元素钉固仅记录了对某条留存记录的读取消费。它本身并不记录某个命题是否被采信、某个函数性槽位是否没有竞争候选，也不记录某项查询或缺失性测试是否覆盖了整个选择结果集。依赖此类判断的派生操作**必须**同时记录 `DependencyBasis.queries` (QueryDependency)。宿主钉固规范化的选择器工件、结果摘要、授权视图、预期结果以及由引擎颁发的选择变更令牌（selection change token）。选择器包含绑定的参数、作用域以及适用的基准；它是从实际读取中捕获的，绝不能依赖作者事后的追溯性陈述来重建。
-
-对选择结果产生影响的插入、移除和资格变更均**必须**使该令牌失效，包括新插入的对立断言以及此前缺席的承诺（Commitment）。发生变更的令牌要求在当前读取基准下进行完整重新评估；重新评估后若结果未变，仍可保持 current 状态。不完整、缺失或未授权的选择证明均属于 unverifiable。缺乏精确选择追踪能力的引擎，在发生任何可能相关的 Space 变更后，**必须**保守地进行重新评估；仅凭未发生变更的正向记录钉固项无法免除选择依赖的校验义务。测试**必须**覆盖负向读取与新插入的竞争项，而不仅限于常规修改。
-
-非空的 `planes` 钉固项仅比对所指名的相关平面计数器；`version` 保留原始读取坐标，而非充当额外的全平面等值防护。生命周期、记录失效、治理以及递归的前决依赖有效性始终独立校验。空或缺失的 planes 则比对全量版本。仅含上下文的组无法确立认识层面的支撑。产生/校验输出绑定将自身所认证的语义平面记录在由引擎捕获的 `_system.output_plane_versions` 中（以输出 ID 和规范平面名称为键）：在这些平面之外发生的变更（例如 MnemonicState）保持该认证有效。认证平面内的注解保守地需要重新校验，除非引擎能够证明其语义等价。发生变化的行为绝不继承原有认证。
-
-投影结果缓存保留确切的公开 ProjectionBasis。实现仅在证明具有等价的选择/控制依赖且不存在时态边界时，才可在无关提交或时间区间之间复用校验过的计算结果。此类复用会颁发全新的结果基准，绝不能将旧快照直接伪装标记为新读取。当到达 next_invalid_at 时必须重新校验。强度衰减不属于信念计算的输入项。
+现见[规范 §57.7](./SPECIFICATION_CN.md#577-选择依赖-selection-dependencies)。
 
 ## 4. 可修复的身份标识与可移植键 (Repairable identity and portable keys)
 
-MERGE 保持非破坏性，但每次合并都是受保护的不可变身份解析决策，携带 ID、源、目标、行动者起源、基准以及解析版本。引擎审计保留每次写入中实际提供的引用及其规范解析，包括 ASSERT 的端点。对于已被调用方规范化的引用，引擎仅记录其收到的内容；**严禁**声称知晓已丢失的更早所指对象。
+现见[规范 §11.5–§11.6](./SPECIFICATION_CN.md#115-身份修复-identity-repair)。
 
-`identity_repair` 能力在 `merge_identity` 权限下提供一项受保护的操作，其逻辑输入为：
+### 4.1 录入修复不同于行动者改变心意 (Recording repair is not an actor's change of mind)
 
-    {decision_id, expected_identity_version, action: "withdraw", reason_evidence}
+现见[规范 §57.8](./SPECIFICATION_CN.md#578-录入修复-recording-repair)。
 
-其传输方式与治理操作所用的实现特定受保护控制绑定相同；常规 KML 无法设置 merged_into。该操作以原子方式为当前读取撤回指定的解析，验证无环性与身份约束，推进身份版本并发出身份控制变更通知。它为 AS OF / 历史保留先前的决策。源对象重新变为可独立解析；原始 Proposition 元组与旧 Assertion 不被移动或重写。冲突的键/规范 ID 报错 `IdentityConflict`。
+## 5. 修订版本、尝试、试验与评估标识 (Revision, attempt, trial and evaluation identities)
 
-身份修复会生成在受影响解析下所做写入的复审集合。明确无歧义的原样提供引用用于指导新的、经过显式更正的 Assertion；预期所指对象已丢失的写入保持 `needs_review` 状态，排除在自动应用之外。依赖项、缓存及导入的映射均作废失效。这是当前解释层面的修复，绝非声称能完美拆分未保留归属信息的数据。缺乏此行为的能力**必须**拒绝该操作，而绝不能删除/重新创建已合并的源对象。
+现见[已验证学习配套规范](./brain/KIP-2.0-Validated-Learning_CN.md) §2–§4。
 
-Concept 的键默认限于 Space 本地，除非其模式包显式声明了带有 `issuer_namespace`、`key_scope` 和规范化规则的可移植身份。胶囊按键映射**必须**同时匹配谱系、已验证颁发者、作用域和规范化键。否则，不同所有者的 Space 中相等的本地键将创建各自独立的身份。修复操作绝不赋予新的信任或权限。
+### 5.1 固定基准线与前瞻性招募 (Fixed baselines and prospective enrollment)
 
-### 4.1 记录修复不同于行动者改变心意 (Recording repair is not an actor's change of mind)
+现见[已验证学习 §5](./brain/KIP-2.0-Validated-Learning_CN.md#5-固定基准线前瞻性招募与适用性-fixed-baselines-prospective-enrollment-and-applicability)。
 
-在捕获的源数据正确的前提下，抽取或归属过程可能发生错误。公布 `recording_repair` 能力的运行时会提供一项符合 RecordingRepair 输入形态的受保护操作。该操作需要持有 `repair_recording` 权限，以及用于替换断言所需的常规权限。无论是记录归属还是常规更新，均不自动赋予记录修复权限。默认情况下，该权限仅限于经认证的记录者自身由源支撑的输出；更大范围的复审需要显式的受保护授权。
+## 6. 可比学习而非机械算术 (Comparable learning, not just repeatable arithmetic)
 
-引擎在单一事务中原子校验不可变的源身份/摘要与定位符（locator）、记录者来源、预期版本、替换闭包以及行动者/上下文绑定。它会追加一条终态的 `recording_repair` Activity，并对不正确的抽取执行受保护的失效处理，暴露为受治理的 `_system.recording_validity`（有效或已失效，携带可发现的 repair_ref 或 null）。此操作在推进受影响元素版本的同时，绝不重写其认识论载荷。它完整保留源字节、原始断言载荷以及行动者生命周期：Alice 并未收回或废弃替代一条她从未发表过的陈述。当前的投影会排除已失效的抽取并使依赖项失效；底层原始历史记录则标明该次修复。历史读取在其认知快照处采用当时适用的修复状态，并受当前授权控制。修复控制变更会相应推进 Space 序列号以及授权视图/控制失效坐标。不支持此特性的运行时必须拒绝修复请求；它可以在独立授权下将数据隔离，但严禁伪造行动者撤回或篡改可靠的 Evidence 证据记录。
+现见[已验证学习 §6](./brain/KIP-2.0-Validated-Learning_CN.md#6-可比学习-comparable-learning)。
 
-源定位符是指绑定了摘要的字节范围、JSON Pointer 或特定格式的选择器，其有效性由宿主负责核验。它有助于复审抽取的保真度；但它绝不证明语义必然性，也不能替代该复审过程。行动者更正、现实世界变迁以及记录修复属于截然不同的验收场景。
+## 7. 持久注意力、工作与外部行动 (Durable attention, work and external actions)
 
-## 5. 修订版本、尝试、试用与评估标识 (Revision, attempt, trial and evaluation identities)
+现见[大脑运行时配套规范](./brain/KIP-2.0-Brain-Runtime_CN.md) §2–§4。
 
-Profile 中不可变的 `SkillRevision` 概念拥有行为表现：task_family、适用条件、先决条件、具体流程、成功判据与故障恢复。`Skill` 是稳定的家族身份标识，持有 current_revision 与展示状态。Skill 上的遗留行为字段是 current_revision 的兼容性视图，绝不可独立写入。更改行为会创建一个新的 SkillRevision 并以原子方式选中它，将当前地位重置为 proposed，并清除当前试用/评分指针。此项选择不是晋升；旧修订版本的裁决保持完好。注解或 MnemonicState 的变更不重置地位。执行授权与 revision id + behavior_digest 及作用域绑定；绝不通过稳定的 Skill ID 转移给经过编辑的行为。
+### 7.1 派发准入与外部接受 (Dispatch admission and external acceptance)
 
-决策的不可变 DecisionRecord 严格区分 `retrieved_refs`（检索到的引用）、`used_refs`（使用到的引用）与 `applied_revisions`（应用的修订版本）。每个应用的修订版本也必须出现在 action_gate 的 inputs 中。仅被检索的内容不获得任何自动信任。共同使用的修订版本构成干预组合（treatment bundle），除非记录的归因方法能将它们分离开来；共享同一决策并不证明具备单独的因果效用。
+现见[大脑运行时 §4](./brain/KIP-2.0-Brain-Runtime_CN.md#4-外部行动-external-actions)。
 
-携带不可变 AttemptRecord 的 `action_attempt` 活动在调度**之前**识别每次实际尝试：attempt_id（Space 内唯一）、decision_ref、应用的修订版本引用、可为空的 trial_ref、上下文/环境/工具标识、选择策略以及先决条件评估。追溯性的行动记录依然属于有效审计，但不能追溯性地作为干预组登记入组。试用分配在观测结果之前即已固定，而不是在看到成功之后再挑选。对于每次尝试 + 指标 + 观测窗口，至多只有一个终结性聚合结果贡献给评估。
+## 8. 编码、召回覆盖与擦除 (Encoding, recall coverage and erasure)
 
-仪器化写入的 OutcomeRecord 除 task_family/status 之外，还包含 attempt_ref、metric、window、terminal 标志、observation_key 以及 observer_config_digest。仪器的 outcome_observation 活动链接尝试及其决策。观测键用于对源事件去重；针对同一次尝试的多个仪器或重复测量仍属于不同的 Evidence，但不是独立的试用。中间、未知、中止和缺失的结果均显式核算。冲突的终结性观测需要固定聚合/裁决规则；绝不能变成两次成功。更正后的结果被排除在新的评分之外；旧评估保留其当时所用的确切观测与更正状态。未链接的结果属于数据流素材，绝不能自动作为对比基线。
+编码记录：[Profile §10.1](./profiles/CognitiveMemoryProfile-2.0_CN.md#101-编码记录-encoding-records)。召回覆盖：[Profile §20.2](./profiles/CognitiveMemoryProfile-2.0_CN.md#202-召回覆盖与计划-recall-coverage-and-plans)。语义擦除：[规范 §60.7](./SPECIFICATION_CN.md#607-语义擦除-semantic-erasure)。
 
-对于默认的固定基准模式（§5.1），已完成的 `trial_open` 活动携带不可变的 TrialRecord：修订版本/组合、基准、规则工件、参数工件、可比性策略、确切基线尝试/结果引用、分层/权重、以**独立尝试**计量的配额、观测窗口、缺失值处理策略，以及重新运行比对所需的不可变比较输入副本。TrialState 仅是该记录的指针/缓存。重新试用会创建新的活动/ID；滞后到达的结果仍归属于旧试用，不能满足新配额。试用开启之前的决策不能追溯入组。
+### 8.1 源因果性与统一任务作用域 (Source causality and uniform task scope)
 
-每次 lifecycle_verdict 均携带不可变的 EvaluationRecord：trial_ref、修订版本引用、from_status/to_status、规则/参数摘要、截止点、入选的尝试与结果引用、被拒绝/缺失样本核算、比较结果，以及包含确切规则、参数、基准和输入值的固定重放工件。摘要对照可用字节进行核验。缺乏可检索规则或输入的名称/哈希，不能声称具备可复算性。重放工件的治理受限程度至少与其素材输入一样严格，并受制于清除规则（§8）。复现保留的评估无需可选的 historical_reads 能力。
+源顺序：[记忆接口 §5.1](./KIP-2.0-Memory-Interface_CN.md#51-源顺序-source-order)。任务范围：[Profile §20.3](./profiles/CognitiveMemoryProfile-2.0_CN.md#203-记忆范围-memory-scope)。
 
-生命周期与 GradingState 仅能在提交经过验证的 EvaluationRecord 的同一事务中发生变更。引擎验证引用闭包、修订版本/试用匹配、尝试唯一性、合格的仪器起源、规则绑定以及确定性裁决。仅仅将任意活动命名为 lifecycle_verdict 不能晋升 Skill。状态缓存钉住 evaluation_ref 与 revision_ref；它们所写的所有平面均受到守卫，包括 GradingState、TrialState 与 MnemonicState，而不单是 status。EvaluationRecord 状态对遵循 Profile §14 变迁表或保持同一状态。仅有 trialed → adopted 属于晋升；revoked/proposed 无法直接跃迁至 adopted。从 revoked 重新准入必须首先开启并选中一项新试用。导入的 Skill/修订版本没有本地地位；导入的结果不计入本地评分。
+### 8.2 可验证召回计划 (Verifiable recall plans)
 
-### 5.1 固定基准与前瞻性入组 (Fixed baselines and prospective enrollment)
+现见[Profile §20.2](./profiles/CognitiveMemoryProfile-2.0_CN.md#202-召回覆盖与计划-recall-coverage-and-plans)。
 
-TrialRecord.baseline_mode 默认为 `fixed`，保留既有的冻结基准尝试/结果契约。宿主可以在基准执行前预先登记配对任务与选择策略，执行完该完整基准后，再开启固定试用；这是 Anda Brain 已经支持的配对方案路径。这不属于并发随机对照试验，严禁作为随机对照试验汇报。
+### 8.3 交换与可重建状态 (Exchange and rebuildable state)
 
-`prospective_trials` 增加了 baseline_mode: `prospective`。TrialRecord 冻结一个不可变的前瞻性入组契约：共享的合格性过滤器、干预分配策略、配额、时间窗口以及并发执行约束。评估所需的实际对照组与干预组在裁决前冻结为 EvaluationRecord.cohort：包含不可变的尝试引用、分配回执以及显式排除记录。评估器核查是否有符合资格的分配被遗漏，以及是否有任何尝试擅自切换分支、试用或修订版本。重复的观测绝不能增加独立试验单位。比对与重放使用该冻结工件加上 TrialRecord；迟到的结果仍归属于其原始试用与截止点。缺失或无法验证的入组/人群覆盖率严禁晋升。仅当声明的实验设计允许时，才准许串行或并发执行。
-
-ProcedureAssessment 可以在不声称具有相对改进的前提下，依据某项适用性/正确性准则对修订版本进行验证。它保持为建议性且未经证实的状态，绝不写入 GradingState 或 adopted 地位，也不赋予任何执行权限。相对改进的采纳依然遵循 §6 的更强要求；绝对成功检查不能被改头换面称为学习。这避免了引入第二套相互竞争的 Skill 生命周期。
-
-## 6. 可比的学习，而非单纯可复现的算术 (Comparable learning, not just repeatable arithmetic)
-
-经过验证的地位使用来自 `manage_policy` 管辖下受保护控制状态的评估策略。它固定了允许的规则/参数契约、观察者控制摘要以及最低证据/不确定性要求。Brain 可以提议新策略，但作为普通认知内容提供的规则不能授权其自身的裁决。TrialRecord 钉住策略标识/版本/摘要；当前策略在裁决与调度时重新检查，而留存的策略对旧重放保持可用。仅凭哈希无法将常数采纳规则或由调用方削弱的阈值变为合法授权。
-
-试用的授权规则声明其指标、方向、非负的实际改进幅度要求、最低独立样本要求（晋升至 adopted 至少需要两次干预尝试）、不确定性检验、安全约束以及降级条件。配额仅统计合格的独立尝试，绝不统计 Evidence 元素。撤回或紧急策略降级可以包含零个结果，但仍需记录确定性的理由/证据与裁决；晋升则绝不允许零结果。
-
-基线成员资格必须显式声明，并在上下文、环境/工具版本、先决条件满足度、干预/组合以及观测窗口可比性方面进行校验。不同的尝试 ID、独立的干预分配以及具有独立故障模式的观测配置均被钉住；单凭不同的 Principal ID 无法证明具备独立控制。自评或未经核实的观测过程不能声称经过验证的本地学习，即使开放部署允许将其记录用于审计。
-
-规则可以采用配对、分层、随机化或声明的离策略估计。协议不强制通用规则。当其自身的可比性、覆盖率或不确定性要求不满足时，**必须**拒绝正向学习裁决。依赖策略的准入可以保持建议性且未经证实。分层比较必须使用预先声明的共享权重，而非各策略观察到的任务组合；90%→80%、40%→30%、总体 45%→75% 的辛普森悖论示例不属于改进。空基线或缺失分层属于证据不足，绝不能臆造出 0.5 作为基准。
-
-采纳后的监控创建新的评估，保留先前的评估，并应用声明的降级门槛。同状态的 adopted → adopted 评估可以记录证据不足或无改进（包括零个合格的新尝试），前提是授权策略允许保留地位。其重放工件保留先前的验证采纳基准与监控决策；它不声称新的正向学习成果，亦不规避必需的降级。仅适用于晋升的最低样本量与改进幅度比较，不适用于此项缓存刷新。有资格被复审的结果本身，并不构成决策 inputs 中每项记忆的因果归因证明。效用的变更记录归因方法、证据与不确定性；有用性假说与实测改进保持严格区分。
-
-## 7. 持久化注意力、工作与外部行动 (Durable attention, work and external actions)
-
-公布 `durable_brain_runtime` 的运行时**必须**提供持久化、有界的工作进程。WatchState 钉住 arm_generation、armed_seq、condition_digest、authorization_view、consumed_seq 以及匹配状态。重新布防 (re-arm)/条件变更以原子方式递增 generation 并重置覆盖区间。触发键包含 generation：`watch_fire:<id>:<generation>:<seq>` 或 `watch_fire:<id>:<generation>:silence:<due_at>`。陈旧的工作进程无法触发新的布防代次。
-
-结构化选择器按 AND 组合；ops/touched 中的数组匹配任意成员，省略的过滤器不施加限制。纯文本条件需要显式的 Brain 求值器。静默 Watch 在钉住条件与授权观测范围内覆盖 (armed_seq, due_seq]，前提是在截止期前变更流具备完整的水位线。过滤流必须提供完备性水位线；序列间隙不等于静默证据。变更流截断或授权变更要求重新同步并确立新的覆盖基准，绝不能静默误报。传入的匹配、截止期解析、进度与触发在系统重启后保持存活。依赖时间的基准在 next_invalid_at 调度验证工作，而无需捏造断言过期的 Change Envelope。增量 Watch 仍需匹配提交，静默 Watch 仍需完备的授权覆盖。
-
-SleepTask 的认领/续期/完成使用 LeaseState：经过认证的所有者、单调递增的 fencing_token、expires_at 以及尝试计数。获取与接管属于 compare-and-set 事务；租约已过期或 token 已被取代的工作进程无法完成任务或获取新的原生分发准入。外部副作用保证在 §7.1 中另行定义。获得授权的待命工作进程可以收回过期的运行中任务。终结性写入及其输出具有原子性且具备重试安全性。积压预算通过检查点推迟工作，绝不静默丢弃。
-
-在执行外部行动之前，尝试连同调度意图被持久化入队。执行器将 attempt_id 作为其外部幂等键，并在调度前夕重新检查治理权限、修订版本授权、原始修订版本选择先决条件、依赖基线以及租约防护 (lease fence)。更新的 current_revision 绝不能静默替换或验证由记录决策所选取的修订版本。在崩溃后，它查询/重试**相同**的外部身份标识，而非全新的标识。若外部系统无法支持幂等或结果查找，则状态为 outcome_unknown，严禁自动重新调度；需根据策略对账或人工介入。KIP 绝不能单凭自身的原子性就声称外部效果的恰好一次执行。独立的仪器对照该次尝试记录返回的结果。
-
-### 7.1 分发准入与外部接受 (Dispatch admission and external acceptance)
-
-DispatchContract 声明为 `admission` 或 `receiver_fenced`。前者在线性化点上采用 Anda Brain 已在使用的原子级原生分发准入。持久凭证钉固尝试/请求标识、资源、修订版本、隔离围栏（fence）以及过期时间。撤销操作会阻止后续准入；但已准入/进行中的操作仍可能执行完毕。发送端单方面的“最后一次检查”无法向调用方保证远端接收者在发生主备切换/接管后必然拒绝延迟到达的请求。幂等性是对某次尝试去重，而非去重过期的授权。
-
-`receiver_fencing` 是一项额外的端到端能力，其线性化点位于接收端接受请求的时刻。真正拥有副作用的实际接收端在接受请求并去重的同一原子操作中，校验经过认证的、与资源/请求绑定的凭证以及当前的隔离纪元（fencing epoch）与过期时间。其注册的绑定关系与执行范围均被钉固。先检查再向未设防的远端服务转发的网关，无法声称具备这种更强的保证。接管或纪元变更必须在送达接收端的权威接受状态之后，新的纪元才在接收端真正生效。
-
-缺乏此契约的接收端仅公布 admission。执行器保留既有的 outcome_unknown / 同尝试对账行为。测试在原生准入之后且在接收端接受之前暂停执行，进而演练接管、撤销、延迟、重复投递和重启场景。无论哪种保证，均无法回滚已在其声明的线性化点被外部接受的副作用。
-
-## 8. 编码、召回覆盖率与数据擦除 (Encoding, recall coverage and erasure)
-
-Formation 在配置的隐私/留存预算内记录其采纳、推迟或拒绝的内容及其原因。源证据可以具有较短的留存窗口，而语义记录具有更长的留存期。未解析的模式/实体素材可保持仅作为证据存在；绝不强行归入猜测的类型或作为无价值数据丢弃。CompressionRecord 记录源引用、提取器/模式版本、保留的字段、已知省略项以及重新编码资格。摘要无法恢复被省略的字节。载荷清除必须考虑留存策略下未完结的重新编码/复审需求；绝不能声称有损编码保留了所有未来有用的信息。
-
-召回过程独立查询显式约束/Commitment、依赖告警、失败经验/反例、成功经验、Skill 以及语义证据。行动简报的 RecallCoverage 声明哪些通道已完成、其基准、截断情况以及未经核实的先决条件。必需的约束与适用的关键告警，绝不能仅仅为了给高分 Skill 腾出空间而被丢弃。预算耗尽返回不完整覆盖并阻止无支持的自动行动。仪器化检索遥测与只读 KIP 认知保持分离；记录暴露需要显式变更，且绝不能由此自行强化置信度或效用。未挂载 GradingState 的 proposed/trialed Skill 保持作为标有未证实标签的召回候选者。任何显示的评分成绩均绑定 current_revision 与经过验证的 EvaluationRecord；缺失或不匹配的证据不能赋予采纳地位或执行授权。
-
-用户级别遗忘操作在 purge 权限下使用 ErasurePlan。该计划说明预期作用域（仅载荷或语义遗忘）、基准以及匹配的源事件；枚举留存的语义副本、派生摘要、重放工件、索引/缓存、运行时持有的 blob 以及受控的备份副本；并记录法律保全、不可用表面与外部导出。派生副本可能需要隐匿掩码或替换，而非无关的整条记录删除。每一步骤均保留足够的非内容审计信息，以便在策略允许的情况下证明已执行的操作。
-
-执行器对照并发写入重新验证授权、保全与闭包，建立有界清除批次的检查点，使物化视图失效，并核实所有范围内的受控表面。只要任何范围内的受控副本、待处理的备份清除或未处理的依赖项依然存在，即严禁标记为 `completed`。结果为 completed / partial / blocked，携带覆盖清单与收据。它不声称能召回先前的外部导出。在声明的留存策略内，通过非内容的源事件墓碑防止已清除源事件的重新摄入；新的已授权观测属于独立的策略决策。其输入已被清除的重放将报告不可用，绝不伪造成功的历史复算。
-
-### 8.1 源因果性与统一步骤作用域 (Source causality and uniform task scope)
-
-由宿主捕获的 SourceOrder 标明源数据流/事件、稳定的序号以及显式前驱处理回执。这些是传输层的认证信息，绝不是从载荷文本或工作进程完成时间戳中推断的排序主张。在必需的前驱处理结果可用之前，严禁形成新的修订版本；失败或推迟的前驱保持为可见的阻塞项。彼此独立的源数据流可以并发推进。序号并不保证缺失前驱的完整性。迟到的历史观测保留其现实世界时间，绝不因为其处理提交时间较新就覆盖当前值。
-
-Formation 可以通过持久的单流队列（Anda Brain 已对形成对话串行化）或经核实的交换律修订调解器来实现这一点。其保证是：在任何工作进程完成顺序下（包括重试与重启），对于具有相同因果顺序的更正均能达成一致收敛。会话适配器保留待处理的回执集合并自动提供 recall.after；它们绝不能用最大序列号来替代未完成的早期回执。
-
-捕获的源以及形成产物上的 `MemoryScope` 采用来自宿主的规范 task_ref 与 context_refs 映射。适用的 Assertion.context_refs 与 DependencyBasis.policy_basis 须与之一致。作用域贯穿 Evidence、Event、Experience、Commitment 以及派生摘要的抽取与固化过程，而不仅局限于 Assertion。共享的、认知中立的 Proposition 没有任务所有者：其作用域合格性源于各个 Assertion。MemoryScope 严禁拆分规范的 Proposition 标识。作用域合并不得扩大合格范围；跨任务泛化会创建新的、带有显式归属的派生工件，并受制于策略与数据源限制。WorkingState 的键包含行动者以及规范的任务/上下文作用域。语义作用域既不等于所有权，也不等于授权授予；MemorySpace 与当前治理规则依然适用。
-
-### 8.2 可验证的召回计划 (Verifiable recall plans)
-
-RecallCoverage.plans 记录每个被查询通道的 RecallPlan：按摘要钉固的选择器、规范作用域、方法、快照/索引/覆盖水位线、授权视图、完成情况与截断原因。宿主根据任务和带版本的策略确定必需的通道；模型不能为了让自己有资格行动而擅自省略约束。约束、Commitment 以及前决条件的有效性使用经授权的精确选择器。近似的经验/语义检索可以在其声明的有界计划内完成；但这绝不构成语义完备性的证明。即使没有剩余分页，也应将近似选择与未解析的源解释分开汇报。单凭索引水位线无法证明数据源处理进度或谓词/约束覆盖率。
-
-`action_eligible` 要求满足完整的必需精确通道、已达成的源屏障，以及在一致的当前基准下满足必要前提条件。非关键的可选检索可以保持局部完成，以协助决策推演而无需无中生有；当声明的覆盖范围不完整时，记忆接口依然按其既有响应契约汇报 partial 且 action_eligible=false。完成并不意味着已找到全世界所有潜在相关的记忆。不支持或未知的通道不能标记为 not_applicable。面向用户可见的覆盖范围相对于授权视图而定；特权全局闭包属于独立检查（Core §63.5）。
-
-### 8.3 数据交换与可重建状态 (Exchange and rebuildable state)
-
-共享导入会保留源历史，但既不转移地位也不转移权限。迁移/恢复流程会额外核验所有者/self/备份谱系、引用映射以及保留的控制/评估工件。RestoreReport 记录缺失资源、历史保留状态以及独立的当前校验结果。原始源 ProjectionBasis、版本与重放字节保留在其源命名空间中，并带有指向目标身份的钉固映射工件。严禁将签名的源基准篡改为虚构的目标读取。Facet 和工件内部的具型引用按照其声明的 Schema 路径进行映射，而不是简单地对每个匹配字符串进行文本替换。
-模式包 `reference_paths` 使用带有 `*`（用于数组项）、`target: element` 与 `namespace: source` 的 JSON Pointer 分段。null 引用保持为 null。ProjectionBasis 与不可变重放工件内部的源坐标予以保留而非重新映射；目标视图使用显式的映射工件。未知路径或缺失的必需引用会导致闭包校验失败，严禁擅自猜测。未映射或不可验证的钉固项严禁在当前环境中自动投入使用。
-
-经过验证的历史采纳记录可以作为历史保持可读。导入的结果依然不能变成当前的本地评分，在恢复时亦然。当前地位需要依据其经授权的学习策略在目标端完成显式校验；否则依然属于未经证实/无法核实。权限绝不随数据转移。保留经认证的原始运行时的原生存储级灾难恢复，与 Capsule 导入有本质区别，必须声明其自身的恢复边界。
-
-GradingState 计数与派生的时效性均属于可重建的视图；权威的 Trial/Evaluation 记录以及当前的 revision/trial/evaluation 指针在缓存丢失后依然留存。DerivationState 描述的是复审工作流，绝不是独立的真值标志。实现可以暴露兼容性 Facet 视图而非重复的可写计数器，但在用视图替代持久化 Facet 时，必须保留可观测的版本平面守卫、事务回执与导出值。
-Activity/DependencyBasis 提供权威的派生语义；冗余的 derived_from / compiled_from / consolidated_to 边依据它们生成或校验，显式具型的额外上下文与先决条件保持严格区分。
+交换与恢复：[Capsule 规范 §41.7](./KIP-2.0-Capsule-Specification_CN.md#417-恢复与引用映射-restore-and-reference-mapping)。可重建缓存与谱系现为计算视图：[Profile §6.2 与 §7](./profiles/CognitiveMemoryProfile-2.0_CN.md#7-标准结构化字段-standard-structural-fields)。
 
 ## 9. 验收与部署声明 (Acceptance and deployment claims)
 
-`conformance/KIP-2.0-Cognitive-Tests.md` 将这些契约钉住为可移植测试向量。可执行有限状态模型与工件验证同 Nexus 适配器是彼此分离的。模型测试通过 (PASS) 绝不能作为引擎通过 (PASS) 汇报。适配器必须驱动引擎真实的查询/变迁/控制路径，并比对可观测结果与后置条件。机器可读的契约用例包含独立的预期结果；不支持的能力作为不支持汇报，而非直接标记通过。所有 Profile 不变量均有对应向量。
-
-`brain/BrainEvaluation.md` 定义了独立的协议、运行时可靠性与行为学习门禁。Brain 基准测试必须记录模型/工具/token 预算、随机种子、运行成本、记忆构建方式、留出集以及消融实验条件。学习声明要求在留出集上产生正向的行为影响，并伴随不确定性与负迁移检查；通过这些结构化契约是必要前提，但其本身不代表经验性的学习成效。
+现见 [conformance/README_CN.md](./conformance/README_CN.md) 与[规范 §89](./SPECIFICATION_CN.md#89-一致性模型-conformance-model)。

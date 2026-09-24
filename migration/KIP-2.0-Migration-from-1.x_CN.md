@@ -68,7 +68,7 @@ Concept 与 Proposition 存量统计
 保留的下划线 `_` 元数据使用情况
 Domain（领域）划分
 Person / $self / $system 结构定义
-Event / Preference / Insight / Commitment / SleepTask 节点
+Event / Insight / Commitment / SleepTask 节点（旧版 Preference 见 §24）
 既有的 Experience / Skill 扩展结构
 access_level 权限级别使用情况
 confidence 置信度分布及含义
@@ -162,7 +162,7 @@ kip://legacy/<deployment-id>@1.0.0
 对于语义与标准认知记忆完全吻合的类型，应直接对齐并迁移至：
 
 ```text
-kip://profiles/cognitive-memory@2.2.0
+kip://profiles/cognitive-memory@2.0.0
 ```
 
 # 9. 概念迁移 (Concept Migration)
@@ -329,23 +329,23 @@ metadata.memory_strength   → MnemonicState.memory_strength
 metadata.confidence        → 分类重构；严禁盲目保留在 Profile metadata 中
 has_step 与 index 属性     → 转换为有序 has_step 边拓扑（边索引，移除 step 内的序号属性）
 caused_by 谓词             → Profile caused_by Proposition + 迁移生成的正面 Assertion
-derived_insight            → 在可恢复时建立 derived_from 结构血统（Insight → Experience）
-compiled_to / derived_from → 在可恢复时建立 compiled_from + 编译 Activity
+derived_insight            → 在可恢复时建立巩固 Activity 并将 Experience 作为其 inputs（derived_from 由此计算得出）
+compiled_to / derived_from → 在可恢复时建立编译 Activity 并将 Experience 作为 inputs（compiled_from 由此计算得出）
 ```
 
 当精确转换存在不确定性时，应保留原始表示作为溯源依据。
 
 # 24. Preference 迁移
 
-旧版 Preference 常将断言、模式总结、证据计数、置信度及观测时间揉杂在一起。
+旧版 Preference 常将断言、模式总结、证据计数、置信度及观测时间揉杂在一起。KIP 2.0 中不再有 Preference 类型：偏好是一条 `prefers` 断言，其选项是具体类别下的 Concept（Profile §5.5），而模式总结则是 Insight。
 
-迁移时必须解耦：
+迁移时拆分：
 
 ```text
-涉真偏好断言 → Proposition + Assertion(s)
-总结与稳定性 → Preference Profile Concept
+涉真偏好断言 → Proposition + Assertion(s)；asserted_at 为其被陈述的时刻（规范 §13.2），选项按具体类别具型化
+总结与稳定性 → 关于该选项类别的 Insight，通过 Activity 派生生成
 具体观测事实 → Evidence（在可恢复时）
-记忆状态     → MnemonicState
+记忆状态     → Insight 上的 MnemonicState
 ```
 
 # 25. Insight 迁移
@@ -666,12 +666,14 @@ JS 节点被物理删除
 
 > **迁移成功的标志是：KIP 2.0 大脑能够清晰解释其认知的来源，同时绝不宣称旧大脑拥有超出其实际记录精度的确定性。**
 
-# 52. 一致性修订迁移 (Consistency revision migration)
+# 52. 技能、数值、注意力与时间 (Skills, numbers, attention and time)
 
-针对规范性一致性修订，将遗留的 Skill 拆分为稳定的 Skill 与不可变的 SkillRevision，并通过 `current_revision` / `revision_of` 进行链接。旧的行为字段转移至修订版本中；使用 `kip-jcs-safe-v1` 计算其 `behavior_digest`。旧的状态与计数器保留为遗留审计信息，绝不能视为已验证的本地资格。保留源溯源记录，在已知的情况下创建 DependencyBasis，并将不完整的谱系标记为不可验证（unverifiable），严禁随意捏造。新的试验必须登记全新的独立尝试。
+将遗留的 Skill 拆分为稳定的 Skill 与不可变的 SkillRevision，并通过 `current_revision` / `revision_of` 进行链接。旧的行为字段转移至修订版本中；使用 `kip-jcs-safe-v1` 计算其 `behavior_digest`。旧的状态与计数器保留为遗留审计信息，绝不能视为已验证的本地声誉地位：迁移后的技能初始处于 `proposed` 状态。保留源溯源记录，在已知的情况下创建 DependencyBasis，并将不完整的血统标记为不可验证（`unverifiable`），严禁随意捏造。经过验证的声誉地位只能在[验证学习伴随文档](./brain/KIP-2.0-Validated-Learning_CN.md)指导下的新试验中重新获得。
 
-在转换前校验数值型源词元；对超出安全范围的精确数值进行隔离，或使用声明的 string/value 对象模式进行编码，严禁对其四舍五入或截断舍入。在迁移内容并生成新的 `kip-jcs-safe-v1` 工件之前，必须在其显式声明的旧版 Profile 下验证旧工件摘要；严禁直接对旧摘要重新贴签。
+在转换前校验数值型源词元；对超出安全范围的精确数值进行隔离，或使用声明的 string/value 对象模式进行编码，严禁对其四舍五入或截断舍入。验证精确的 64 位浮点数规范化以及负零处理。
 
 使用全新的臂世代（arm generations）与声明的观察覆盖范围重启 Watch；使用完备的计算基线重建 WorkingState。先前有歧义的实体识别决策保持可复审状态，但绝不能被赋予凭空捏造的原始指代物。
 
-一致性模式包为 `kip://profiles/cognitive-memory@2.2.0`。先前的 2.0.0 工件按字节完全保持不变，属于遗留工件，而非当前的标准 Profile 契约。在 `manage_schema` 下安装 2.1.0，并携带 `schema_migration` 溯源信息迁移旧版 Skill 记录。可读的旧类型谱系保留身份标识，但若缺少 `current_revision` 与保留的经校验记录，它们不具有当前的 2.1.0 资格。在相同的精确包引用下，严禁使用具有不同摘要的工件替换已安装的工件。
+被原地覆盖的 1.x 事实不携带其变更时间的历史。将幸存的当前值迁移为单条 Assertion，其已知成立的时间记录为时间界限（`{latest: <最后更新时间>}`），绝不捏造起始时刻；后续变更遵循时间继承规则。没有任何已安装包命名的 1.x 关系类型，可迁移至 Space 的草稿词汇中，由所有者后续决定是否提升。
+
+标准模式包为 `kip://profiles/cognitive-memory@2.0.0`。在 `manage_schema` 下安装该包，并携带 `schema_migration` 溯源信息执行迁移。

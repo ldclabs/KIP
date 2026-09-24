@@ -134,7 +134,7 @@ integrity (完整性)
 1. 既有已验证的导入映射 (prior verified import mapping)
 2. 受信的 canonical_id
 3. 经显式审批确认的映射 (explicitly approved mapping)
-4. 显式声明的可移植标识 (谱系 + 经校验的 issuer_namespace + key_scope + 规范化 key，认知一致性 §4)
+4. 显式声明的可移植标识 (谱系 + 经校验的 issuer_namespace + key_scope + 规范化 key，规范 §11.6)
 5. 创建新 Concept
 ```
 
@@ -332,6 +332,16 @@ VERIFY (签名与完整性核验)
 ## 41.6 导入的后果证据 (Imported outcomes)
 
 导入会为元素分配全新的本地 `_system.origin`（§41.2），并在 `origin.import_id` 中记录导入事实。对于 `outcome` 类证据，这具有决定性意义：目标系统从未授权过最初编写该结果的测量仪器，因此导入的结果仅作为可供阅读的普通证据，**绝不能作为本地的评级打分**。任何后果打分消费者**必须**排除设置了 `origin.import_id` 的结果（§15.7），且导入技能的原有评分统计数据不随之转移（§31.4）。
+
+---
+
+## 41.7 恢复与引用映射 (Restore and reference mapping)
+
+共享性导入保留源历史，但既不转移声誉地位，也不转移权限。迁移或恢复还会额外校验所有者、`$self` 与备份血统、引用映射以及保留的控制和评估工件，并记录一份 **RestoreReport**（`schemas/kip-cognitive-records.schema.json`），列出缺失的资源、已实现的历史保留情况以及独立的当前校验结果。
+
+源端 ProjectionBasis 值、版本与重放字节保留在其源命名空间中，并附带指向目标身份的固定映射工件。导入端**严禁**将签名的源基准重写为捏造的目标端读取。Facets 与工件内部的具型引用，必须按照其模式包声明的 `reference_paths`（§20.5）进行映射 —— 即使用带 `*` 数组项的 JSON Pointer 片段、`target: element`、`namespace: source` —— 绝不能通过机械替换所有匹配字符串来进行映射。null 引用保持为 null。ProjectionBasis 或不可变重放工件内部的源坐标予以保留，不作重新映射；目标端视图使用映射工件。未知的路径或不可用的必需引用将导致闭包校验失败（§40.3），而不是被猜测填充；未映射或不可验证的钉固项禁止当前自动使用。源端的草稿词汇（`kip://local/...`，§20.16）保持在源命名空间下。
+
+经过验证的历史采纳在恢复后**可以**作为历史保持可读，但导入的后果绝不能成为本地评级打分，在恢复场景与合并场景下均是如此。当前的声誉地位要求在目标端经授权的学习策略（参见[验证学习伴随文档](./brain/KIP-2.0-Validated-Learning_CN.md)）下进行显式的目标端验证；否则状态为 `unproven` 或 `unverifiable`。权限绝不随之转移。保留了经过身份验证的原始运行时的存储级灾难恢复，与胶囊导入有本质区别，并声明其自身的恢复边界。
 
 ---
 

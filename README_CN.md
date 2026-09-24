@@ -69,13 +69,13 @@
 
 [结果证据（Outcome Evidence）](./SPECIFICATION_CN.md#157-结果证据-outcome-evidence)记录了某项决策、行动或试用流程发生之后的真实客观结果 —— 由外部测量与仪器（遥测系统、验证器、测试工具链、人工审查）写入，**绝对不得由被评估行动的执行者自身写入**。行动主体自身对行动过程的陈述属于 `agent_statement`，仅可作为上下文背景引用；这一隔离是一致性不变式，并通过可审计性严格保障 —— 引擎的底层起源 `_system.origin` 始终忠实记录写入者身份，且 Governance 能够精确限制谁有权写入 outcome —— 开放协议即便无法杜绝单体部署中的自评自赞，也必须让这种自评自赞完全公开透明。
 
-每个后果均携带一个**任务族（task family）**，用于筛选候选后果。仅仅共享任务族既不构成归因，亦不构成基线成员资格：TrialRecord 显式冻结可比的基准尝试与后果。干预观测通过仪器的 `outcome_observation` Activity 链接至某一次具体尝试以及应用了精确技能修订版本的 [`action_gate`](./profiles/CognitiveMemoryProfile-2.0_CN.md#9-活动-activities) 决策。其 [`DecisionRecord`](./profiles/CognitiveMemoryProfile-2.0_CN.md#66-decisionrecord决策记录) 严格区分了检索与实际使用，且评分仅统计执行前已登记的独立尝试。一个 [SkillRevision](./profiles/CognitiveMemoryProfile-2.0_CN.md#58-skill技能与-skillrevision技能修订版本) 在试用前必须指明其任务族；任何无法被证明为错误的模式都不属于程序性记忆。在后果通道之上运转着严谨的[技能生命周期（Skill lifecycle）](./profiles/CognitiveMemoryProfile-2.0_CN.md#14-技能生命周期-skill-lifecycle)：
+每个后果均携带一个**任务族（task family）**，用于筛选候选后果。仅仅共享任务族既不构成归因，亦不构成基线成员资格：在可选的[验证学习伴随文档（Validated Learning）](./brain/KIP-2.0-Validated-Learning_CN.md)下，TrialRecord 显式冻结可比的基准尝试与后果。干预观测通过仪器的 `outcome_observation` Activity 链接至某一次具体尝试以及应用了精确技能修订版本的 [`action_gate`](./profiles/CognitiveMemoryProfile-2.0_CN.md#9-活动-activities) 决策。其 [`DecisionRecord`](./profiles/CognitiveMemoryProfile-2.0_CN.md#64-decisionrecord决策记录) 严格区分了检索与实际使用，且评分仅统计执行前已登记的独立尝试。一个 [SkillRevision](./profiles/CognitiveMemoryProfile-2.0_CN.md#58-skill技能与-skillrevision技能修订版本) 在试用前必须指明其任务族；任何无法被证明为错误的模式都不属于程序性记忆。在后果通道之上运转着严谨的[技能生命周期（Skill lifecycle）](./profiles/CognitiveMemoryProfile-2.0_CN.md#14-技能生命周期-skill-lifecycle)：
 
 ```text
 proposed (提议) → trialed (试用) → adopted (采纳) → revoked (废弃)
 ```
 
-生命周期变迁与评分刷新必须携带经过校验的不可变 EvaluationRecord，提交于 [`lifecycle_verdict`](./profiles/CognitiveMemoryProfile-2.0_CN.md#9-活动-activities) 活动与[受守卫的更新](./SPECIFICATION_CN.md#f6-结果评定与生命周期裁决-outcome-grading-and-a-lifecycle-verdict)之上。审计员可对照不可变的 TrialRecord 重放精确输入；[`TrialState`](./profiles/CognitiveMemoryProfile-2.0_CN.md#65-trialstate试用状态) 仅用于选择当前试用。仅有 `trialed → adopted` 必须通过比较性裁决晋升，且撤销门槛绝不高于采纳门槛。同状态监控可在经授权的策略下维持现有地位而无需声明新改进；策略撤回可能包含零个后果。导入的技能以 `proposed` 状态准入且无本地打分，但保持作为未验证候选者可召回。被撤销的技能必须进入新一轮试用后方可重新被采纳。
+生命周期变迁必须携带经过校验的不可变 EvaluationRecord，提交于 [`lifecycle_verdict`](./profiles/CognitiveMemoryProfile-2.0_CN.md#9-活动-activities) 活动与受守卫的更新（[Validated Learning §7](./brain/KIP-2.0-Validated-Learning_CN.md#7-kml-形式的裁决-the-verdict-as-kml)）之上。审计员可对照不可变的 TrialRecord 重放精确输入；技能的 `current_trial` 仅用于选择该记录，且其 GradingState 属于计算型视图。没有该伴随文档时，技能保持为未验证的候选者 —— 有用、可召回，但绝不晋升。仅有 `trialed → adopted` 必须通过比较性裁决晋升，且撤销门槛绝不高于采纳门槛。同状态监控可在经授权的策略下维持现有地位而无需声明新改进；策略撤回可能包含零个后果。导入的技能以 `proposed` 状态准入且无本地打分，但保持作为未验证候选者可召回。被撤销的技能必须进入新一轮试用后方可重新被采纳。
 
 ## 协议提供客观信号；大脑拥有主观策略
 
@@ -97,27 +97,28 @@ KIP 不定义具体的准入阈值、打断策略、显著性算法、巩固调�
 
 | 文档 | 内容概述 |
 | --- | --- |
-| [🔌 记忆接口](./KIP-2.0-Memory-Interface_CN.md) | 业务智能体的五种记忆意图、处理回执、限定范围召回及可组合能力包（[English](./KIP-2.0-Memory-Interface.md)） |
+| [🔌 记忆接口](./KIP-2.0-Memory-Interface_CN.md) | 业务智能体的五种记忆意图、处理回执、限定范围与注意力召回，以及可组合的级别（Levels）（[English](./KIP-2.0-Memory-Interface.md)） |
 | [📇 智能体记忆速查卡](./brain/MemoryInterface_CN.md) | 紧凑的日常操作接口；直接 KIP 角色卡与之并存（[English](./brain/MemoryInterface.md)） |
-| [🧩 认知一致性](./KIP-2.0-Cognitive-Consistency_CN.md) | 完备信念、修订版本、独立尝试、重放、依赖项与持久运行时契约（[English](./KIP-2.0-Cognitive-Consistency.md)） |
-| [📋 评审决议](./KIP-2.0-Review-Resolution_CN.md) | 全部 12 项复审问题的决议、实现位置与验证范围（[English](./KIP-2.0-Review-Resolution.md)） |
-| [🔬 Brain 评测](./brain/BrainEvaluation_CN.md) | 独立的协议、可靠性与行为学习发布门禁（[English](./brain/BrainEvaluation.md)） |
 | [📖 2.0 规范](./SPECIFICATION_CN.md) | 规范性草案（[English](./SPECIFICATION.md)） |
+| [🧩 2.0 认知记忆 Profile](./profiles/CognitiveMemoryProfile-2.0_CN.md) | Experience、Skill、Commitment、Watch、WorkingState 等记忆类型（[English](./profiles/CognitiveMemoryProfile-2.0.md)） |
+| [🎓 验证学习](./brain/KIP-2.0-Validated-Learning_CN.md) | 可选伴随文档：修订版本、尝试、试验、评估与经过验证的技能声誉地位（[English](./brain/KIP-2.0-Validated-Learning.md)） |
+| [⚙️ Brain 运行时](./brain/KIP-2.0-Brain-Runtime_CN.md) | 可选伴随文档：持久化注意力、租约、调度分发与接收端隔离保护（[English](./brain/KIP-2.0-Brain-Runtime.md)） |
 | [📦 2.0 胶囊规范](./KIP-2.0-Capsule-Specification_CN.md) | 规范 §37–§41 与 §95：可移植、可校验的记忆工件（[English](./KIP-2.0-Capsule-Specification.md)） |
 | [🧭 可选 Profile 与迁移](./KIP-2.0-Optional-Profiles-and-Migration_CN.md) | 规范 §100、§101、§103 及附录 I：历史一致性、高保障一致性及 KIP 1.x 迁移（[English](./KIP-2.0-Optional-Profiles-and-Migration.md)） |
-| [📜 不变量注册表](./KIP-2.0-Invariants_CN.md) | 43 条 Core 不变量与 46 条 Profile 不变量合一清单，标明确立章节与钉住向量（[English](./KIP-2.0-Invariants.md)） |
+| [📜 不变量注册表](./KIP-2.0-Invariants_CN.md) | 49 条 Core 不变量与 49 条 Profile 不变量合一清单，标明确立章节与钉住向量（[English](./KIP-2.0-Invariants.md)） |
 | [🏛 2.0 架构](./KIP-2.0-Architecture_CN.md) | 规范背后的设计理据（[English](./KIP-2.0-Architecture.md)） |
 | [📐 2.0 语法速查](./KIPSyntax_CN.md) | 面向 LLM 的 KQL / KML / META 速查卡（[English](./KIPSyntax.md)） |
-| [🧩 2.0 认知记忆 Profile](./profiles/CognitiveMemoryProfile-2.0_CN.md) | Experience、Skill、Commitment、Watch、WorkingState 等记忆类型（[English](./profiles/CognitiveMemoryProfile-2.0.md)） |
 | [🧠 2.0 Brain](./brain/README_CN.md) | Formation / Recall / Maintenance 记忆认知中枢（[English](./brain/README.md)） |
+| [🔬 Brain 评测](./brain/BrainEvaluation_CN.md) | 独立的协议、可靠性与行为学习发布门禁（[English](./brain/BrainEvaluation.md)） |
 | [🤖 `$self` / ⚙️ `$system`](./SelfInstructions_CN.md) | 单智能体提示词对，基于 Brain 2.0 的精简增量（[`$system`](./SystemInstructions_CN.md)） |
-| [🗂 设计文档](./design/) | 十篇规范统合前的参考性设计草稿，自 2026-09-02 起冻结 |
 | [🔤 语法与 Schema](./grammar/) | 规范性 EBNF，以及[传输层 Schema](./schemas/) |
-| [🧪 一致性测试套件](./conformance/KIP-2.0-Conformance-Tests.md) | 包含 356 个状态/一致性测试向量、12 个可选记忆接口场景及可执行契约模型 |
-| [🔬 形式化验证](./formal/README_CN.md) | Alloy 与 TLA+ 模型及其验证结论 |
+| [🧪 一致性测试](./conformance/README.md) | 362 个可执行引擎用例、341 个父向量、29 个认知、20 个记忆接口与 17 个可靠性场景，以及可执行契约模型 |
+| [🔬 形式化验证](./formal/README_CN.md) | Alloy、TLA+ 与 Python 模型（包含世界时间继承），以及其证明结论 |
 | [🔀 从 1.x 迁移](./migration/KIP-2.0-Migration-from-1.x_CN.md) | 升级变更点与遗留语义迁移约束 |
+| [📋 修订记录](./KIP-2.0-Memory-Brain-Resolution_CN.md) | 本次修订的清单与验证；早前版本：[可靠性](./KIP-2.0-Reliability-Resolution_CN.md)、[评审决议](./KIP-2.0-Review-Resolution_CN.md) |
+| [🗂 设计文档](./design/) | 十篇规范统合前的参考性设计草稿，自 2026-09-02 起冻结 |
 
-保留现有中文镜像。认知一致性修订以英文规范源为准，中文镜像不构成另一套语义契约；并非每份历史设计文档或测试说明都有中文对应版本。
+保留现有中文镜像。本次修订以英文规范源为准，中文镜像不构成另一套语义契约。
 
 项目术语见 [CONTEXT_CN.md](./CONTEXT_CN.md)，相关文章保留在 [post/](./post/)。
 

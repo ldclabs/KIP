@@ -1,6 +1,6 @@
 # KIP 2.0 架构设计 —— 面向智能体记忆大脑的认知状态协议 (A Cognitive State Protocol for Agent Memory Brains)
 
-规范性[认知一致性契约](./KIP-2.0-Cognitive-Consistency_CN.md)约束最终信念、不可变的技能修订版本（SkillRevision）、独立的尝试（Attempt）、可回放的试验/评估、依赖有效性、实体识别修复与持久化工作节点。生命周期计数器对尝试进行聚合；未链接的任务族结果绝不会自动充当对照组。存储的摘要仅在具有经校验的计算基线时方可使用。
+本架构设计为资料性说明。规范性契约以[规范 (Specification)](./SPECIFICATION_CN.md)、[认知记忆 Profile](./profiles/CognitiveMemoryProfile-2.0_CN.md)、[记忆接口](./KIP-2.0-Memory-Interface_CN.md)以及可选的[已验证学习](./brain/KIP-2.0-Validated-Learning_CN.md)与[大脑运行时](./brain/KIP-2.0-Brain-Runtime_CN.md)配套规范为准。
 
 **[English](./KIP-2.0-Architecture.md) | [中文](./KIP-2.0-Architecture_CN.md)**
 
@@ -98,7 +98,7 @@ KIP 2.0 的核心客体不再仅仅是一个**知识图谱 (Knowledge Graph)**�
 | 当前信念 | 认识投影——信念是由规则推导而非物理固化的，立场反转无需额外清理；物化视图对外披露其推导基准 |
 | 工作状态 | 带 `basis_seq` 的 `WorkingState` 摘要；会话恢复流程 = Primer + WorkingState + 基准版本后的增量变更 |
 | 承诺与等待 | 责任约束由 `Commitment` 承载，触发条件由 `Watch` 承载——支持 delta 变更或 silence 超时——基于变更流进行实时评估 |
-| 失效传播 | 溯源拓扑 + `LIST DEPENDENTS` + `DerivationState`，溯源根节点修订后可精准触达其下游派生物，避免残留失效的游离状态 |
+| 失效传播 | 溯源拓扑 + `LIST DEPENDENTS` + 计算得出的依赖有效性，溯源根节点修订后可精准触达其下游派生物，避免残留失效的游离状态 |
 | 克制 | 行动门控记录 act / ask / defer / silence 决策，使主动静默同样具备清晰的可解释性与审计线索 |
 
 编译后的状态始终具备可检视性与可迁移性（Capsule、Governance）：记忆的核心价值在于提炼与编译过程，而非对原始数据的死板囤积。在认知消化完成后对底层载荷进行激进的字节最小化，是本设计的核心特性而非功能损失——持久的事实结构是资产，未经提炼压缩的原始过程数据残余则是系统负债。
@@ -1419,7 +1419,7 @@ compatibility range (兼容范围)
 
 ```text
 kip://core@2.0.0
-kip://profiles/cognitive-memory@2.2.0
+kip://profiles/cognitive-memory@2.0.0
 kip://ldclabs/organization@1.0.0
 ```
 
@@ -1712,7 +1712,7 @@ WorkingState (工作状态)
 memory_strength (记忆强度)
 salience (显著性)
 utility (实用度)
-DerivationState (派生状态)
+dependency review queues (依赖复审队列)
 profile-specific lifecycle (Profile 特定的生命周期)
 ```
 
@@ -1802,6 +1802,10 @@ replication (数据复制)
 若产生新的不兼容命题:
     保留两个命题
     根据依据废弃替代或质疑断言 A
+
+若属于现实世界变迁而非主张有误:
+    从变迁日期起断言 B；时间继承在该时刻终结 A
+    A 保持活跃且在其生效区间内为真；无需废弃替代任何内容
 ```
 
 无需仅因信念改变就删除任何命题。
@@ -2483,19 +2487,20 @@ External Skill Sx
   authority: descriptive only
 
 Local Skill S1
-  compiled_from: E1, E2
+  compiled_from: E1, E2           (由其编译 Activity 计算得出)
   task_family: deploy/service
   status: proposed
   authority: advisory
 ```
 
-在独立的尝试中应用 S1 的精确修订版本并与 TrialRecord 中冻结的显式选定 `deploy/service` 基线进行比对、且一条 `lifecycle_verdict` Activity 将确定性裁决保留为 EvaluationRecord 之后（TrialState 仅指向该试验）：
+在独立的尝试中应用 S1 的精确修订版本并与 TrialRecord 中冻结的显式选定 `deploy/service` 基线进行比对、且一条 `lifecycle_verdict` Activity 将确定性裁决保留为 EvaluationRecord 之后（Skill 的 `current_trial` 仅指向该试验）：
 
 ```text
 S1
-  status: adopted        （暂定——后果流将持续评定）
-  utility: 0.87
-  authority: behavioral  （独立的 Governance 决策，并非生命周期裁决直接赋予的效力）
+  status: adopted                 (暂定 —— 后果流将持续评定)
+  GradingState: 9 / 2 of 12       (评估的计算视图；仅包含关联结果)
+  MnemonicState.utility: 0.87     (准入下注，依据裁决进行修正)
+  authority: behavioral           (独立的 Governance 决策，并非生命周期裁决直接赋予的效力)
 ```
 
 导入技能的有效签名绝不会自动授予其行为或执行权威。
@@ -2600,15 +2605,14 @@ ExperienceStep
 Preference
 Insight
 Commitment
-Watch
 Skill
+SkillRevision
 SleepTask
 SelfModel
+Watch
 WorkingState
 MnemonicState
-GradingState
-TrialState
-DerivationState
+GradingState (计算视图)
 DecisionRecord
 OutcomeRecord
 ```
@@ -2618,7 +2622,7 @@ Profile 与核心层相互分离，因为 KIP 允许存在其他认知分类体�
 应当独立发布机器可读的模式包，例如：
 
 ```text
-kip://profiles/cognitive-memory@2.2.0
+kip://profiles/cognitive-memory@2.0.0
 ```
 
 Profile 定义了可移植的结构与不变式。它不强制规定形成频率、排序公式、遗忘阈值、技能编译算法或反思调度。那些属于记忆大脑策略。
@@ -2749,7 +2753,7 @@ KIP/
 │   └── KIP-2.0-Migration-from-1.x.md
 ├── profiles/
 │   ├── CognitiveMemoryProfile-2.0.md
-│   └── cognitive-memory-2.2.0.schema.json
+│   └── cognitive-memory-2.0.0.schema.json
 ├── brain/
 │   ├── ExperienceLearningArchitecture.md
 │   ├── BrainFormation.md

@@ -1,6 +1,6 @@
 # KIP 2.0 形式化验证
 
-套件 8 还运行针对处理屏障（processing barriers）、乱序完成、幂等摄入、任务范围及诚实覆盖的记忆接口（Memory Interface）模式与场景模型检查。这些属于可执行的契约测试，而非穷举证明或生产环境 Brain 的结果。真实的绑定场景通过可选的接口适配器套件运行。
+套件 9 还运行针对处理屏障（processing barriers）、乱序完成、幂等摄入、任务范围及诚实覆盖的记忆接口（Memory Interface）模式与场景模型检查，以及引擎套件形状测试。这些属于可执行的契约测试，而非穷举证明或生产环境 Brain 的结果。真实的绑定场景通过可选的接口适配器套件运行。
 
 **[English](./README.md) | [中文](./README_CN.md)**
 
@@ -15,8 +15,9 @@ KIP 2.0 规范的机器检查模型。验证结果、发现与范围限制详见
 | [`lifecycle/check_lifecycle.py`](./lifecycle/check_lifecycle.py) | Python (有界输入枚举与状态流转场景) | 独立尝试聚合、不可变试验/评估重放、修订版本重置、重新试验、合法晋升、同状态监控、迟延结果、纠错与来源排除 |
 | [`watch/check_watch.py`](./watch/check_watch.py) | Python (显式状态穷举) | 两个并发求值者加重新投递下的 Watch 触发：恰好一次触发、仅匹配触发、静默健全性 (Profile §5.11; 规范 §34, §35.1, §36.3) |
 | [`purge/check_purge.py`](./purge/check_purge.py) | Python (显式状态穷举) | 擦除操作：引用处理策略、策略前及级联中的法律保全、哈希摘要存根、载荷清除 (规范 §19.1, §60.3, §60.6, 不变量 34) |
+| [`temporal/check_temporal.py`](./temporal/check_temporal.py) | Python (穷举配对与采样三元组) | 世界时间：时间继承、缺失起点的缺省规则、时间界限与 `kip:memory-default` 优先级（规范 §21.13, §25.2–§25.5）：区间收窄、顺序无关性、单次写入变迁、行动者隔离、不确定支撑不作裁决、迟延历史、意见一致、不捏造过去、推理不在时序线上、结构化基底、规则 2 绝不压过观测、规则应用次序；包含七种缺陷注入模式 |
 
-当前的一致性修订版本单独报告于 [CONSISTENCY-REPORT_CN.md](./CONSISTENCY-REPORT_CN.md)。其 Node 契约套件补充了世代/防护、基线/上下文、数值及类型化制品检查；在运行前须在安装工作区依赖后构建 packages/kip-lang。这些验证预言机 (oracles) 不是 Nexus 引擎的运行结果。
+2026-09-06 一致性修订版本单独报告于 [CONSISTENCY-REPORT_CN.md](./CONSISTENCY-REPORT_CN.md)；其契约现已并入规范正文与 `brain/` 伴随文档中。其 Node 契约套件补充了世代/防护、基线/上下文、数值及类型化制品检查；在运行前须在安装工作区依赖后构建 packages/kip-lang。这些验证预言机 (oracles) 不是 Nexus 引擎的运行结果。
 
 运行全部验证（已对预期结果进行断言，包括在注入错误配置中预期的反例）。Python 套件无需 Java；若缺少 JAR 包，Java 套件会被跳过并以退出码 3 结束：
 

@@ -1,7 +1,7 @@
 # KIP 2.0 — 认知内核指令 ($self)
 
 
-规范的[认知一致性契约](./KIP-2.0-Cognitive-Consistency_CN.md)约束了终态信念、不可变技能修订版本、独立尝试、可重放试验/评估、依赖有效性、同一性修复以及持久工作者。生命周期计数器聚合尝试计数；未关联的家族结果绝不会自动作为对照组。仅在计算基线通过验证时才允许使用存储的摘要。
+规范性契约：[主规范](./SPECIFICATION_CN.md)（终态信念 §21.11、时间继承 §25.4、依赖健全性 §57.6、录入修复 §57.8）、[认知记忆 Profile](./profiles/CognitiveMemoryProfile-2.0_CN.md)，以及可选的[验证学习](./brain/KIP-2.0-Validated-Learning_CN.md)与 [Brain 运行时](./brain/KIP-2.0-Brain-Runtime_CN.md)伴随文档。世界变迁只需写入一条新 Assertion；仅在计算基线通过验证时才允许使用存储的摘要；未关联的家族结果绝不会自动作为对照组。
 
 **[English](./SelfInstructions.md) | [中文](./SelfInstructions_CN.md)**
 
@@ -91,13 +91,12 @@
 
 清醒时严禁执行：全库扫描、批量衰减遍历、破坏性合并、留存清理扫描、物理清除或生命周期裁决。
 
-代谢仅触碰 Facet。**严禁衰减断言置信度** —— 记忆不用会降低 `memory_strength`；产生新认知应创建新断言。`utility` 效用度不能凭直觉随意提高：它由 `$system` 依据关联至你决策记录的客观后果进行校准。
+代谢仅触及 Facet。**严禁衰减断言置信度** —— `memory_strength` 的衰减由引擎自动计算，绝不扫盘遍历；产生新认知应创建新断言。在清醒期间，读取记忆绝不回写强化：将实际使用的记忆记录在决策的 `used_refs` 中（或由宿主记录曝光日志），由 `$system` 将这些信号折叠进新的基准中。`utility` 效用度同样不能凭直觉随意提高：它由 `$system` 依据关联至你决策记录的客观后果进行校准。你在清醒时唯一可以执行的助记写入，是为用户明确标记重要的内容设置显著性（`salience`）：
 
 ```prolog
 UPDATE ?element
 SET FACET "MnemonicState" {
-  memory_strength: CLAMP(ADD(COALESCE(?element.facets["MnemonicState"].memory_strength, 0.5), 0.1), 0, 1),
-  last_metabolized_at: :now
+  salience: :salience
 }
 WHERE {
   ?element {id: :element_id}

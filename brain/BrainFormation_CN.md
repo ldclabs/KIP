@@ -157,13 +157,13 @@ DESCRIBE PRIMER MODE "compact"
 + belief_revision Activity
 ```
 
-语法糖形式：`ASSERT (...) {by: ..., mode: ..., at: :corrected_at, valid: :corrected_valid_time, evidence: :e2} SUPERSEDING :a1`。
+语法糖形式：`ASSERT (...) {by: ..., mode: ..., at: :corrected_at, valid: :corrected_valid_time, evidence: :e2} SUPERSEDING :a1`。对于仅更正数值的情况，显式保留被更正的区间；原起点缺失时显式写为 `{latest: <原 asserted_at>}`（规范 §14.2），以便历史召回能够正确查得该更正值。
 
 严禁直接覆写或原地修改 A1。若 Bob 与 Alice 的意见发生分歧，应创建 Bob 的新断言并存记录，绝不能废弃替代 Alice 的断言。
 
-废弃替代（supersession）意味着 A1 当初就是错的。当现实世界发生改变时 —— Alice 搬家、项目状态推进 —— A1 在其当时是真实的：通过重新断言同一数值关闭其开放区间（`valid: {from, until: <change>}`，仅就其有效区间废弃替代开放式的 A1），并断言新数值的有效区间（`valid: {from: <change>}`）。两条断言均保持 active 状态，且在变更时刻之前的 `FOR TIME` 查询依然返回旧值（规范第 14.2 节、附录 F.2）。
+废弃替代（supersession）意味着 A1 当初就是错的。当现实世界发生改变时 —— Alice 搬家、项目状态推进 —— A1 在其当时是真实的：只需断言新值，注明 `valid: {from: <change>}`。时间继承会在该时刻结束 A1 而无需修改 A1，二者均保持 active 状态，且在变更时刻之前的 `FOR TIME` 查询依然返回旧值（规范 §14.2、§25.4、附录 F.2）。若变更日期未知，则完全无需标注 `from` —— 缺失起点已然代表“不晚于陈述时刻”（规范 §25.2）—— 并将 `asserted_at` 设为陈述时间，因为这正是该主张的起始键（规范 §13.2）；绝不凭空捏造时刻。两条未显式标注 `from` 的 `inferred` 推理断言绝不相互继承结束（规范 §25.4）：两个来源之间的分歧保持为冲突，而非捏造出的世界变迁。某个值单纯终止且无后继值时，表现为 Alice 自终止日起对该命题表达 `stance: "reject"`。当 Formation 无法分辨是更正还是世界变迁时，记录为变迁并披露该歧义。
 
-编码或归属错误采用受保护的 recording_repair 契约（[认知一致性 §4.1](../KIP-2.0-Cognitive-Consistency_CN.md#41-记录修复不同于行动者改变心意-recording-repair-is-not-an-actors-change-of-mind)），而非捏造行动者撤回或篡改可靠的源 Evidence 证据。捕获绑定摘要的源定位符，并保持相关输入处理具有因果顺序（[认知一致性 §8.1](../KIP-2.0-Cognitive-Consistency_CN.md#81-源因果性与统一步骤作用域-source-causality-and-uniform-task-scope)）。对所有产物应用 MemoryScope。
+编码或归属错误采用受保护的 recording_repair 契约（[规范 §57.8](../SPECIFICATION_CN.md#578-录入修复-recording-repair)），而非捏造行动者撤回或篡改可靠的源 Evidence 证据。捕获绑定摘要的源定位符，并保持相关输入处理具有因果顺序（[记忆接口 §5.1](../KIP-2.0-Memory-Interface_CN.md#51-来源次序-source-order)）。对所有产物应用 MemoryScope（[Profile §20.3](../profiles/CognitiveMemoryProfile-2.0_CN.md#203-记忆作用域-memory-scope)）。
 
 # 18. 事件构建规范
 
@@ -185,7 +185,6 @@ MUTATE {
     SET STRUCTURAL {
       ("involves", :alice)
       ("mentions", :topic)
-      ("derived_from", :msg)
     }
   }
   CREATE ACTIVITY ?formation {
@@ -203,7 +202,7 @@ MUTATE {
 
 对承诺事项、截止日期、跟进任务、提醒及未来义务创建 Commitment。尽可能解析发起人、受益人、到期时间、状态与主题。Commitment 不会自动触发外部物理执行。
 
-对于等待外部反馈的承诺事项，应将其触发条件建模为 Watch —— 分为 delta（如“收到回复时”）或 silence（如“周四前未收到回复”）—— 并通过 `derived_from` 关联该 Commitment。触发条件由 Watch 管理；Watch 激活仅产生注意力，不授予任何操作权限。
+对于等待外部反馈的承诺事项，应将其触发条件建模为 Watch —— 分为 delta（如“收到回复时”）或 silence（如“周四前未收到回复”）—— 并通过 `watches` 关联该 Commitment。触发条件由 Watch 管理；Watch 激活仅产生注意力，不授予任何操作权限。
 
 ```prolog
 CREATE CONCEPT ?commitment {
@@ -232,13 +231,19 @@ CREATE CONCEPT ?watch {
   }
   SET STRUCTURAL {
     ("watches", :alice)
-    ("derived_from", :commitment_id)
+    ("watches", :commitment_id)
     ("assigned_to", :system)
   }
 }
 ```
 
 `Commitment.due_at` 不是 `retention.expires_at`，亦非 `Assertion.valid_time.until`。Maintenance 维护循环负责执行差量巡检（BrainMaintenance §17）；当 Watch 触发时，下一步操作经过动作网关并记录为带有 `DecisionRecord` 的 `action_gate` Activity，因此“当时为什么没有通知我”可以在审计时拿出收据解释。
+
+# 23. 偏好构建规范 (Preference Formation)
+
+显式偏好陈述保持为 Evidence + Proposition + Assertion：`(person, prefers, option)`。由于 `prefers` 按照选项类别进行分区（Profile §5.5, §7），选项必须是该类别下的 Concept（例如 `ColorScheme`, `Editor`, …）；当没有已安装的模式包命名该类别时，首先使用 `DEFINE CONCEPT TYPE` 声明它，绝不能使用宽泛类型（如 `Topic`）。同一类别下较新的偏好通过时间继承结束旧偏好。Profile 中没有独立的 Preference 类型：对稳定偏好模式的总结是关于该选项类别的 Insight（带有 `("about", :kind)` 结构引用），通过记录的 Activity 派生生成，且绝不能取代断言的历史记录。
+
+# 24. 自我模型候选 (SelfModel Candidates)
 
 # 25. 即时知识巩固
 

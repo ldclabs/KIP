@@ -514,15 +514,15 @@ SEARCH 仅用于关联接地：得分 (score) ≠ 置信度 ≠ 信念；未搜�
 
 ### 6. 认知记忆 Profile（速查参考）
 
-概念类型（Types）：`Person`, `Event`, `Experience`, `ExperienceStep`, `Preference`, `Insight`, `Commitment`, `Watch`, `SleepTask`, `SelfModel`, `WorkingState`, `Skill`, `SkillRevision`。Skill 是稳定身份；必填的 `current_revision` 指向不可变行为表现（`task_family`、`procedure`、可选的 `applicability`/`preconditions`/`success_criteria`/`recovery`、`behavior_digest`）。评分成绩与授权严格绑定该修订版本。选择新行为会将当前地位重置为 `proposed`；普通的 UPDATE 绝不能改写行为。Watch 触发键包含 `arm_generation` 且要求完备的截止期覆盖。详见规范性认知记忆 Profile 与认知一致性伴随文档。
+概念类型（Types）：`Person`、`Event`、`Experience`、`ExperienceStep`、`Insight`、`Commitment`、`Watch`、`SleepTask`、`SelfModel`、`WorkingState`、`Skill`、`SkillRevision`（无独立的 Preference 类型：偏好是一条 `prefers` 主张，其总结为一个 Insight）。Skill 是稳定的实体标识；必填的 `current_revision` 指向不可变的行为表现（`task_family`、`procedure`，可选的 `applicability`/`preconditions`/`success_criteria`/`recovery`，`behavior_digest`）。资格地位（`unproven | validated | unverifiable | revoked`）与权限绑定到该修订版本；仅已验证学习配套规范能进行晋级。选定新行为会将当前资格地位重置为 `proposed`；普通的 UPDATE 绝不能改写行为。详见规范性认知记忆 Profile。
 
-谓词（Predicates）：`prefers` (Person→Concept) `caused_by` (Step→Step, 结果→原因, 证据支撑) `same_as` (同一性主张 → 人工/规则复审)
+谓词（Predicates）：`prefers` (Person→Concept，每类选项对应一项偏好，每个选项按其类别分类 —— `ColorScheme`、`Editor`，来自领域 package 或 `DEFINE CONCEPT TYPE`，绝不使用包罗万象的类别 —— 同一类别内较新的偏好继承替代旧偏好) `caused_by` (Step→Step，结果→原因，证据支撑) `same_as` (同一性主张 → 复审)。日常事实来自 `kip://domains/general@1.0.0`：`lives_in` `located_in` `works_for` `member_of` `knows` `timezone` `speaks` `interested_in`，作用于 `Place` `Organization` `Topic`；其他关系 → `DEFINE`。
 
-切面（Facets）：`MnemonicState`（可访问性/显著性/效用），`GradingState`（`revision_ref` + `evaluation_ref` + 独立尝试计数），`TrialState`（`trial_ref` + `revision_ref`），`DerivationState`（复审状态）。不可变 Activity 切面：`DependencyBasis`、`DecisionRecord`（检索/使用/应用的修订版本 + 基线）、`AttemptRecord`、`TrialRecord`、`EvaluationRecord`、`CompressionRecord`、`RecallCoverage`。不可变 Evidence 切面：`OutcomeRecord`（尝试/指标/窗口/终结/观测身份与仪器配置）。受守卫的操作切面：`WatchState`、`LeaseState`。字段结构定义于 `schemas/kip-cognitive-records.schema.json`；规则摘要或原始结果计数不是试用。必需依赖项在使用前通过虚拟 `_system.dependency_validity` 进行校验，且不改写历史。
+切面（Facets）：`MnemonicState`（基数 `memory_strength` + 锚点 `last_metabolized_at` + `strength_policy` → 计算得出的 `effective_strength`；`salience`；`utility`），`GradingState`（对当前评估的计算只读视图）。不可变 Activity 切面：`DependencyBasis`、`DecisionRecord`（检索/使用/应用的修订版本 + 基线）、`AttemptRecord`、`TrialRecord`、`EvaluationRecord`、`CompressionRecord`、`RecallCoverage`。不可变 Evidence 切面：`OutcomeRecord`。受防护的运行切面：`WatchState`、`LeaseState`。字段结构位于 `schemas/kip-cognitive-records.schema.json`。必需的依赖项在使用前通过计算得出的 `_system.dependency_validity` 进行检查，且不重写历史。
 
-结构字段：`has_step`（有序）`experienced_by` `involves` `mentions` `about` `derived_from` `consolidated_to` `compiled_from` `compiled_by` `committed_to` `owed_to` `assigned_to` `watches`；记录类内置字段：`evidence` `source` `generated_by` `inputs` `outputs` `associated_actors`。
+结构字段：`has_step`（有序）`experienced_by` `involves` `mentions` `about` `current_revision` `revision_of` `current_trial` `current_evaluation` `committed_to` `owed_to` `assigned_to` `watches`；从 Activity 溯源计算得出（只读）：`derived_from` `compiled_from` `compiled_by` `consolidated_to`；记录类内置字段：`evidence` `source` `generated_by` `inputs` `outputs` `associated_actors`。
 
-核心不变量：失败的经历也是一等公民记忆；单次成功 ≠ 采纳技能；采纳技能 ≠ 具备执行权限；自身关于行动结果的叙述属于 `agent_statement`，绝非 `outcome` Evidence；SelfModel ≠ 治理权限；触发的 Watch 仅代表引起注意，绝非执行许可 —— 记录网关决策（`action_gate` 活动 + `DecisionRecord`: act|ask|defer|silence, inputs = 所应用的技能与记忆），包括刻意的沉默；结果证据仅能通过 `outcome_observation` 指向决策活动来为 Skill 打分，绝不能仅凭同属 `task_family` 计分；WorkingState 必须携带 `basis_seq` 且绝不能被引为 Evidence；导入的记忆保留 `mode: "imported"` 且绝不能变成具备本地权威的自传（导入的 Skill 重置为 `proposed` 重新受评）。
+核心不变量：失败的经历也是一等公民记忆；单次成功 ≠ 采纳技能；采纳技能 ≠ 具备执行权限；自身关于行动结果的叙述属于 `agent_statement`，绝非 `outcome` Evidence；SelfModel ≠ 治理权限；触发的 Watch 仅代表引起注意，绝非执行许可 —— 记录网关决策（`action_gate` 活动 + `DecisionRecord`: act|ask|defer|silence，inputs = 所应用的技能与记忆），包括刻意的沉默；结果证据仅能通过 `outcome_observation` 指向决策活动来为 Skill 打分，绝不能仅凭同属 `task_family` 计分；WorkingState 必须携带 `basis_seq` 且绝不能被引为 Evidence；导入的记忆保留 `mode: "imported"` 且绝不能变成具备本地权威的自传（导入的 Skill 重置为 `proposed` 重新受评）。
 
 ---
 
@@ -535,7 +535,7 @@ safe_same_request | requires_refresh | requires_different_input | requires_autho
 | requires_new_snapshot | requires_reacquire_artifact | outcome_lookup_required | non_retryable
 ```
 
-高频错误自愈对策：`SchemaSymbolAmbiguous`（使用全限定 URI `kip://pkg@ver/symbol`）· `SchemaSymbolNotFound`（先执行 DESCRIBE，严禁臆造 Schema 符号）· `EpistemicRevisionRequired`（试图 UPDATE 信念历史 → 新建 Assertion + SUPERSEDING）· `EvidenceCorrectionRequired`（→ CORRECT ... BY）· `VersionConflict`（重新读取最新版本，重新计算，以最新 EXPECT VERSION 重试）· `IdempotencyConflict`（同一 idempotency key 尝试发送不同请求内容 → 更换新 key）· `OutcomeUnknown`（→ 按幂等键查询事务状态）· `NotFoundOrNotVisible`（对象可能存在但超出调用者可见权限 —— 绝不能判定其不存在）· `ReadonlyViolation` / `LanguageMismatch`（以解析出的实际语义规则为准）。
+高频错误自愈对策：`SchemaSymbolAmbiguous`（使用全限定 URI `kip://pkg@ver/symbol`）· `SchemaSymbolNotFound`（先执行 DESCRIBE；若确实缺少该关系，使用 `DEFINE`）· `SchemaSymbolConflict`（该名称已存在 —— 直接使用它）· `EpistemicRevisionRequired`（试图 UPDATE 信念历史 → 新建 Assertion + SUPERSEDING）· `EvidenceCorrectionRequired`（→ CORRECT ... BY）· `VersionConflict`（重新读取最新版本，重新计算，以最新 EXPECT VERSION 重试）· `IdempotencyConflict`（同一 idempotency key 尝试发送不同请求内容 → 更换新 key）· `OutcomeUnknown`（→ 按幂等键查询事务状态）· `NotFoundOrNotVisible`（对象可能存在但超出调用者可见权限 —— 绝不能判定其不存在）· `ReadonlyViolation` / `LanguageMismatch`（以解析出的实际语义规则为准）。
 
 ---
 
@@ -544,9 +544,9 @@ safe_same_request | requires_refresh | requires_different_input | requires_autho
 1. **写前接地**：`SEARCH` + `DESCRIBE` → 获取精确 ID 与 Schema 引用。持久化时使用精确版本，绝不使用 `@latest`。
 2. **高频路径 = `ASSERT` + 摄取**：单条语句完成归属陈述；证据由运行时自动生成并以 `:key` 引用 —— 严禁手动重新键入观测到的载荷。
 3. **涉真问题必须使用 `BELIEF`/`BELIEF SLOT`**；原始 `FIND` 仅用于审计、历史分析与冲突排查。对 `insufficient` 应如实告知“依据不足”，绝不能判定为“假/否”。
-4. **更正规范**：出现新证据 → `ASSERT ... SUPERSEDING :old`（重大变更补充记录 `belief_revision` 活动）。不同主体间的观点分歧应保持共存。
+4. **三类修订**：行动者有误 → `ASSERT ... SUPERSEDING :old`（重大变更补充记录 `belief_revision` 活动）；现实世界变迁 → 一条带有 `valid.from` 的 `ASSERT`；Brain 录入有误 → 录入修复。不同主体间的观点分歧保持共存。
 5. **单次认知变迁 = 单一原子 MUTATE / 事务**：证据+断言；经历+步骤+活动；更正+废弃。绝不能留下残缺状态。
-6. **代谢仅触碰 Facet**：衰减 `memory_strength`、调节 `salience`、依据关联结果累加 `GradingState` —— 断言置信度绝不能原位修改；产生认识论层面的新认知应创建新断言，并可选择废弃旧断言。
+6. **代谢仅触碰 Facet**：衰减是计算得出的；通过写入新的基数与锚点进行强化；调节 `salience` —— 断言置信度绝不能原位修改，且 `GradingState` 绝不写入；产生认识论层面的重大新认知应创建新断言。
 7. **移除操作梯度分级**：归档（archive）→ 逻辑删除（tombstone）→ 物理抹除（purge，受策略控制，需显式确认）。合并是非破坏性的；发现同一性疑点 = 声明 `same_as` 主张并提交复审。
 8. **重试遵循规范写入路径**：相同意图 = 相同的 `idempotency_key`；现实世界中不同独立观测 = 不同的 `client_key`。重试不等于产生了新经历。
 9. **严格区分双时间轴**：`FOR TIME` 表达“现实世界在何时有效”，`AS OF` 表达“大脑在当时认知状态下相信什么”；仅在两者均明确指定时才同时使用。

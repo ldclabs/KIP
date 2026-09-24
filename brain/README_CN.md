@@ -1,7 +1,7 @@
 # KIP 2.0 大脑 — 面向 AI 智能体的自主经验与图记忆
 
 
-规范的[认知一致性契约](../KIP-2.0-Cognitive-Consistency_CN.md)约束了终态信念、不可变技能修订版本、独立尝试、可重放试验/评估、依赖有效性、同一性修复以及持久工作者。生命周期计数器聚合尝试计数；未关联的家族结果绝不会自动作为对照组。仅在计算基线通过验证时才允许使用存储的摘要。
+规范性契约：[主规范](../SPECIFICATION_CN.md)（终态信念 §21.11、时间继承 §25.4、依赖健全性 §57.6、录入修复 §57.8）、[认知记忆 Profile](../profiles/CognitiveMemoryProfile-2.0_CN.md)，以及可选的[验证学习](./KIP-2.0-Validated-Learning_CN.md)与 [Brain 运行时](./KIP-2.0-Brain-Runtime_CN.md)伴随文档。世界变迁只需写入一条新 Assertion；仅在计算基线通过验证时才允许使用存储的摘要；未关联的家族结果绝不会自动作为对照组。
 
 **[English](./README.md) | [中文](./README_CN.md)**
 
@@ -53,7 +53,7 @@ https://github.com/ldclabs/anda-brain
 
 ## 从精简能力开始 (Start small)
 
-[能力包 (capability bundles)](../KIP-2.0-Memory-Interface_CN.md#2-能力包-capability-bundles) 将基础记忆、经验、经过验证的学习、持久工作进程以及交换予以分离。基础 Brain 可以记住偏好、更正事实、召回未完成任务并保留反馈，而无需运行试验。未经证实的流程保持原样标注。只有支持学习的部署才能赋予经过验证的资格地位。完整的 Cognitive Memory Profile 保持其既有契约；声称实现更精简的能力包并不意味着支持整个 Profile。仅安装了 Schema 名称本身并不能代表声明了对应功能。
+[级别 (Levels)](../KIP-2.0-Memory-Interface_CN.md#2-级别-levels) 将基础记忆、经验与经过验证的学习予以分级，持久工作进程以及胶囊交换则作为并列的能力。[验证学习](./KIP-2.0-Validated-Learning_CN.md)规范伴随文档定义了试验、评估与技能声誉地位；[Brain 运行时](./KIP-2.0-Brain-Runtime_CN.md)规范伴随文档定义了持久化注意力、租约与调度分发。基础 Brain 可以记住偏好、更正事实、召回未完成任务并保留反馈，而无需运行试验。未经证实的流程保持原样标注。只有支持学习的部署才能赋予经过验证的资格地位。完整的 Cognitive Memory Profile 保持其既有契约；声称实现更精简的级别并不意味着支持整个 Profile。仅安装了 Schema 名称本身并不能代表声明了对应功能。
 
 ## 身份标识与权限
 
