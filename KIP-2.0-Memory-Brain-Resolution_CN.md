@@ -2,13 +2,13 @@
 
 本文记录了旨在解决“KIP 2.0 是否足以让 AI Agent 拥有真正的记忆大脑”这一设计审查意见的决议过程。审查确认底层基础是健全的 —— 真值中立的 Proposition、带归属的 Assertion、读取时判定的信念（read-time belief）、无需模型重新键入的 Evidence 捕获机制、受保护的 Governance 治理；但也发现日常记忆能力偏弱：世界变迁需要繁琐的三步废弃替代仪式、粗粒度日期无处安放、大脑无法表达任何未被已安装包定义的关系、检索无法与信念计算组合、主动注意力无法触达 Agent，且规范草案膨胀速度超出了任何引擎或评测所能跟进的程度。
 
-范围说明：包括英文规范源、机器工件、语言工具包、编辑器语法、形式化模型以及 CI。中文镜像文档在本次修订中未同步，仅保证 `KIPSyntax_CN.md` 可执行代码块严格对齐以保持 CI 测试通过。未修改下游仓库代码；引擎测试套件从 anda-db 只读导入。
+范围说明：包括英文规范源、机器工件、语言工具包、编辑器语法、形式化模型以及 CI。中文镜像文档在本次修订中未同步，仅保证 `KIPSyntax_CN.md` 可执行代码块严格对齐以保持 CI 测试通过；随后已在 8c4d187 中同步。未修改下游仓库代码；引擎测试套件从 anda-db 只读导入。
 
 ## 所有者决策 (Owner decisions)
 
 | 决策项 | 实施说明 |
 | --- | --- |
-| 不保留历史草案包 | `cognitive-memory@2.0.0` 为唯一步进包；彻底删除 2.0.0/2.1.0 草案文件及 6 个 `legacy-2.1` Schema；Schema ID 统一定为 `urn:kip:2.0:schema:*`；草案修订版本由内容摘要唯一标识（规范 Status，AGENTS.md） |
+| 不保留历史草案包 | `cognitive-memory@2.0.0` 为唯一步进包；彻底删除 2.1.0 与 2.2.0 草案文件及 6 个 `legacy-2.1` Schema，2.0.0 原地重写，因此同一引用如今指向不同内容，只能凭内容摘要区分修订；Schema ID 统一定为 `urn:kip:2.0:schema:*`；草案修订版本由内容摘要唯一标识（规范 Status，AGENTS.md） |
 | 冻结 2.0 范围 | 只有伴随引擎证据（真实引擎通过的引擎套件测试用例）或经测量的 Brain 行为结果，新契约才可进入草案（规范 Status，AGENTS.md “Scope gate”） |
 | 变更时态语义 | 时间继承（Temporal succession）成为所有策略通用的 Core 核心世界时间语义（§25.4），并附带有限状态模型与五种故障注入模式 |
 | 运行时与学习伴随文档归入 `brain/` | `brain/KIP-2.0-Brain-Runtime.md` 与 `brain/KIP-2.0-Validated-Learning.md` 作为正式的规范性伴随文档 |
@@ -66,7 +66,7 @@
 | # | 发现项 | 决议说明 | 验收依据 |
 | --- | --- | --- | --- |
 | 1 | 同一主体的两次推理被误读为世界变迁：时序仅以主体和上下文为键，导致大脑从文档 B 推导出的新推理静默结束了此前从文档 A 得出的旧推理 | 时间继承仅反映行动者自身的直接叙述：断言的模式必须为 `stated` 或 `observed`，或者显式写明了 `from`，才参与时序继承；未显式写明起点的 `inferred` 推理断言不在时序线上（§25.4）。两者的分歧作为冲突保留给策略消解 | MEM-026k–m, 时序 T9 与 `--infer-succeeds` 缺陷模式, `world-time.json` |
-| 2 | 迟延记录的旧主张获得了今天的起始键：`at` 缺省为事务时间，且缺失的 `from` 回退到该时间 | `asserted_at` 为行动者陈述主张的时刻（源数据中观测到的时间），绝非大脑将其记录的时刻（§13.2, §55.1）；适配器从源数据中提取并设置该时间（记忆接口 §5.1）；工具包的 `KIP_2102` 诊断会标记引用了 Evidence 却省略 `at` 的 `ASSERT` | MEM-029g, MIF-015 (`late_history_displaces=false`), 跨行动者时序 T6, kip-lang 测试 |
+| 2 | 迟延记录的旧主张获得了今天的起始键：`at` 缺省为事务时间，且缺失的 `from` 回退到该时间 | `asserted_at` 为行动者陈述主张的时刻（源数据中观测到的时间），绝非大脑将其记录的时刻（§13.2, §55.1）；适配器从源数据中提取并设置该时间（记忆接口 §5.1）；工具包的 `KIP_2103` 诊断会标记引用了 Evidence 却省略 `at` 的 `ASSERT`（最初以 `KIP_2102` 发布，而该代码已被未绑定句柄错误占用；见后续修正） | MEM-029g, MIF-015 (`late_history_displaces=false`), 跨行动者时序 T6, kip-lang 测试 |
 | 3 | 未标注 `from` 的断言被解释为“下无界”：2026 年所说的“我住在上海”会导致 2020 年的查询也返回上海 | 缺失 `from` 时解释为时间界限 `{latest: asserted_at}` —— 即该事实成立的时间不晚于主张陈述之时（§25.2, §25.5）；一般现在时陈述完全无需标注 `valid` | MEM-026n, 扩展时序 T8, `world-time.json` |
 | 4 | 陈旧的观测与新鲜的陈述陷入永恒的 `contested` 争议：`kip:memory-default` 在第一人称陈述之后缺乏裁决规则 | 引入规则 3（时间就近）：合格支撑证据中起始键最大者胜出；平局保持 `contested`；规则 1 和规则 2 优先，因此较新的传闻绝不会战胜当事人本人的陈述（§21.13, `policy-memory-default.json`） | MEM-026l, MEM-029e–g, 时序 P3 与 `--recency-first` 缺陷模式, `world-time.json` |
 | 5 | `prefers` 按选项类型进行分区，但原先仅有 `Place`、`Organization` 和 `Topic` 等通用类型，导致所有日常偏好挤在同一分区 | 选项必须是具体类别下的 Concept，来自领域模式包或通过 `DEFINE CONCEPT TYPE` 声明，禁止使用宽泛类型（§20.15, Profile §5.5, §7, 记忆成型卡）；引擎固件的选项通过内联 `Option` 包具型化并按此记录 | MIF-016 文本, `world-time.json` (`ColorScheme`, `Editor`) |
@@ -78,17 +78,34 @@
 | 11 | 字面量值的 Predicate 上声明 `functional_by` 时缺乏分区依据 | 宾语必须声明为 Concept；模式包 Schema 拒绝在包含 `literal_types` 的谓词上声明 `functional_by`（§20.15） | SCHEMA-021, contracts 测试 |
 | 12 | 范围门禁阻止了在新契约被未修复引擎实现之前对其进行修正 | 测试固件允许标记为 `pending_engine` 并记录在清单中进入仓库；正式发布要求所有固件经由真实引擎验证（Status, AGENTS.md, engine-suite README） | `world-time.json`, 运行器 `pending_engine` 披露 |
 | 13 | 草稿包每次调用 `DEFINE` 都生成一个新版本号 | 统一固定引用为 `kip://local/draft@0.0.0`；但 `schema_environment_version` 依然递增（§20.16） | SCHEMA-022 |
-| 14 | 召回覆盖范围要求每个基础 Brain 都报告七个通道，其中三个通道基础级别根本不具备 | 未通告级别对应的通道在设计上直接标记为 `not_applicable`（记忆接口 §6） | MIF-001 |
+| 14 | 召回覆盖范围要求每个基础 Brain 都报告七个通道，其中三个通道基础级别根本不具备 | 未通告的级别不再要求基础 Brain 服务其通道；通道只有在经过权威的作用域内缺失判定后才能标记为 `not_applicable`，无法提供的已保留内容使其为 `incomplete`（记忆接口 §6，经 0644ebc 更正） | MIF-001 |
 | 15 | `Preference` 原作为与 `prefers` 断言并列的概念类型，其包含的可变摘要会被召回误当成答案 | 移除独立的 Preference 类型：偏好本身即断言，稳定的偏好模式是关于该选项类别的 Insight（Profile §5.5, §15; 包 Schema, 规范 §6.1, §18.3, 角色卡） | contracts 测试, 导入时修订引擎固件 |
 | 16 | `memory_durable` 与 `memory_exchange` 将能力误作为级别 | 保留三个核心级别；持久工作进程与胶囊交换恢复为其本来所属的独立能力（记忆接口 §2, `memory-bundles.json`, `kip-memory.schema.json`） | MIF-001 |
 | 17 | 时序模型原先仅覆盖单一上下文、单一分区和有见证的主张 | 针对采样的三元组扩展验证域（推理断言、`until` 边界、上下文集合）；补充 T9、P3 及两种缺陷模式；在 `written()` 中补充缺失起点的缺省规则 | `formal/temporal` |
 | 18 | 过期文本清理：Profile §4 遗留 `2.2.0`；MEM-005 提及 `TrialState`；§66.8 称曝光日志为唯一步进通道但 §59.1 指明有两个；策略工件将 `expired` 列为存储状态；§25.4 重复 §13.3 | 全部修正完成 | — |
 
-导入的引擎测试套件在另外两处进行了调整并记录在清单中：选项 Concept 通过内联 `Option` 包具型化为 `Option`（Profile 中不再有 Preference 类型）；预期过期值状态为 `rejected` 的边界用例现更正为预期 `insufficient`（§14.3, §21.5）。`world-time.json` 是第一个 `pending_engine` 固件：针对本次修订的行为编写了 24 个用例，依据规范与预言机设计，尚待真实引擎验证。
+导入的引擎测试套件在另外两处进行了调整并记录在清单中：选项 Concept 通过内联 `Option` 包具型化为 `Option`（Profile 中不再有 Preference 类型）；预期过期值状态为 `rejected` 的边界用例现更正为预期 `insufficient`（§14.3, §21.5）。`world-time.json` 是第一个 `pending_engine` 固件：针对本次修订的行为编写了 24 个用例（0644ebc 后续对齐后为 26 个），依据规范与预言机设计，尚待真实引擎验证。
 
 ## 下游工作 (Downstream work)
 
-1. **anda-db (Rust 与 kip-do)**：加载修订后的 `cognitive-memory@2.0.0`（移除 TrialState、DerivationState 与 Preference，实现 GradingState 与血统字段的动态计算，支持 `current_trial`/`current_evaluation`，带 `functional_by` 的 `prefers`，`review_schema` 任务）；实现时间继承及其参与规则、缺失 `from` 的缺省规则、时间界限、`functional_by`、带时间就近的 `kip:memory-default` 策略、`DEFINE` 语法与固定的草稿包引用、检索模式（Search Pattern）、计算型记忆强度与可选曝光日志；移除 `SEARCH COGNITION`；直接基于本仓库运行 `node conformance/run.mjs --suite engine`（包含处于 pending 状态的 `world-time.json`），不再使用固件的私有副本。
+1. **anda-db (Rust 与 kip-do)**：加载修订后的 `cognitive-memory@2.0.0`（移除 TrialState、DerivationState 与 Preference，实现 GradingState 与血统字段的动态计算，支持 `current_trial`/`current_evaluation`，带 `functional_by` 的 `prefers`，`review_schema` 任务）；实现时间继承及其参与规则、缺失 `from` 的缺省规则、时间界限、`functional_by`、带时间就近的 `kip:memory-default` 策略、`DEFINE` 语法与固定的草稿包引用、检索模式（Search Pattern）、计算型记忆强度与可选曝光日志；移除 `SEARCH COGNITION`；直接基于本仓库运行 `node conformance/run.mjs --suite engine`（包含处于 pending 状态的 `world-time.json`），不再使用固件的私有副本。同时刷新 `anda_kip` 内置的副本——规范、语法卡、EBNF、全部 Schema（含 `kip-common`）、Profile、策略、能力包与 brain 卡——因为 anda-brain 使用的是这些副本，而非本仓库。
 2. **anda-brain**：支持 `revise.change_kind: "misrecorded"`；实现带游标和由提交触发项的 attention 模式召回；世界变迁作为单条 Assertion 写入并从源数据中提取 `asserted_at`；选项按类别具型化；以及无需机械扫盘的计算型衰减。
-3. **中文镜像文档**：同步此处修改的所有英文源文档；`KIP-2.0-Cognitive-Consistency_CN.md` 像英文版本一样转为重定向索引表。
+3. **中文镜像文档**：已在 8c4d187 完成；规范中残留的 TRANSITION 之前的旧语法在下方后续修正中处理。
 4. **证据验收**：真实引擎通过 `world-time.json`，随后按范围门禁要求，通过记忆接口执行 LongMemEval/LoCoMo 风格的实测基准。
+
+## 后续修正 — 2026-09-24
+
+对 packages 与下游仓库的同步核查发现了本仓库中的以下缺陷，均已在此修正。下游实现仍停留在 `ae924e9` 之前的草案。
+
+| # | 发现 | 修正 |
+| --- | --- | --- |
+| 1 | 迟延主张提示复用了 `KIP_2102`，而该代码已是 `MUTATE` 未绑定句柄的错误；且单独的 `valid: {until}` 会压掉该提示 | 提示改为 `KIP_2103`；只有写出的 `from`（或 `valid` 参数）才会压掉它 |
+| 2 | `MemorySession` 无法表达 attention 召回，也不保存记忆接口 §4 交由宿主保存的 attention 游标 | `recall` 接受完整的召回输入；`acknowledgeAttention` 跨重启保存游标，并在 attention 与 resume 召回中自动带上 |
+| 3 | 工具包对不可变断言字段的拒绝信息把一切变更都指向 `SUPERSEDING` | 改为说明：世界变化是一条新断言，`SUPERSEDING` 仅用于原断言有误的情形（§14.2, §25.4） |
+| 4 | `context_refs` 按 §13.3 不可变，却不在 §13.7 清单与工具包检查中 | 已列入 §13.7；`UPDATE` 不能改写它 |
+| 5 | §20.16 与语法卡中的 `DEFINE` 示例定义了 `Place` 与 `lives_in`，而 `kip://domains/general@1.0.0` 已定义二者 | 示例改为定义 `Instrument` 与 `main_instrument` |
+| 6 | `world-time.json` 的 `DEFINE` 用例未声明所需能力，不支持 `draft_vocabulary` 的引擎会在读取草稿符号的用例上失败 | 四个用例通过请求外壳的 `requires` 声明 `draft_vocabulary`，不支持时跳过 |
+| 7 | `kip-change-envelope.schema.json` 仍使用 `https://` 形式的 `$id` | 改为 `urn:kip:2.0:schema:change-envelope`；记忆包的 Schema 锁与摘要已重新生成 |
+| 8 | §67.4 中一行折行，使注册表解析器把 `profiles/memory-bundles.json` 读成能力名 | 每个条目一行 |
+| 9 | `SPECIFICATION_CN.md` 仍保留 `SUPERSEDE ASSERTION`、`RETRACT ASSERTION`、`CORRECT EVIDENCE`、`ARCHIVE`/`TOMBSTONE` 语句、`AS OF TX/TIME` 与旧的语法草图 | 已与英文源对齐 |
+| 10 | 工具包对时间戳、时间界限、ASSERT `context` 与草稿声明的字面量形状一概接受 | 改为静态检查（`KIP_2001`），参数除外 |

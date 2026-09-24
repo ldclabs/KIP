@@ -175,6 +175,34 @@ test('REL-013: SDK preserves every pending receipt across restart and scopes req
   assert.deepEqual(session.snapshot().outstanding,['A'])
 })
 
+test('MIF-019: the session keeps the attention cursor and hands it to attention and resume recalls', () => {
+  let session=new MemorySession({space_id:'S',scope:{task_ref:'task'},outstanding:[]})
+  const first=session.recall({mode:'attention'})
+  assert.ok(ajv.validate(prefix+'memory',first),JSON.stringify(ajv.errors))
+  assert.equal(first.input.attention_cursor,undefined)
+  assert.throws(()=>session.recall({}),/query, a target_ref or mode "attention"/)
+  assert.throws(()=>session.acknowledgeAttention(''),/cursor/)
+  session.acknowledgeAttention('attention:41')
+  // The host keeps the cursor across a restart; consuming attention changes nothing else.
+  session=new MemorySession(session.snapshot())
+  const next=session.recall({mode:'attention'})
+  assert.equal(next.input.attention_cursor,'attention:41')
+  assert.ok(ajv.validate(prefix+'memory',next),JSON.stringify(ajv.errors))
+  assert.equal(session.recall({query:'where were we?',mode:'resume'}).input.attention_cursor,'attention:41')
+  assert.equal(session.recall({query:'now?'}).input.attention_cursor,undefined)
+  assert.equal(session.recall({mode:'attention',attention_cursor:'attention:7'}).input.attention_cursor,'attention:7')
+  assert.deepEqual(session.snapshot().outstanding,[])
+  const dated=session.recall({query:'then?',time:{valid_at:'2026-09-06T00:00:00.000Z',as_of_seq:13},detail:'evidence'})
+  assert.ok(ajv.validate(prefix+'memory',dated),JSON.stringify(ajv.errors))
+  assert.throws(()=>session.recall({query:'then?',time:{valid_at:'2026-09-06'}}),/timestamp/)
+  assert.throws(()=>session.recall({query:'then?',time:{as_of_seq:-1}}),/as_of_seq/)
+  assert.throws(()=>session.recall({query:'then?',time:{as_of_seq:1.5}}),/as_of_seq/)
+  // An empty cursor is neither a cursor nor "use the kept one".
+  assert.throws(()=>session.recall({mode:'attention',attention_cursor:''}),/cursor/)
+  assert.equal(session.recall({mode:'attention'}).input.attention_cursor,'attention:41')
+  assert.throws(()=>new MemorySession({space_id:'S',scope:{},outstanding:[],attention_cursor:''}),/snapshot/)
+})
+
 test('REL-014: scoped ASSERT lowers to the same immutable context_refs field', () => {
   const command=lowerAll(parse('ASSERT ?a (:s, "prefers", :o) {by: :actor, mode: "stated", context: :contexts}').ast)[0]
   const text=JSON.stringify(command)

@@ -428,12 +428,14 @@ describe('lower: KML invariants', () => {
   })
 
   test('Assertion epistemic payload cannot be rewritten by UPDATE', () => {
-    for (const field of ['stance', 'confidence', 'asserted_by', 'asserted_at', 'mode']) {
+    for (const field of ['stance', 'confidence', 'asserted_by', 'asserted_at', 'mode', 'valid_time', 'context_refs']) {
       const err = lowerThrows(
         `UPDATE ?a SET FIELDS {${field}: 0.5} WHERE { ?a ASSERTION {id: "A-1"} }`
       )
       assert.match(err.message, /immutable Assertion payload/)
-      assert.match(err.message, /SUPERSEDING/)
+      // Supersession is correction only; a changed world is a new Assertion (Spec §14.2, §25.4).
+      assert.match(err.message, /changed world is a new Assertion/)
+      assert.match(err.message, /SUPERSEDING only when the old Assertion was wrong/)
     }
   })
 

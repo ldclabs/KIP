@@ -74,6 +74,10 @@ The runner sends each command as a single-operation request and flattens the
 answer: a top-level error, else the first result's error, else its result (a
 KML receipt flattens to its result, usually `null`). An `UnsupportedCapability`
 the case did not expect is reported `SKIP_UNSUPPORTED`, never counted as a pass.
+A case that depends on an optional capability (§67.4) names it in
+`envelope.requires`, including a case that only reads what an earlier optional
+case created: an engine without the capability then skips the whole chain
+instead of failing its later links.
 
 ## Normalization
 

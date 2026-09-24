@@ -16,8 +16,8 @@ envelopes remain engine responsibilities.
 
 The optional [Memory Interface](../../KIP-2.0-Memory-Interface.md) sits above
 command text and adds no parser keywords. The host-side `MemorySession` helper
-retains scoped processing barriers across retries/restarts; it is not a Brain or
-authorization service. `parseTimestamp` validates strict UTC milliseconds and real
+retains scoped processing barriers and the host-kept attention cursor across
+retries/restarts; it is not a Brain or authorization service. `parseTimestamp` validates strict UTC milliseconds and real
 calendar dates without silent conversion. Scoped ASSERT accepts `context` and
 lowers it to the existing immutable context_refs field. Its five
 Agent intents, processing receipts and capability bundles have separate wire
@@ -25,12 +25,14 @@ schemas and contract tests; those tests do not implement a production Brain.
 
 The parser targets the KIP 2.0 command-text syntax — all three languages:
 **KQL** (`FIND`) to read, **KML** (`ASSERT`, `MUTATE`, `CREATE`, `UPSERT`,
-`UPDATE`, the single `TRANSITION` lifecycle statement, `SET RETENTION`,
-`PURGE`, `MERGE`) to change cognition, and **META** (`DESCRIBE`, `LIST`,
-`SEARCH`, `VERIFY`, `VALIDATE`, `PREVIEW`, `HISTORY`, `CHANGES`, `EXPORT CAPSULE`) to
-ground and introspect. That includes the five Core element kinds (Concept,
-Proposition, Assertion, Evidence, Activity), `BELIEF` / `BELIEF SLOT`
-projection patterns, `STRUCTURAL` topology patterns, facets, the independent
+`ENSURE`, `UPDATE`, the single `TRANSITION` lifecycle statement, `SET RETENTION`,
+`PURGE`, `MERGE`, and the standalone draft-vocabulary `DEFINE`) to change
+cognition, and **META** (`DESCRIBE`, `LIST`, `SEARCH`, `VERIFY`, `VALIDATE`,
+`PREVIEW`, `HISTORY`, `CHANGES`, `EXPORT CAPSULE`) to ground and introspect.
+That includes the five Core element kinds (Concept, Proposition, Assertion,
+Evidence, Activity), `BELIEF` / `BELIEF SLOT` projection patterns, the bounded
+`?x SEARCH <KIND> ... LIMIT <k>` Search Pattern, `STRUCTURAL` topology
+patterns, facets, the independent
 `AS OF SEQ` / `FOR TIME` time axes, `:parameter` placeholders in full value
 positions, ASCII case-insensitive keywords, JSON-compatible object literals
 with unquoted identifier keys, and batch-friendly multi-command source text.
@@ -210,6 +212,9 @@ verify signatures.
 | `lower(program)`                   | Lower one command to the executable `Command` AST        |
 | `lowerAll(program)`                | Lower every command in a multi-statement program         |
 | `lowerStatement(statement)`        | Lower a single statement                                 |
+| `parseTimestamp(value)`            | Strict UTC-millisecond Timestamp, real calendar date     |
+| `parseTimePoint(value)`            | A `valid_time` endpoint: instant, time bound or null     |
+| `MemorySession`                    | Host-side receipt barriers and attention cursor          |
 | `checkBudget(source)`              | Enforce length and nesting ceilings (`KIP_4002`)         |
 | `checkBatchBudget(count)`          | Enforce the command-count ceiling (`KIP_4002`)           |
 | `KipSyntaxError`                   | Thrown by `lower` / `checkBudget`, carries a KIP code    |
@@ -222,19 +227,19 @@ verify signatures.
 All AST types are exported for downstream consumption:
 
 - **KQL**: `FindStatement`, with `AsOfClause`, `ForTimeClause`, `EpistemicClause`, `OrderByClause`, `LimitClause`, `CursorClause`
-- **KML**: `MutateStatement` plus every `MutationClause` — `CreateConceptStatement`, `UpsertConceptStatement`, `EnsurePropositionStatement`, `AssertStatement`, `CreateEvidenceStatement`, `CreateAssertionStatement`, `CreateActivityStatement`, `UpdateStatement`, `RetractAssertionStatement`, `SupersedeAssertionStatement`, `CorrectEvidenceStatement`, `TransitionActivityStatement`, `SetRetentionStatement`, `ArchiveStatement`, `TombstoneStatement`, `PurgeStatement`, `MergeConceptStatement`
-- **META**: `DescribeStatement`, `ListStatement`, `SearchStatement`, `VerifyStatement`, `ValidateStatement`, `PreviewStatement`, `HistoryStatement`, `ChangesStatement`, `SnapshotStatement`, `ExportCapsuleStatement`
+- **KML**: `MutateStatement` plus every `MutationClause` — `CreateConceptStatement`, `UpsertConceptStatement`, `EnsurePropositionStatement`, `AssertStatement`, `CreateEvidenceStatement`, `CreateAssertionStatement`, `CreateActivityStatement`, `UpdateStatement`, `TransitionStatement`, `SetRetentionStatement`, `PurgeStatement`, `PurgePayloadStatement`, `MergeConceptStatement`, `DefineStatement` (standalone only: the parser rejects it inside `MUTATE`)
+- **META**: `DescribeStatement` (including `DESCRIBE SNAPSHOT`), `ListStatement`, `SearchStatement`, `VerifyStatement`, `ValidateStatement`, `PreviewStatement`, `HistoryStatement`, `ChangesStatement`, `ExportCapsuleStatement`
 - **Clauses**: `TypeClause`, `ClientKeyClause`, `NameClause`, `MatchClause`, `SetFieldsClause`, `SetAttributesClause`, `SetFacetClause`, `UnsetAttributesClause`, `UnsetFacetClause`, `SetStructuralClause`, `UnsetStructuralClause`, `ExpectVersionClause`, `ExpectStateClause`
-- **Patterns**: `ConceptPattern`, `PropositionPattern`, `AssertionPattern`, `EvidencePattern`, `ActivityPattern`, `StructuralPattern`, `BeliefPattern`, `BeliefSlotPattern`, `FilterClause`, `NotClause`, `OptionalClause`, `UnionClause`
+- **Patterns**: `ConceptPattern`, `PropositionPattern`, `AssertionPattern`, `EvidencePattern`, `ActivityPattern`, `StructuralPattern`, `BeliefPattern`, `BeliefSlotPattern`, `SearchPattern`, `FilterClause`, `NotClause`, `OptionalClause`, `UnionClause`
 - **Expressions**: `Expression`, `FieldAccess`, `AggregateExpr`, `FunctionCallExpr`, `ObjectLiteral`, `ObjectPattern`, `ArrayLiteral`, `ObjectEntry`
 
 The executable AST is exported separately, and names that collide with a
 syntax-tree node carry an `Exec` prefix.
 
 String-or-parameter operands stay `ScalarValue` nodes — `SearchStatement.term`,
-`SearchStatement.withType`, `DescribeStatement.value`, `ClientKeyClause.value`
-— so the tree still says whether the source wrote a quoted string or a
-`:parameter` placeholder.
+`SearchStatement.withType`, `SearchPattern.term`, `SearchPattern.withType`,
+`DescribeStatement.value`, `ClientKeyClause.value` — so the tree still says
+whether the source wrote a quoted string or a `:parameter` placeholder.
 
 ## KIP Language
 

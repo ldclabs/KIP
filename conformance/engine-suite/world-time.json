@@ -317,6 +317,11 @@
     {
       "name": "DEFINE adds a Predicate to the draft vocabulary",
       "command": "DEFINE PREDICATE \"mentors\" {\n  description: \"The subject mentors the object.\",\n  subject: {concept_types: [\"Person\"]},\n  object: {concept_types: [\"Person\"]}\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
       "expect": {},
       "vectors": [
         "SCHEMA-022",
@@ -326,6 +331,11 @@
     {
       "name": "the draft symbol resolves for the next operation",
       "command": "FIND(?p) WHERE { ?p (?x, \"mentors\", ?y) }",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
       "expect": {
         "result": []
       },
@@ -336,6 +346,11 @@
     {
       "name": "a name that already resolves fails SchemaSymbolConflict",
       "command": "DEFINE PREDICATE \"prefers\" {\n  description: \"already a Profile Predicate\"\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
       "expect": {
         "error": "SchemaSymbolConflict"
       },
@@ -346,6 +361,11 @@
     {
       "name": "a draft Predicate cannot claim a closed world",
       "command": "DEFINE PREDICATE \"closed_relation\" {\n  description: \"authority over the data belongs to installed packages\",\n  open_world: false\n}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        }
+      },
       "expect": {
         "error": "ConstraintViolation"
       },

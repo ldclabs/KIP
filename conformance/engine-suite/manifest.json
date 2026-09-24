@@ -69,6 +69,10 @@
     {
       "fixture": "world-time.json",
       "change": "inferences now cite Evidence and producing Activities with DependencyBasis pins and projection basis captured from actual setup reads; add value-only correction historical coverage"
+    },
+    {
+      "fixture": "world-time.json",
+      "change": "the four DEFINE cases require draft_vocabulary through the request envelope (§71), so an engine without that optional capability skips them instead of failing the case that resolves the draft symbol"
     }
   ],
   "not_yet_covered": "world-time.json pins this revision's new behavior (temporal succession, the missing-from default, time bounds, functional_by, kip:memory-default with recency, non-succession of inferences, DEFINE, the Search Pattern) and is marked pending_engine: written from the Specification and the oracle cases, verified by no engine yet. The exposure log and attention recall have oracle and Memory Interface vectors only.",

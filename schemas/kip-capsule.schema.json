@@ -179,7 +179,7 @@
         "changes": {
           "type": "array",
           "items": {
-            "$ref": "https://kip.ldclabs.org/schemas/2.0/kip-change-envelope.schema.json"
+            "$ref": "urn:kip:2.0:schema:change-envelope"
           }
         }
       },

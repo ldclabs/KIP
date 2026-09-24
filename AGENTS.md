@@ -4,6 +4,21 @@ Guidance for coding agents working in this repository. These instructions apply
 to the whole repository unless a more specific `AGENTS.md` exists below it.
 Explicit user instructions take precedence over this guidance.
 
+## Agent Workflow
+
+- Work independently as the current agent. Do not spawn or delegate work to
+  subagents.
+- Before editing, run `git status --short`, confirm the current branch, and
+  inspect existing diffs in the files you intend to change. Preserve the user's
+  existing work; do not overwrite or revert unrelated files or changes.
+- Use `rg` for search and focused reads before editing. Do not assume module
+  boundaries from filenames alone.
+- Before committing, review the final diff and stage only the files or hunks
+  belonging to the requested task.
+- At completion, briefly summarize the changes, the checks actually run and
+  their results, and any checks not run or blocked. Never report an unrun check
+  as passing. When committing, include the branch and commit ID in the summary.
+
 ## Project scope
 
 KIP is the Knowledge Interaction Protocol: a cognitive state protocol for Agent
@@ -202,19 +217,3 @@ claiming engine evidence. Partial suites cannot certify a whole Profile. Syntax
 tests, bounded models, engine reliability and measured behavioral learning are
 separate claims; preserve `not_run` reports until real measurements exist. Reuse
 the Brain/MIB workflow described in `brain/BrainEvaluation.md` for learning.
-
-## Working tree and commits
-
-Inspect the branch and working tree first. Preserve unrelated user changes and
-stage only the task's files. Follow the user's requested branch; do not assume
-every task should commit directly to `main`. Do not rewrite existing commits,
-publish packages, create release tags or push unless included in the request.
-
-When committing Codex-authored changes, append:
-
-```text
-Co-authored-by: Codex <noreply@openai.com>
-```
-
-Report what changed, the checks actually executed, material skips and any
-downstream work that remains. A specification commit does not deploy a feature.

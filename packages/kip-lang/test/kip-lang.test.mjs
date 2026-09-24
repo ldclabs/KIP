@@ -1108,6 +1108,22 @@ describe('draft vocabulary and search patterns', () => {
     assert.ok(parseErrors('MUTATE { DEFINE PREDICATE "x" {description: "d"} }').length > 0)
   })
 
+  test('DEFINE cannot claim authority or required structure (Spec §20.15, §20.16)', () => {
+    const errors = (source) => diagnose(source).filter((d) => d.severity === 'error').map((d) => d.message)
+    assert.deepEqual(errors('DEFINE PREDICATE "mentors" {description: "d", functional_by: "object_type", object: {concept_types: ["Person"]}}'), [])
+    assert.deepEqual(errors('DEFINE CONCEPT TYPE "Recipe" {description: "d", attributes: {open: true, fields: {cuisine: {type: "string"}}}}'), [])
+    assert.equal(errors('DEFINE PREDICATE "p" {description: "d", open_world: false}').length, 1)
+    assert.equal(errors('DEFINE PREDICATE "p" {description: "d", complete: true}').length, 1)
+    assert.equal(errors('DEFINE PREDICATE "p" {functional: true, functional_by: "object_type"}').length, 1)
+    assert.equal(errors('DEFINE PREDICATE "p" {functional_by: "object_type", object: {literal_types: ["string"]}}').length, 1)
+    assert.equal(errors('DEFINE PREDICATE "p" {functional_by: "object_type", object: {kinds: ["Evidence"]}}').length, 1)
+    assert.deepEqual(errors('DEFINE PREDICATE "p" {description: "d", functional_by: "object_type", object: {kinds: ["Concept"]}}'), [])
+    assert.equal(errors('DEFINE PREDICATE "p" {functional_by: "subject_type"}').length, 1)
+    assert.equal(errors('DEFINE CONCEPT TYPE "T" {facets: ["X"]}').length, 2)
+    assert.equal(errors('DEFINE CONCEPT TYPE "T" {description: "d", attributes: {open: false}}').length, 1)
+    assert.equal(errors('DEFINE CONCEPT TYPE "T" {description: "d", attributes: {fields: {a: {type: "string", required: true}}}}').length, 1)
+  })
+
   test('a Search Pattern binds hits inside FIND and requires LIMIT', () => {
     const find = parseOne('FIND(?x) WHERE { ?x SEARCH CONCEPT :q WITH TYPE "Person" LIMIT 5 }')
     const pattern = find.where.patterns[0]
@@ -1127,12 +1143,85 @@ describe('draft vocabulary and search patterns', () => {
 })
 
 test('ASSERT from captured evidence without at is flagged: asserted_at is the start key (Spec §13.2, §25.4)', () => {
-  const late = diagnose('ASSERT (:alice, "lives_in", :beijing) {by: :alice, mode: "stated", evidence: :msg}')
-  assert.ok(late.some((d) => d.code === 'KIP_2102' && d.severity === 'info'))
-  const dated = diagnose('ASSERT (:alice, "lives_in", :beijing) {by: :alice, mode: "stated", evidence: :msg, at: :observed_at}')
-  assert.ok(!dated.some((d) => d.code === 'KIP_2102'))
-  const started = diagnose('ASSERT (:alice, "lives_in", :beijing) {by: :alice, mode: "stated", evidence: :msg, valid: {from: :moved_at}}')
-  assert.ok(!started.some((d) => d.code === 'KIP_2102'))
-  const uncited = diagnose('ASSERT (:alice, "lives_in", :beijing) {by: :alice, mode: "stated"}')
-  assert.ok(!uncited.some((d) => d.code === 'KIP_2102'))
+  const flagged = (members) =>
+    diagnose(`ASSERT (:alice, "lives_in", :beijing) {by: :alice, mode: "stated"${members}}`)
+      .filter((d) => d.code === 'KIP_2103')
+  const late = flagged(', evidence: :msg')
+  assert.equal(late.length, 1)
+  assert.equal(late[0].severity, 'info')
+  assert.equal(flagged(', evidence: :msg, at: :observed_at').length, 0)
+  assert.equal(flagged(', evidence: :msg, valid: {from: :moved_at}').length, 0)
+  // A parameter may carry a start; only a literal without `from` is known not to.
+  assert.equal(flagged(', evidence: :msg, valid: :valid').length, 0)
+  // An end alone sets no start key, and neither does a null start (Spec §25.2).
+  assert.equal(flagged(', evidence: :msg, valid: {until: :moved_out}').length, 1)
+  assert.equal(flagged(', evidence: :msg, valid: {from: null, until: :moved_out}').length, 1)
+  // A literal of the wrong shape is known not to carry a start; `at: null` is no instant.
+  assert.equal(flagged(', evidence: :msg, valid: "2019-01-01T00:00:00.000Z"').length, 1)
+  assert.equal(flagged(', evidence: :msg, at: null').length, 1)
+  assert.equal(flagged('').length, 0)
+  // KIP_2102 stays the unbound-handle error; the two findings never share a code.
+  assert.ok(!late.some((d) => d.code === 'KIP_2102'))
+})
+
+describe('time literals (Spec §6.5, §25.5)', () => {
+  const errors = (source) =>
+    diagnose(source).filter((d) => d.severity === 'error').map((d) => d.message)
+  const assertOf = (members) =>
+    `ASSERT (:alice, "lives_in", :paris) {by: :alice, mode: "stated", ${members}}`
+
+  test('exact instants are strict UTC milliseconds on a real calendar date', () => {
+    assert.deepEqual(errors(assertOf('at: "2026-09-01T08:30:00.000Z"')), [])
+    for (const bad of ['yesterday', '2026-09-01', '2026-09-01T08:30:00Z', '2026-09-01T08:30:00.000+08:00', '2026-02-30T00:00:00.000Z']) {
+      assert.equal(errors(assertOf(`at: "${bad}"`)).length, 1, bad)
+    }
+    assert.equal(errors(assertOf('at: 1700000000')).length, 1)
+    // `at` is an exact instant: never null, never a time bound (Spec §6.5, §25.5).
+    assert.equal(errors(assertOf('at: null')).length, 1)
+    assert.equal(errors(assertOf('at: {earliest: "2019-01-01T00:00:00.000Z", latest: "2019-12-31T23:59:59.999Z"}')).length, 1)
+    assert.equal(errors(assertOf('at: ["2019-01-01T00:00:00.000Z"]')).length, 1)
+    assert.deepEqual(errors(assertOf('at: :observed_at')), [])
+    assert.equal(errors('FIND(?b) WHERE { ?b BELIEF (:alice, "lives_in", ?x) } FOR TIME "2026-02-30T00:00:00.000Z" LIMIT 5').length, 1)
+    assert.equal(errors('DESCRIBE SNAPSHOT AT TIME "2026-09-01"').length, 1)
+    assert.equal(errors('CREATE EVIDENCE ?e { SET FIELDS {evidence_class: "message", observed_at: "2026-09-01T08:30:00Z"} }').length, 1)
+    assert.equal(errors('CREATE ASSERTION ?a { SET FIELDS {proposition: :p, asserted_by: :a, stance: "support", mode: "stated", asserted_at: "2026-13-01T00:00:00.000Z"} }').length, 1)
+  })
+
+  test('Core Timestamp fields are checked wherever they are written, with their own nullability', () => {
+    // The retention record (Spec §6.5: retention.expires_at) and the TRANSITION finalize.
+    assert.equal(errors('SET RETENTION :x {retention_class: "standard", expires_at: "2026-09-01"}').length, 1)
+    assert.deepEqual(errors('SET RETENTION :x {retention_class: "standard", expires_at: "2026-09-01T00:00:00.000Z"}'), [])
+    assert.deepEqual(errors('SET RETENTION :x {retention_class: "standard", expires_at: null}'), [])
+    assert.deepEqual(errors('SET RETENTION :x {retention_class: "standard", expires_at: :t}'), [])
+    assert.equal(errors('TRANSITION :act TO "completed" SET FIELDS {ended_at: "2026-09-01T00:00:00Z"}').length, 1)
+    assert.deepEqual(errors('TRANSITION :act TO "completed" SET FIELDS {ended_at: "2026-09-01T00:00:00.000Z"}'), [])
+    // An Activity may not have ended; an observation always has an instant.
+    assert.deepEqual(errors('CREATE ACTIVITY ?act { SET FIELDS {activity_class: "watch_fire", started_at: null, ended_at: null} }'), [])
+    assert.equal(errors('CREATE EVIDENCE ?e { SET FIELDS {evidence_class: "message", observed_at: null} }').length, 1)
+    assert.equal(errors('UPDATE ?e SET FIELDS {observed_at: null} WHERE { ?e EVIDENCE {id: "E-1"} }').length, 1)
+  })
+
+  test('valid endpoints are instants, time bounds or null', () => {
+    assert.deepEqual(errors(assertOf('valid: {from: {earliest: "2019-01-01T00:00:00.000Z", latest: "2019-12-31T23:59:59.999Z"}, until: null}')), [])
+    assert.deepEqual(errors(assertOf('valid: {from: {latest: "2019-12-31T23:59:59.999Z"}}')), [])
+    assert.deepEqual(errors(assertOf('valid: {from: :from, until: :until}')), [])
+    assert.equal(errors(assertOf('valid: {from: "2019-01-01"}')).length, 1)
+    assert.equal(errors(assertOf('valid: {from: {earliest: "2020-01-01T00:00:00.000Z", latest: "2019-01-01T00:00:00.000Z"}}')).length, 1)
+    assert.equal(errors(assertOf('valid: {from: {}}')).length, 1)
+    assert.equal(errors(assertOf('valid: {from: {at: "2019-01-01T00:00:00.000Z"}}')).length, 1)
+    assert.equal(errors(assertOf('valid: {start: "2019-01-01T00:00:00.000Z"}')).length, 1)
+    // `valid` itself is an object; an endpoint is never an array.
+    assert.equal(errors(assertOf('valid: "2019-01-01T00:00:00.000Z"')).length, 1)
+    assert.equal(errors(assertOf('valid: [1]')).length, 1)
+    assert.equal(errors(assertOf('valid: {from: ["2019-01-01T00:00:00.000Z"]}')).length, 1)
+    assert.deepEqual(errors(assertOf('valid: :valid')), [])
+    assert.equal(errors('CREATE ASSERTION ?a { SET FIELDS {proposition: :p, asserted_by: :a, stance: "support", mode: "stated", valid_time: "2019-01-01T00:00:00.000Z"} }').length, 1)
+  })
+
+  test('ASSERT context is an array of references (Spec §55.1)', () => {
+    assert.deepEqual(errors(assertOf('context: [:task, "ctx-1"]')), [])
+    assert.deepEqual(errors(assertOf('context: :contexts')), [])
+    assert.equal(errors(assertOf('context: "task-1"')).length, 1)
+    assert.equal(errors(assertOf('context: [:task, 3]')).length, 1)
+  })
 })

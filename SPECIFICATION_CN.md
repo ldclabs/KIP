@@ -504,6 +504,7 @@ WorkingState (工作状态)
 
   "governance": {
     "classification": "policy-defined",
+    "authority_class": "descriptive",
     "policy_ref": "optional"
   },
 
@@ -517,12 +518,6 @@ WorkingState (工作状态)
 
   "_system": {
     "version": 1,
-    "plane_versions": {
-      "attributes": 1,
-      "structural": 1,
-      "retention": 1,
-      "facets": {}
-    },
     "created_at": "...",
     "updated_at": "...",
     "created_tx": "...",
@@ -1164,6 +1159,7 @@ mode (模式)
 confidence (置信度)
 asserted_at (断言时间)
 valid_time (有效时间)
+context_refs (上下文引用，§13.3)
 initial Evidence citations (初始证据引用)
 ```
 
@@ -1503,7 +1499,7 @@ UNSET STRUCTURAL { (field, target) }              移除该条引用
 
 移除按单条引用进行。从有序字段移除后，其余顺序重新致密化（§17.4）。基数在提交时校验：移除必填字段的最后一条引用将失败。
 
-记录类元素不受影响。断言、证据与终态活动的拓扑保持不可变（§13.7、§15.5、§16.6）；未终态的活动通过 `TRANSITION ACTIVITY` 敲定其引用（§52.5）。记录上错误的引用以新记录纠正，绝不以移除纠正。
+记录类元素不受影响。断言、证据与终态活动的拓扑保持不可变（§13.7、§15.5、§16.6）；未终态的活动通过 `TRANSITION ... TO "completed" SET STRUCTURAL` 敲定其引用（§52.5）。记录上错误的引用以新记录纠正，绝不以移除纠正。
 
 ---
 
@@ -1921,14 +1917,14 @@ temporal_conflict     "overlapping_valid_time" → 两个被接受的值仅在�
 大脑会遇到任何已安装模式包均未命名的关系。强行要求此类认知仅保留为证据会导致其丢失；而授予大脑 `manage_schema` 权限则会赋予普通认知以控制平面的权威。声明了 `draft_vocabulary` 能力（§67.4）的 Space 保留一套**草稿词汇**：位于保留路径 `kip://local/draft` 的 Space 本地模式包，仅可通过 KML 语句 `DEFINE` 在 `propose_schema` 权限（§29）下进行扩展。
 
 ```prolog
-DEFINE CONCEPT TYPE "Place" {
-  description: "A named geographic location."
+DEFINE CONCEPT TYPE "Instrument" {
+  description: "A musical instrument."
 }
 
-DEFINE PREDICATE "lives_in" {
-  description: "The subject's primary place of residence.",
+DEFINE PREDICATE "main_instrument" {
+  description: "The instrument the subject mainly plays.",
   subject: {concept_types: ["Person"]},
-  object: {concept_types: ["Place"]},
+  object: {concept_types: ["Instrument"]},
   functional: true
 }
 ```
@@ -3134,7 +3130,13 @@ origin Principal (来源调用主体)
   "transaction_class": "cognitive",
   "request_digest": "sha256:...",
   "semantic_plan_digest": "sha256:...",
-  "schema_environment_version": 17
+  "schema_environment_version": 17,
+  "receipt_digest": "sha256:...",
+  "origin": {
+    "principal_id": "principal-...",
+    "actor_binding_id": null,
+    "delegation_digest": null
+  }
 }
 ```
 
@@ -4132,14 +4134,9 @@ ASSERT            (规范语法糖：ensure + assert, §55.1)
 
 UPDATE (更新)
 
-RETRACT ASSERTION (撤回断言)
-SUPERSEDE ASSERTION (废弃替代断言)
-CORRECT EVIDENCE (纠错证据)
-TRANSITION ACTIVITY (迁移活动状态)
+TRANSITION        (唯一的生命周期语句，§52.5)
 
 SET RETENTION (设置留存规则)
-ARCHIVE (归档)
-TOMBSTONE (墓碑标记)
 PURGE (物理清除)
 PURGE PAYLOAD (载荷清除)
 
@@ -4433,24 +4430,26 @@ ASSERT ?a (...) {...} SUPERSEDING :old_assertion
 脱糖过程具有**规范性与确定性**：
 
 ```prolog
-ENSURE PROPOSITION ?p (:alice, "prefers", :dark_mode)
+MUTATE {
+  ENSURE PROPOSITION ?p (:alice, "prefers", :dark_mode)
 
-CREATE ASSERTION ?a {
-  CLIENT KEY :key
-  SET FIELDS {
-    proposition: ?p,
-    asserted_by: :alice,
-    stance: "support",
-    mode: "stated",
-    confidence: 0.95,
-    asserted_at: :engine_time_unless_at_given
+  CREATE ASSERTION ?a {
+    CLIENT KEY :key
+    SET FIELDS {
+      proposition: ?p,
+      asserted_by: :alice,
+      stance: "support",
+      mode: "stated",
+      confidence: 0.95,
+      asserted_at: :engine_time_unless_at_given
+    }
+    SET STRUCTURAL {
+      ("evidence", :msg) {role: "support"}
+    }
   }
-  SET STRUCTURAL {
-    ("evidence", :msg) {role: "support"}
-  }
+
+  TRANSITION :old_assertion TO "superseded" BY ?a
 }
-
-SUPERSEDE ASSERTION :old_assertion BY ?a
 ```
 
 规则要求：
@@ -4558,7 +4557,7 @@ CREATE ACTIVITY ?act {
 ```text
 新证据 (new Evidence)
 +
-CORRECT EVIDENCE old BY new
+TRANSITION old TO "corrected" BY new
 ```
 
 不得直接覆盖旧证据的载荷数据。
@@ -4568,8 +4567,7 @@ CORRECT EVIDENCE old BY new
 ## 57.3 撤回 (Retraction)
 
 ```prolog
-RETRACT ASSERTION :a
-EXPECT STATE "active"
+TRANSITION :a TO "retracted"
 ```
 
 撤回操作如实保留历史载荷。
@@ -4579,7 +4577,7 @@ EXPECT STATE "active"
 ## 57.4 废弃替代 (Supersession)
 
 ```prolog
-SUPERSEDE ASSERTION :old BY ?new
+TRANSITION :old TO "superseded" BY ?new
 ```
 
 **严禁**仅仅因为另一主体持不同意见就使用废弃替代，亦**严禁**用它来记录现实世界发生的变化：后者属于自变更发生之时起的一条新断言，该新断言通过时间继承终结其前驱断言 (§14.2, §25.4, 附录 F.2)。
@@ -4655,7 +4653,6 @@ current        其他情况
 
 ```prolog
 UPDATE ?target
-EXPECT VERSION :version
 
 SET FIELDS {...}
 SET ATTRIBUTES {...}
@@ -4670,9 +4667,12 @@ WHERE {
 }
 
 LIMIT :limit
+EXPECT VERSION :version
 ```
 
-目标要么是由 `WHERE` 块绑定的变量，要么是直接引用。直接引用（`:id` / `"id"`）已经指名了元素，因此**可以**省略 `WHERE`——与 `ARCHIVE`、`TOMBSTONE`、`PURGE`、`SET RETENTION`、`RETRACT ASSERTION` 一致；即便给出 `WHERE`，它也只起守卫作用：
+守卫位于语句末尾，并**可以**指明一个版本平面（`EXPECT VERSION :v OF FACET "MnemonicState"`，§35.1），因此对同一元素的 Facet 扫描与属性写入不会相互冲突。
+
+目标要么是由 `WHERE` 块绑定的变量，要么是直接引用。直接引用（`:id` / `"id"`）已经指名了元素，因此**可以**省略 `WHERE`——与 `TRANSITION`、`PURGE`、`SET RETENTION` 一致；即便给出 `WHERE`，它也只起守卫作用：
 
 ```prolog
 UPDATE :experience_id
@@ -4790,12 +4790,12 @@ EXPECT VERSION :version OF FACET "MnemonicState"
 
 ```text
 SET RETENTION <target> {retention_class: "...", expires_at: ...}
-                       [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v ...]
-TRANSITION    <target> TO "archived"   [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v ...]
-TRANSITION    <target> TO "tombstoned" [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v ...]
-PURGE         <target> [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v ...]
+                       [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]
+TRANSITION    <target> TO "archived"   [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]
+TRANSITION    <target> TO "tombstoned" [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]
+PURGE         <target> [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v]
                        [REFERENCE POLICY "..."] CONFIRM "PURGE"
-PURGE PAYLOAD <evidence> [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v ...] CONFIRM "PURGE"
+PURGE PAYLOAD <target> [WHERE {...}] [LIMIT :n] [EXPECT VERSION :v] CONFIRM "PURGE"
 ```
 
 `<target>` 遵循与通用 UPDATE 相同的规则：`?variable` 目标由 `WHERE` 块绑定，而 `:parameter` / `"id"` 已经直接指明元素，因而**可以**省略 `WHERE`。
@@ -5036,7 +5036,7 @@ WHERE {
   include_blobs: false,
   proof_profile: "..."
 }]
-[AS OF SEQ :seq | AS OF TX :tx | AS OF TIME :time]
+[AS OF SEQ :seq]
 ```
 
 操作数指定了**选定根绑定 (selection root binding)**：所有通过 `WHERE` 块绑定到 `?roots` 的元素均属于导出根集合。操作数也可以是指定单个根元素的参数或字符串，此时 `WHERE` 块仅用于约束该根元素。
@@ -6756,9 +6756,7 @@ search_pattern :=
         (* 必需的 LIMIT 约束候选集边界；严禁出现在 NOT 内部 (§43.8) *)
 
 as_of_clause :=
-      "AS OF SEQ" value
-    | "AS OF TX" value
-    | "AS OF TIME" value
+    "AS OF SEQ" value
 
 for_time_clause :=
     "FOR TIME" value
@@ -6798,13 +6796,8 @@ kml_statement :=
     | create_assertion
     | create_activity
     | update_statement
-    | retract_assertion
-    | supersede_assertion
-    | correct_evidence
-    | transition_activity
+    | transition_statement
     | set_retention
-    | archive_statement
-    | tombstone_statement
     | purge_statement
     | purge_payload_statement
     | merge_concept
@@ -6819,7 +6812,7 @@ mutate_statement :=
 ensure_proposition :=
     "ENSURE PROPOSITION" handle?
     "(" term "," predicate_term "," term ")"
-    expect_version_clause?
+    expect_version_clause*
     (* EXPECT VERSION 0 为仅创建形式，§35.2 *)
 
 assert_statement :=
@@ -6831,45 +6824,36 @@ assert_statement :=
 
 update_statement :=
     "UPDATE" target
-    expect_version_clause?
     update_action+
     ("WHERE" "{" where_clause* "}")?
     limit_clause?
+    expect_version_clause*
     (* ?variable 目标由 WHERE 绑定；直接引用目标可省略 WHERE *)
 
-supersede_assertion :=
-    "SUPERSEDE ASSERTION" target
-    "BY" target
-    expect_state_clause?
-
-correct_evidence :=
-    "CORRECT EVIDENCE" target
-    "BY" target
-    expect_state_clause?
+transition_statement :=
+    "TRANSITION" target
+    "TO" value
+    ("BY" target)?
+    set_fields_clause?
+    set_structural_clause?
+    ("WHERE" "{" where_clause* "}")?
+    limit_clause?
+    expect_version_clause*
+    (* 带引号的状态指明迁移，§52.5；BY 仅用于
+       superseded / corrected；SET 子句仅用于 Activity 状态 *)
 
 set_retention :=
     "SET RETENTION" target
     assignment_object
     ("WHERE" "{" where_clause* "}")?
     limit_clause?
-    expect_version_clause?
-
-archive_statement :=
-    "ARCHIVE" target
-    ("WHERE" "{" where_clause* "}")?
-    limit_clause?
-    expect_state_clause?
-
-tombstone_statement :=
-    "TOMBSTONE" target
-    ("WHERE" "{" where_clause* "}")?
-    limit_clause?
-    expect_state_clause?
+    expect_version_clause*
 
 purge_statement :=
     "PURGE" target
     ("WHERE" "{" where_clause* "}")?
     limit_clause?
+    expect_version_clause*
     ("REFERENCE POLICY" value)?
     "CONFIRM" "\"PURGE\""
 
@@ -6877,6 +6861,7 @@ purge_payload_statement :=
     "PURGE PAYLOAD" target
     ("WHERE" "{" where_clause* "}")?
     limit_clause?
+    expect_version_clause*
     "CONFIRM" "\"PURGE\""
         (* 仅限证据字节；元素本身存活，因此没有 REFERENCE POLICY 子句 *)
 
@@ -6884,7 +6869,7 @@ merge_concept :=
     "MERGE CONCEPT" target
     "INTO" target
     ("WHERE" "{" where_clause* "}")?
-    expect_version_clause?
+    expect_version_clause*
         (* 无 limit_clause：源与目标都已直接指名 *)
 
 define_statement :=
@@ -6910,13 +6895,11 @@ meta_statement :=
     | preview_statement
     | history_statement
     | changes_statement
-    | snapshot_statement
     | export_capsule_statement
 
 describe_target :=
       PRIMER
     | PROTOCOL
-    | EXECUTION_CONTEXT
     | CAPABILITIES
     | SPACE
     | SCHEMA_ENVIRONMENT
@@ -6929,8 +6912,8 @@ describe_target :=
     | ERROR
     | TRANSACTION
     | SNAPSHOT
+        (* DESCRIBE SNAPSHOT [AS OF SEQ :s | AT TIME :t]，见 §68 *)
     | EPISTEMIC_POLICY
-    | PROJECTION_CAPABILITY
     | TRUST
     | ACCESS
     | CAPSULE
@@ -6967,7 +6950,6 @@ list_target :=
 
   "execution": {
     "mode": "atomic",
-    "on_error": "stop",
     "isolation": "serializable",
     "idempotency_key": "formation:42"
   },

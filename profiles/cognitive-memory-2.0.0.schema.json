@@ -27,7 +27,7 @@
       },
       {
         "id": "urn:kip:2.0:schema:capsule",
-        "content_digest": "sha256:0e2f7c60034c7a2d59ddd4fa1bd72d5ee712c4fbc404b46f553f4d4251cfac5e"
+        "content_digest": "sha256:474d03b74ed04fbaa7b513510bdc84c07807128bea3664f94f4fe0ea502217d3"
       },
       {
         "id": "urn:kip:2.0:schema:schema-package",
@@ -38,8 +38,8 @@
         "content_digest": "sha256:74a98cb23df9d6d4ebee5b95cab53b09f15f6a55a854be408005a1113e68a7c1"
       },
       {
-        "id": "https://kip.ldclabs.org/schemas/2.0/kip-change-envelope.schema.json",
-        "content_digest": "sha256:c8e7d553ce986858915a8e32480c256e58f14998e20f420ba8008c5b736f84c2"
+        "id": "urn:kip:2.0:schema:change-envelope",
+        "content_digest": "sha256:6ee11019dc033e176242d244dd49282e6e0aa83edb9046e535a5cd668849dd14"
       }
     ]
   },
@@ -2947,7 +2947,7 @@
   },
   "integrity": {
     "digest_profile": "kip-jcs-safe-v1",
-    "content_digest": "sha256:afd781dac11f0fa72a9c286c2f495a7090a249547c1e0bc739b4206d4b6ca4cc",
+    "content_digest": "sha256:3ea9e4591b403dfc196b611c3e5844be95524987ec3cf80664572e780770d8d9",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

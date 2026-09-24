@@ -169,9 +169,11 @@ const PROTECTED_FIELDS = new Set([
 /**
  * Assertion payload that is immutable after creation (Spec §13.7).
  *
- * Changing epistemic commitment means a new Assertion plus supersession, so
- * an UPDATE naming one of these is the `EpistemicRevisionRequired` mistake
- * caught statically wherever the WHERE block says the target is an Assertion.
+ * Changing epistemic commitment means a new Assertion — superseding the old
+ * one only when it was wrong (Spec §14.2); a change in the world ends the old
+ * value through temporal succession (§25.4). An UPDATE naming one of these is
+ * the `EpistemicRevisionRequired` mistake caught statically wherever the
+ * WHERE block says the target is an Assertion.
  */
 const ASSERTION_IMMUTABLE = new Set([
   'proposition_id',
@@ -182,8 +184,14 @@ const ASSERTION_IMMUTABLE = new Set([
   'confidence',
   'asserted_at',
   'valid_time',
+  'context_refs',
   'evidence_refs'
 ])
+
+/** How a changed Assertion is recorded, for the immutable-payload refusals. */
+const ASSERTION_REVISION_HINT =
+  'record a new Assertion instead: a changed world is a new Assertion from the time of the change ' +
+  '(it ends the old value, Spec §25.4); add SUPERSEDING only when the old Assertion was wrong (Spec §14.2)'
 
 /** Evidence payload and observation identity are immutable (Spec §15.5). */
 const EVIDENCE_IMMUTABLE = new Set([
@@ -1467,7 +1475,7 @@ function guardStructuralMutation(
   switch (kind) {
     case 'assertion':
       throw invalidSyntax(
-        `${verb} cannot change an Assertion's citations: they are immutable payload — record a new Assertion with SUPERSEDING`,
+        `${verb} cannot change an Assertion's citations: they are immutable payload — ${ASSERTION_REVISION_HINT}`,
         range
       )
     case 'evidence':
@@ -1509,8 +1517,7 @@ function guardImmutableField(
 
   if (kind === 'assertion' && ASSERTION_IMMUTABLE.has(field)) {
     throw invalidSyntax(
-      `${field} is immutable Assertion payload: record the change as a new Assertion with SUPERSEDING, ` +
-        'never by rewriting the old one',
+      `${field} is immutable Assertion payload and is never rewritten: ${ASSERTION_REVISION_HINT}`,
       range
     )
   }

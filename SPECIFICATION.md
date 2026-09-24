@@ -1197,6 +1197,7 @@ mode
 confidence
 asserted_at
 valid_time
+context_refs (§13.3)
 Evidence citations (fixed at creation, §17.5)
 ```
 
@@ -1987,14 +1988,14 @@ A **slot** is the subject–predicate pair of a functional Predicate; for a `fun
 A Brain meets relations that no installed package names. Forcing that cognition to stay Evidence-only loses it; granting the Brain `manage_schema` gives ordinary cognition control-plane authority. A Space that advertises `draft_vocabulary` (§67.4) instead keeps one **draft vocabulary**: a Space-local Schema Package at the reserved path `kip://local/draft`, extended only through the KML statement `DEFINE` under the permission `propose_schema` (§29).
 
 ```prolog
-DEFINE CONCEPT TYPE "Place" {
-  description: "A named geographic location."
+DEFINE CONCEPT TYPE "Instrument" {
+  description: "A musical instrument."
 }
 
-DEFINE PREDICATE "lives_in" {
-  description: "The subject's primary place of residence.",
+DEFINE PREDICATE "main_instrument" {
+  description: "The instrument the subject mainly plays.",
   subject: {concept_types: ["Person"]},
-  object: {concept_types: ["Place"]},
+  object: {concept_types: ["Instrument"]},
   functional: true
 }
 ```
@@ -5574,8 +5575,7 @@ capsule_export              §63.4
 capsule_import              §39
 capsule_signatures          §37.8
 kip1_migration              §103    KIP 1.x compatibility and `DESCRIBE COMPATIBILITY`
-memory_interface            the Memory Interface binding; its levels are the bundles of
-                            profiles/memory-bundles.json
+memory_interface            Memory Interface binding; levels: profiles/memory-bundles.json
 durable_brain_runtime       Brain Runtime companion (brain/KIP-2.0-Brain-Runtime.md)
 receiver_fencing            Brain Runtime companion §4
 prospective_trials          Validated Learning companion (brain/KIP-2.0-Validated-Learning.md) §5

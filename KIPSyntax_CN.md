@@ -394,7 +394,7 @@ DEFINE PREDICATE "mentors" {
 }
 ```
 
-`DEFINE CONCEPT TYPE "Place" {description: "..."}` 用于新增类型。草稿谓词是开放世界的，可声明 `functional` 或 `functional_by: "object_type"`，不能声明封闭世界或 `complete`。名称已存在时返回 `SchemaSymbolConflict`。提升为正式包是所有者的 Schema 迁移。
+`DEFINE CONCEPT TYPE "Instrument" {description: "..."}` 用于新增类型（不得与已安装模式包中的名称重复：`Place` 已由 `kip://domains/general@1.0.0` 提供）。草稿谓词是开放世界的，可声明 `functional` 或 `functional_by: "object_type"`，不能声明封闭世界或 `complete`。名称已存在时返回 `SchemaSymbolConflict`。提升为正式包是所有者的 Schema 迁移。
 
 `MERGE CONCEPT` 属于非破坏性操作：源实体作为历史合并记录依然保持可寻址；未来的写入将自动规范化指向目标实体。导致环状依赖的合并（目标已解析回源实体）将被拒绝。
 

@@ -43,6 +43,8 @@ are the independent engine acceptance obligations.
 
 ## Downstream implementation order
 
+> **Superseded.** Package 2.2.0, the retained 2.1.0 resources and contract revisions no longer exist. Current downstream work is listed in the [memory-brain revision](./KIP-2.0-Memory-Brain-Resolution.md#downstream-work); the REL scenarios below remain valid acceptance obligations.
+
 1. **AndaDB / Nexus:** load the 2.2.0 pinned resources separately from 2.1.0; enforce
    strict timestamps; scoped ASSERT lowering if parsing text natively; selection
    dependencies, semantic output planes, recording repair and existence-neutral

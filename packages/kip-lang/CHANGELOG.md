@@ -2,7 +2,12 @@
 
 All notable changes to `@ldclabs/kip-lang` are documented here.
 
-## Unreleased
+## 2.4.0
+
+Tracks the memory-brain revision of the 2.0 draft. Consumers that switch
+exhaustively over the syntax or executable AST gain new members (`DefineStatement`,
+`SearchPattern`, the `Define` clause and the `Search` where-clause), and the removed
+`SEARCH COGNITION` no longer parses.
 
 - Add `DEFINE PREDICATE` / `DEFINE CONCEPT TYPE` (Spec §20.16): parsed as a
   standalone KML statement, lowered to a single `Define` clause, rejected inside
@@ -15,11 +20,40 @@ All notable changes to `@ldclabs/kip-lang` are documented here.
   (`{earliest, latest}`, Spec §25.5).
 - Schema IDs return to the stable `urn:kip:2.0:schema:*` form; the memory package
   is `cognitive-memory@2.0.0` and draft packages are no longer retained.
-- Add the `KIP_2102` info diagnostic: an `ASSERT` that cites evidence without
-  `at` or `valid.from` takes the transaction time as its start key (Spec §13.2,
-  §25.4); a claim recorded later than it was made should carry `at`.
-- Add scoped ASSERT context with deterministic context_refs lowering.
-- Export strict `parseTimestamp` and host-side `MemorySession` receipt bookkeeping.
+- Add the `KIP_2103` info diagnostic: an `ASSERT` that cites evidence without
+  `at` or a written `valid.from` takes the transaction time as its start key
+  (Spec §13.2, §25.4); a claim recorded later than it was made should carry `at`.
+  A literal `valid` with only `until` or with `from: null` sets no start and is
+  flagged, as is `at: null`; a `valid` parameter is not. `KIP_2102` remains the
+  unbound-`MUTATE`-handle error.
+- Add scoped ASSERT context with deterministic context_refs lowering; a literal
+  `context` must be an array of references (`KIP_2001`).
+- `context_refs` is immutable Assertion payload: `UPDATE` cannot rewrite it.
+- The immutable-Assertion refusals no longer point every change at
+  `SUPERSEDING`: a changed world is a new Assertion (temporal succession, Spec
+  §25.4), and supersession is only for an Assertion that was wrong (§14.2).
+- Check time literals statically (`KIP_2001`): `ASSERT at`, Core Timestamp
+  fields wherever they are written (`asserted_at`, `observed_at`, `started_at`,
+  `ended_at`, `expires_at` — in `SET FIELDS`, Facets, a `TRANSITION` finalize
+  and `SET RETENTION`), `FOR TIME` and `DESCRIBE SNAPSHOT AT TIME` must be
+  strict UTC millisecond strings on a real calendar date; `null` is accepted
+  only where the field admits it (`started_at`, `ended_at`, `expires_at`).
+  `valid` / `valid_time` is an object with only `from` and `until`, each an
+  instant, a `{earliest, latest}` time bound (non-empty, `earliest <= latest`)
+  or null. Parameters stay unchecked.
+- Check `DEFINE` against Spec §20.15–§20.16 (`KIP_2001`): no `open_world: false`
+  or `complete: true`; `functional_by` is `"object_type"`, never with
+  `functional: true`, and its object is Concepts (`concept_types` or
+  `{kinds: ["Concept"]}`, never `literal_types` or another kind); a draft
+  Concept Type declares a description, open attributes, and no required
+  fields, Facets or Structural Fields.
+- Export strict `parseTimestamp` and host-side `MemorySession` receipt
+  bookkeeping. `MemorySession.recall` takes the full recall input, including
+  `mode: "attention"`, `attention_cursor`, `time` and `detail`, requires a
+  query, a target or attention mode, and rejects a malformed `valid_at`,
+  `as_of_seq` or `attention_cursor` before it leaves the host. The session keeps the host's attention
+  cursor (`acknowledgeAttention`) across restarts and supplies it to attention
+  and resume recalls (Memory Interface §4).
 - Test selection dependencies, source causality, recording repair, prospective
   enrollment, receiver fencing, scoped recall and rebuildable memory views.
 - These changes do not implement or certify a production Nexus/Brain.

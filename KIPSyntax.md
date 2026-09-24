@@ -404,7 +404,7 @@ DEFINE PREDICATE "mentors" {
 }
 ```
 
-`DEFINE CONCEPT TYPE "Place" {description: "..."}` adds a type. Draft Predicates are open-world, and may be `functional` or `functional_by: "object_type"`; they cannot be closed-world or `complete`. A name that already resolves fails `SchemaSymbolConflict`. Promotion into an installed package is an owner's Schema migration.
+`DEFINE CONCEPT TYPE "Instrument" {description: "..."}` adds a type (never one an installed package already names: `Place` comes from `kip://domains/general@1.0.0`). Draft Predicates are open-world, and may be `functional` or `functional_by: "object_type"`; they cannot be closed-world or `complete`. A name that already resolves fails `SchemaSymbolConflict`. Promotion into an installed package is an owner's Schema migration.
 
 `MERGE CONCEPT` is non-destructive: source stays addressable as merged history; future writes canonicalize to target. Cycle-creating merges (target already resolves back to source) are rejected.
 

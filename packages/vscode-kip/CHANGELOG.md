@@ -2,10 +2,15 @@
 
 All notable changes to the **KIP Language** extension are documented here.
 
-## Unreleased
+## 2.4.0
+
+Bundles `@ldclabs/kip-lang` 2.4.0.
 
 - Highlight `DEFINE` (draft vocabulary, Spec §20.16) and the KQL Search Pattern;
-  stop highlighting the removed `COGNITION` search kind.
+  stop highlighting the removed `COGNITION` search kind; fold `DEFINE` blocks.
+- Diagnostics from the bundled toolkit: `DEFINE` and Search Pattern errors, the
+  `KIP_2103` start-key hint, and static checks of time literals, ASSERT
+  `context` and draft-vocabulary declarations.
 
 ## 2.3.1
 

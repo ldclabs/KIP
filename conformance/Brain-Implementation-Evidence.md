@@ -37,6 +37,8 @@ anything or measure held-out learning. The Brain repository was not modified.
 
 ## Remaining deployment gates
 
+> **Superseded naming.** Package 2.2.0 and the retained 2.1.0 artifacts no longer exist; read "2.2.0" below as the current `cognitive-memory@2.0.0` identified by its digest. Current downstream work is listed in the [memory-brain revision](../KIP-2.0-Memory-Brain-Resolution.md#downstream-work).
+
 The 538 existing tests do **not** certify package 2.2.0, new schema IDs, prospective
 trial enrollment, recording repair, selection-dependency tokens or receiver fencing.
 An engine/Brain must implement and advertise each corresponding new contract and run
