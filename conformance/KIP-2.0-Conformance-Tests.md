@@ -3629,6 +3629,22 @@ Use two operations with different overrides of the same name and confirm that ne
 
 ---
 
+## KIP2-RT-036 — An ingestion context is one Evidence per entry across a batch
+
+**Level:** MUST
+
+**Profiles:** KIP-Runtime (full)
+
+**Capabilities:** ingestion_context
+
+**Expected semantic behavior:** A `sequence` request of two KML operations, each citing `:msg`, carries `ingest.evidence[{key: "msg", payload: P}]` without `client_key`: it is refused with `InvalidRequestEnvelope` before either operation runs, and no Evidence exists afterwards. The same request with `client_key: K` on the entry commits both operations; exactly one Evidence carries P, and both operations' references resolve to it. A request that opens one write transaction — one KML operation beside reads — needs no key. A request whose only KML operation is a standalone `DEFINE` opens no transaction to mint into and is refused with `InvalidRequestEnvelope` (§71.1).
+
+**Postconditions:** without the key, Evidence count unchanged and no operation committed; with it, one Evidence for P and two committed Receipts.
+
+**Forbidden outcome:** one Evidence per operation for one entry; a multi-transaction request accepted without keys; an ingest block silently dropped beside a `DEFINE`.
+
+---
+
 # 23. Historical Suite
 
 Primary capability: `historical_reads` (Spec §100)

@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import { parse } from '../dist/index.js'
-import { loadEngineSuite, runEngineSuite, normalize, flatten } from '../../../conformance/engine-runner.mjs'
+import { loadEngineSuite, runEngineSuite, normalize, flatten, caseRequest } from '../../../conformance/engine-runner.mjs'
 
 const root = new URL('../../../', import.meta.url)
 const json = async path => JSON.parse(await readFile(new URL(path, root), 'utf8'))
@@ -27,9 +27,13 @@ test('engine suite: every setup and case command is current KIP syntax', () => {
     }
     for (const c of fixture.cases) {
       if (SYNTAX.has(c.expect?.error)) continue
-      if (c.expect?.error === 'ConstraintViolation' && /CONFIRM "purge"|EXPECT VERSION 1\s+SET/.test(c.command)) continue
-      const errors = parse(c.command).diagnostics.filter(d => d.severity === 'error')
-      assert.deepEqual(errors.map(e => e.message), [], `${fixture.name}: ${c.name}`)
+      // A case is one command or one batch, never both.
+      assert.ok((c.command === undefined) !== (c.operations === undefined), `${fixture.name}: ${c.name}`)
+      for (const command of c.operations?.map(op => op.command) ?? [c.command]) {
+        if (c.expect?.error === 'ConstraintViolation' && /CONFIRM "purge"|EXPECT VERSION 1\s+SET/.test(command)) continue
+        const errors = parse(command).diagnostics.filter(d => d.severity === 'error')
+        assert.deepEqual(errors.map(e => e.message), [], `${fixture.name}: ${c.name}`)
+      }
     }
   }
 })
@@ -49,6 +53,27 @@ test('engine suite: ids normalize by a sorted-key walk and volatile members drop
   assert.deepEqual(flatten({ results: [{ error: { code: 'VersionConflict', message: 'm' } }] }),
     { error: { code: 'VersionConflict', message: 'm' } })
   assert.deepEqual(flatten({ results: [{}] }), { result: null })
+  // A batch answers with its first operation error, wherever it sits.
+  assert.deepEqual(flatten({ results: [{ result: [1] }, { error: { code: 'ConstraintViolation', message: 'm' } }] }),
+    { error: { code: 'ConstraintViolation', message: 'm' } })
+  assert.deepEqual(flatten({ results: [{ result: [1] }, { result: null }] }), { result: [1] })
+})
+
+test('engine suite: a batch case is sent as one multi-operation request', () => {
+  const single = caseRequest({ command: 'FIND(?x) WHERE { ?x CONCEPT {} }', params: { a: 1 }, envelope: { read: {} } }, { b: 2 })
+  assert.deepEqual(single, { kip: '2.0', operations: [{ command: 'FIND(?x) WHERE { ?x CONCEPT {} }', parameters: { b: 2, a: 1 } }], read: {} })
+  const batch = caseRequest({
+    operations: [{ command: 'one' }, { command: 'two', params: { b: 3 } }],
+    envelope: { execution: { mode: 'sequence' } }
+  }, { b: 2 })
+  assert.deepEqual(batch, {
+    kip: '2.0',
+    operations: [{ command: 'one', parameters: { b: 2 } }, { command: 'two', parameters: { b: 3 } }],
+    execution: { mode: 'sequence' }
+  })
+  const batches = fixtures.flatMap(f => f.cases).filter(c => c.operations)
+  assert.ok(batches.length > 0)
+  for (const c of batches) assert.ok(c.envelope?.execution?.mode, `${c.name} declares its execution mode (§75)`)
 })
 
 test('engine suite: the runner passes a faithful engine and fails a wrong one', async () => {

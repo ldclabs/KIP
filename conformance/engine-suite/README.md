@@ -1,7 +1,8 @@
 # KIP 2.0 engine suite
 
 The executable conformance cases for KIP 2.0 engines: plain data, one KIP command
-per case, each with one expected result or one expected error code. A claim of a
+per case — or, for a request-level contract, one batch of operations — each with
+one expected result or one expected error code. A claim of a
 conformance level (Specification §89) rests on running this suite against the
 engine itself, together with the applicable vectors; a model or oracle run is
 reported as a model.
@@ -45,6 +46,9 @@ revisions made along the way.
       "command": "FIND(?x) WHERE { ... }",
       "params":  {"p": "..."},          // optional request parameters
       "envelope": {},                   // optional extra request members
+      // or, in place of "command", a batch sent as one request:
+      // "operations": [{"command": "...", "params": {...}}, ...]
+      // with "envelope": {"execution": {"mode": "sequence"}, ...}
       "expect":  {"result": [...]},     // or {"error": "SchemaSymbolNotFound"}
       "ordered": false,                 // top-level array order is contractual
       "vectors": ["CORE-001"]           // parent-suite vectors this case pins
@@ -79,9 +83,13 @@ export default {
 }
 ```
 
-The runner sends each command as a single-operation request and flattens the
-answer: a top-level error, else the first result's error, else its result (a
-KML receipt flattens to its result, usually `null`). An `UnsupportedCapability`
+The runner sends each command as a single-operation request and a case's
+`operations` as one multi-operation request, and flattens the answer: a
+top-level error, else the first operation error in order, else the first
+result (a KML receipt flattens to its result, usually `null`). A batch case
+therefore passes only when every operation succeeded or the error it expects
+came first; the durable effect of a batch is pinned by the one-command cases
+after it. An `UnsupportedCapability`
 the case did not expect is reported `SKIP_UNSUPPORTED`, never counted as a pass.
 A case that depends on an optional capability (§67.4) names it in
 `envelope.requires`, including a case that only reads what an earlier optional
@@ -122,8 +130,12 @@ under `pending_engine` in `manifest.json`: it was written from the Specification
 and the oracle cases, and no engine has verified it yet. The runner executes it
 like any other fixture and names it in the report's `kip.org/evidence.pending_engine`,
 so an engine's pass is new evidence rather than a re-run. The release requires
-every fixture verified. No fixture is pending at present: the last three,
-`draft-vocabulary.json` (§20.16), `supersession-scope.json` (§14.2) and
-`mnemonic-strength.json` (§59.1), were verified at anda-db `e70e275`.
+every fixture verified. `ingest-batch.json` (§71.1) is pending: an ingestion
+context is one Evidence per entry per request, so a batch that opens more than
+one write transaction needs `client_key` on every entry. It is also the first
+fixture with multi-operation cases, which an engine's own harness has to send
+as one request. The previous three, `draft-vocabulary.json` (§20.16),
+`supersession-scope.json` (§14.2) and `mnemonic-strength.json` (§59.1), were
+verified at anda-db `e70e275`.
 A fixture whose every case depends on an optional capability names it in each
 case's `envelope.requires`, so an engine without the capability skips it.

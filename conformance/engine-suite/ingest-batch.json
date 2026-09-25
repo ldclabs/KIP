@@ -1,0 +1,198 @@
+{
+  "name": "ingest-batch",
+  "status": "pending_engine",
+  "description": "An ingestion context belongs to the request, not to one operation (§71.1): one entry is one Evidence, whichever operations cite it. Outside `atomic` mode every KML operation is its own transaction (§75), so a batch of two would mint the observation twice — two records nothing could tell apart from two observations. The request is therefore refused unless every entry carries `client_key`, through which each transaction resolves the same Evidence as a retry of one creation. A request that opens one write transaction needs no key, and one whose only KML operation is a standalone `DEFINE` opens none and is refused, as a read-only one is (request-envelope.json).",
+  "packages": [
+    {
+      "format": "KIP-Schema-Package",
+      "manifest": {
+        "package_id": "kip://conformance/options",
+        "version": "1.0.0"
+      },
+      "definitions": {
+        "concept_types": {
+          "Option": {
+            "kind": "ConceptType",
+            "description": "A preference option used by these fixtures. A real Space types each option by its kind (Profile §5.5, §7), because prefers partitions by the option's Concept Type; one catch-all type is one partition."
+          }
+        }
+      }
+    }
+  ],
+  "setup": [
+    "MUTATE {\n  CREATE CONCEPT ?alice { TYPE \"Person\" NAME \"Alice\" SET FIELDS {canonical_id: \"urn:x:alice\"} }\n  CREATE CONCEPT ?dark { TYPE \"Option\" NAME \"Dark\" }\n  ENSURE PROPOSITION ?p (?alice, \"prefers\", ?dark)\n}"
+  ],
+  "cases": [
+    {
+      "name": "a batch of two write transactions without client_key is refused before either runs",
+      "operations": [
+        {
+          "command": "CREATE ASSERTION ?a {\n  SET FIELDS { proposition: \"P-1\", asserted_by: \"C-1\", stance: \"support\", mode: \"observed\" }\n  SET STRUCTURAL { (\"evidence\", :msg) {role: \"support\"} }\n}"
+        },
+        {
+          "command": "CREATE ASSERTION ?b {\n  SET FIELDS { proposition: \"P-1\", asserted_by: \"C-1\", stance: \"support\", mode: \"stated\" }\n  SET STRUCTURAL { (\"evidence\", :msg) {role: \"support\"} }\n}"
+        }
+      ],
+      "envelope": {
+        "execution": {
+          "mode": "sequence"
+        },
+        "ingest": {
+          "evidence": [
+            {
+              "key": "msg",
+              "evidence_class": "user_statement",
+              "payload": "I prefer dark mode.",
+              "media_type": "text/plain",
+              "source_actor": {
+                "id": "C-1"
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "error": "InvalidRequestEnvelope"
+      },
+      "vectors": [
+        "RT-036"
+      ]
+    },
+    {
+      "name": "the refused batch minted no Evidence",
+      "command": "FIND(COUNT(?e)) WHERE { ?e EVIDENCE {evidence_class: \"user_statement\"} }",
+      "expect": {
+        "result": [
+          0
+        ]
+      }
+    },
+    {
+      "name": "and committed neither operation",
+      "command": "FIND(COUNT(?a)) WHERE { ?a ASSERTION {} }",
+      "expect": {
+        "result": [
+          0
+        ]
+      }
+    },
+    {
+      "name": "with client_key each transaction resolves the one Evidence",
+      "operations": [
+        {
+          "command": "CREATE ASSERTION ?a {\n  SET FIELDS { proposition: \"P-1\", asserted_by: \"C-1\", stance: \"support\", mode: \"observed\" }\n  SET STRUCTURAL { (\"evidence\", :msg) {role: \"support\"} }\n}"
+        },
+        {
+          "command": "CREATE ASSERTION ?b {\n  SET FIELDS { proposition: \"P-1\", asserted_by: \"C-1\", stance: \"support\", mode: \"stated\" }\n  SET STRUCTURAL { (\"evidence\", :msg) {role: \"support\"} }\n}"
+        }
+      ],
+      "envelope": {
+        "execution": {
+          "mode": "sequence"
+        },
+        "ingest": {
+          "evidence": [
+            {
+              "key": "msg",
+              "evidence_class": "user_statement",
+              "payload": "I prefer dark mode.",
+              "media_type": "text/plain",
+              "source_actor": {
+                "id": "C-1"
+              },
+              "client_key": "message:batch-1"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "result": null
+      },
+      "vectors": [
+        "RT-036"
+      ]
+    },
+    {
+      "name": "both operations cite that one Evidence",
+      "command": "FIND(COUNT(?a), COUNT(DISTINCT ?e)) WHERE {\n  ?a ASSERTION {}\n  STRUCTURAL (?a, \"evidence\", ?e)\n  ?e EVIDENCE {evidence_class: \"user_statement\"}\n}",
+      "expect": {
+        "result": [
+          [
+            2,
+            1
+          ]
+        ]
+      },
+      "vectors": [
+        "RT-036"
+      ]
+    },
+    {
+      "name": "one write transaction beside a read needs no client_key",
+      "operations": [
+        {
+          "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {type: \"Person\"} }"
+        },
+        {
+          "command": "CREATE ASSERTION ?c {\n  SET FIELDS { proposition: \"P-1\", asserted_by: \"C-1\", stance: \"support\", mode: \"observed\" }\n  SET STRUCTURAL { (\"evidence\", :note) {role: \"support\"} }\n}"
+        }
+      ],
+      "envelope": {
+        "execution": {
+          "mode": "sequence"
+        },
+        "ingest": {
+          "evidence": [
+            {
+              "key": "note",
+              "evidence_class": "user_statement",
+              "payload": "Dark mode, please.",
+              "media_type": "text/plain"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "result": [
+          1
+        ]
+      },
+      "vectors": [
+        "RT-036"
+      ]
+    },
+    {
+      "name": "that request minted its one entry once",
+      "command": "FIND(COUNT(?e)) WHERE { ?e EVIDENCE {evidence_class: \"user_statement\"} }",
+      "expect": {
+        "result": [
+          2
+        ]
+      }
+    },
+    {
+      "name": "an ingest block beside only a standalone DEFINE is refused, never silently dropped",
+      "command": "DEFINE CONCEPT TYPE \"Instrument\" {description: \"A musical instrument.\"}",
+      "envelope": {
+        "requires": {
+          "draft_vocabulary": true
+        },
+        "ingest": {
+          "evidence": [
+            {
+              "key": "msg",
+              "evidence_class": "user_statement",
+              "payload": "I play the cello."
+            }
+          ]
+        }
+      },
+      "expect": {
+        "error": "InvalidRequestEnvelope"
+      },
+      "vectors": [
+        "RT-036"
+      ]
+    }
+  ]
+}

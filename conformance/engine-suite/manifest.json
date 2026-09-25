@@ -1,7 +1,7 @@
 {
   "format": "KIP-Engine-Suite",
   "version": "2.0-draft",
-  "description": "Cross-engine conformance cases: one command, one expected result or error. Imported from the suite both reference engines run, then kept here as the canonical executable suite.",
+  "description": "Cross-engine conformance cases: one command (or one request-level batch), one expected result or error. Imported from the suite both reference engines run, then kept here as the canonical executable suite.",
   "source": {
     "repository": "https://github.com/ldclabs/anda-db",
     "path": "fixtures/kip-conformance-2.0",
@@ -14,8 +14,8 @@
     "verified_against": "KIP 597db44's suite at anda-db e70e27500e4c7094da2e0334274aad343db48db6: all 423 cases in its 25 fixtures passed on both engines, none skipped (Rust tests/conformance.rs; kip-do test/conformance.test.ts under a Node shim, its workerd pool not run), including the formerly pending draft-vocabulary.json, supersession-scope.json and mnemonic-strength.json.",
     "verified_head": "e70e27500e4c7094da2e0334274aad343db48db6"
   },
-  "fixtures": 25,
-  "cases": 423,
+  "fixtures": 26,
+  "cases": 431,
   "revised_on_import": [
     {
       "fixture": "core-truth-neutrality.json",
@@ -107,8 +107,14 @@
         "supersession-scope.json"
       ],
       "change": "verified by both engines at anda-db e70e275 and no longer pending_engine"
+    },
+    {
+      "fixture": "ingest-batch.json",
+      "change": "new pending fixture (§71.1): an ingestion context is one Evidence per entry per request — a batch of two write transactions without client_key is refused before either runs, with client_key both operations resolve one Evidence, one write transaction beside a read needs no key, and an ingest block beside only a standalone DEFINE is refused. Its batch cases carry `operations` instead of `command`, which conformance/engine-runner.mjs sends as one multi-operation request"
     }
   ],
-  "not_yet_covered": "No fixture is pending. Promotion of a draft symbol, Capsule mapping of draft symbols, a Principal holding only propose_schema, the exposure log and attention recall have Conformance/Memory Interface vectors and oracle cases only; both engines test promotion and the propose_schema boundary, and the Rust engine Capsule mapping, in their own suites, which is not evidence from this one.",
-  "pending_engine": []
+  "not_yet_covered": "The pending fixture pins a contract no engine has verified yet: ingest-batch.json (one Evidence per ingest entry across a request's write transactions, §71.1), which also needs the engines' own harnesses to send its multi-operation cases. Promotion of a draft symbol, Capsule mapping of draft symbols, a Principal holding only propose_schema, the exposure log and attention recall have Conformance/Memory Interface vectors and oracle cases only; both engines test promotion and the propose_schema boundary, and the Rust engine Capsule mapping, in their own suites, which is not evidence from this one.",
+  "pending_engine": [
+    "ingest-batch.json"
+  ]
 }

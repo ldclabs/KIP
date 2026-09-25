@@ -4,8 +4,8 @@ Four kinds of evidence live here, and none stands in for another:
 
 | Evidence | What it is | Where |
 | --- | --- | --- |
-| Engine suite | 423 cases in 25 fixtures, all passed on both reference engines at anda-db `e70e275`; none is pending | `engine-suite/`, `--suite engine` |
-| Vectors | 343 parent-suite vectors in prose, 30 cognitive vectors, 20 Memory Interface scenarios and 17 reliability scenarios; the last three sets ship as JSON harness vectors | `KIP-2.0-*-Tests.md`, `vectors/` |
+| Engine suite | 431 cases in 26 fixtures; the 423 in the 25 verified fixtures passed on both reference engines at anda-db `e70e275`, and `ingest-batch.json` (8 cases) is pending | `engine-suite/`, `--suite engine` |
+| Vectors | 344 parent-suite vectors in prose, 30 cognitive vectors, 20 Memory Interface scenarios and 17 reliability scenarios; the last three sets ship as JSON harness vectors | `KIP-2.0-*-Tests.md`, `vectors/` |
 | Contract oracles and models | Small executable models of projection, succession, time bounds, dependency validity, learning, processing barriers and attention; bounded formal models | `reference/`, `vectors/cognitive-contracts.json`, `../formal/` |
 | Behavioral evaluation | Held-out, budgeted Brain experiments | `../brain/BrainEvaluation.md` (report status `not_run` until measured) |
 

@@ -5808,12 +5808,14 @@ A request MAY carry an ingestion context:
 
 Semantics:
 
-- For each entry, the runtime mints one Evidence element inside the request's transaction scope, from the declared fields and the transport-supplied content (`payload` inline, or `payload_artifact` handle). An entry MUST declare exactly one of `payload` / `payload_artifact`.
+- Each entry describes one observation, and the context belongs to the request, not to one operation: an entry is one Evidence element per request, whichever operations cite it. The runtime mints it from the declared fields and the transport-supplied content (`payload` inline, or `payload_artifact` handle). An entry MUST declare exactly one of `payload` / `payload_artifact`.
+- Each `key` is bound as a request parameter whose value is the minted Evidence reference — the same element in every transaction that mints or resolves the entry; commands cite it as `:key` (for example `evidence: :msg` in `ASSERT`).
+- The entries are minted inside a write transaction of the request: the one transaction of an `atomic` request, or, in `independent` and `sequence` mode (§75), the transaction of a KML operation other than a standalone `DEFINE` — which commits to the Schema Environment and mints nothing (§20.16). A request that opens no such transaction — only reads, or only `DEFINE` — is refused with `InvalidRequestEnvelope`: minting nothing while answering `succeeded` would leave the caller believing the observation was recorded.
+- When a request opens more than one such transaction, every entry MUST carry `client_key`; otherwise the request is refused with `InvalidRequestEnvelope` before any operation runs. Each transaction resolves the entry through that key as a retry of one logical creation (§7.5, §52.1): the first to commit mints the Evidence, and every other binds `:key` to that same element — concurrent transactions of an `independent` request included.
 - `source_actor` is an element reference — `{"id": …}` or `{"type": …, "key": …}`, the same shapes a bound parameter takes — recorded as the Evidence's `source`. It is never a name (§7.2) and never a Principal.
-- Each `key` is bound as a request parameter whose value is the minted Evidence reference; commands cite it as `:key` (for example `evidence: :msg` in `ASSERT`).
-- The minted Evidence carries normal `_system.origin`; `client_key` provides retry-safe logical identity.
+- The minted Evidence carries normal `_system.origin`; `client_key` provides retry-safe logical identity: a stored Evidence under the key that differs from what the entry declares — its class, payload, media type or source, or an `observed_at` or Facet the entry states — fails `ClientKeyConflict`.
 - An entry MAY carry `facets`, a map from Facet name to value object, validated exactly as `SET FACET` on `CREATE EVIDENCE` would be. This is how instrumentation attaches `OutcomeRecord` to an ingested `outcome` without re-typing anything; an entry whose `evidence_class` is `outcome` requires `record_outcome` (§29.8).
-- Ingestion is transactional: if the transaction aborts, no Evidence is durably created.
+- Ingestion is transactional: if a transaction aborts, the Evidence it minted is not durably created. A later transaction of the same request that commits mints it then.
 
 Evidence fidelity rule: a runtime SHOULD offer ingestion (or artifact handles) so observed payloads are captured from the transport envelope; an Agent SHOULD NOT re-type observed content inside KML text (§88.12).
 

@@ -114,7 +114,7 @@ If memory is what makes an agent valuable, the natural move is to make it imposs
 | [Brain evaluation](./brain/BrainEvaluation.md) | Separate protocol, reliability and behavioral-learning release gates |
 | [🤖 `$self` / ⚙️ `$system`](./SelfInstructions.md) | Single-agent prompt pair, a delta over Brain 2.0 ([`$system`](./SystemInstructions.md)) |
 | [🔤 Grammars & Schemas](./grammar/) | Normative EBNF, plus the [wire schemas](./schemas/) |
-| [🧪 Conformance](./conformance/README.md) | 423 executable engine cases, 343 parent vectors, 30 cognitive, 20 Memory Interface and 17 reliability scenarios, and executable contract models |
+| [🧪 Conformance](./conformance/README.md) | 431 executable engine cases, 344 parent vectors, 30 cognitive, 20 Memory Interface and 17 reliability scenarios, and executable contract models |
 | [🔬 Formal Verification](./formal/README.md) | Alloy, TLA+ and Python models, including world-time succession, and what they proved |
 | [🔀 Migration from 1.x](./migration/KIP-2.0-Migration-from-1.x.md) | What changes, and what legacy meaning must not be invented |
 | [Revision records](./KIP-2.0-Memory-Brain-Resolution.md) | This revision's checklist and validation; earlier: [reliability](./KIP-2.0-Reliability-Resolution.md), [review](./KIP-2.0-Review-Resolution.md) |

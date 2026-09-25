@@ -1,7 +1,8 @@
 /** Runner for the executable engine suite (conformance/engine-suite/).
  *
- * A case is one KIP command sent as a single-operation request, compared with
- * one expected result or error code. This is the same contract both reference
+ * A case is one KIP command sent as a single-operation request — or, for a
+ * request-level contract, one `operations` batch — compared with one expected
+ * result or error code. This is the same contract both reference
  * engines implement in their own harnesses; the runner reproduces their
  * flattening and normalization so any engine can be run from this repository.
  *
@@ -79,17 +80,36 @@ function captureResult(result, path) {
   return structuredClone(value)
 }
 
-/** A command's answer: the top-level error, the first result's error, or its result. */
+/**
+ * A request's answer: the top-level error, else the first operation error in
+ * order, else the first result. For a one-command case that is its error or
+ * its result; a batch case passes only when every operation succeeded.
+ */
 export function flatten(envelope) {
   if (envelope?.error) return { error: { code: envelope.error.code, message: envelope.error.message ?? '' } }
   const first = envelope?.results?.[0]
   if (!first) return { error: { code: 'InternalError', message: 'the response carried no result' } }
-  if (first.error) return { error: { code: first.error.code, message: first.error.message ?? '' } }
+  const failed = envelope.results.find(result => result?.error)
+  if (failed) return { error: { code: failed.error.code, message: failed.error.message ?? '' } }
   return { result: first.result === undefined ? null : first.result }
 }
 
 const request = (command, parameters = {}, extra = {}) =>
   ({ kip: '2.0', operations: [{ command, parameters }], ...extra })
+
+/**
+ * A case's request: its one `command`, or its `operations` in order, each with
+ * the fixture's captured parameters under its own. The envelope supplies the
+ * rest — for a batch, the `execution` block §75 requires.
+ */
+export function caseRequest(testCase, parameters = {}) {
+  if (!testCase.operations) return request(testCase.command, { ...parameters, ...testCase.params }, testCase.envelope ?? {})
+  return {
+    kip: '2.0',
+    operations: testCase.operations.map(op => ({ command: op.command, parameters: { ...parameters, ...op.params } })),
+    ...(testCase.envelope ?? {})
+  }
+}
 
 export async function loadEngineSuite(directory = new URL('engine-suite/', import.meta.url)) {
   const files = (await readdir(directory)).filter(f => f.endsWith('.json') && f !== 'manifest.json').sort()
@@ -122,7 +142,7 @@ export async function runEngineSuite(adapter, fixtures) {
       const id = `${fixture.name}/${testCase.name}`
       let outcome
       try {
-        outcome = flatten(await adapter.execute(request(testCase.command, { ...parameters, ...testCase.params }, testCase.envelope ?? {})))
+        outcome = flatten(await adapter.execute(caseRequest(testCase, parameters)))
       } catch (error) {
         // A lost response may still have committed: stop rather than run on an uncertain Space.
         tests.push({ id, status: 'HARNESS_ERROR', error: { code: 'AdapterError', message: error.message } })

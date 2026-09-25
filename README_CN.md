@@ -110,7 +110,7 @@ KIP 不定义具体的准入阈值、打断策略、显著性算法、巩固调�
 | [🔬 Brain 评测](./brain/BrainEvaluation_CN.md) | 独立的协议、可靠性与行为学习发布门禁（[English](./brain/BrainEvaluation.md)） |
 | [🤖 `$self` / ⚙️ `$system`](./SelfInstructions_CN.md) | 单智能体提示词对，基于 Brain 2.0 的精简增量（[`$system`](./SystemInstructions_CN.md)） |
 | [🔤 语法与 Schema](./grammar/) | 规范性 EBNF，以及[传输层 Schema](./schemas/) |
-| [🧪 一致性测试](./conformance/README.md) | 423 个可执行引擎用例、343 个父向量、30 个认知、20 个记忆接口与 17 个可靠性场景，以及可执行契约模型 |
+| [🧪 一致性测试](./conformance/README.md) | 431 个可执行引擎用例、344 个父向量、30 个认知、20 个记忆接口与 17 个可靠性场景，以及可执行契约模型 |
 | [🔬 形式化验证](./formal/README_CN.md) | Alloy、TLA+ 与 Python 模型（包含世界时间继承），以及其证明结论 |
 | [🔀 从 1.x 迁移](./migration/KIP-2.0-Migration-from-1.x_CN.md) | 升级变更点与遗留语义迁移约束 |
 | [📋 修订记录](./KIP-2.0-Memory-Brain-Resolution_CN.md) | 本次修订的清单与验证；早前版本：[可靠性](./KIP-2.0-Reliability-Resolution_CN.md)、[评审决议](./KIP-2.0-Review-Resolution_CN.md) |

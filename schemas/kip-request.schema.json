@@ -472,7 +472,7 @@
           "$ref": "#/$defs/Extensions"
         }
       },
-      "description": "Transport-supplied source material the runtime mints into Evidence inside the request's transaction scope. Each key is bound as a request parameter naming the minted Evidence, so commands reference it as :key without re-typing observed content."
+      "description": "Transport-supplied source material the runtime mints into Evidence inside the request's write transactions: one Evidence per entry per request, whichever operations cite it. A request that opens more than one write transaction (outside atomic mode, two or more KML operations other than a standalone DEFINE) needs client_key on every entry, through which each transaction resolves the same Evidence (\u00a771.1). Each key is bound as a request parameter naming the minted Evidence, so commands reference it as :key without re-typing observed content."
     },
     "IngestEvidence": {
       "type": "object",
