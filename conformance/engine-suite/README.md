@@ -29,8 +29,11 @@ passed, and the four `DEFINE` cases were skipped because neither engine advertis
 `draft_vocabulary`. At anda-db `e70e275` both engines ran the suite of KIP
 `597db44` — 423 cases in 25 fixtures, including the draft vocabulary, supersession
 scope and computed strength fixtures added since — and passed every case with none
-skipped (kip-do under a Node shim; see `manifest.json`). `manifest.json` lists the
-revisions made along the way.
+skipped (kip-do under a Node shim; see `manifest.json`). At anda-db `985451b` both
+ran the suite of KIP `11a82ec` — 431 cases in 26 fixtures, including
+`ingest-batch.json` and its multi-operation cases — and again passed every case with
+none skipped, kip-do in its workerd pool. `manifest.json` lists the revisions made
+along the way.
 
 ## Case shape
 
@@ -130,12 +133,10 @@ under `pending_engine` in `manifest.json`: it was written from the Specification
 and the oracle cases, and no engine has verified it yet. The runner executes it
 like any other fixture and names it in the report's `kip.org/evidence.pending_engine`,
 so an engine's pass is new evidence rather than a re-run. The release requires
-every fixture verified. `ingest-batch.json` (§71.1) is pending: an ingestion
-context is one Evidence per entry per request, so a batch that opens more than
-one write transaction needs `client_key` on every entry. It is also the first
-fixture with multi-operation cases, which an engine's own harness has to send
-as one request. The previous three, `draft-vocabulary.json` (§20.16),
-`supersession-scope.json` (§14.2) and `mnemonic-strength.json` (§59.1), were
-verified at anda-db `e70e275`.
+every fixture verified. No fixture is pending at present: the last,
+`ingest-batch.json` (§71.1), the first fixture with multi-operation cases, was
+verified at anda-db `985451b`, and the three before it, `draft-vocabulary.json`
+(§20.16), `supersession-scope.json` (§14.2) and `mnemonic-strength.json` (§59.1),
+at `e70e275`.
 A fixture whose every case depends on an optional capability names it in each
 case's `envelope.requires`, so an engine without the capability skips it.

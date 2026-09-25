@@ -8,7 +8,7 @@
 
 2.0 的范围已冻结。本次修订让草案成为更好的记忆，而不是更大的契约：世界变迁只需一条断言（时间继承）；粗粒度日期写成时间界限，而不是编造的精确时刻；偏好在其类别之内变化；标准策略（`kip:memory-default`）让各个引擎以相同方式裁决日常冲突；大脑遇到新关系时，可以通过空间的草稿词汇（`DEFINE`）加以定义；检索与信念可在同一次查询中组合（搜索模式）；已触发的 Watch 通过注意力召回送达业务智能体。本次修订也做了减法：不再保留草案包（只有一个 `cognitive-memory@2.0.0`）；可写缓存改为计算视图；认知一致性伴随文档并入主规范；试用与持久工作者移入可选的 `brain/` 伴随文档；Preference 类型被移除 —— 偏好就是一条主张。第二轮审查收紧了新语义的边界：未写明起点的主张不晚于其做出时刻开始；`asserted_at` 是主张做出的时间，而不是被记录的时间；两条推断永不相互继承；其余冲突由标准策略按时间就近裁决。详见[修订记录](./KIP-2.0-Memory-Brain-Resolution_CN.md)。
 
-[Rust](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) 与 [Cloudflare Durable Object](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do) 引擎面向 KIP 2.0 草案。它们共享的测试套件现以[可执行引擎套件](./conformance/engine-suite/README.md)的形式存放在本仓库；两个引擎通过当前套件的全部用例，包括草稿词汇、废弃替代作用域与计算强度三个固件（anda-db `e70e275`），因此已没有标记为 `pending_engine` 的固件。协议继续标为 `2.0-draft`，与工具版本相互独立；结构测试不构成真实 Brain 学习成效的证明。
+[Rust](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) 与 [Cloudflare Durable Object](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do) 引擎面向 KIP 2.0 草案。它们共享的测试套件现以[可执行引擎套件](./conformance/engine-suite/README.md)的形式存放在本仓库；两个引擎通过当前套件的全部用例，包括草稿词汇、废弃替代作用域、计算强度与摄入批量四个固件（anda-db `985451b`），因此已没有标记为 `pending_engine` 的固件。协议继续标为 `2.0-draft`，与工具版本相互独立；结构测试不构成真实 Brain 学习成效的证明。
 
 ## 从这里开始
 

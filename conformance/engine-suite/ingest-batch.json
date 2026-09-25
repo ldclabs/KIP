@@ -1,6 +1,5 @@
 {
   "name": "ingest-batch",
-  "status": "pending_engine",
   "description": "An ingestion context belongs to the request, not to one operation (§71.1): one entry is one Evidence, whichever operations cite it. Outside `atomic` mode every KML operation is its own transaction (§75), so a batch of two would mint the observation twice — two records nothing could tell apart from two observations. The request is therefore refused unless every entry carries `client_key`, through which each transaction resolves the same Evidence as a retry of one creation. A request that opens one write transaction needs no key, and one whose only KML operation is a standalone `DEFINE` opens none and is refused, as a read-only one is (request-envelope.json).",
   "packages": [
     {
