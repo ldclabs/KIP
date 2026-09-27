@@ -6,6 +6,8 @@ This glossary describes the current KIP 2.0 draft. The [Specification](./SPECIFI
 
 ## Core state and trust
 
+**Cognitive / Epistemic**: Cognitive refers to the broader state and processes supporting an Agent's memory, learning and reasoning. Epistemic concerns an actor's stance toward a Proposition, its evidence and confidence, and the determination of belief under a given policy and context. The Epistemic Plane is one dimension of cognitive state, alongside the Semantic, Mnemonic and Governance Planes.
+
 **Concept**: A semantic entity in a MemorySpace. Types and fields come from versioned Schema Packages.
 
 **Proposition**: A truth-neutral semantic statement. Its existence alone establishes neither truth nor acceptance.

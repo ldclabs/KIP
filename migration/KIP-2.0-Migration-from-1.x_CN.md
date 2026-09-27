@@ -20,7 +20,7 @@ KIP 1.x 以自描述的“概念-命题”知识图谱为中心。而 KIP 2.0 �
 
 ```text
 语义内涵 (meaning)
-认识信念 (belief)
+信念 (belief)
 客观证据 (evidence)
 历史溯源 (provenance)
 记忆状态 (mnemonic state)
@@ -35,7 +35,7 @@ KIP 1.x 以自描述的“概念-命题”知识图谱为中心。而 KIP 2.0 �
 
 # 1. 迁移目标
 
-在不臆造缺失的认识论结构的前提下，完整迁移以下内容：
+在不臆造缺失的认知结构的前提下，完整迁移以下内容：
 语义内涵、安全的既有唯一标识、历史主张陈述、信息来源标注、时间线信息、隐私意图、情景记忆、承诺事项、既有的经验（Experience）与技能（Skill）资产，以及全流程可审计性。
 
 # 2. 非设计目标
@@ -177,7 +177,7 @@ v1 Concept → v2 Concept
 
 # 10. 属性迁移 (Attributes)
 
-当属性值属于元素局部的展现信息且无需独立的认识论生命周期时，保持为 Concept 的 attributes（例如显示提示、紧凑运行状态、计数器或非涉真的普通对象/数组）。
+当属性值属于元素局部的展现信息且无需独立的认知生命周期时，保持为 Concept 的 attributes（例如显示提示、紧凑运行状态、计数器或非涉真的普通对象/数组）。
 
 当属性值具备独立来源/置信度、存在潜在冲突、具有时序演变、需要生效时间约束、依赖证据佐证或作为涉真陈述对外交换时，应将其提升为 Proposition + Assertion。迁移过程支持循序渐进。
 
@@ -219,7 +219,7 @@ v2 Proposition 本身是价值中立的。迁移生成的 Assertion 负责承载
 真值支持度 (truth support)     → Assertion confidence
 记忆遗忘/提取度 (access)       → MnemonicState.memory_strength
 显著性/重要度 (importance)     → MnemonicState.salience
-时效性/过期 (staleness)        → 认识投影的时效策略
+时效性/过期 (staleness)        → 认知投影的时效策略
 语义混合/含义不明 (unknown)    → 保留原值并进行保守的原生字段初始化
 ```
 
@@ -403,7 +403,7 @@ KIP 1.x 基于 UPSERT 的导出脚本属于旧序列化产物。
 典型行为：
 
 ```text
-v1 事实读取     → 映射为已采信的 v2 认识投影兼容视图
+v1 事实读取     → 映射为已采信的 v2 认知投影兼容视图
 v1 命题写入     → 写入 Proposition + 正面 Assertion
 遗留元数据      → 映射至原生字段并附带警告
 遗留导出        → 生成兼容制品或转换后的 Capsule
@@ -435,7 +435,7 @@ KIP_4003 InternalError       → InternalError
 
 迁移期间，对比源系统 v1 读取与等效 v2 投影的结果。重点核验实体标识、事实问答、时效性、归属、隐私、Event 召回、Commitment 状态及 Profile 记忆。
 
-因 v2 更严谨的认识论模型导致的差异应进行分类判定，而非直接归类为 Bug。
+因 v2 更严谨的认知模型导致的差异应进行分类判定，而非直接归类为 Bug。
 
 # 34. 双写策略 (Dual Write)
 
@@ -642,7 +642,7 @@ JS 节点被物理删除
 # 50. 迁移核心不变式
 
 1. 保持语义保真，重于维持字节形式一致。
-2. 严禁捏造缺失的认识论结构。
+2. 严禁捏造缺失的认知结构。
 3. 旧事实命题转换为 v2 Proposition + Assertion。
 4. Proposition 绝不继承置信度。
 5. 未知元数据显式标记为遗留数据。

@@ -129,7 +129,7 @@ LIMIT 50
 
 Event 的显著性（salience）衡量该片段对未来记忆构建及自我连续性的重要程度。Experience 的学习价值（learning value）衡量该轨迹对改进未来行为的潜在效用。高价值通常源于：纠错、重大关系变更、重要承诺、关键身份里程碑、故障与恢复、预测偏差、人工反馈、典型反例或新颖操作流程。
 
-两者均不等于认识论层面的置信度（confidence）。
+两者均不等于认知层面的置信度（confidence）。
 
 # 8. 睡眠任务处理 (SleepTasks)
 
@@ -200,7 +200,7 @@ MUTATE {
 
 # 10. 机械重复与证据的界限
 
-独立的多方重复观测可以增强认识支持度。相同事件的重放或重复导入不会产生新的证据根。用户在后续交互中的再次口头确认属于新的 Evidence / Assertion。严禁将所有重复一概机械地处理为 `confidence += x`。
+独立的多方重复观测可以增强认知支持度。相同事件的重放或重复导入不会产生新的证据根。用户在后续交互中的再次口头确认属于新的 Evidence / Assertion。严禁将所有重复一概机械地处理为 `confidence += x`。
 
 # 11. 程序性技能巩固 (Procedural Consolidation)
 
@@ -292,7 +292,7 @@ EXPECT VERSION :mnemonic_version OF FACET "MnemonicState"
 
 原生合并不具破坏性：源概念保留为已合并的历史身份标识，旧有的原始 Proposition 端点保持可审计性，未来的规范写入自动解析至目标概念。
 
-怀疑意见走认识论路径：
+怀疑意见走认知路径：
 
 ```prolog
 ASSERT (:concept_a, "same_as", :concept_b) {
@@ -474,7 +474,7 @@ Maintenance 可以识别物理清除候选对象，但在未获得清除授权�
 
 ```text
 获得新认知信息   → 新建 / 修订 / 建立对立 Assertion
-时效新鲜度变化   → 认识投影的时态与新鲜度策略计算
+时效新鲜度变化   → 认知投影的时态与新鲜度策略计算
 检索提取可达性变化 → 调整 memory_strength 记忆强度
 ```
 
@@ -489,7 +489,7 @@ consolidated_to
 associated Activity
 ```
 
-在巩固 Activity 的 `inputs` 中列出实际依赖的认识论输入 —— 证据与断言，而非仅包含它们的外层 Experience。当根节点后续被修订时，`LIST DEPENDENTS` 所遍历的正是该谱系。
+在巩固 Activity 的 `inputs` 中列出实际依赖的认知输入 —— 证据与断言，而非仅包含它们的外层 Experience。当根节点后续被修订时，`LIST DEPENDENTS` 所遍历的正是该谱系。
 
 在发生废弃替代、撤回或证据更正后，对被修订的根节点执行 `LIST DEPENDENTS` 遍历，并为受影响的制品排队 `review_derived` 睡眠任务。引擎已通过计算得出的 `_system.dependency_validity` 将它们置为 `needs_review`：无需写入任何标记，也绝不会因为根节点变动而发生任何撤回、隐藏或归档（规范 §57.5）。
 
@@ -497,7 +497,7 @@ associated Activity
 LIST DEPENDENTS :revised_root DEPTH 2 LIMIT 100
 ```
 
-在使用派生认知前，必须先读取 `_system.dependency_validity`；即使本审查流程尚未运行，引擎也会立即计算该有效性。分页并遍历完整受影响闭包，检查点记录水位线；DEPTH 2 / LIMIT 100 仅是第一页，绝非遍历完成。重新验证在 dependency_validation Activity 上记录新的 DependencyBasis 并标注确切输出版本。新的认识论前提必须创建新的 Assertion。
+在使用派生认知前，必须先读取 `_system.dependency_validity`；即使本审查流程尚未运行，引擎也会立即计算该有效性。分页并遍历完整受影响闭包，检查点记录水位线；DEPTH 2 / LIMIT 100 仅是第一页，绝非遍历完成。重新验证在 dependency_validation Activity 上记录新的 DependencyBasis 并标注确切输出版本。新的认知前提必须创建新的 Assertion。
 
 # 29. 事务规范与前置条件
 
@@ -515,7 +515,7 @@ Maintenance 可以自省检查 Schema，但在未获得 `manage_schema` 授权�
 
 # 32. 信任策略边界 (Trust Boundary)
 
-Maintenance 在执行认识投影时可以消费信任策略，但在未获得 `manage_trust` 授权前，严禁改写受保护的信任策略。认知文本中描述“信任此信息源”的语句在控制平面不产生任何实际权限效果。
+Maintenance 在执行认知投影时可以消费信任策略，但在未获得 `manage_trust` 授权前，严禁改写受保护的信任策略。认知文本中描述“信任此信息源”的语句在控制平面不产生任何实际权限效果。
 
 # 33. 数据密级继承
 

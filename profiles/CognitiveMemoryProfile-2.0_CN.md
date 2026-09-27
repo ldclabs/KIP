@@ -75,7 +75,7 @@ OutcomeRecord
 2. **失败作为宝贵财富**：对失败经历给予与成功同等的重视，支持反思与负向约束发现。
 3. **程序性技能渐进采纳**：定义带版本控制的可重用技能 `Skill`，其生命周期必须与实际外部后果流紧密结合。
 4. **统一前瞻记忆与主动警戒**：通过明确声明的 `Commitment` 和 `Watch` 将未来意图和状态差分监控纳入认知图谱。
-5. **记忆代谢**：提供独立的记忆访问强度（`memory_strength`）、显著性（`salience`）与效用下注（`utility`），与认识论置信度保持严格解耦。
+5. **记忆代谢**：提供独立的记忆访问强度（`memory_strength`）、显著性（`salience`）与效用下注（`utility`），与认知置信度保持严格解耦。
 6. **可审计溯源链**：巩固沉淀的高阶认知（偏好、洞察、自我模型）必须可溯源至具体的经验和证据。
 
 ---
@@ -108,7 +108,7 @@ DecisionRecord ≠ 行动授权
 已采纳的 Skill ≠ 可执行权限
 ```
 
-Profile 切面与结构字段绝不能（MUST NOT）绕过 Core 不可变性、源头归属、Governance 治理或认识论语义。
+Profile 切面与结构字段绝不能（MUST NOT）绕过 Core 不可变性、源头归属、Governance 治理或认知语义。
 
 ---
 
@@ -633,7 +633,7 @@ Event 应当简洁明了：时间戳、参与主体、事件摘要、上下文�
 
 ## 10.1 CompressionRecord（压缩记录）
 
-当形成或编码操作压缩长文本或媒体有效载荷时，其产出活动携带 CompressionRecord，指明保留字段、遗漏内容与重编码资格（`kip-cognitive-records.schema.json#/$defs/CompressionRecord`）。这记录了表示层的信息取舍，而不是认识论上的信念改变。
+当形成或编码操作压缩长文本或媒体有效载荷时，其产出活动携带 CompressionRecord，指明保留字段、遗漏内容与重编码资格（`kip-cognitive-records.schema.json#/$defs/CompressionRecord`）。这记录了表示层的信息取舍，而不是信念改变。
 
 ---
 
@@ -756,7 +756,7 @@ utility 校准
 通用基于时间的衰减绝不能变更断言置信度。
 
 ```text
-新认识论证据 → 新 Assertion（变更对应继承，更正对应取代）
+新认知证据 → 新 Assertion（变更对应继承，更正对应取代）
 过时 → 认知投影新鲜度/有效性
 遗忘 → 有效强度，继而归档 / 墓碑 / 清除
 准入下注的浪费或证实 → utility
@@ -881,4 +881,4 @@ derived_from / compiled_from / consolidated_to: 从 Activity 溯源计算得出
 
 # 25. 终极准则
 
-> **认知记忆 Profile 的使命，是使过往的记忆在结构上高度可重用，同时绝不将记忆的可访问性、认识论信念、自传体身份或程序性效用，与执行权限混为一谈。**
+> **认知记忆 Profile 的使命，是使过往的记忆在结构上高度可重用，同时绝不将记忆的可访问性、信念、自传体身份或程序性效用，与执行权限混为一谈。**

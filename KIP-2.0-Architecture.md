@@ -49,6 +49,8 @@ Governance Plane
 
 These four planes are orthogonal but connected.
 
+The **Epistemic Plane** concerns an actor's stance toward a Proposition, its evidence and confidence, and how these inform belief under a given policy and context. It is one dimension of the broader **cognitive state**, which also includes the Semantic, Mnemonic and Governance Planes.
+
 The architecture is summarized as:
 
 ```text

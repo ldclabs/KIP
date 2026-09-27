@@ -49,6 +49,8 @@ KIP 1.x 仅作为兼容与迁移参考来源，不构成 KIP 2.0 语义的规范
 
 示例、设计依据、解释性图表以及非规范性实现说明不得推翻规范性要求。
 
+**中文术语说明**：Epistemic 译作“认知”，特指信念及其依据，如认知投影（Epistemic Projection）、认知置信度（epistemic confidence）。Cognitive 的范围更广，涵盖记忆、学习与推理等整体认知状态和过程。二者在中文中的共同用词不表示概念等同；并列或容易混淆时保留英文或使用“信念层面”等限定语。参见[术语表](./CONTEXT_CN.md#核心状态与信任)。本说明仅解释译法。
+
 ---
 
 # 1. 引言 (Introduction)
@@ -84,7 +86,7 @@ Meaning (含义)
     可以表达什么？
 
 Belief (信念)
-    大脑当前应当将什么视为认识上被接受的事实？
+    大脑当前应当将什么视为认知上被接受的事实？
 
 Authority (权威/权限)
     谁可以读取、写入、投影、共享、执行或提升认知？
@@ -108,11 +110,11 @@ Authority (权威/权限)
 大脑接受该命题 (Brain accepts Proposition)
 ```
 
-被接受的信念必须通过**认识论投影 (Epistemic Projection)** 衍生得出。
+被接受的信念必须通过**认知投影 (Epistemic Projection)** 衍生得出。
 
 ---
 
-## 2.2 断言承载认识承诺 (Assertions carry epistemic commitment)
+## 2.2 断言承载认知承诺 (Assertions carry epistemic commitment)
 
 断言 (Assertion) 记录了一个语义行动主体对某个命题所采取的立场。
 
@@ -126,7 +128,7 @@ confidence (置信度)
 asserted_at (断言时间)
 valid_time (世界有效时间)
 Evidence citations (证据引用)
-epistemic lifecycle (认识生命周期)
+epistemic lifecycle (认知生命周期)
 ```
 
 ---
@@ -219,7 +221,7 @@ SEARCH 检索的相关性**严禁**被解释为：
 真值概率 (truth probability)
 断言置信度 (Assertion confidence)
 源信任度 (source trust)
-认识论投影状态 (Epistemic Projection status)
+认知投影状态 (Epistemic Projection status)
 ```
 
 ---
@@ -275,11 +277,11 @@ KIP 2.0 包含以下概念分层：
 │ KML    Cognitive Mutation Language (认知变更) │
 │ META   Introspection / Grounding / Verify    │
 ├──────────────────────────────────────────────┤
-│ Epistemic Projection (认识论投影)            │
+│ Epistemic Projection (认知投影)              │
 │ Cognitive Profiles (认知 Profiles)           │
 ├──────────────────────────────────────────────┤
 │ Semantic / Epistemic / Mnemonic State        │
-│ (语义 / 认识 / 记忆状态)                      │
+│ (语义 / 认知 / 记忆状态)                      │
 ├──────────────────────────────────────────────┤
 │ Governance Control Plane (治理控制平面)       │
 ├──────────────────────────────────────────────┤
@@ -326,7 +328,7 @@ KIP 不强制规定具体的数据库架构。
 
 **认知状态 (Cognitive State)** 是可能参与智能体未来计算的持久化外部状态。
 
-它包括语义与认识记录、记忆/Profile 状态以及相关的溯源信息。
+它包括语义记录、信念层面的认知记录、记忆/Profile 状态以及相关的溯源信息。
 
 ---
 
@@ -568,7 +570,7 @@ KIP 2.0 不再提供规范性的通用作者可写 `metadata` 黑盒。
 
 ```text
 语义载荷 (semantic payload)        → 类型化字段 / 属性 (typed fields / attributes)
-认识状态 (epistemic state)         → 断言 (Assertion)
+认知状态 (epistemic state)         → 断言 (Assertion)
 证据 (Evidence)                    → 证据 (Evidence)
 溯源 (provenance)                  → 活动 / 来源 (Activity / origin)
 治理 (governance)                  → 治理状态 (Governance state)
@@ -831,7 +833,7 @@ null        按值比较，仅限谓词允许的场合 (§9.5)
 操作/Profile 取值 (operational/profile values)
 ```
 
-前提是这些数据不需要独立的认识生命周期。
+前提是这些数据不需要独立的认知生命周期。
 
 ---
 
@@ -999,7 +1001,7 @@ object (宾语)
 
 ---
 
-## 12.6 无原生认识字段 (No epistemic fields)
+## 12.6 无原生认知字段 (No epistemic fields)
 
 命题原生**严禁**承载：
 
@@ -1033,7 +1035,7 @@ Schema **可以**将布尔候选值关联为互斥关系，但核心层**必须*
 
 ## 13.1 定义 (Definition)
 
-**断言 (Assertion)** 是对恰好一个命题在历史上可归属的认识承诺。
+**断言 (Assertion)** 是对恰好一个命题在历史上可归属的认知承诺。
 
 ---
 
@@ -1150,7 +1152,7 @@ imported (外部导入)
 
 ## 13.7 不可变的断言载荷 (Immutable assertion payload)
 
-创建之后，历史认识载荷**应当**保持不可变，包括：
+创建之后，历史认知载荷**应当**保持不可变，包括：
 
 ```text
 proposition (命题)
@@ -1168,7 +1170,7 @@ initial Evidence citations (初始证据引用)
 
 ## 13.8 修订 (Revision)
 
-若认识承诺发生实质性改变，应当创建一个新的断言。
+若认知承诺发生实质性改变，应当创建一个新的断言。
 
 不得直接修改旧断言的置信度/立场/取值来代表当前信念。
 
@@ -1448,13 +1450,13 @@ Experience.has_step → Step
 
 ---
 
-## 17.3 认识论意义 (Epistemic meaning)
+## 17.3 认知意义 (Epistemic meaning)
 
 结构的存在本身不需要附加断言立场。
 
-若针对某种结构关系本身的陈述需要进行认识论处理，应将其单独建模为语义命题。
+若针对某种结构关系本身的陈述需要进行认知处理，应将其单独建模为语义命题。
 
-当结构关系随后变得具有认识论意义时，不要重写拓扑结构。保留结构引用的同时，添加针对该关系的语义命题 + 断言（即*语义阴影 / semantic shadow*）：结构边保持为记录事实，而语义阴影则承载立场、证据、有效性与可争议性。
+当结构关系随后变得具有认知意义时，不要重写拓扑结构。保留结构引用的同时，添加针对该关系的语义命题 + 断言（即*语义阴影 / semantic shadow*）：结构边保持为记录事实，而语义阴影则承载立场、证据、有效性与可争议性。
 
 ---
 
@@ -1535,7 +1537,7 @@ UNSET STRUCTURAL { (field, target) }              移除该条引用
 不可变性 (immutability)
 治理规则 (Governance)
 来源记录 (origin)
-认识论区分 (epistemic distinctions)
+认知区分 (epistemic distinctions)
 ```
 
 ---
@@ -1574,7 +1576,7 @@ salience (显著性)
 utility (效用度)
 ```
 
-这些信号必须与认识论层面的置信度/信任度保持严格区分。
+这些信号必须与认知层面的置信度/信任度保持严格区分。
 
 ---
 
@@ -1583,7 +1585,7 @@ utility (效用度)
 KIP 严格区分多种不同形式的遗忘与移除机制：
 
 ```text
-认识层面的撤回/废弃替代 (epistemic retraction/supersession)
+认知层面的撤回/废弃替代 (epistemic retraction/supersession)
 记忆层面的衰减减弱 (mnemonic weakening)
 归档 (archive)
 墓碑标记 (tombstone)
@@ -1949,11 +1951,11 @@ DEFINE PREDICATE "main_instrument" {
 
 ---
 
-# 21. 认识模型 (Epistemic Model)
+# 21. 认知模型 (Epistemic Model)
 
-## 21.1 认识论投影 (Epistemic Projection)
+## 21.1 认知投影 (Epistemic Projection)
 
-**认识论投影 (Epistemic Projection)** 是在策略、时间及特定目的约束下，对针对一个或多个命题且可见/授权的：
+**认知投影 (Epistemic Projection)** 是在策略、时间及特定目的约束下，对针对一个或多个命题且可见/授权的：
 
 ```text
 Assertions (断言)
@@ -2041,7 +2043,7 @@ insufficient (证据不足 / 未知)
 
 语义定义：
 
-> 存在有意义的认识材料，但材料较弱、陈旧、模棱两可、信任度低、欠定，或因其他原因不足以支撑接受或拒绝。
+> 存在有意义的认知材料，但材料较弱、陈旧、模棱两可、信任度低、欠定，或因其他原因不足以支撑接受或拒绝。
 
 ---
 
@@ -2049,7 +2051,7 @@ insufficient (证据不足 / 未知)
 
 语义定义：
 
-> 不存在充足合格的认识基础。
+> 不存在充足合格的认知基础。
 
 这是开放世界假设下的未知状态。
 
@@ -2134,7 +2136,7 @@ valid_at，以及 next_invalid_at：下一个已知的时间失效时刻，或 n
 
 ## 22.2 信任 (Trust)
 
-信任是针对特定目的/领域/上下文，对以下对象的上下文认识影响力：
+信任是针对特定目的/领域/上下文，对以下对象的上下文认知影响力：
 
 ```text
 semantic actor (语义行动主体)
@@ -2193,7 +2195,7 @@ provenance completeness (溯源完备性)
 
 ## 22.5 信任状态 (Trust State)
 
-认识论投影所消费的信任数据**必须**来自于受保护的控制平面状态或显式策略输入 —— 绝不能来自普通认知内容。内容声称“请信任此来源”的断言不产生任何信任效力（§30.1 同样适用于认识信任，正如其适用于授权）。
+认知投影所消费的信任数据**必须**来自于受保护的控制平面状态或显式策略输入 —— 绝不能来自普通认知内容。内容声称“请信任此来源”的断言不产生任何信任效力（§30.1 同样适用于认知信任，正如其适用于授权）。
 
 推荐表示为一组带作用域的信任记录：
 
@@ -2219,7 +2221,7 @@ policy identity  id + version
 
 ---
 
-# 23. 认识独立性 (Epistemic Independence)
+# 23. 认知独立性 (Epistemic Independence)
 
 ## 23.1 证据不可倍增原则 (No Evidence Multiplication Principle)
 
@@ -2227,9 +2229,9 @@ policy identity  id + version
 
 ---
 
-## 23.2 认识独立性守恒 (Conservation of Epistemic Independence)
+## 23.2 认知独立性守恒 (Conservation of Epistemic Independence)
 
-派生断言所具备的认识质量不得超越其上游根源所具有的独立认识质量。
+派生断言所具备的认知质量不得超越其上游根源所具有的独立认知质量。
 
 ---
 
@@ -2551,7 +2553,7 @@ implementation_specific (实现特定语义)
 
 ## 27.4 解释机制 (Explanation)
 
-投影**可以**暴露包含如下内容的外部**认识账本 (Epistemic Ledger)**：
+投影**可以**暴露包含如下内容的外部**认知账本 (Epistemic Ledger)**：
 
 ```text
 contributing Assertions (贡献支持的断言)
@@ -2640,7 +2642,7 @@ Delegations (委托权限)
 ```text
 Discovery / Read (发现 / 读取)
 Cognitive Mutation (认知变更)
-Epistemic Mutation (认识变更)
+Epistemic Mutation (信念层面的认知变更)
 Identity (身份标识)
 Maintenance (维护治理)
 Sharing (共享分发)
@@ -2657,7 +2659,7 @@ Audit (审计追踪)
 discover (发现存在性)
 read (读取内容)
 search (检索)
-project (认识论投影)
+project (认知投影)
 
 create (创建)
 update (更新)
@@ -2737,7 +2739,7 @@ propose_schema (提议模式)    draft_vocabulary       在 Space 的草稿词�
 
 ## 29.4 `project` (投影权限)
 
-允许在受许可的策略下执行认识论投影。
+允许在受许可的策略下执行认知投影。
 
 策略**可以**允许返回投影结果而不暴露底层的原始证据。
 
@@ -2747,7 +2749,7 @@ propose_schema (提议模式)    draft_vocabulary       在 Space 的草稿词�
 
 仅允许修改可变的非保护字段。
 
-它不包含重写不可变语义/认识历史的权限。
+它不包含重写不可变语义/认知历史的权限。
 
 ---
 
@@ -3397,7 +3399,7 @@ space_id + space_seq + tx_id
 
 KQL 是 KIP 的声明式只读查询语言。
 
-除非使用了显式的认识论投影原语，原生 KQL 默认读取底层的原始认知状态。
+除非使用了显式的认知投影原语，原生 KQL 默认读取底层的原始认知状态。
 
 ---
 
@@ -3909,7 +3911,7 @@ KQL 分页游标**必须**为该次遍历保留单一规范认知快照。
 
 ## 46.2 虚拟输出 (Virtual output)
 
-`?belief` 是虚拟的认识论投影结果。
+`?belief` 是虚拟的认知投影结果。
 
 它不是持久化存储的核心状态。
 
@@ -4009,7 +4011,7 @@ AS OF SEQ 1500
 
 ## 48.2 `FOR TIME` (世界有效时间)
 
-为认识论投影指定现实世界有效时间：
+为认知投影指定现实世界有效时间：
 
 ```prolog
 FOR TIME :world_time
@@ -4059,7 +4061,7 @@ KQL **必须**支持区分以下两者：
 
 ---
 
-# 49. WITH EPISTEMIC (认识论参数子句)
+# 49. WITH EPISTEMIC (认知参数子句)
 
 推荐形式：
 
@@ -4105,7 +4107,7 @@ KQL 响应**必须**标识其所在空间（Space）与快照；投影结果还*
 space_id (空间ID)
 snapshot_seq (快照序列号)
 schema_environment_version (Schema 环境版本)
-resolved Epistemic Policy/version when used (生效的认识策略与版本)
+resolved Epistemic Policy/version when used (生效的认知策略与版本)
 world valid time when used (生效的现实世界有效时间)
 materialized projection policy identity and snapshot basis when a cached projection is served (物化投射的策略身份与快照基准，见 §21.9)
 ```
@@ -4405,7 +4407,7 @@ ENSURE PROPOSITION ?p (
 
 ## 55.1 `ASSERT` 语法糖形式 (The `ASSERT` Sugar Form)
 
-记录一条归属声明是记忆大脑最高频的认识写入操作。因此 KML 定义了一个**规范性语法糖语句**，使得在认识上保持诚实的方式同时也是最具人机工效的便捷路径：
+记录一条归属声明是记忆大脑最高频的认知写入操作。因此 KML 定义了一个**规范性语法糖语句**，使得在认知上保持诚实的方式同时也是最具人机工效的便捷路径：
 
 ```prolog
 ASSERT ?a (:alice, "prefers", :dark_mode) {
@@ -4595,7 +4597,7 @@ TRANSITION :old TO "superseded" BY ?new
 
 ## 57.5 修订与派生认知 (Revision and derived cognition)
 
-废弃替代或撤回断言、纠错证据，改变的是认识投影的计算输出。这一操作不会自动修改或撤销由此溯源根节点所派生出的认知：在原主张有效期间构建的 Insight、编译后的 Skill、WorkingState 或 SelfModel，依然保持活跃状态。
+废弃替代或撤回断言、纠错证据，改变的是认知投影的计算输出。这一操作不会自动修改或撤销由此溯源根节点所派生出的认知：在原主张有效期间构建的 Insight、编译后的 Skill、WorkingState 或 SelfModel，依然保持活跃状态。
 
 运行时**严禁**仅因某个溯源根节点被修订，就自动撤回、自动归档或自动改写下游派生认知。派生元素是否随根节点变动而失效，属于认知层面的复审决策，而非协议层的硬性规则。
 
@@ -4610,7 +4612,7 @@ TRANSITION :old TO "superseded" BY ?new
 ```text
 all_of    每一个固定的先决条件均是必需的
 any_of    固定引用构成替代性支持
-context   仅供披露；绝不构成认识论支持
+context   仅供披露；绝不构成认知支持
 ```
 
 分组的成员关系对派生而言是固定的；发生变更的派生属于新记录。
@@ -4650,7 +4652,7 @@ current        其他情况
 
 公布了 `recording_repair` (§67.4) 的运行时提供符合 `RecordingRepair` 输入结构 (`schemas/kip-cognitive-records.schema.json`) 的受保护操作。该操作需要 `repair_recording` 权限 (§29) 以及针对任何替换断言的常规权限；无论是记录归属权限还是 `update` 均不赋予修复权限。默认情况下，该权限仅限于经认证的录入者自身基于源数据的输出；更广泛的复审需要显式的受保护授权（protected grant）。
 
-在一个事务内，引擎**必须**校验不可变源标识与摘要、源定位符、录入者的主体来源、预期版本、替换项的引用闭包以及 actor/上下文绑定；随后追加一个终态 `recording_repair` Activity，以及对错误提取的受保护作废标记，暴露为受治理的虚拟字段 `_system.recording_validity`（`valid | invalidated`，带有可发现的 `repair_ref` 或 `null`）。作废操作会在不重写元素认识论载荷的前提下推进受影响元素的版本；源数据字节、原始断言载荷以及 actor 的生命周期均得以完整保留。当前的投影会排除已作废的提取，其下游依赖变为 `needs_review` (§57.6)；原始历史指明该修复，而历史读取在当前授权下使用其快照处的修复状态。修复操作推进 Space 序列号及相关的控制坐标 (§36.1)。
+在一个事务内，引擎**必须**校验不可变源标识与摘要、源定位符、录入者的主体来源、预期版本、替换项的引用闭包以及 actor/上下文绑定；随后追加一个终态 `recording_repair` Activity，以及对错误提取的受保护作废标记，暴露为受治理的虚拟字段 `_system.recording_validity`（`valid | invalidated`，带有可发现的 `repair_ref` 或 `null`）。作废操作会在不重写元素认知载荷的前提下推进受影响元素的版本；源数据字节、原始断言载荷以及 actor 的生命周期均得以完整保留。当前的投影会排除已作废的提取，其下游依赖变为 `needs_review` (§57.6)；原始历史指明该修复，而历史读取在当前授权下使用其快照处的修复状态。修复操作推进 Space 序列号及相关的控制坐标 (§36.1)。
 
 替换断言描述的是原始主张：其 `asserted_at` **必须**从该原始来源恢复（§13.2），绝不能取修复请求或修复事务的时间。
 
@@ -4699,7 +4701,7 @@ SET FACET "MnemonicState" {salience: 0.9}
 ```text
 命题元组 (Proposition tuple)
 Concept merged_into / 受保护的实体识别解析状态
-断言历史认识载荷 (Assertion historical epistemic payload)
+断言历史认知载荷 (Assertion historical epistemic payload)
 证据载荷 (Evidence payload)
 已完成活动的溯源拓扑 (completed Activity provenance topology)
 _system 内部系统字段
@@ -4709,7 +4711,7 @@ Schema 环境配置 (Schema Environment)
 
 ---
 
-## 58.2 认识修订诊断 (Epistemic revision diagnostic)
+## 58.2 认知修订诊断 (Epistemic revision diagnostic)
 
 当客户端尝试直接修改不可变的断言信念历史时，运行时**应当**返回语义错误代码，例如：
 
@@ -4773,7 +4775,7 @@ COALESCE
 
 ## 59.1 记忆衰减 (Mnemonic decay)
 
-记忆代谢机制**可以**降低 `memory_strength`；**严禁**仅仅因为时间流逝就定期衰减 Assertion 的置信度。时间相关性由认识论投影（Projection）负责处理。
+记忆代谢机制**可以**降低 `memory_strength`；**严禁**仅仅因为时间流逝就定期衰减 Assertion 的置信度。时间相关性由认知投影（Projection）负责处理。
 
 衰减是计算得出的，而非显式写入的。在 Cognitive Memory Profile 中，`MnemonicState.memory_strength` 是最后显式写入的基准值，`last_metabolized_at` 是其基准锚点时间，`strength_policy` 是固定的策略工件 —— 标准策略为半衰期策略 `kip:strength-half-life-30d`（`profiles/policy-strength-half-life-30d.json`）；只读虚拟成员 `effective_strength` 在评估读取时由它们动态计算得出 (Profile §6.1, §18)。读取操作绝不会将其写回。当基准值、锚点时间或策略缺失时，有效强度为 `null`（未知），运行时或 Brain **严禁**擅自代入默认值（如 `0.5`）。因此，空闲闲置的记忆不会产生写入开销、变更信封或缓存失效。
 
@@ -6082,7 +6084,7 @@ syntax (语法错误)
 protocol (协议错误)
 schema (模式错误)
 data (数据错误)
-epistemic (认识模型错误)
+epistemic (认知模型错误)
 governance (治理权限错误)
 transaction (事务错误)
 history (历史记录错误)
@@ -6176,11 +6178,11 @@ IdentityMergeConflict (身份合并冲突)
 
 ---
 
-## 87.4 认识与可变性类 (Epistemic / mutability)
+## 87.4 认知与可变性类 (Epistemic / mutability)
 
 ```text
 ImmutableField (不可变字段)
-EpistemicRevisionRequired (需要进行认识修订)
+EpistemicRevisionRequired (需要进行认知修订)
 EvidenceCorrectionRequired (需要进行证据纠错)
 InvalidLifecycleTransition (生命周期状态迁移无效)
 RetractionNotAuthorized (未授权撤回)
@@ -6353,13 +6355,13 @@ OPTIONAL (可选匹配)
 
 ## 88.10 捏造佐证防护 (Manufactured corroboration)
 
-复制或衍生操作**严禁**凭空产生独立的认识论证据。
+复制或衍生操作**严禁**凭空产生独立的认知证据。
 
 ---
 
 ## 88.11 反驳证据移除防护 (Counter-Evidence removal)
 
-证据的删除/清除**应当**可审计且保持保守，因为移除反驳证据会实质性改变未来的认识论投影结果。
+证据的删除/清除**应当**可审计且保持保守，因为移除反驳证据会实质性改变未来的认知投影结果。
 
 ---
 
@@ -6432,7 +6434,7 @@ Schema META introspection (Schema META自省)
 
 ---
 
-# 92. KIP-Epistemic 认识合规性 (KIP-Epistemic Conformance)
+# 92. KIP-Epistemic 认知合规性 (KIP-Epistemic Conformance)
 
 要求支持：
 
@@ -7255,7 +7257,7 @@ Alice 支持命题 `P`；Bob 反对命题 `P`。
 
 ```text
 保留两条断言记录 (keep both Assertions)
-执行认识论投影 (run Epistemic Projection)
+执行认知投影 (run Epistemic Projection)
 得出状态可能为存在争议 (possibly status = contested)
 ```
 
@@ -7489,7 +7491,7 @@ Core (核心层)
 Schema (模式层)
     这些认知对象代表什么含义？
 
-Epistemic Projection (认识论投影)
+Epistemic Projection (认知投影)
     大脑应当相信什么？
 
 Governance (治理层)
@@ -7523,7 +7525,7 @@ Proposition (命题) ≠ Assertion (断言)
 
 Confidence (置信度) ≠ Trust (信任度) ≠ Memory Strength (记忆强度)
 
-Search Relevance (检索相关性) ≠ Epistemic Support (认识支持)
+Search Relevance (检索相关性) ≠ Epistemic Support (认知支持)
 
 No Match (未匹配) ≠ False (为假)
 

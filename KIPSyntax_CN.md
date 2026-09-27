@@ -546,7 +546,7 @@ safe_same_request | requires_refresh | requires_different_input | requires_autho
 3. **涉真问题必须使用 `BELIEF`/`BELIEF SLOT`**；原始 `FIND` 仅用于审计、历史分析与冲突排查。对 `insufficient` 应如实告知“依据不足”，绝不能判定为“假/否”。
 4. **三类修订**：行动者有误 → `ASSERT ... SUPERSEDING :old`（重大变更补充记录 `belief_revision` 活动）；现实世界变迁 → 一条带有 `valid.from` 的 `ASSERT`；Brain 录入有误 → 录入修复。不同主体间的观点分歧保持共存。
 5. **单次认知变迁 = 单一原子 MUTATE / 事务**：证据+断言；经历+步骤+活动；更正+废弃。绝不能留下残缺状态。
-6. **代谢仅触碰 Facet**：衰减是计算得出的；通过写入新的基数与锚点进行强化；调节 `salience` —— 断言置信度绝不能原位修改，且 `GradingState` 绝不写入；产生认识论层面的重大新认知应创建新断言。
+6. **代谢仅触碰 Facet**：衰减是计算得出的；通过写入新的基数与锚点进行强化；调节 `salience` —— 断言置信度绝不能原位修改，且 `GradingState` 绝不写入；信念及其依据发生实质性变化时应创建新断言。
 7. **移除操作梯度分级**：归档（archive）→ 逻辑删除（tombstone）→ 物理抹除（purge，受策略控制，需显式确认）。合并是非破坏性的；发现同一性疑点 = 声明 `same_as` 主张并提交复审。
 8. **重试遵循规范写入路径**：相同意图 = 相同的 `idempotency_key`；现实世界中不同独立观测 = 不同的 `client_key`。重试不等于产生了新经历。
 9. **严格区分双时间轴**：`FOR TIME` 表达“现实世界在何时有效”，`AS OF` 表达“大脑在当时认知状态下相信什么”；仅在两者均明确指定时才同时使用。

@@ -6,6 +6,8 @@
 
 ## 核心状态与信任
 
+**Cognitive / Epistemic（认知的不同范围）**：Cognitive 泛指支持智能体记忆、学习与推理的整体状态和过程。Epistemic 专指主体对命题的立场、证据依据与置信度，以及在给定策略和上下文中的信念判定。中文采用“认知平面”“认知投影”“认知置信度”等译法表达 Epistemic，其范围限定于信念及其依据。认知平面（Epistemic Plane）与语义、记忆、治理平面并列，是整体认知状态（Cognitive State）的一个维度。
+
 **Concept（概念）**：MemorySpace 中的语义实体，类型与字段由带版本的 Schema Package 定义。
 
 **Proposition（命题）**：真值中立的语义陈述。存在一条命题不代表它为真，也不代表大脑接受它。

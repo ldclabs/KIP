@@ -59,7 +59,7 @@ Formation/Recall/Maintenance 大脑具体的认知策略实现
         输入观测
            ↓
         生成证据 (Evidence)
-           ├────────→ 命题 (Proposition) → 断言 (Assertion) → 认识投影 (Epistemic Projection)
+           ├────────→ 命题 (Proposition) → 断言 (Assertion) → 认知投影 (Epistemic Projection)
            ↓
      事件 (Event) / 经验 (Experience)
            ├────────→ 语义巩固 (Semantic Consolidation) → 可复用断言 / 洞见 (Insight)
@@ -150,7 +150,7 @@ Experiences / Evidence
 → 候选 Proposition
 → 派生 Assertion
 → semantic_consolidation Activity
-→ 认识投影 (Epistemic Projection)
+→ 认知投影 (Epistemic Projection)
 ```
 
 派生出的认知绝不能将源自同一证据根的多份摘要误判为独立的多方佐证。
@@ -182,7 +182,7 @@ Experiences / Evidence
 # 14. 四类学习产物
 
 ## 语义学习 (Semantic learning)
-通过新 Evidence、新 Assertion 及冲突解决，改变大脑未来的认识信念。
+通过新 Evidence、新 Assertion 及冲突解决，改变大脑未来的信念。
 
 ## 记忆状态学习 (Mnemonic learning)
 通过 `memory_strength` 与 `salience` 调整未来召回的可提取性，客观真值保持不变。
@@ -204,11 +204,11 @@ Experiences / Evidence
 | **utility** | 流程在实践中的程序实用性 |
 | **validity / currentness** | 在时间维度上的现实适用性 |
 
-严禁在缺乏新的认识论 Evidence 的情况下，仅凭“近期未被召回”就机械降低 Assertion 的置信度。
+严禁在缺乏新的认知 Evidence 的情况下，仅凭“近期未被召回”就机械降低 Assertion 的置信度。
 
 # 16. 强化与证据的界限
 
-重复检索不会凭空产生证据、不能提高置信度，也无法证明命题为真。独立的多方重复观测方可增强认识支持度。Skill 的重复成功使用可提升其程序效用分。反复查看同一来源的内容不能构成独立多方佐证。
+重复检索不会凭空产生证据、不能提高置信度，也无法证明命题为真。独立的多方重复观测方可增强认知支持度。Skill 的重复成功使用可提升其程序效用分。反复查看同一来源的内容不能构成独立多方佐证。
 
 # 17. 技能模型 (Skill Model)
 
@@ -273,7 +273,7 @@ SelfModel 的更新节奏应显著慢于日常 Event 形成。推荐的数据源
 # 25. 遗忘的多维机制
 
 ```text
-认识层面的撤回 / 废弃替代 (retraction / supersession)
+认知层面的撤回 / 废弃替代 (retraction / supersession)
 记忆状态的提取度弱化 (memory_strength decay)
 逻辑归档 (archive)
 治理层面的权限排除 (Governance exclusion)

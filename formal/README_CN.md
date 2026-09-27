@@ -8,7 +8,7 @@ KIP 2.0 规范的机器检查模型。验证结果、发现与范围限制详见
 
 | 套件 | 工具 | 验证目标 |
 | --- | --- | --- |
-| [`alloy/kip-core.als`](./alloy/kip-core.als) | Alloy 6 (时序) | 核心数据模型：命题 (Proposition) / 断言 (Assertion) / 证据 (Evidence) 生命周期、概念合并 (Concept merge)、同空间闭包 (Same-Space closure)、认识根守恒 (§23)、源头绑定权限 (§31.5) |
+| [`alloy/kip-core.als`](./alloy/kip-core.als) | Alloy 6 (时序) | 核心数据模型：命题 (Proposition) / 断言 (Assertion) / 证据 (Evidence) 生命周期、概念合并 (Concept merge)、同空间闭包 (Same-Space closure)、认知根守恒 (§23)、源头绑定权限 (§31.5) |
 | [`tla/KipTransactions.tla`](./tla/KipTransactions.tla) | TLA+ / TLC | 事务：原子提交、`EXPECT VERSION`、幂等性（包括与 `no_effect` 的交互）、`space_seq` / 提交记录 (Commit Record) (§32–§36) |
 | [`governance/check_governance.py`](./governance/check_governance.py) | Python (穷举) | §30 治理策略评估：拒绝优先 (deny-overrides)、不变式至高性 (invariant supremacy)、顺序无关性 (order-independence) |
 | [`grammar/check_ebnf.py`](./grammar/check_ebnf.py) | Python (静态) | KQL/KML/META EBNF：格式良构性、可达性、跨文法漂移检查 |
