@@ -15,7 +15,25 @@ const CommandObjectSchema = z
   })
   .strict()
 
-const CommandEntrySchema = z.union([z.string().min(1), CommandObjectSchema])
+/**
+ * Advertised as one schema with a type list rather than a `z.union`, which
+ * would derive an `anyOf`: model providers restrict schema combinators in
+ * tool parameters. The refinement still checks both shapes.
+ */
+const CommandEntrySchema = z
+  .unknown()
+  .refine(
+    (value) =>
+      (typeof value === 'string' && value.length > 0) ||
+      CommandObjectSchema.safeParse(value).success,
+    'Expected a command string or an object { command, parameters }.'
+  )
+  .meta({
+    type: ['string', 'object'],
+    properties: z.toJSONSchema(CommandObjectSchema).properties,
+    required: ['command'],
+    additionalProperties: false
+  })
 
 export const ExecuteKipInputSchema = z
   .object({

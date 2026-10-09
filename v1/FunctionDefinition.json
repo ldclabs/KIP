@@ -10,30 +10,27 @@
       },
       "commands": {
         "type": "array",
-        "description": "An array of KIP commands (KQL / KML / META) for batch execution (reduces round-trips). Commands are executed sequentially. KQL/META/syntax errors are returned inline; the first KML (UPSERT/UPDATE/MERGE/DELETE) error stops the batch to preserve write atomicity.",
+        "description": "An array of KIP commands (KQL / KML / META) for batch execution (reduces round-trips). Mutually exclusive with command. Commands are executed sequentially. KQL/META/syntax errors are returned inline; the first KML (UPSERT/UPDATE/MERGE/DELETE) error stops the batch to preserve write atomicity.",
         "items": {
-          "oneOf": [
-            {
-              "type": "string"
+          "type": [
+            "string",
+            "object"
+          ],
+          "description": "A complete KIP command, or an object that gives it its own parameters.",
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "A complete KIP command with parameters scoped to this command."
             },
-            {
+            "parameters": {
               "type": "object",
-              "properties": {
-                "command": {
-                  "type": "string",
-                  "description": "A complete KIP command with parameters scoped to this command."
-                },
-                "parameters": {
-                  "type": "object",
-                  "description": "Optional parameters for this command. These override shared parameters with the same keys."
-                }
-              },
-              "required": [
-                "command"
-              ],
-              "additionalProperties": false
+              "description": "Optional parameters for this command. These override shared parameters with the same keys."
             }
-          ]
+          },
+          "required": [
+            "command"
+          ],
+          "additionalProperties": false
         }
       },
       "parameters": {
@@ -45,18 +42,6 @@
         "description": "If set to true, the command(s) will only be validated for syntactical and logical correctness without being executed."
       }
     },
-    "oneOf": [
-      {
-        "required": [
-          "command"
-        ]
-      },
-      {
-        "required": [
-          "commands"
-        ]
-      }
-    ],
     "additionalProperties": false
   }
 }

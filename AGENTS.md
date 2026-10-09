@@ -112,6 +112,19 @@ and conformance cases. A state-contract change may affect prose, shared schemas,
 the Profile package, fixtures, models, portable vectors and downstream guidance.
 Test observable behavior and meaningful failure cases, not only field presence.
 
+Never use `oneOf`, `anyOf` or `allOf` in a model-facing schema: function
+definitions such as `v1/FunctionDefinition*.json` and
+`v1/brain/RecallFunctionDefinition.json`, MCP tool input schemas such as the
+zod schemas of `v1/mcp/kip-mcp-server`, and their 2.0 counterparts in
+`anda-db/rs/anda_kip`. Anthropic rejects them at the top level of a tool's
+`input_schema` and fails the whole request with a 400 (a top-level `oneOf` on
+`execute_kip` once broke every Brain pass on Claude); strict modes reject them
+anywhere. Use a type list (`"type": ["string", "object"]`, `["string", "null"]`)
+for alternatives, keep cross-field rules such as "exactly one of `command` or
+`commands`" in the descriptions and the executor's argument checks, and check
+the JSON a zod `union` actually emits. The wire and artifact validation schemas
+under `schemas/` and `conformance/` are never sent to a model and may use them.
+
 During the 2.0 draft, artifact identities are stable names
 (`kip://profiles/cognitive-memory@2.0.0`, `urn:kip:2.0:schema:*`) and a draft
 revision is identified by its content digest; earlier draft packages are not
