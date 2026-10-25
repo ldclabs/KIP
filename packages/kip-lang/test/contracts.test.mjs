@@ -316,6 +316,9 @@ test('packages: the memory and general domain packages validate, and prefers is 
   const broken = structuredClone(general)
   broken.definitions.predicates.lives_in.functional_by = 'object_type'
   assert.equal(ajv.validate('urn:kip:2.0:schema:schema-package', broken), false)
+  const unpartitioned = structuredClone(memory)
+  unpartitioned.definitions.predicates.prefers.object = {}
+  assert.equal(ajv.validate('urn:kip:2.0:schema:schema-package', unpartitioned), false)
   // Removed caches stay removed; computed members are marked and read-only.
   assert.equal(memory.definitions.facets.TrialState, undefined)
   assert.equal(memory.definitions.facets.DerivationState, undefined)

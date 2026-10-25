@@ -33,7 +33,7 @@ transaction chronology        (事务时间序列编年史)
 可能要求满足（当客户端需要依赖时，每一项均作为能力通告，§67.4）：
 
 ```text
-serializable transactions    (严格可串行化事务)
+serializable_isolation       (严格可串行化事务隔离)
 signed Receipts              (带数字签名的提交回执)
 canonical request/plan digests (规范化请求/计划摘要)
 exact historical Schema      (精确历史模式追溯)

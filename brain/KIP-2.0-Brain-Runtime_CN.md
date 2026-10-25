@@ -51,4 +51,4 @@ receiver_fenced   在拥有副作用的接收端确认接受处线性化
 
 ## 5. 验收 (Acceptance)
 
-测试在原生准入之后且在接收端接受之前暂停执行，随后演练接管、撤销、延迟、重复投递与重启（REL-007）。Watch 代际、水位线与租约由 MEM-009 与有界模型 `formal/watch/check_watch.py` 锁定；[BrainEvaluation](./BrainEvaluation.md) §2 的可靠运行时关卡注入剩余故障。
+测试在原生准入之后且在接收端接受之前暂停执行，随后演练接管、撤销、延迟、重复投递与重启（REL-007）。Watch 代际、水位线与租约由 MEM-009 与有界模型 `formal/watch/check_watch.py` 锁定；[BrainEvaluation_CN.md](./BrainEvaluation_CN.md) §2 的可靠运行时关卡注入剩余故障。

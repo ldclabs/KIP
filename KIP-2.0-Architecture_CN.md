@@ -2047,8 +2047,8 @@ causal memory utility (因果记忆实用度)
 本架构设计最初确立的设计不变式，现已由两处来源统一维护在一个公共注册表中，本文档不再逐条重述：
 
 ```text
-Specification §102    必须遵守的合规不变式：38 条协议层条目，收录于注册表 Part A
-Profile §23           Profile 不变量：35 条记忆层条目，收录于注册表 Part B
+Specification §102    必须遵守的合规不变式：49 条协议层条目，收录于注册表 Part A
+Profile §23           Profile 不变量：49 条记忆层条目，收录于注册表 Part B
 KIP-2.0-Invariants_CN.md 两处均指向的这唯一一份公共注册表，每条标明确立章节与钉住向量
 ```
 

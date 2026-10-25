@@ -175,10 +175,6 @@
     "minimum_output": [
       "status",
       "leading",
-      "policy_id",
-      "policy_version",
-      "valid_at",
-      "as_of",
       "candidate_status",
       "slot_status",
       "basis",
@@ -228,7 +224,7 @@
   },
   "integrity": {
     "digest_profile": "kip-jcs-safe-v1",
-    "content_digest": "sha256:b70ae00cce4e974871c513b4a8b1e8cf5d5fccb08c682c60c0ccc6e8a084e03e",
+    "content_digest": "sha256:8019ff432026475629ab10850a84bfac78cdaddb101b3923630e5a99c5e45964",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }

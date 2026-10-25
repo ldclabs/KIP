@@ -73,98 +73,16 @@
                 "minLength": 1
               },
               "kind": {
-                "type": "string",
-                "minLength": 1
+                "const": "ConceptType"
               },
               "description": {
                 "type": "string"
               },
               "fields": {
-                "type": "object",
-                "additionalProperties": {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        }
-                      ]
-                    },
-                    "required": {
-                      "type": "boolean"
-                    },
-                    "mutable": {
-                      "type": "boolean"
-                    },
-                    "value_schema": {
-                      "type": "object"
-                    }
-                  },
-                  "required": [
-                    "type"
-                  ],
-                  "additionalProperties": true
-                }
+                "$ref": "#/$defs/FieldDefinitions"
               },
               "attributes": {
-                "type": "object",
-                "properties": {
-                  "open": {
-                    "type": "boolean"
-                  },
-                  "fields": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "type": "object",
-                      "properties": {
-                        "type": {
-                          "anyOf": [
-                            {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string",
-                                "minLength": 1
-                              }
-                            }
-                          ]
-                        },
-                        "required": {
-                          "type": "boolean"
-                        },
-                        "mutable": {
-                          "type": "boolean"
-                        },
-                        "value_schema": {
-                          "type": "object"
-                        }
-                      },
-                      "required": [
-                        "type"
-                      ],
-                      "additionalProperties": true
-                    }
-                  },
-                  "value_schema": {
-                    "type": "object"
-                  }
-                },
-                "required": [
-                  "fields"
-                ],
-                "additionalProperties": false
+                "$ref": "#/$defs/AttributesDefinition"
               },
               "value_schema": {
                 "type": "object"
@@ -197,111 +115,10 @@
                 "minLength": 1
               },
               "kind": {
-                "type": "string",
-                "minLength": 1
+                "const": "PredicateType"
               },
               "description": {
                 "type": "string"
-              },
-              "fields": {
-                "type": "object",
-                "additionalProperties": {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        }
-                      ]
-                    },
-                    "required": {
-                      "type": "boolean"
-                    },
-                    "mutable": {
-                      "type": "boolean"
-                    },
-                    "value_schema": {
-                      "type": "object"
-                    }
-                  },
-                  "required": [
-                    "type"
-                  ],
-                  "additionalProperties": true
-                }
-              },
-              "attributes": {
-                "type": "object",
-                "properties": {
-                  "open": {
-                    "type": "boolean"
-                  },
-                  "fields": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "type": "object",
-                      "properties": {
-                        "type": {
-                          "anyOf": [
-                            {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string",
-                                "minLength": 1
-                              }
-                            }
-                          ]
-                        },
-                        "required": {
-                          "type": "boolean"
-                        },
-                        "mutable": {
-                          "type": "boolean"
-                        },
-                        "value_schema": {
-                          "type": "object"
-                        }
-                      },
-                      "required": [
-                        "type"
-                      ],
-                      "additionalProperties": true
-                    }
-                  },
-                  "value_schema": {
-                    "type": "object"
-                  }
-                },
-                "required": [
-                  "fields"
-                ],
-                "additionalProperties": false
-              },
-              "value_schema": {
-                "type": "object"
-              },
-              "reference_paths": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/$defs/ReferencePath"
-                }
-              },
-              "computed": {
-                "type": "boolean",
-                "description": "Engine-derived, read-only member (Spec §18.2): never written, never a version plane, never exported as state."
               },
               "subject": {
                 "type": "object"
@@ -354,19 +171,45 @@
                 }
               },
               {
-                "not": {
+                "if": {
                   "required": [
                     "functional_by"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "object"
                   ],
                   "properties": {
                     "object": {
-                      "required": [
-                        "literal_types"
+                      "not": {
+                        "required": [
+                          "literal_types"
+                        ]
+                      },
+                      "anyOf": [
+                        {
+                          "required": [
+                            "concept_types"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "kinds"
+                          ],
+                          "properties": {
+                            "kinds": {
+                              "contains": {
+                                "const": "Concept"
+                              }
+                            }
+                          }
+                        }
                       ]
                     }
                   }
                 },
-                "$comment": "functional_by partitions by the object's Concept Type, so a Literal object has nothing to partition by (Spec §20.15)."
+                "$comment": "functional_by partitions by the object's Concept Type, so the object target must admit Concepts and never Literal values (Spec §20.15)."
               }
             ]
           }
@@ -381,98 +224,16 @@
                 "minLength": 1
               },
               "kind": {
-                "type": "string",
-                "minLength": 1
+                "const": "FacetDefinition"
               },
               "description": {
                 "type": "string"
               },
               "fields": {
-                "type": "object",
-                "additionalProperties": {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        }
-                      ]
-                    },
-                    "required": {
-                      "type": "boolean"
-                    },
-                    "mutable": {
-                      "type": "boolean"
-                    },
-                    "value_schema": {
-                      "type": "object"
-                    }
-                  },
-                  "required": [
-                    "type"
-                  ],
-                  "additionalProperties": true
-                }
+                "$ref": "#/$defs/FieldDefinitions"
               },
               "attributes": {
-                "type": "object",
-                "properties": {
-                  "open": {
-                    "type": "boolean"
-                  },
-                  "fields": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "type": "object",
-                      "properties": {
-                        "type": {
-                          "anyOf": [
-                            {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string",
-                                "minLength": 1
-                              }
-                            }
-                          ]
-                        },
-                        "required": {
-                          "type": "boolean"
-                        },
-                        "mutable": {
-                          "type": "boolean"
-                        },
-                        "value_schema": {
-                          "type": "object"
-                        }
-                      },
-                      "required": [
-                        "type"
-                      ],
-                      "additionalProperties": true
-                    }
-                  },
-                  "value_schema": {
-                    "type": "object"
-                  }
-                },
-                "required": [
-                  "fields"
-                ],
-                "additionalProperties": false
+                "$ref": "#/$defs/AttributesDefinition"
               },
               "value_schema": {
                 "type": "object"
@@ -505,107 +266,25 @@
                 "minLength": 1
               },
               "kind": {
-                "type": "string",
-                "minLength": 1
+                "const": "StructuralFieldDefinition"
               },
               "description": {
                 "type": "string"
               },
-              "fields": {
-                "type": "object",
-                "additionalProperties": {
-                  "type": "object",
-                  "properties": {
-                    "type": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        }
-                      ]
-                    },
-                    "required": {
-                      "type": "boolean"
-                    },
-                    "mutable": {
-                      "type": "boolean"
-                    },
-                    "value_schema": {
-                      "type": "object"
-                    }
-                  },
-                  "required": [
-                    "type"
-                  ],
-                  "additionalProperties": true
-                }
-              },
-              "attributes": {
-                "type": "object",
-                "properties": {
-                  "open": {
-                    "type": "boolean"
-                  },
-                  "fields": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "type": "object",
-                      "properties": {
-                        "type": {
-                          "anyOf": [
-                            {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            {
-                              "type": "array",
-                              "items": {
-                                "type": "string",
-                                "minLength": 1
-                              }
-                            }
-                          ]
-                        },
-                        "required": {
-                          "type": "boolean"
-                        },
-                        "mutable": {
-                          "type": "boolean"
-                        },
-                        "value_schema": {
-                          "type": "object"
-                        }
-                      },
-                      "required": [
-                        "type"
-                      ],
-                      "additionalProperties": true
-                    }
-                  },
-                  "value_schema": {
-                    "type": "object"
-                  }
-                },
-                "required": [
-                  "fields"
-                ],
-                "additionalProperties": false
-              },
-              "value_schema": {
+              "source": {
                 "type": "object"
               },
-              "reference_paths": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/$defs/ReferencePath"
-                }
+              "target": {
+                "type": "object"
+              },
+              "cardinality": {
+                "type": "object"
+              },
+              "ordered": {
+                "type": "boolean"
+              },
+              "unique": {
+                "type": "boolean"
               },
               "computed": {
                 "type": "boolean",
@@ -683,6 +362,60 @@
   ],
   "additionalProperties": false,
   "$defs": {
+    "FieldDefinitions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "mutable": {
+            "type": "boolean"
+          },
+          "value_schema": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "AttributesDefinition": {
+      "type": "object",
+      "properties": {
+        "open": {
+          "type": "boolean"
+        },
+        "fields": {
+          "$ref": "#/$defs/FieldDefinitions"
+        },
+        "value_schema": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "fields"
+      ],
+      "additionalProperties": false
+    },
     "ReferencePath": {
       "type": "object",
       "properties": {

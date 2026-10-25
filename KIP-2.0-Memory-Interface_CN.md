@@ -34,7 +34,7 @@ Brain 可以嵌入在执行动作的智能体中、使用专职模型实现、�
 
 `memory_basic` 不需要试验、不需要评分，也不需要持久工作者：普通事实、偏好与召回的失败经验无需它们即可成为记忆。但它确实需要标准记忆包：`prefers`、Commitment 与 Watch 为其符号，因此该级别运行于激活了 `cognitive-memory@2.0.0` 的 KIP-Core Nexus 上，无需 KIP-CognitiveMemory 级别的依赖有效性与计算强度引擎特性。依赖有效性（规范 §57.6）约束 Brain 写入的任何派生制品；不写入派生制品的 Brain 无需 DependencyBasis。程序性候选在 `memory_experience` 下可以（MAY）作为未证实内容为深思熟虑提供参考；只有 `memory_learning` 才能赋予经过验证的资格地位，且消费者在读取所声称的地位时**必须**依然校验保留的评估记录。完整的 `KIP-CognitiveMemory` Profile 依然是标准契约；较窄的级别不声称支持该 Profile，且存储的符号引用保留其血统。
 
-声明支持 `memory_interface` 的部署在其常规连接建立过程中暴露该绑定的传输协议。其描述符（descriptor）指明绑定版本（`kip_memory`）、可用级别、安全的默认 Space 与范围、支持的分词器以及默认的输出与截止时间预算；它可以（MAY）包含在 `DESCRIBE PRIMER` 的扩展数据中。裸 Nexus **严禁**公布其所连接的 Brain 实际上无法提供服务的绑定或级别。能力可用性绝不等于读取或变更任何对象的权限。
+声明支持 `memory_interface` 的部署在其常规连接建立过程中暴露该绑定的传输协议。其描述符（`schemas/kip-memory.schema.json#/$defs/Descriptor`）指明绑定版本（`kip_memory`）、可用级别（在传输层字段 `bundles` 中承载，对应 `profiles/memory-bundles.json`）、安全的默认 Space 与范围、支持的分词器以及默认的输出与截止时间预算；它可以（MAY）包含在 `DESCRIBE PRIMER` 的扩展数据中。裸 Nexus **严禁**公布其所连接的 Brain 实际上无法提供服务的绑定或级别。能力可用性绝不等于读取或变更任何对象的权限。
 
 ## 3. 请求与范围 (Request and scope)
 

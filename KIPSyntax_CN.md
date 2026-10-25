@@ -535,7 +535,7 @@ safe_same_request | requires_refresh | requires_different_input | requires_autho
 | requires_new_snapshot | requires_reacquire_artifact | outcome_lookup_required | non_retryable
 ```
 
-高频错误自愈对策：`SchemaSymbolAmbiguous`（使用全限定 URI `kip://pkg@ver/symbol`）· `SchemaSymbolNotFound`（先执行 DESCRIBE；若确实缺少该关系，使用 `DEFINE`）· `SchemaSymbolConflict`（该名称已存在 —— 直接使用它）· `EpistemicRevisionRequired`（试图 UPDATE 信念历史 → 新建 Assertion + SUPERSEDING）· `EvidenceCorrectionRequired`（→ CORRECT ... BY）· `VersionConflict`（重新读取最新版本，重新计算，以最新 EXPECT VERSION 重试）· `IdempotencyConflict`（同一 idempotency key 尝试发送不同请求内容 → 更换新 key）· `OutcomeUnknown`（→ 按幂等键查询事务状态）· `NotFoundOrNotVisible`（对象可能存在但超出调用者可见权限 —— 绝不能判定其不存在）· `ReadonlyViolation` / `LanguageMismatch`（以解析出的实际语义规则为准）。
+高频错误自愈对策：`SchemaSymbolAmbiguous`（使用全限定 URI `kip://pkg@ver/symbol`）· `SchemaSymbolNotFound`（先执行 DESCRIBE；若确实缺少该关系，使用 `DEFINE`）· `SchemaSymbolConflict`（该名称已存在 —— 直接使用它）· `EpistemicRevisionRequired`（试图 UPDATE 信念历史 → 新建 Assertion + SUPERSEDING）· `EvidenceCorrectionRequired`（→ TRANSITION :old TO "corrected" BY :new）· `VersionConflict`（重新读取最新版本，重新计算，以最新 EXPECT VERSION 重试）· `IdempotencyConflict`（同一 idempotency key 尝试发送不同请求内容 → 更换新 key）· `OutcomeUnknown`（→ 按幂等键查询事务状态）· `NotFoundOrNotVisible`（对象可能存在但超出调用者可见权限 —— 绝不能判定其不存在）· `ReadonlyViolation` / `LanguageMismatch`（以解析出的实际语义规则为准）。
 
 ---
 

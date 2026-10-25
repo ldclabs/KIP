@@ -502,17 +502,17 @@ basis: 完备的 ProjectionBasis
 | CompressionRecord | 编码/形成活动 | §10.1 |
 | RecallCoverage | 显式记录的 recall_coverage 活动 | §20.2 |
 | MemoryScope | 捕获的源及其形成产物 | §20.3 |
-| AttemptRecord | action_attempt 活动 | 验证性学习 §2 |
-| TrialRecord | 已完成的 trial_open 活动 | 验证性学习 §4 |
-| EvaluationRecord | 已完成的 lifecycle_verdict 活动 | 验证性学习 §4 |
-| ProcedureAssessment | assessment 活动 | 验证性学习 §5 |
+| AttemptRecord | action_attempt 活动 | 已验证学习 §2 |
+| TrialRecord | 已完成的 trial_open 活动 | 已验证学习 §4 |
+| EvaluationRecord | 已完成的 lifecycle_verdict 活动 | 已验证学习 §4 |
+| ProcedureAssessment | skill_validation 活动 | 已验证学习 §5 |
 | WatchState | Watch | 大脑运行时 §2 |
 | LeaseState | SleepTask | 大脑运行时 §3 |
-| RestoreReport | restore 活动 | 胶囊 §41.7 |
+| RestoreReport | import 活动 | 胶囊 §41.7 |
 
 DependencyBasis 是过程记录上的不可变内容，不是重写断言前提的后门。所有普通的派生召回在读取工件之前都会计算 `_system.dependency_validity`（规范 §57.6）；缺失或不完整的基准为 `unverifiable`。WatchState 与 LeaseState 是由运行时校验的操作状态，而不是赋予权限的作者主张。
 
-语义遗忘工作流需对照配套模式校验 ErasurePlan（规范 §60.7）；仅限有效载荷的清除属于更窄的作用域，不能声称实现了语义遗忘。
+语义遗忘工作流需校验独立的 **ErasurePlan**（`../schemas/kip-cognitive-records.schema.json#/$defs/ErasurePlan`，规范 §60.7）；与上表中的切面不同，`ErasurePlan` 是控制/工作流契约而非元素切面（Facet），因为它统辖并在元素清除之后继续留存。仅限有效载荷的清除属于更窄的作用域，不能声称实现了语义遗忘。
 
 ---
 
@@ -721,7 +721,7 @@ revoked                                            revoked（已废弃）
 
 显式陈述保持为 Evidence + Assertions。对稳定模式的摘要是 Insight（§5.5），绝不替代历史。
 
-发生变更的偏好是自变更发生时起的一条新的 `prefers` Assertion，携带 `at`（陈述发生的时间），使其起始键为该人员表达该偏好的时间，而不是 Brain 记录该偏好的时间（规范 §13.2）；时间继承（规范 §25.4）在同类选项内终结旧偏好，而旧偏好在其所属的时间段内依然有效。仅限特定任务的偏好（例如“在此仓库中使用制表符缩进”）限定在该任务的上下文范围内，并在 `kip:memory-default` 下在该范围内优先胜出（规范 §21.13），而无需替代通用偏好。
+发生变更的偏好是自变更发生时起的一条新的 `prefers` Assertion，携带 `at`（陈述发生的时间），使其起始键为该人员表达该偏好的时间，而不是 Brain 记录该偏好的时间（规范 §13.2）；时间继承（规范 §25.4）在同类选项内终结旧偏好，而旧偏好在其所属的时间段内依然有效。仅限特定任务的偏好（例如“在此仓库中使用制表符缩进”）限定在该任务的上下文范围内，并在 `kip:memory-default` 下在该范围内优先胜出（规范 §21.13），而无需替代通用偏好。由于继承链按 `(actor, context_refs)` 分区且 `context_specificity` 优先于 `recency`，修订或解除该任务级偏好需要在同一 `context_refs` 作用域内写入新断言或撤回原断言；较新的通用偏好（`context_refs: []`）仅更新通用继承链。
 
 ---
 

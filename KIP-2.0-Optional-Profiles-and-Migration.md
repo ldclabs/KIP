@@ -33,7 +33,7 @@ transaction chronology
 May require, each advertised as a capability (§67.4) where a client is to rely on it:
 
 ```text
-serializable transactions
+serializable_isolation (serializable transactions)
 signed Receipts
 canonical request/plan digests
 exact historical Schema

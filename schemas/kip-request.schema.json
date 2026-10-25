@@ -355,8 +355,8 @@
       "additionalProperties": true,
       "examples": [
         {
-          "serializable_transactions": true,
-          "belief_slot": true
+          "serializable_isolation": true,
+          "historical_reads": true
         }
       ],
       "description": "Fail-fast semantic capability preconditions. Unsupported required guarantees must fail explicitly."

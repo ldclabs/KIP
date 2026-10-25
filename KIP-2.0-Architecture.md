@@ -2059,8 +2059,8 @@ performance after relevant memory ablation
 The design invariants this architecture set out are now maintained in one registry, reached from two places, and this document no longer restates them:
 
 ```text
-Specification §102    Required Conformance Invariants: 38 protocol-level rows, registry Part A
-Profile §23           Profile Invariants: 35 memory-level rows, registry Part B
+Specification §102    Required Conformance Invariants: 49 protocol-level rows, registry Part A
+Profile §23           Profile Invariants: 49 memory-level rows, registry Part B
 KIP-2.0-Invariants.md the one registry both point at, each row with its establishing section and pinning vectors
 ```
 

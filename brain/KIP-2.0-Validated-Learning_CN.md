@@ -109,4 +109,4 @@ MUTATE {
 
 ## 8. 验收 (Acceptance)
 
-生命周期与评级契约由 `conformance/KIP-2.0-Cognitive-Tests.md`（MEM-002–MEM-005、MEM-018）、可靠性场景 REL-006、REL-012 与 REL-017，以及有界生命周期模型 `formal/lifecycle/check_lifecycle.py` 锁定。通过这些测试是必要条件，但绝非 Brain 产生学习的证据：行为学习声称遵循 [BrainEvaluation.md](./BrainEvaluation.md)。
+生命周期与评级契约由 `conformance/KIP-2.0-Cognitive-Tests.md`（MEM-002–MEM-005、MEM-018）、可靠性场景 REL-006、REL-012 与 REL-017，以及有界生命周期模型 `formal/lifecycle/check_lifecycle.py` 锁定。通过这些测试是必要条件，但绝非 Brain 产生学习的证据：行为学习声称遵循 [BrainEvaluation_CN.md](./BrainEvaluation_CN.md)。

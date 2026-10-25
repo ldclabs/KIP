@@ -15,11 +15,11 @@
     "validation_schemas": [
       {
         "id": "urn:kip:2.0:schema:projection",
-        "content_digest": "sha256:e6db68772133abd5f5685b710d407a88cf11155c323db798378309f18fdfee68"
+        "content_digest": "sha256:27ca80388dd6d5737492298735478fede5e77fecfdf5c0a8c2e1b706accbcdfd"
       },
       {
         "id": "urn:kip:2.0:schema:cognitive-records",
-        "content_digest": "sha256:3a844f410f19f7cae6c81253d46260f0e17d7c4a097d1f40ed79cb2f95b7c8c1"
+        "content_digest": "sha256:8faaa376bde5d4cb5657a45d778ac8a5c73e4f1d6ee4b139b46e2d3fbf20efb0"
       },
       {
         "id": "urn:kip:2.0:schema:element",
@@ -31,7 +31,7 @@
       },
       {
         "id": "urn:kip:2.0:schema:schema-package",
-        "content_digest": "sha256:226e45427d6498bdeab706999688fbd13a7f2dc35fdc0c7873f4dbb9e2920fcd"
+        "content_digest": "sha256:db975ecda981f3eb9e7662d69befa0e136802ee1c1c54ff0350e3218452a31ed"
       },
       {
         "id": "urn:kip:2.0:schema:common",
@@ -885,7 +885,8 @@
         "functional": false,
         "open_world": true,
         "complete": false,
-        "functional_by": "object_type"
+        "functional_by": "object_type",
+        "temporal_conflict": "overlapping_valid_time"
       },
       "caused_by": {
         "ref": "kip://profiles/cognitive-memory@2.0.0/caused_by",
@@ -903,7 +904,8 @@
         },
         "functional": false,
         "open_world": true,
-        "complete": false
+        "complete": false,
+        "temporal_conflict": "overlapping_valid_time"
       },
       "same_as": {
         "ref": "kip://profiles/cognitive-memory@2.0.0/same_as",
@@ -921,7 +923,8 @@
         },
         "functional": false,
         "open_world": true,
-        "complete": false
+        "complete": false,
+        "temporal_conflict": "overlapping_valid_time"
       }
     },
     "facets": {
@@ -2950,7 +2953,7 @@
   },
   "integrity": {
     "digest_profile": "kip-jcs-safe-v1",
-    "content_digest": "sha256:734aa0fd93b6258d433a6f71915d9d5118552e2ea0458a3050d368dcfcc1d1b3",
+    "content_digest": "sha256:6639aa468d8728a7adf42ae4a306394a06ed69906ee8e29c87c25c06a6a6dd9c",
     "covers": "all top-level fields except integrity",
     "signatures": []
   }
