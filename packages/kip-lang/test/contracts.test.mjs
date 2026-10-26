@@ -427,6 +427,30 @@ test('memory-default precedence results satisfy the wire schema, including recen
   }
 })
 
+test('memory-default: specificity must decide the whole set without conflating precedence and succession', () => {
+  const candidate = (id, context_refs, day) => ({ id, value: id, assertions: [{
+    root: `E-${id}`, actor: 'alice', mode: 'stated', stance: 'support', status: 'active',
+    trusted: true, context_refs, asserted_at: `2026-09-${day}T00:00:00.000Z`
+  }] })
+  const candidates = [candidate('spaces', [], '03'), candidate('tabs', ['work'], '01'),
+    candidate('four-spaces', ['project'], '02')]
+  const request = { functional: true, policy: 'memory-default', subject: 'alice',
+    context_refs: ['work'], valid_at: '2026-09-20T00:00:00.000Z' }
+  // One scoped candidate defeats the newer general rival in its own context.
+  const work = model.project(candidates, request)
+  assert.deepEqual(work.accepted_values, ['tabs'])
+  assert.equal(work.candidates[1].precedence.rule, 'context_specificity')
+  // Work and project are incomparable: neither defeats the whole set under
+  // specificity, so recency can select the general candidate.
+  const combined = model.project(candidates, { ...request, context_refs: ['work', 'project'] })
+  assert.deepEqual(combined.accepted_values, ['spaces'])
+  assert.equal(combined.candidates[0].precedence.rule, 'recency')
+  assert.deepEqual(combined.candidates.map(c => c.status), ['accepted', 'uncertain', 'uncertain'])
+  // Losing precedence never expires the scoped support on its own succession line.
+  assert.deepEqual(combined.candidates.map(c => c.candidate_status), ['accepted', 'accepted', 'accepted'])
+  assert.deepEqual(model.project(candidates, request), work)
+})
+
 test('functional_by: a conflict in one partition does not change another partition slot', () => {
   const entry = structuredClone(cases.projection.find(c => c.id === 'MEM-028a'))
   entry.candidates[1].assertions[0].from = entry.candidates[0].assertions[0].from
