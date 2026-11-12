@@ -668,7 +668,7 @@ JS 节点被物理删除
 
 # 52. 技能、数值、注意力与时间 (Skills, numbers, attention and time)
 
-将遗留的 Skill 拆分为稳定的 Skill 与不可变的 SkillRevision，并通过 `current_revision` / `revision_of` 进行链接。旧的行为字段转移至修订版本中；使用 `kip-jcs-safe-v1` 计算其 `behavior_digest`。旧的状态与计数器保留为遗留审计信息，绝不能视为已验证的本地声誉地位：迁移后的技能初始处于 `proposed` 状态。保留源溯源记录，在已知的情况下创建 DependencyBasis，并将不完整的血统标记为不可验证（`unverifiable`），严禁随意捏造。经过验证的声誉地位只能在[验证学习伴随文档](./brain/KIP-2.0-Validated-Learning_CN.md)指导下的新试验中重新获得。
+将遗留的 Skill 拆分为稳定的 Skill 与不可变的 SkillRevision，并通过 `current_revision` / `revision_of` 进行链接。旧的行为字段转移至修订版本中；使用 `kip-jcs-safe-v1` 计算其 `behavior_digest`。旧的状态与计数器保留为遗留审计信息，绝不能视为已验证的本地声誉地位：迁移后的技能初始处于 `proposed` 状态。保留源溯源记录，在已知的情况下创建 DependencyBasis，并将不完整的血统标记为不可验证（`unverifiable`），严禁随意捏造。经过验证的声誉地位只能在[验证学习伴随文档](../brain/KIP-2.0-Validated-Learning_CN.md)指导下的新试验中重新获得。
 
 在转换前校验数值型源词元；对超出安全范围的精确数值进行隔离，或使用声明的 string/value 对象模式进行编码，严禁对其四舍五入或截断舍入。验证精确的 64 位浮点数规范化以及负零处理。
 

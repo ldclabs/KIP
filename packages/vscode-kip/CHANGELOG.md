@@ -2,6 +2,25 @@
 
 All notable changes to the **KIP Language** extension are documented here.
 
+## 2.4.2
+
+Bundles `@ldclabs/kip-lang` 2.4.2. The version follows the bundled toolkit;
+there is no 2.4.1 of the extension.
+
+### Fixed
+
+- **Format on save no longer flips a one-line block that has a comment after
+  it.** `SET FIELDS {name: "x"} // note` was expanded on one save and collapsed
+  on the next, because the trailing comment was counted as inside the block.
+
+### Changed
+
+- `DEFINE` diagnostics are stricter (toolkit 2.4.1, Spec §20.16): a draft
+  Predicate or Concept Type that declares a member the draft vocabulary does
+  not allow — `required` fields, `value_schema`, `identity`, Facets, Structural
+  Fields, or `functional_by` without a declared Concept object — is reported
+  with `KIP_2001`.
+
 ## 2.4.0
 
 Bundles `@ldclabs/kip-lang` 2.4.0.

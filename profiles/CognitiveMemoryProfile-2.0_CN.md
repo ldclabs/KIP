@@ -20,33 +20,22 @@ kip://profiles/cognitive-memory@2.0.0
 
 # 0. Profile 核心主张
 
-通用 KIP Core 为任意认知中枢提供了价值中立的知识、证据、溯源和治理图谱。
-
-但长期运行的自主智能体（Agent）还需要更具体的记忆模式：
+KIP Core 定义安全的认知原语：
 
 ```text
-情节记忆 (Episodic Memory)        发生了什么
-情景经历 (Experiential Memory)      尝试了什么、面临何种情境、达成了什么结果
-陈述性巩固 (Declarative Consolidation) 哪些稳定的经验事实得到了沉淀
-程序性技能 (Procedural Skills)       哪些行为策略在何种约束下被证实有效
-前瞻承诺 (Prospective Commitments) 未来需要履行或留意的任务
-关注警戒 (Watch Attention)         值得唤醒以进行状态差分评估的条件（或静默状态）
-自我模型 (Self-Model)              对自身能力、边界与倾向的可校准表征
-工作上下文 (Working State)          由最新基准序列号印记支撑的紧凑苏醒恢复状态
-记忆代谢 (Mnemonic Metabolism)      访问强度、显著性、效用与存储生命周期的动态演化
+Concept
+Proposition
+Assertion
+Evidence
+Activity
+MemorySpace
+Schema
+Governance
+Transaction
+Capsule
 ```
 
-**认知记忆 Profile 2.0** 将这些高级模式统合为规范的 Schema 包、切面定义和生命周期约定，而**无需向 KIP 核心数据模型硬编码任何特殊的专有实体类型**。
-
-```text
-所有高级记忆对象均为类型化的 Concept
-认知立场通过 Proposition + Assertion 表达
-真实观测保持为 Evidence
-认知衍生保留为 Activity 溯源
-运行时扩展通过受校验的 Facet 实现
-```
-
-Cognitive Memory Profile 在 Core 之上定义了可复用的记忆词汇表：
+认知记忆 Profile 在其之上定义可复用的记忆词汇表：
 
 ```text
 Person
@@ -67,30 +56,46 @@ DecisionRecord
 OutcomeRecord
 ```
 
+> **Core 定义认知的真值、溯源、权限与持久性语义；Profile 定义可移植的记忆形态。**
+
+本 Profile 不强制规定任何单一的形成、排序、巩固或遗忘算法。
+
 ---
 
 # 1. 设计目标
 
-1. **结构化情景轨迹**：将目标导向的轨迹（上下文、步骤、决策、行动、反馈、更新、结果）建模为一等公民的 `Experience` 概念。
-2. **失败作为宝贵财富**：对失败经历给予与成功同等的重视，支持反思与负向约束发现。
-3. **程序性技能渐进采纳**：定义带版本控制的可重用技能 `Skill`，其生命周期必须与实际外部后果流紧密结合。
-4. **统一前瞻记忆与主动警戒**：通过明确声明的 `Commitment` 和 `Watch` 将未来意图和状态差分监控纳入认知图谱。
-5. **记忆代谢**：提供独立的记忆访问强度（`memory_strength`）、显著性（`salience`）与效用下注（`utility`），与认知置信度保持严格解耦。
-6. **可审计溯源链**：巩固沉淀的高阶认知（偏好、洞察、自我模型）必须可溯源至具体的经验和证据。
+本 Profile **应当**支持可移植的情节记忆、目标导向的经验、程序性记忆、前瞻记忆、注意力状态、偏好模式、自我反思所得的教训、自我模型工件、工作状态、记忆可及性、程序效用、经评定的后果以及维护任务。
+
+它**应当**使以下问题可以得到回答：
+
+```text
+发生了什么？
+行动者经历了什么？
+行动者学到了什么？
+什么做法往往奏效？
+什么失败了？
+我们行动之后，世界发生了什么？
+什么赢得了采纳——什么又失去了它？
+什么仍然悬而未决？
+什么变化——或什么沉默——值得注意？
+当前的工作图景是什么？
+什么应当更容易被回忆起来？
+自我模型中有什么发生了变化？
+```
 
 ---
 
 # 2. 非设计目标
 
-1. **不取代具体业务领域 Schema**：特定的业务实体（例如特定行业的工件）应使用其自身的模式包。
-2. **不规定单一固化的学习算法**：Profile 规定状态结构与约束边界，具体的学习与巩固启发式由智能体实现自主决定。
-3. **不硬编码底层神经权重或注意力机制**。
+本 Profile 不定义人类记忆理论、隐藏的思维链、通用本体、某一种嵌入/排序模型、某一种睡眠调度、某一种显著性算法、某一种技能编译器、某一种采纳阈值或对照构造方式、工具权限、Governance 权限或来源信任策略。
+
+Profile 元素可以描述一个程序，而不被授权执行它。
 
 ---
 
 # 3. 与 Core 的核心边界
 
-Profile 必须保持以下界限：
+Profile **必须**保持以下界限：
 
 ```text
 关于偏好的 Insight ≠ 已采纳的偏好信念
@@ -108,7 +113,7 @@ DecisionRecord ≠ 行动授权
 已采纳的 Skill ≠ 可执行权限
 ```
 
-Profile 切面与结构字段绝不能（MUST NOT）绕过 Core 不可变性、源头归属、Governance 治理或认知语义。
+Profile 的 Facet 与结构字段**严禁**绕过 Core 的不可变性、起源、Governance 治理或认知语义。
 
 ---
 
@@ -124,198 +129,167 @@ package_ref = kip://profiles/cognitive-memory@2.0.0
 
 持久化精确的 Profile 引用。本地别名保持为面向模型的便利工具。
 
-定义的核心符号：
-
-```text
-Concept 类型:
-  Person
-  Event
-  Experience
-  ExperienceStep
-  Insight
-  Commitment
-  Skill
-  SkillRevision
-  SleepTask
-  SelfModel
-  Watch
-  WorkingState
-
-Facet 切面:
-  MnemonicState
-  GradingState (计算视图)
-  OutcomeRecord
-  DecisionRecord
-  DependencyBasis
-  AttemptRecord
-  TrialRecord
-  EvaluationRecord
-  WatchState
-  LeaseState
-  CompressionRecord
-  RecallCoverage
-
-谓词 Predicates:
-  prefers
-  caused_by
-  same_as
-
-结构字段 Structural Fields:
-  has_step
-  experienced_by
-  involves
-  mentions
-  current_revision
-  revision_of
-  current_trial
-  current_evaluation
-  committed_to
-  owed_to
-  assigned_to
-  watches
-  about
-  derived_from (计算视图)
-  compiled_from (计算视图)
-  compiled_by (计算视图)
-  consolidated_to (计算视图)
-```
-
 ---
 
 # 5. 标准概念类型 (Concept Types)
 
 ## 5.1 Person（人物/主体）
 
-表示与智能体交互的人类用户、协作者或其他具名实体。
+认知内容中使用的语义人物/行动者。
 
 ```text
-name         显示/识别名称
-attributes:
-  role       例如 "operator", "user", "collaborator", "analyst"
-  locale     首选语言/区域设置
+Person ≠ PrincipalRecord ≠ ActorBinding
 ```
 
-注意：`Person` 是语义概念，不是 Core 的 `Principal`（调用主体）。
+推荐的属性包括 `display_name`、别名与描述。跨系统的 `canonical_id` 只应在经过更强的身份验证之后使用；未经验证的身份主张以 `same_as` 谓词（Proposition + Assertion）表达，并在任何合并之前接受审查。
 
 ---
 
 ## 5.2 Event（事件）
 
-表示在特定物理/逻辑时间点客观发生的事态，独立于智能体自身的目标。
+**Event 是一个紧凑的情节锚点，描述在一个有边界的情境中发生了什么。**
+
+推荐字段：
 
 ```text
-name         事件摘要
-attributes:
-  start_time 必填 ISO 8601 时间戳
-  end_time   可选 ISO 8601 时间戳
-  category   "interaction", "observation", "system", "milestone"
-  summary    结构化或纯文本说明
+event_class
+summary
+started_at
+ended_at
+outcome_status
+outcome_summary
+context_summary
 ```
 
-结构字段：
-- `involves`：关联的 `Person` 或其他 `Concept`。
-- `mentions`：提及的实体。
+Event 回答**发生了什么**。它不需要完整的状态-行动-观测路径。
 
 ---
 
 ## 5.3 Experience（经验）
 
-表示智能体为了实现特定目标所经历的一次连续的、有明确边界的情境轨迹。
+**Experience 是行动者经由状态、行动、观测、反馈与结果所走过的一段有边界的目标导向轨迹。**
+
+概念上：
 
 ```text
-name         经验名称/标题
-attributes:
-  goal           必填；智能体试图达成的意图或目标
-  outcome_status 必填；"success", "partial", "failure", "aborted", "unknown"
-  domain         任务领域/分类标签
-  trigger        触发该经历的原因或任务输入
-  context        执行上下文摘要
-  lessons        沉淀出的关键教训
+E = (g, b0, a0, o1, b1, a1, o2, ..., y, δ)
 ```
 
-结构字段：
-- `has_step`：指向一组有序的 `ExperienceStep`。
-- `experienced_by`：执行该经历的 `Person`（智能体自身或被观察者）。
-- `involves`：相关联的实体。
+其中 `g` 为目标，`b` 为可外部表征的状态/信念上下文，`a` 为行动，`o` 为观测，`y` 为结果，`δ` 为反馈/意外/预测误差。
+
+推荐字段：
+
+```text
+experience_class
+goal
+initial_state_summary
+outcome_status
+outcome_summary
+started_at
+ended_at
+step_count
+surprise
+learning_value
+consolidation_status
+```
+
+建议的 `outcome_status`：
+
+```text
+success | partial | failure | aborted | unknown
+```
+
+建议的 `consolidation_status`：
+
+```text
+pending | semantic | procedural | completed | archived
+```
+
+当路径本身具有未来价值时创建 Experience：多步骤的目标追求、失败/恢复、预期被违背、策略变更、重要的工具交互、纠正性反馈、新颖的程序或反例。
 
 ---
 
 ## 5.4 ExperienceStep（经验步骤）
 
-经验轨迹中的单一原子步骤，通过从 0 开始的顺序边被 `Experience` 组织。
+Experience 中的一个有序单元。
+
+推荐字段：
 
 ```text
-name         步骤描述
-attributes:
-  step_kind  "context", "observation", "decision", "action", "feedback", "belief_update"
-  summary    客观摘要
-  status     "success", "failure", "neutral"
+step_kind
+summary
+timestamp
+tool
+result_status
+expected_observation
+actual_observation
+decision_summary
 ```
 
-因果关联：
-- 步骤之间的因果关系必须使用 `caused_by` 命题三元组显式声明，顺序边索引本身不代表因果。
+建议的类别：
+
+```text
+context | observation | decision | action | feedback | belief_update
+```
+
+`decision_summary` 可以存储简明、可复用的理由，但**严禁**要求隐藏的思维链。
+
+步骤顺序存在于有序的 `has_step` 结构引用上：引擎为每个 Experience 维护从零开始的稠密顺序，通过结构化的 `{index: n}` 赋值写入（或追加），并以虚拟的 `?edge.index` 暴露给查询（规范 §17.4）。步骤不携带单独的顺序属性，因此顺序只有唯一的事实来源。
+
+时间上的相邻并不证明因果。步骤之间的显式因果主张使用 `caused_by` 谓词，作为语义 Proposition + Assertion（`mode` 通常为 observed/inferred，并附 Evidence）。与任何主张一样，它可以被支持、反对或争议——这正是它不属于结构拓扑的原因。
 
 ---
 
 ## 5.5 偏好模式 (Preference patterns)
 
-偏好是一项主张，而不是一种类型：“爱丽丝偏好深色模式”是带有爱丽丝的断言及其证据的 `prefers` 命题（§7），发生变更的偏好是其所属类别内的一条较新的断言（§15）。本 Profile 未定义独立的 Preference 概念实体。值得概括的相对稳定模式（作用域、稳定性、反例）是关于该选项类别的洞见（Insight，§5.6）`about`，如同其他洞见一样通过有记录的活动派生；它绝不替代其所概括的主张历史，且召回始终从 `prefers` 槽位回答，而非从该概括中回答。
+偏好是一项主张，而不是一种类型：“爱丽丝偏好深色模式”是带有爱丽丝的断言及其证据的 `prefers` 命题（§7），发生变更的偏好是其所属类别内的一条较新的断言（§15）。本 Profile 未定义独立的 Preference 概念。值得概括的相对稳定模式——作用域、稳定性、反例——是一条 `about` 该选项类别的 Insight（§5.6），如同其他 Insight 一样通过有记录的 Activity 派生；它绝不替代其所概括的主张历史，且召回始终从 `prefers` 槽位回答，而非从该概括中回答。
 
-一个人所偏好的每个选项都是由其类别定型的概念（例如某种配色方案、某种编辑器），因为该类型正是 `prefers` 进行分区划分的依据（规范 §20.15）。形成操作严禁使用泛型兜底类型为选项定型；若尚无已安装的包对该类别命名，则首先在草稿词汇中定义该类型（规范 §20.16）。
+一个人可以偏好的每个选项都是按其类别定型的 Concept——某种配色方案、某种编辑器——因为该类型正是 `prefers` 进行分区的依据（规范 §20.15）。形成过程**严禁**使用包罗万象的兜底类型为选项定型；若尚无已安装的包为该类别命名，则先在草稿词汇中定义一个（规范 §20.16）。
 
 ---
 
 ## 5.6 Insight（洞见）
 
-从多段经历、交互或事件中归纳出的高阶陈述性认知。
-
-```text
-name         洞见标题
-attributes:
-  topic        主题
-  statement    陈述内容
-  task_family  可选任务族；若提供，则将洞见订阅至对应的后果流
-  applicability 适用边界与前置条件说明
-```
-
-结构字段：
-- `derived_from`：支撑该洞见的历史经历或证据（计算得出）。
+从 Evidence 或 Experience 派生的陈述性教训。它**应当**通过 Activity 保留其派生关系。若它具有真值可判定性，其主张还**应当**可以表示为 Proposition + Assertion。
 
 ---
 
 ## 5.7 Commitment（承诺）
 
-智能体做出或接收到的前瞻性承诺、任务委托或未决事项。
+一种前瞻记忆工件，表示义务、承诺、提醒、跟进事项或有意进行的未来行动。
+
+推荐字段：
 
 ```text
-name         承诺名称
-attributes:
-  title      标题
-  status     "pending", "fulfilled", "cancelled", "expired", "blocked"
-  due_at     可选 ISO 8601 截止时间
-  priority   "low", "medium", "high", "critical"
-  details    履约要求与细节
+summary
+status
+created_at
+due_at
+completed_at
+priority
 ```
 
-结构字段：
-- `committed_to`：对谁做出的承诺（`Person`）。
-- `owed_to`：权利人或受托人。
+建议的生命周期：
 
-承诺变为到期或失效的条件是监听该承诺的 Watch（§5.11），而非其上的字段：Watch 是运行时进行求值的对象，而承诺保持为纯粹的前瞻性记录。
+```text
+pending | fulfilled | cancelled | expired | blocked
+```
 
-承诺只有通过提升它的提交（commit）才能进入业务智能体的注意力（Memory Interface §4）：监听其 `due_at` 的 Watch 触发（`watch_fire`），或 Maintenance 在其中将承诺记录为到期的 `commitment_review` 活动（§17）。单凭 `due_at` 的流逝不会提升任何事项，因此每个注意力项都带有提升它的提交的 `space_seq`。
+使承诺变为到期或失效的条件是以该承诺为目标的 Watch（§5.11），而非其上的字段：Watch 是运行时求值的对象，承诺则保持为纯粹的前瞻性记录。
 
-承诺属于认知，绝非自动的外部执行。
+承诺只有通过提升它的提交才能进入业务智能体的注意力（记忆接口 §4）：监听其 `due_at` 的 Watch 触发（`watch_fire`），或 Maintenance 在其中将该承诺记录为到期的 `commitment_review` Activity（§17）。单凭 `due_at` 的流逝不会提升任何事项，因此每个注意力项都带有提升它的那次提交的 `space_seq`。
+
+承诺属于认知，而非自动的外部执行。
 
 ---
 
 ## 5.8 Skill（技能）与 SkillRevision（技能修订版本）
 
-**Skill 是稳定的程序性身份；SkillRevision 是实际被执行与评估的不可变行为。** Skill 持有 `skill_class`、`summary`、注释及其生命周期状态 `status`。必填的 `current_revision` 指向一个 SkillRevision；修订版本的 `revision_of` 指回该 Skill。这两者的创建在单个原子操作中完成，包括前向引用。
+**Skill 是稳定的程序性身份；SkillRevision 是实际被执行与评估的不可变行为。** Skill 持有 `skill_class`、`summary`、注释及其生命周期 `status`。必填的 `current_revision` 指向一个 SkillRevision；该修订版本的 `revision_of` 指回这个 Skill。二者的创建是原子的，包括前向引用。可选的 `current_trial` 与 `current_evaluation` 指向承载当前资格地位背后不可变 TrialRecord 与 EvaluationRecord 的 Activity；它们仅由已验证学习配套规范的事务设置。
 
-SkillRevision 包含必填的 `task_family`、`procedure`、`behavior_digest`，以及可选的 `applicability`、`preconditions`、`success_criteria` 与 `recovery`。其 `behavior_digest` 是除摘要以外的规范化行为字段的 sha256。所有行为字段均不可变，且绝不能被 Skill 上的可变字段遮蔽。任务族是流选择手柄，绝不自动充当充分的基线成员资格。不可证伪的陈述性教训保持为 Insight。
+SkillRevision 包含必填的 `task_family`、`procedure`、`behavior_digest`，以及可选的 applicability、preconditions、success_criteria 与 recovery。其 behavior_digest 是除该摘要之外的规范化行为字段的 sha256。所有行为字段均不可变，且不得被 Skill 上的可变字段遮蔽。任务族是流选择句柄，绝不足以构成基线成员资格。无法评定的陈述性教训仍保持为 Insight。
 
-生命周期流转遵循 `proposed → trialed → adopted → revoked`；在对外声明支持时，它们由配套规范[验证性学习](../brain/KIP-2.0-Validated-Learning_CN.md)驱动。选择新行为将在单个受保护的事务中将当前资格地位重置为 `proposed` 并清空 `current_trial` 与 `current_evaluation` 指针，绝不改写旧裁决。这属于修订版本选择，而非晋升。注释与记忆代谢信号可以在不重置资格地位的情况下变更。导入的修订版本需通过本地新试用重新挣得本地资格地位。
+生命周期保持为 `proposed → trialed → adopted → revoked`（§14），资格地位绑定到确切的修订版本。选定新行为会在一个受保护的事务中将当前资格地位重置为 `proposed` 并清空 `current_trial` 与 `current_evaluation`，而不改变旧的裁决。这是修订版本选择，而非晋升。注释与记忆代谢信号可以变更而不重置资格地位。试验、决策、结果与 Governance 权限均绑定确切的修订版本与行为摘要（已验证学习 §2）。导入的修订版本只能通过新的本地试验挣得本地资格地位。
 
 ---
 
@@ -323,7 +297,7 @@ SkillRevision 包含必填的 `task_family`、`procedure`、`behavior_digest`，
 
 持久的维护工作项。建议的类别包括 consolidate、review_conflict、review_skill、resolve_identity、review_retention、review_derived、review_schema、refresh_self_model 以及 inspect_quarantine。`review_schema` 将草稿词汇符号（规范 §20.16）排队以供审阅与晋升：定义符号的大脑为该符号排入一个睡眠任务，其 `client_key` 为 `review_schema:<kind>:<确切符号引用>`，其中 `kind` 为 `ConceptType` 或 `PredicateType`。任务同时指明类别和确切引用，因此不同类别即使同名也保持独立，而重试的定义绝不会重复排队。审阅可以把近义词并入既有符号的用法、提议晋升或了结该任务；只有持有 `manage_schema` 的主体才执行晋升。
 
-在声明了 `durable_brain_runtime` 的实现中，SleepTask 的认领与完成遵循配套规范[大脑运行时](../brain/KIP-2.0-Brain-Runtime_CN.md) §3 的租约契约。
+在声明了 `durable_brain_runtime` 的实现中，SleepTask 的认领与完成遵循[大脑运行时配套规范](../brain/KIP-2.0-Brain-Runtime_CN.md) §3 的租约契约。
 
 语义上分配给 `$system` 不授予权限。
 
@@ -331,80 +305,105 @@ SkillRevision 包含必填的 `task_family`、`procedure`、`behavior_digest`，
 
 ## 5.10 SelfModel（自我模型）
 
-关于智能体自身能力边界、行为习惯、倾向性及角色定位的自省陈述。
+一种派生工件，描述大脑当前对自身身份、能力、局限、价值观、偏好、习惯、关系与目标的模型。
 
-```text
-name         自省维度
-attributes:
-  dimension  "capability", "limitation", "style", "boundary", "tendency"
-  statement  模型陈述内容
-  confidence 归纳置信度 [0, 1]
-```
-
-SelfModel 是认知视图，绝非 Governance 控制面，严禁借其实现权限扩充。
+SelfModel 的内容**严禁**修改 Principal 身份、ActorBinding、Governance 策略、工具权限或 Schema 权限。
 
 ---
 
 ## 5.11 Watch（守望/关注警戒）
 
-持久化的注意力状态：声明在何种状态差分（变更或未变更）下应当唤醒大脑进行注意力评估。
+**Watch 是持久的注意力状态：一个声明的条件，在该条件下某项变化——或变化的缺席——值得大脑注意。**
+
+推荐字段：
 
 ```text
-name         守望目标
-attributes:
-  watch_class "delta", "silence"
-  condition   声明式条件，形式为:
-              {
-                "element": :id,               // 监听具体元素
-                "slot": {:subject, :predicate}, // 或监听特定槽位
-                "type": "Experience",         // 或监听某一类型
-                "ops": ["create", "transition"], // 关注的变更动作
-                "touched": ["attributes", "facets.MnemonicState"], // 触碰的平面
-                "text": "语义筛选描述"        // 仅由 Brain 自身进行语义过滤
-              }
-  status      "armed", "fired", "expired", "disarmed"
-  due_at      可选 ISO 8601 时间戳；用于静默 watch 的超时判定
+watch_class
+summary
+condition
+due_at
+status
+priority
+created_at
+fired_at
 ```
+
+建议的类别：
+
+```text
+delta      当匹配的变更被提交时触发
+silence    当 due_at 已过而没有匹配的变更时触发
+```
+
+建议的生命周期：
+
+```text
+armed → fired | expired | disarmed
+```
+
+`condition` 声明什么算作匹配的变更。其基线形式是针对变更信封（Change Envelope）条目的结构化过滤器（规范 §36.1），使声明了 `watch_evaluation` 的运行时无需读取载荷即可对其求值：
+
+```json
+{
+  "element": "C-42",
+  "slot": {"subject": "C-1", "predicate": "timezone"},
+  "type": "Commitment",
+  "ops": ["create", "lifecycle"],
+  "touched": ["attributes.status"],
+  "text": "any reply from Alice about the migration plan"
+}
+```
+
+`element`、`slot` 与 `type` 选择被监听的对象（至少其一；`slot` 匹配其 `refs.proposition` 属于该主语–谓词槽位的 Assertion 条目，`type` 经由符号谱系解析）；`ops` 与 `touched` 收窄哪些条目算数，默认为任意。`text` 是结构化成员无法表达该条件时由维护流程解释的兜底形式；仅携带 `text` 的 Watch 由大脑求值，而非由运行时求值。
+
+求值是一个差分循环：运行时或大脑将已提交的变更信封与处于设防状态的 Watch 集合进行比对；silence 型 Watch 在 `due_at` 已过而没有匹配时触发。求值者在可以断定沉默之前，**必须**已消费变更流直至 `due_at` 时刻的当前 `space_seq`：时钟本身证明不了任何事情，因为在截止时间之前提交的匹配变更可能仍在送达该求值者的途中，先凭时钟触发是一次误报，`formal/watch` 中的模型复现了这一情形。触发是一次原子迁移——一条 `watch_fire` Activity（inputs：该 Watch，以及在可表示时发生变更的元素或观测 Evidence；outputs：它所产生的 SleepTask 或通知工件）加上通过受保护的 `UPDATE ... EXPECT VERSION` 完成的 Watch `status` 变更——并且在并发求值者之下**必须**是幂等的：对于 delta 型 Watch，`watch_fire` Activity 的 `client_key` 为 `watch_fire:<watch id>:<arm_generation>:<匹配信封的 space_seq>`；对于 silence 型 Watch，为 `watch_fire:<watch id>:<arm_generation>:silence:<due_at>`，因此看到同一信封或同一已过截止时间的第二个求值者会重放该次触发，而不是触发两次。
+
+**触发的 Watch 不授予任何东西。** 它产生注意力——通常是一个 SleepTask 或唤醒信号——绝不产生外部行动。大脑接下来所做的任何事情，都如同其他行为一样要通过行动网关（§9）与 Governance。
 
 编码承诺之等待半边（“若周四前未收到回复则升级”）的 Watch 通过 `watches` 引用该承诺。承诺承载义务；Watch 承载触发条件。
 
-触发的 Watch 通过 Memory Interface 的注意力召回（Memory Interface §4）触达业务智能体。在声明了 `durable_brain_runtime` 的实现中，持久工作者的职责（设防世代、覆盖水位线、重启安全性）遵循配套规范[大脑运行时](../brain/KIP-2.0-Brain-Runtime_CN.md) §2。
-
-**触发的 Watch 不赋予任何行动权限。** 它仅引起注意（通常是 SleepTask 或唤醒信号），绝不产生外部行动。大脑接下来执行的任何操作都必须如同其他行为一样通过行动网关（§9）与治理校验。
+触发的 Watch 通过记忆接口的注意力召回（记忆接口 §4）触达业务智能体。在声明了 `durable_brain_runtime` 的实现中，持久工作者的义务——设防世代、覆盖水位线、重启安全性——遵循[大脑运行时配套规范](../brain/KIP-2.0-Brain-Runtime_CN.md) §2。
 
 ---
 
 ## 5.12 WorkingState（工作状态）
 
-当前上下文或进行中会话的紧凑工作记忆摘要。
+**WorkingState 是对当下重要事项的一份派生的、带版本的摘要：苏醒的智能体从这份已巩固的状态恢复，而不是重新阅读原始历史。**
+
+推荐字段：
 
 ```text
-name         上下文名称
-attributes:
-  basis_seq  必填非负整数；支撑该工作状态的底层最新快照序列号
-  summary    当前认知焦点摘要
-  active_goals 进行中目标列表
-  open_hypotheses 待检验假说列表
+summary
+horizon
+basis_seq
+refreshed_at
 ```
 
-典型输入 —— 即其 `working_state_refresh` 活动的输入，可通过计算得出的 `derived_from` 字段（§7）读取 —— 包括未决承诺、设防的 Watch、争议信念槽位、近期的重要高显著性事件以及活动线程。刷新属于 `working_state_refresh` 活动，通常由维护流程运行。
-
-`WorkingState` 是派生召回切面（规范 §66.7）：它以其声明的基准对外提供，在并非事务快照一致时绝不伪称一致。它是认知的视图，而非认知的来源：
+`basis_seq` 是构建该摘要时的 `space_seq`。于是苏醒时读取：
 
 ```text
-WorkingState 绝不能佐证自身输入
-WorkingState 回答“我的当前处境如何”；SelfModel 回答“我是谁”
+DESCRIBE PRIMER               我是谁，使用什么词汇
+WorkingState                  当下重要的是什么
+CHANGES AFTER SEQ basis_seq   自它构建以来发生了什么变动
 ```
 
-一个 Space 在每个行动者及规范任务/上下文作用域内，在稳定的 `key` 下应当至多保留一个处于活动状态的 WorkingState；MemoryScope 记录该作用域。生产它的 Activity 锚定 DependencyBasis 与完整的 ProjectionBasis；消费方在声称当前情境之前必须校验基准及所有增量变更页（规范 §21.12、§57.6）。
+典型输入——即其 `working_state_refresh` Activity 的 inputs，可通过计算得出的 `derived_from` 字段（§7）读取——包括未决承诺、设防的 Watch、有争议的信念槽位、近期的高显著性 Event 以及活跃线程。刷新是一条 `working_state_refresh` Activity，通常由维护流程运行。
+
+WorkingState 是派生召回面（规范 §66.7）：它连同其声明的基准一并提供，在并非事务快照一致时绝不呈现为一致。它是认知的视图，而非认知的来源：
+
+```text
+WorkingState 绝不被引为 Evidence
+WorkingState 绝不佐证其自身的输入
+WorkingState 回答“我的处境如何”；SelfModel 回答“我是谁”
+```
+
+一个 Space **应当**在每个行动者及规范任务/上下文作用域内，于稳定的 `key` 之下至多保留一个活跃的 WorkingState；MemoryScope 记录该作用域。产出它的 Activity 钉住 DependencyBasis 与完整的 ProjectionBasis；消费方在声称当前处境之前须校验该基准及所有增量页（规范 §21.12、§57.6）。
 
 ---
 
 # 6. 标准 Facet
 
 ## 6.1 MnemonicState（记忆状态）
-
-挂载于 Concept 上（包括 Skill），管理其记忆生命周期信号：
 
 ```json
 {
@@ -416,10 +415,12 @@ WorkingState 回答“我的当前处境如何”；SelfModel 回答“我是谁
 }
 ```
 
+`memory_strength` 回答该记忆对未来认知使用应当有多可及。`salience` 回答它有多重要/值得注意。`utility` 回答该记忆预期承载多少未来决策价值——即存储时所作的准入下注，随结果的到来而修订。
+
 ```text
-置信度 confidence ≠ 记忆强度 memory_strength
-显著性 salience ≠ 信任度 trust
-效用 utility ≠ 事实真值、显著性或权限许可
+memory_strength ≠ confidence（置信度）
+salience ≠ trust（信任）
+utility ≠ 真值、显著性或许可
 ```
 
 `memory_strength` 是最后显式写入的**基准**（base），`last_metabolized_at` 是其**锚点**（anchor），`strength_policy` 是钉固的策略工件（`schemas/kip-cognitive-records.schema.json#/$defs/StrengthPolicy`）。只读计算成员 `effective_strength`（规范 §18.2）在读取评估时由此三者派生计算得出，当其中任何一项缺失时为 `null` —— 即未知，绝不可填充默认值（例如 `0.5`，规范 §59.1）。读取绝不会将其写回。因此，闲置的记忆不产生写入开销。
@@ -470,7 +471,7 @@ outcome_status: success | partial | failure | aborted | unknown
 magnitude (可选)
 ```
 
-规范数值形态定义于 `kip-cognitive-records.schema.json#/$defs/OutcomeRecord`；其打分规则参见配套规范[验证性学习](../brain/KIP-2.0-Validated-Learning_CN.md) §3。实际尝试与预先存在的决策由观测 Activity 链接。空的 attempt_ref 使结果保持未评分，绝不自动充当对照组。
+规范数值形态定义于 `kip-cognitive-records.schema.json#/$defs/OutcomeRecord`；其打分规则参见配套规范[已验证学习](../brain/KIP-2.0-Validated-Learning_CN.md) §3。实际尝试与预先存在的决策由观测 Activity 链接。空的 attempt_ref 使结果保持未评分，绝不自动充当对照组。
 
 ---
 
@@ -518,62 +519,87 @@ DependencyBasis 是过程记录上的不可变内容，不是重写断言前提�
 
 # 7. 标准结构字段
 
-结构字段是图拓扑连接，不是语义命题。
+结构字段是记录拓扑，不是语义命题。
 
 ```text
 experienced_by     Experience → Person
 has_step           Experience → ExperienceStep (有序)
 involves           Event/Experience → 相关 Person/Concept
 mentions           Event/Experience/Insight → Concept
+current_revision   Skill → SkillRevision (必填，单值)
+revision_of        SkillRevision → Skill (必填，单值)
+current_trial      Skill → trial_open Activity (单值；已验证学习 §4)
+current_evaluation Skill → lifecycle_verdict Activity (单值；已验证学习 §4)
 committed_to       Commitment → Person
 owed_to            Commitment → Person
 assigned_to        SleepTask/Watch → 语义行动者
-watches            Watch → 观察的认知目标
+watches            Watch → 被观察的认知
 about              Profile 工件 → 主题 Concept
-current_revision   Skill → SkillRevision
-revision_of        SkillRevision → Skill
-current_trial      Skill → trial_open Activity (可选指针)
-current_evaluation Skill → lifecycle_verdict Activity (可选指针)
 ```
 
-四个传统谱系字段（`derived_from`、`compiled_from`、`compiled_by` 与 `consolidated_to`）不再是存储的结构引用：它们是直接从产出活动的 `inputs` 与 `outputs` 计算得出的只读视图（§8.2）。
-
-标准语义谓词（用于 Proposition + Assertion + Evidence）：
+四个谱系字段是**计算得出的**（规范 §18.2）：它们是 Activity 溯源的只读视图，而 Activity 溯源是派生谱系的唯一权威（规范 §63.5）。写入它们以 `ConstraintViolation` 失败；记录产出 Activity 及其 inputs 与 outputs，才是使它们出现的方式：
 
 ```text
-prefers    Person → Concept                     稳定偏好主张，按选项类别分区（§5.5）
-caused_by  ExperienceStep → ExperienceStep      结果 → 原因主张；仅凭步骤顺序不构成因果
+derived_from       工件 → 产出它的终态 Activity 的 inputs
+compiled_from      Skill/SkillRevision → 其编译 Activity 的 Experience inputs
+compiled_by        Skill/SkillRevision → 编译 Activity 本身
+consolidated_to    Event/Experience → 使用过它的巩固 Activity 的 outputs
+```
+
+`involves`、`mentions` 与 `about` 不应被用来伪装更强的领域关系。
+
+本 Profile 还定义了三个标准**语义谓词**（对真值敏感；通过 Proposition + Assertion + Evidence 使用）：
+
+```text
+prefers    Person → Concept                     同一类别选项之间的偏好
+caused_by  ExperienceStep → ExperienceStep      结果 → 原因主张
 same_as    Concept → Concept                    未核验的同一性主张
 ```
 
+`prefers` 声明 `functional_by: "object_type"`（规范 §20.15）：宾语的概念类型对槽位进行分区，因此偏好一种配色方案与偏好另一种配色方案相互竞争，而配色方案偏好与编辑器偏好可以共存。这只有在每个选项都按其类别定型时才成立（§5.5）：由领域包或 Space 的草稿词汇定义的 `ColorScheme` 与 `Editor`，绝不是诸如 `Topic` 之类的兜底类型——在那样的类型之下，每一项偏好都会与其他所有偏好竞争。同一类别内较新的偏好通过时间继承（规范 §25.4）接替较旧的偏好——“我现在偏好浅色模式”是一条断言，而不是一次撤回加一条断言。表示“喜欢若干个”的关系是另一个不同的谓词。
+
 `same_as` 为身份审阅提供输入（类似维护 §15 风格的工作流）；它绝不自动合并 Concept，也绝不凭自身确立 `canonical_id`。
 
-`caused_by` 的方向为 结果 → 原因。绝不可将步骤顺序（`has_step` 边的索引）直接提升为 `caused_by` 主张。
+`caused_by` 的方向为 结果 → 原因。绝不可仅凭步骤顺序（`has_step` 边的索引）将其提升为 `caused_by` 主张。
 
-领域特定的事实谓词来自领域包，而不是来自本 Profile。最小通用包 `kip://domains/general@1.0.0`（`profiles/general-domain-1.0.0.schema.json`）提供了人员、地点和组织；遇到没有任何已安装包命名的关系时，Brain 可扩展 Space 的草稿词汇（规范 §20.16）。
+领域特定的事实谓词来自领域包，而不是来自本 Profile。最小通用包 `kip://domains/general@1.0.0`（`profiles/general-domain-1.0.0.schema.json`）提供了人员、地点和组织；遇到没有任何包命名的关系时，Brain 扩展 Space 的草稿词汇（规范 §20.16）。
 
 ---
 
 # 8. 证据与溯源 (Evidence & Provenance)
 
-## 8.1 后果通道 (The consequence channel)
-
-后果通道具有两套解耦的连接机制：
+只要事实保真度重要，Profile 工件就**应当**保留与 Evidence 的链接。
 
 ```text
-流 (stream)       OutcomeRecord.task_family
-                  寻找候选可比后果流，确定试用裁决的对比基线
+Event       ← 消息/工具 Evidence
+Experience  ← 轨迹 Evidence
+Insight     ← Experience/Evidence
+Skill       ← 若干 Experience + 编译 Activity
+SelfModel   ← 观测/Insight/Activity
+```
 
-归因 (attribution) outcome_observation Activity {inputs: 尝试活动与决策活动, outputs: 结果证据}
-                  明确指明被该结果打分的具体单次决策与实际尝试；
-                  决策活动的 inputs 包含所应用的技能修订版本与引用的记忆
+反复转换不会产生独立的佐证。消息 → Event 摘要 → Experience 摘要 → Insight 可能仍然只有一个认知根。
+
+## 8.1 后果通道 (The consequence channel)
+
+以上的一切让系统得以观察世界。后果通道则是世界回望的方式：携带 `OutcomeRecord` Facet 的结果证据（规范 §15.7），由仪器化组件——遥测、验证器、测试工具链、工具、人工审查——在 `record_outcome` 权限（规范 §29.8）下写入。
+
+该通道有两个联结，各司其职：
+
+```text
+流 (stream)        OutcomeRecord.task_family
+                   寻找候选后果；TrialRecord 显式选定可比基线
+
+归因 (attribution) outcome_observation Activity {inputs: 决策, outputs: 结果}
+                   指名该结果所评定的那一次决策；决策的 inputs 指名
+                   所应用的技能与所依据的记忆
 ```
 
 后果通道向四个消费者提供数据，全部遵循相同的纪律约束：
 
 ```text
 技能生命周期裁决        §14   独立尝试聚合结果对比不可变的 TrialRecord 基线
-                              （配套规范：验证性学习）
+                              （配套规范：已验证学习）
 GradingState 视图       §6.2  从裁决的评估中计算得出：仅限关联的结果
 MnemonicState.utility   §6.1  准入效用下注，依据决策的 used_refs 被证实或浪费
 信任度校准              规范 §22.6
@@ -608,32 +634,31 @@ experience_formation      semantic_consolidation    procedural_consolidation
 reflection                skill_compilation         skill_validation
 self_model_refresh        mnemonic_metabolism       commitment_review
 watch_fire                action_gate               action_attempt
-dependency_validation     working_state_refresh     outcome_observation
-lifecycle_verdict         recording_repair          assessment
-trial_open
+derivation_review         dependency_validation     working_state_refresh
+outcome_observation       trial_open                lifecycle_verdict
+encoding_review           recall_coverage           identity_repair
+erasure_review            recording_repair
 ```
 
-`action_gate` 记录达成的行动裁决（包括刻意的沉默），其 `inputs` 指名所咨询的确切 SkillRevision 与记忆，其 Facet 携带 `DecisionRecord`（§6.4）。
+Activity 记录溯源；Activity 不是事务。
 
-`outcome_observation` 记录仪器写入的结果，`inputs` 指向对应的尝试与 `action_gate` 决策。其关联行动者为仪器的语义 Concept；认证的主体记录在引擎 origin 中，绝不占用 Concept 引用槽位。它绝不冒充被评定的行动者，写入它需要 `record_outcome` 权限（规范 §29.8）。
+`action_gate` Activity 是决策记录：它记录一次状态变更在任何对外动作发生之前所经过的决策。其 `DecisionRecord` Facet（§6.4）持有决策结果——`act`、`ask`、`defer` 或 `silence`——其 `inputs` 指名所应用的认知（触发因素、技能、简报所依据的记忆），其 `associated_actors` 指名由谁决定。记录 `defer` 与 `silence` 使克制变得可问责：“你为什么没告诉我”与“你为什么这么做”由同一份溯源来回答。网关阈值——哪些变更需要评估——属于大脑策略；低价值的噪声不需要网关记录，但要由后果通道评定的行动需要。
 
-`lifecycle_verdict` 评估后果流并写入不可变的 EvaluationRecord；技能的 `current_evaluation` 指向它。TrialRecord 冻结比对基线；`current_trial` 选择当前活动的试用。运行时校验与记录的规则执行二者缺一不可；仅凭带有该类名的作者自建活动无法自行晋升技能。参见配套规范[验证性学习](../brain/KIP-2.0-Validated-Learning_CN.md) §4。
+`outcome_observation` Activity 是摄取仪器对其写入结果证据及该证据所评定对象的记录——inputs：被观测决策的 `action_gate` Activity；outputs：结果证据。当该结果要计入任何技能、计数或校准时，该 input 是**必需的**；没有决策 input 的观测仅在流中记录一项后果。其关联行动者为仪器的语义 Concept；其经认证的 Principal 记录在引擎起源中，绝不占用 Concept 引用槽位。它不冒充被评定的行动者，写入它需要 `record_outcome`（规范 §29.8）。
 
-`recording_repair` 记录对录入错误的修复，携带 RecordingRepair 记录（规范 §57.8）。
-
-`trial_open` 开启一次试用并携带不可变的 TrialRecord；技能的 `current_trial` 指向它。
-
-`assessment` 记录轻量级的过程性评定，携带 ProcedureAssessment 记录。
+`lifecycle_verdict` Activity 记录对后果流的一次确定性评估：其不可变的 EvaluationRecord 指名确切的修订版本、试验、所选的独立尝试与结果，以及一份保留的重放工件；技能的 `current_evaluation` 指向它。仅凭带有该类名的作者自建 Activity 无法晋升技能。其契约为[已验证学习配套规范](../brain/KIP-2.0-Validated-Learning_CN.md)。
 
 ---
 
 # 10. 事件形成 (Event Formation)
 
-Event 应当简洁明了：时间戳、参与主体、事件摘要、上下文及证据引用。日常平凡回复可不产生 Event。
+Event **应当**紧凑：时间、参与者、摘要、结果、上下文、Evidence 引用。例行的应答可以不产生 Event。
 
-## 10.1 CompressionRecord（压缩记录）
+## 10.1 编码记录 (Encoding records)
 
-当形成或编码操作压缩长文本或媒体有效载荷时，其产出活动携带 CompressionRecord，指明保留字段、遗漏内容与重编码资格（`kip-cognitive-records.schema.json#/$defs/CompressionRecord`）。这记录了表示层的信息取舍，而不是信念改变。
+形成过程在配置的隐私与留存预算之内，记录它接纳、推迟或拒绝了什么以及原因。源 Evidence **可以**具有较短的留存窗口，而语义记录具有较长的留存窗口。其实体或 Schema 无法解析的材料**可以**保持为仅 Evidence——或通过草稿词汇（规范 §20.16）建模——而不是被强行归入一个猜测的类型，或被当作无价值而丢弃。
+
+在信息损失事关重大之处，形成 Activity 携带一条 **CompressionRecord**：源引用、提取器与 Schema 版本、保留的字段、已知的遗漏以及重新编码资格。摘要无法恢复被遗漏的字节。载荷清除**必须**在留存策略下考虑尚未完成的重新编码与审阅需求，且绝不声称有损编码保留了所有未来有用的信息。
 
 ---
 
@@ -657,9 +682,18 @@ Event 应当简洁明了：时间戳、参与主体、事件摘要、上下文�
 
 # 12. 语义巩固 (Semantic Consolidation)
 
-语义巩固探寻：**积累的经验支撑了何种可重用的陈述性事实规则？**
+语义巩固探寻：**积累的证据支撑了何种可复用的陈述性规律？**
 
-严禁改写历史断言置信度或删除反面证据。
+推荐流程：
+
+```text
+Experience/Evidence
+→ 候选 Proposition
+→ 派生 Assertion
+→ semantic_consolidation Activity
+```
+
+它**严禁**改写旧断言的置信度、删除相互矛盾的 Evidence，或将同一根源的摘要计为独立 Evidence。
 
 ---
 
@@ -684,34 +718,46 @@ Event 应当简洁明了：时间戳、参与主体、事件摘要、上下文�
 
 # 14. 技能生命周期 (Skill Lifecycle)
 
-生命周期流转由配套规范[验证性学习](../brain/KIP-2.0-Validated-Learning_CN.md)运行。其生命周期状态为：
+```text
+proposed   已编译，当前修订版本携带其 task_family；尚未评定
+trialed    结果流正在对照已记录的基线对其评定
+adopted    经裁决晋升；暂定——结果流持续评定
+revoked    经裁决、反例或策略降级；记录予以保留
+```
+
+允许的迁移：
 
 ```text
-proposed   已编译，当前修订版本携带 task_family；未经证实
-trialed    处于前瞻性或回顾性试用中
-adopted    经由经验证的评估晋升；暂定状态
-revoked    经由评估或反例降级废弃；记录予以保留
+proposed → trialed    试验开启；要求具备 task_family；通过 current_trial 选定该试验
+trialed  → adopted    基于独立尝试对照不可变基线的比较性裁决
+trialed  → revoked    裁决、反例或策略
+proposed → revoked    在试验之前撤下
+adopted  → trialed    退化裁决；重新试验，而非赦免
+adopted  → revoked    裁决；一次高严重度的匹配条件失败**可以**即已足够
+revoked  → trialed    重新进入将开启一次新的试验；没有任何东西会悄然复活
 ```
+
+除撤下（`proposed → revoked`）之外的每一次迁移都由[已验证学习配套规范](../brain/KIP-2.0-Validated-Learning_CN.md)执行：一条带有经验证的 EvaluationRecord 的 `lifecycle_verdict` Activity 加一次受保护的更新，处于同一事务之中。只有 `trialed → adopted` 是晋升；`proposed → adopted` 与 `revoked → adopted` 无效。未实现该配套规范的 Brain 将其技能保持为 `proposed`——未经证实的候选，完全可被召回——并且**可以**撤下它们。
 
 召回报告**资格地位**（standing），作为生命周期的视图：
 
 ```text
 proposed, trialed                                  unproven（未经证实）
 adopted 且具备匹配、可验证的评估                   validated（经验证）
-adopted 但不具备匹配、可验证的评估                 unverifiable（无法验证）
-revoked                                            revoked（已废弃）
+adopted 但不具备                                   unverifiable（无法验证）
+revoked                                            revoked（已撤销）
 ```
 
-约束所有 Brain 的规则（无论是否具备配套规范）：
+约束所有 Brain 的规则（无论是否具备该配套规范）：
 
-1. **确定性流转**：晋升与降级由读取评分结果证据的确定性代码执行 —— 绝不由作者断言、衰减或行动模型的自主判断执行。Brain 负责提议、编译和叙述；绝不自行晋升。
-2. **废弃不难于采纳**：降级门槛不得高于晋升门槛。只能习得而无法废弃的生命周期无法区分习惯与迷信。
-3. **采纳是暂定的**：被采纳的 Skill 保持订阅其后果流；部署应当定义重新裁决触发条件 —— 结果计数、时间窗口或对该任务族的 Watch。
-4. **评分词汇**：区分匹配条件下的成功、匹配条件下的失败、非匹配条件下的失败以及未知结果。匹配条件下的失败会降低 utility、增加失败模式和反例、收窄适用范围或降级；非匹配失败收窄适用范围而不惩罚该程序。
-5. **依赖有效性是正交的**：其溯源根节点被修订的 Skill 变为 `needs_review`（规范 §57.6），无论其资格地位如何，且该复审可能开启重新试用。
-6. **计分前严格归因**：仅共享 `task_family` 的结果绝不能改变 Skill 的资格地位或其 GradingState 视图；同一任务族中的两个 Skill 由各自的决策评分，绝不互相借用。
+1. **确定性迁移。** 晋升与降级由读取已评定结果证据的确定性代码执行——绝不由作者断言、衰减或行动模型的判断执行。Brain 负责提议、编译和叙述；它绝不晋升。
+2. **撤销绝不难于采纳。** 降级门槛**严禁**高于晋升门槛。只能习得的生命周期无法区分习惯与迷信。
+3. **采纳是暂定的。** 被采纳的 Skill 保持订阅其结果流；部署**应当**定义重新裁决的触发条件——结果计数、时间窗口或对该任务族的 Watch。
+4. **评定词汇。** 区分匹配条件下的成功、匹配条件下的失败、非匹配条件下的失败以及未知结果。匹配条件下的失败会降低 utility、增加失败模式和反例、收窄适用范围或降级；非匹配条件下的失败收窄适用范围而不惩罚该程序。
+5. **依赖有效性是正交的。** 其溯源根被修订的 Skill 无论资格地位如何都是 `needs_review`（规范 §57.6），且该审阅可以开启一次重新试验。
+6. **先归因，后计数。** 仅仅共享 `task_family` 的结果**严禁**改变 Skill 的资格地位或其 GradingState 视图；同一任务族中的两个 Skill 由各自的决策评定，而非由彼此的决策评定。
 
-生命周期状态绝不授予执行权限。采纳代表资格地位，而非权限许可。
+任何生命周期状态都不授予执行权限。采纳是资格地位，而非许可。
 
 ---
 
@@ -799,7 +845,7 @@ Profile 支持：
 经验召回 (Experience Recall) = Experience + 有序 Steps + 结果
 程序召回 (Procedural Recall) = Skill + 适用条件 + 资格地位 (§14) + utility + 正向/反向 Experience
 行动简报 (Action Briefing)   = 已接受知识 + 争议假设 + 技能 + 成功/失败案例 + 承诺 + 约束警告
-苏醒简报 (Wake Briefing)     = WorkingState + 基于其 basis_seq 的变更流 + 触发的注意力
+苏醒简报 (Wake Briefing)     = WorkingState + CHANGES AFTER 其 basis_seq + 触发的注意力
 ```
 
 召回默认使用 `kip:memory-default`（规范 §21.13），除非请求或部署指定了其他策略。使用结果的智能体保持最终行动权限，除非独立治理另有授予。
@@ -838,7 +884,7 @@ Profile 支持：
 
 # 22. 一致性测试要求 (Conformance Expectations)
 
-Profile 一致性测试 Experience/Step 结构合法性、失败经历保留、MnemonicState 可变性与计算得出的有效强度、置信度与记忆强度解耦、只读 GradingState 视图与计算得出的谱系字段、技能权限非放大性、胶囊可移植性、SelfModel 非权限性、承诺生命周期、Watch 非权限性、召回前的依赖有效性校验、WorkingState 非证据性、DecisionRecord 非授权性、经验形成原子性、程序溯源、同类别内的偏好继承与按类别为选项定型、结果来源隔离（自评不计分）、结果归因严密性（没有决策链接的结果绝不改变资格地位，且同一任务族的成员结果绝不为另一个技能打分）、试用准入必须具备任务族、以及导入时不继承生命周期资格地位。配套规范[验证性学习](../brain/KIP-2.0-Validated-Learning_CN.md)与[大脑运行时](../brain/KIP-2.0-Brain-Runtime_CN.md)包含各自的验收章节。
+Profile 一致性测试 Experience/Step 结构合法性、失败经历保留、MnemonicState 可变性与计算得出的有效强度、置信度与记忆强度解耦、只读 GradingState 视图与计算得出的谱系字段、技能权限非放大性、胶囊可移植性、SelfModel 非权限性、承诺生命周期、Watch 非权限性、召回前的依赖有效性校验、WorkingState 非证据性、DecisionRecord 非授权性、经验形成原子性、程序溯源、同类别内的偏好继承与按类别为选项定型、结果来源隔离（自评不计分）、结果归因严密性（没有决策链接的结果绝不改变资格地位，且同一任务族的成员结果绝不为另一个技能打分）、试用准入必须具备任务族、以及导入时不继承生命周期资格地位。配套规范[已验证学习](../brain/KIP-2.0-Validated-Learning_CN.md)与[大脑运行时](../brain/KIP-2.0-Brain-Runtime_CN.md)包含各自的验收章节。
 
 ---
 

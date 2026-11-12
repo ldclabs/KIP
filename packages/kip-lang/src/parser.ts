@@ -6,7 +6,7 @@ import {
   isIdentifierLike,
   isAggregate
 } from './token.js'
-import type { Range, Position } from './token.js'
+import type { Position } from './token.js'
 import type {
   Program,
   Statement,

@@ -2,6 +2,7 @@ import { tokenize } from './lexer.js'
 import { parse } from './parser.js'
 import { diagnose } from './diagnostics.js'
 import { Token, TokenType } from './token.js'
+import type { Range } from './token.js'
 import type {
   BaseNode,
   Program,
@@ -130,15 +131,23 @@ class Formatter {
   }
 
   /**
-   * True if an un-emitted comment lies within a node spanning
-   * [startLine, endLine]. Used to keep a block multi-line so interior
-   * comments can be preserved at their position rather than relocated.
+   * True if an un-emitted comment lies inside a node's range. Used to keep a
+   * block multi-line so interior comments can be preserved at their position
+   * rather than relocated.
+   *
+   * Compared by position, not by line: a comment trailing the closing brace
+   * (`{a: 1} // note`) shares the block's last line without being inside it.
+   * Counting it would expand the block on one pass and, once the comment has
+   * moved to its own line, collapse it again on the next.
    */
-  private hasPendingCommentInRange(startLine: number, endLine: number): boolean {
+  private hasPendingCommentInRange(range: Range): boolean {
+    const { start, end } = range
     for (let i = this.commentIdx; i < this.comments.length; i++) {
-      const line = this.comments[i]!.line
-      if (line > endLine) break
-      if (line >= startLine) return true
+      const { line, column } = this.comments[i]!
+      if (line > end.line || (line === end.line && column >= end.column)) break
+      if (line > start.line || (line === start.line && column >= start.column)) {
+        return true
+      }
     }
     return false
   }
@@ -1110,10 +1119,7 @@ class Formatter {
       return
     }
 
-    const hasComments = this.hasPendingCommentInRange(
-      object.range.start.line,
-      object.range.end.line
-    )
+    const hasComments = this.hasPendingCommentInRange(object.range)
     const inline = this.objectLiteralToString(object, sort)
     if (
       !hasComments &&

@@ -79,10 +79,13 @@ jobs:
         run: |
           python3 formal/governance/check_governance.py
           python3 formal/grammar/check_ebnf.py
-          for mode in '' --self-graded --family-join --skip-trial --count-imported --no-gate --observation-count --reuse-trial --edit-revision; do
+          for mode in '' --self-graded --family-join --skip-trial --count-imported --no-gate --observation-count --reuse-trial --edit-revision --direct-promotion --monitor-as-promotion; do
             python3 formal/lifecycle/check_lifecycle.py $mode
           done
           python3 formal/watch/check_watch.py
+          python3 formal/watch/check_watch.py --no-client-key
+          python3 formal/watch/check_watch.py --no-guard
+          python3 formal/watch/check_watch.py --no-guard --no-client-key
           python3 formal/watch/check_watch.py --premature-silence
           python3 formal/purge/check_purge.py
           python3 formal/purge/check_purge.py --hold-after-policy
@@ -91,6 +94,9 @@ jobs:
           python3 formal/temporal/check_temporal.py
           for mode in --cross-actor --agreeing-cuts --no-start-bound --arrival-order --outrank-observation --infer-succeeds --recency-first; do
             python3 formal/temporal/check_temporal.py $mode
+          done
+          for mode in '' --propose-implies-manage --define-overwrites --no-claim-check --ungated-grant --repromote; do
+            python3 formal/governance/check_draft_vocabulary.py $mode
           done
 
   vscode-kip:
@@ -115,6 +121,9 @@ jobs:
 
       - name: Type-check
         run: pnpm --filter vscode-kip lint
+
+      - name: Test
+        run: pnpm --filter vscode-kip test
 
       - name: Bundle
         run: pnpm --filter vscode-kip build

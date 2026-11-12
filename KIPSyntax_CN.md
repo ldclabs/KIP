@@ -109,6 +109,8 @@ object     本地 Element 引用，或 Predicate Schema 允许的标量 Literal
 
 适用范围包括 `_system.created_at` / `updated_at`、`asserted_at`、`observed_at`、`valid_time.from` / `until`、`started_at` / `ended_at`、`retention.expires_at`、`committed_at`、`format: "timestamp"`，以及绑定到 `at`、`FOR TIME` 或 `DESCRIBE SNAPSHOT AT TIME` 的参数。仅在字段约定允许时才可使用 `null` 或缺省。
 
+当某个瞬间只知道落在一个范围内时，`valid_time` 的端点也可以是一个**时间界限（time bound）** `{earliest, latest}`（二者可省略其一）——“2019 年内”即 `{earliest: "2019-01-01T00:00:00.000Z", latest: "2019-12-31T23:59:59.999Z"}`。缺失的 `from` 本身就是界限 `{latest: asserted_at}`——该值开始得不晚于该主张——因此 `asserted_at`（`at`）必须是主张作出的时间，而非记录它的时间。绝不要在范围内挑选一个瞬间；落在其中的投影回答 `uncertain`（`temporal_indeterminate`）。
+
 缺少小数部分、小数位数不等于三位、非 `Z` 时区表示及无效日期/时间均报 `ConstraintViolation`；数值型纪元时间及其他非字符串时间戳报 `TypeMismatch`。输入绝不静默规范化。引擎生成时间戳时截去时钟中不足一毫秒的部分。毫秒精度不代表唯一性或提交顺序；每个 Space 内的提交顺序使用 `space_seq`。时长仍使用其声明的单位。
 
 ---
@@ -157,7 +159,10 @@ STRUCTURAL (?experience, "has_step", ?step)          // 边的绑定变量是可
 ?belief BELIEF (?p)                                  // 投影一个已绑定的 Proposition
 ?belief BELIEF (id: :prop_id)                        // ... 或已知 id 的命题 (相同 id 形式)
 ?slot BELIEF SLOT (?person, "timezone")              // 整个函数槽位：候选值 + 冲突集
+?person SEARCH CONCEPT :query WITH TYPE "Person" LIMIT 10   // 在查询内绑定的联想检索；LIMIT 必填
 ```
+
+**时间与策略**：开放的 `until` 表示“未陈述结束时间”，而非“永远有效”：当两者都是该行动者自己的陈述（`stated`/`observed`，或写明了 `from`）时，同一行动者在函数型槽位上更晚的值会在其自身起点处结束旧值（时间继承，temporal succession），因此变化之前的 `FOR TIME` 仍返回旧值；两条未写明起始的 `inferred` 主张绝不相互继承。除非另有指定，召回使用标准策略 `kip:memory-default`：在相互冲突的值中，任务限定的值在其任务内优先；本人关于自身的陈述优先于他人转述（但绝不优先于观测）；否则最近被主张成立的值优先（依据起始键，绝不依据记录顺序）；被压过的值为 `uncertain`，原因 `outranked`。
 
 **BELIEF 输出**：`status` ∈ `accepted | rejected | contested | uncertain | insufficient`，`leading` ∈ `support | opposition | none`（在 `contested` 状态下占优势的一方；仅作信息披露，绝非最终裁定），加上支持/反对依据、不确定性信息与 `basis` —— 生效策略标识（`?b.basis.policy.id`）、`valid_at` 与快照都在其中，而非单独的成员。对一个从未存储过的命题进行充分绑定的 BELIEF 查询将返回 `insufficient`（而非 0 行结果）。BELIEF SLOT 返回 `accepted_values` + `candidate_projections`。支持度与反对度得分之和不强制为 1。`BELIEF` / `BELIEF SLOT` 仅用于 `FIND`：绝不能出现在 mutation 的 `WHERE` 块或 `EXPORT` 选择集内，且其谓词必须是精确名称（不支持路径运算符）。
 
@@ -190,7 +195,7 @@ UNION { ... }                      // 分支选择（作用域相互独立）
 
 游标是不透明的、锁定快照的、绑定于操作族的；游标继续翻页时当前 Governance 权限依然生效。
 
-**检索模式（Search Pattern）**：`?person SEARCH CONCEPT :query WITH TYPE "Person" LIMIT 10` 在查询内部完成检索并绑定命中项，使接地、过滤与信念投影在同一快照上完成。模式内的 `LIMIT` 限定候选集且为必填；`?x.retrieval.score` 可用于过滤与排序，但绝不是置信度。它不能出现在 `NOT` 内（未命中不证明不存在），也不能出现在变更语句的 `WHERE` 中：
+**检索模式（Search Pattern）**在查询内部执行检索，使接地、过滤与信念投影针对同一快照完成。其 `LIMIT` 限定候选集且为必填；`?x.retrieval.score` 可用于过滤与排序，但绝不是置信度。它不能出现在 `NOT` 内（未命中不证明不存在），也不能出现在变更语句的 `WHERE` 中：
 
 ```kip
 FIND(?person.name, ?home)
@@ -201,8 +206,6 @@ WHERE {
 ORDER BY ?person.retrieval.score DESC
 LIMIT 5
 ```
-
-**时间与策略**：开放的 `until` 表示“未陈述结束时间”，而非“永远有效”：同一行动者在函数型槽位上更晚开始的值会在其起点处结束旧值（时间继承，temporal succession），因此变化之前的 `FOR TIME` 仍返回旧值。召回默认使用标准策略 `kip:memory-default`：任务限定的值在该任务内优先于通用值；本人关于自身的陈述优先于他人转述（但绝不优先于观测）；被压过的值为 `uncertain`，原因 `outranked`。
 
 ---
 
@@ -221,7 +224,7 @@ ASSERT (:alice, "prefers", :dark_mode) {
   confidence: 0.95,        // 可选 [0,1]：本立场陈述的强度，绝非客观真值概率
   evidence: :msg,          // 可选：Evidence 引用或数组（推荐使用摄取上下文 Evidence）
   stance: "support",       // 可选，默认 support (support|reject|uncertain)
-  at: :time,               // 可选 → asserted_at（默认：引擎事务时间）
+  at: :time,               // 可选 → asserted_at：行动者作出该主张的时间（默认：引擎事务时间；对捕获的来源应显式设置）
   valid: {from: :t1, until: :t2},   // 可选 → valid_time（现实世界有效区间）
   key: :client_key         // 可选：重试安全的客户端逻辑键
 }
@@ -238,7 +241,7 @@ ASSERT ?a (:alice, "timezone", "+01:00") {   // 句柄 ?a 是可选的
 } SUPERSEDING :old_assertion
 ```
 
-世界变迁——世界本身发生了变化，旧断言在当时是正确的。只需写**一条**新值断言并注明其开始时间；时间继承会在该时刻结束旧断言，不废弃任何断言，变迁之前的 `FOR TIME` 查询仍返回旧值。变化日期未知时写 `valid: {from: {latest: :stated_at}}`：
+世界变迁——世界本身发生了变化，旧断言在当时是正确的。只需写**一条**新值断言并注明其开始时间；时间继承会在该时刻结束旧断言，不废弃任何断言，变迁之前的 `FOR TIME` 查询仍返回旧值。变化日期未知 → 完全不写 `valid`（缺失的起点本身就表示“不晚于该主张”），并写 `at: :stated_at`，因为 `asserted_at` 就是起始键：
 
 ```kip
 ASSERT (:alice, "timezone", "+01:00") {by: :alice, mode: "stated", valid: {from: :moved_at}, evidence: :msg}
@@ -360,7 +363,7 @@ UNSET STRUCTURAL { ("has_step", :wrong_step) }
 
 更新表达式：`ADD` `MUL` `CLAMP` `COALESCE`（确定性，按目标独立求值；操作数只能读取目标自身的路径）。UPDATE 绝不负责新建。直接指定目标对象时无需 `WHERE` 子句：`UPDATE :id SET FACET "MnemonicState" {salience: 0.9}`（与 TRANSITION/PURGE/SET RETENTION 规则一致——`?var` 目标由 WHERE 绑定，`:id`/`"id"` 则直接指明元素）。
 
-**UPDATE 严禁触碰**：Proposition 元组、Assertion 涉真载荷与引用、Evidence 载荷与拓扑、终态 Activity 拓扑、`_system` 内部状态、Governance 治理面、Schema 模式包。处于 pending 状态的 Activity 使用 `TRANSITION` 固化字段与拓扑；终态 Activity 不可变。尝试非法重写将触发 `EpistemicRevisionRequired` / `EvidenceCorrectionRequired` / `ImmutableField`。**严禁随时间推移衰减断言置信度（Assertion confidence）**——置信度代表表达时的坚信程度，记忆不用会降低 `memory_strength`；过期处理是投影的职责；产生新认知应创建新断言。
+**UPDATE 严禁触碰**：Proposition 元组、Assertion 涉真载荷与引用、Evidence 载荷与拓扑、终态 Activity 拓扑、`_system` 内部状态、Governance 治理面、Schema 模式包。处于 pending 状态的 Activity 使用 `TRANSITION` 固化字段与拓扑；终态 Activity 不可变。尝试非法重写将触发 `EpistemicRevisionRequired` / `EvidenceCorrectionRequired` / `ImmutableField`。**严禁随时间推移衰减断言置信度（Assertion confidence）。**衰减是计算得出的，而非写入的：`memory_strength` 是基准值，`last_metabolized_at` 是其锚点，只读的 `?m.facets["MnemonicState"].effective_strength` 依据钉住的 `strength_policy` 下降。依据显式的使用信号同时写入新的基准值与锚点来强化；绝不要用默认值填充缺失的强度。过期处理是投影的职责；产生新认知应创建新断言。
 
 #### 3.6. 生命周期与移除 — 统一 `TRANSITION`，目标状态命名动作
 
@@ -446,7 +449,7 @@ THRESHOLD :threshold
 LIMIT :limit
 ```
 
-SEARCH 仅用于关联接地：得分 (score) ≠ 置信度 ≠ 信念；未搜到 ≠ 不存在；结果必须披露 `index_seq` 索引新鲜度。推荐工作流黄金路径：**SEARCH → 获取精确 ID → 执行 BELIEF/FIND**。
+SEARCH 仅用于关联接地：得分 (score) ≠ 置信度 ≠ 信念；未搜到 ≠ 不存在；结果必须披露 `index_seq` 索引新鲜度。推荐工作流黄金路径：**SEARCH → 获取精确 ID → 执行 BELIEF/FIND**；当接地与信念属于同一次读取时，也可使用带检索模式（§2）的单条 `FIND`。
 
 五层安全纪律：`DESCRIBE/SEARCH`（定位发现）≠ `VERIFY`（完整性校验）≠ `VALIDATE`（语法与规则合法性）≠ `PREVIEW`（影响模拟）≠ **Receipt**（实际持久化提交）。
 

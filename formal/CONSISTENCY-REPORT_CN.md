@@ -49,7 +49,7 @@ pnpm --filter vscode-kip lint
 
 ## 提交审查后续修复 — 2026-09-06
 
-针对 commit `6437e96` 的[五项后续审查修复](../KIP-2.0-Review-Resolution_CN.md#针对-commit-6437e96-的后续审查)纠正了模式依赖闭包、未评分召回、晋升/监控状态规则以及废弃的包/示例约束。这些结果适用于后续工作树，而非追溯性地适用于 commit `6437e96`。
+针对 commit `6437e96` 的[五项后续审查修复](../KIP-2.0-Review-Resolution_CN.md#commit-6437e96-的后续审查-follow-up-review-of-commit-6437e96)纠正了模式依赖闭包、未评分召回、晋升/监控状态规则以及废弃的包/示例约束。这些结果适用于后续工作树，而非追溯性地适用于 commit `6437e96`。
 
 | 重新运行的检查项 | 实际结果 |
 | --- | --- |

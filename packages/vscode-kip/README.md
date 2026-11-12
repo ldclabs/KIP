@@ -97,13 +97,13 @@ structure.
 cd packages/vscode-kip
 pnpm install
 pnpm build
-pnpm package   # produces vscode-kip-2.4.0.vsix, https://marketplace.visualstudio.com/manage/publishers/ldclabs
+pnpm package   # produces vscode-kip-2.4.2.vsix, https://marketplace.visualstudio.com/manage/publishers/ldclabs
 ```
 
 Then install the `.vsix`:
 
 ```
-code --install-extension vscode-kip-2.4.0.vsix
+code --install-extension vscode-kip-2.4.2.vsix
 ```
 
 ### Development

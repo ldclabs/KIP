@@ -12,14 +12,14 @@
 | --- | --- | --- | --- |
 | R1 | 最终 BELIEF 包含适用的槽位冲突；候选状态属于诊断信息 | [一致性 §1](./KIP-2.0-Cognitive-Consistency_CN.md#1-冲突完备信念-conflict-complete-belief), [投影 Schema](./schemas/kip-projection.schema.json) | MEM-001；修订 SCHEMA-020；接地/非功能预言机用例 |
 | R2 | 稳定技能选择不可变的 SkillRevision；资格、评分与权限绑定至特定修订版本/摘要 | [Profile](./profiles/CognitiveMemoryProfile-2.0_CN.md), `profiles/cognitive-memory-2.1.0.schema.json`（已移除；参见 git 历史） | MEM-002；修订版本重置与授权规则检查 |
-| R3 | 决策、尝试（Attempt）与观察（Observation）拥有独立身份；配额基于独立尝试聚合进行计数 | [一致性 §5](./KIP-2.0-Cognitive-Consistency_CN.md#5-修订版本尝试试用与评估标识-revision-attempt-trial-and-evaluation-identities), [记录 Schema](./schemas/kip-cognitive-records.schema.json) | MEM-003；观察扩散（observation fan-out）故障注入 |
-| R4 | 受保护的评估策略；显式可比对照组、抽样/相关性、缺失度与不确定性 | [一致性 §6](./KIP-2.0-Cognitive-Consistency_CN.md#6-可比的学习而非单纯可复现的算术-comparable-learning-not-just-repeatable-arithmetic) | MEM-004/019/022；聚合反转、分层缺失与未授权规则测试 |
-| R5 | 不可变的 TrialRecord/EvaluationRecord 与保留的精确回放工件；可变状态仅为指针/缓存 | [Profile §6](./profiles/CognitiveMemoryProfile-2.0_CN.md#6-标准切面-standard-facets) | MEM-005/020；迟到结果、重新试用、更正与保留回放检查 |
+| R3 | 决策、尝试（Attempt）与观察（Observation）拥有独立身份；配额基于独立尝试聚合进行计数 | [一致性 §5](./KIP-2.0-Cognitive-Consistency_CN.md#5-修订版本尝试试验与评估标识-revision-attempt-trial-and-evaluation-identities), [记录 Schema](./schemas/kip-cognitive-records.schema.json) | MEM-003；观察扩散（observation fan-out）故障注入 |
+| R4 | 受保护的评估策略；显式可比对照组、抽样/相关性、缺失度与不确定性 | [一致性 §6](./KIP-2.0-Cognitive-Consistency_CN.md#6-可比学习而非机械算术-comparable-learning-not-just-repeatable-arithmetic) | MEM-004/019/022；聚合反转、分层缺失与未授权规则测试 |
+| R5 | 不可变的 TrialRecord/EvaluationRecord 与保留的精确回放工件；可变状态仅为指针/缓存 | [Profile §6](./profiles/CognitiveMemoryProfile-2.0_CN.md#6-标准-facet) | MEM-005/020；迟到结果、重新试用、更正与保留回放检查 |
 | R6 | 产出/校验 Activity 锁定读取输入；虚拟依赖有效性在维护前进行门控使用 | [一致性 §3](./KIP-2.0-Cognitive-Consistency_CN.md#3-不重写历史的依赖健全性-dependency-validity-without-rewriting-history) | MEM-006；即时更正、替代支持与隐藏/不可用源检查 |
 | R7 | 完备的 ProjectionBasis、精确上下文匹配与左闭右开区间 | [一致性 §2](./KIP-2.0-Cognitive-Consistency_CN.md#2-投影基线上下文与挂钟时钟-projectionbasis-context-and-clocks) | MEM-007；精确边界、无效区间、上下文与缓存坐标测试 |
 | R8 | 受保护且带版本防护的实体识别决策撤回；保留提供的引用与歧义审查集 | [一致性 §4](./KIP-2.0-Cognitive-Consistency_CN.md#4-可修复的身份标识与可移植键-repairable-identity-and-portable-keys) | MEM-008；修复预言机与合并指针写入拒绝 |
-| R9 | Watch 世代/覆盖范围、租约/围栏、持久意图与同尝试对齐 | [一致性 §7](./KIP-2.0-Cognitive-Consistency_CN.md#7-持久化注意力工作与外部行动-durable-attention-work-and-external-actions), [维护](./brain/BrainMaintenance_CN.md) | MEM-009；Watch 有限模型与重启/围栏/恢复契约用例 |
-| R10 | 压缩遗漏/重新编码、分离召回通道、覆盖范围与语义 ErasurePlan | [一致性 §8](./KIP-2.0-Cognitive-Consistency_CN.md#8-编码召回覆盖率与数据擦除-encoding-recall-coverage-and-erasure) | MEM-010/023/024；部分/保留擦除与具型覆盖/擦除记录 |
+| R9 | Watch 世代/覆盖范围、租约/围栏、持久意图与同尝试对齐 | [一致性 §7](./KIP-2.0-Cognitive-Consistency_CN.md#7-持久注意力工作与外部行动-durable-attention-work-and-external-actions), [维护](./brain/BrainMaintenance_CN.md) | MEM-009；Watch 有限模型与重启/围栏/恢复契约用例 |
+| R10 | 压缩遗漏/重新编码、分离召回通道、覆盖范围与语义 ErasurePlan | [一致性 §8](./KIP-2.0-Cognitive-Consistency_CN.md#8-编码召回覆盖与擦除-encoding-recall-coverage-and-erasure) | MEM-010/023/024；部分/保留擦除与具型覆盖/擦除记录 |
 | R11 | 可移植数值域；严格的 JSON/JCS 安全规范化与固化工件摘要 | [canonical.ts](packages/kip-lang/src/canonical.ts), [lower.ts](packages/kip-lang/src/lower.ts), [摘要工具](./conformance/update-digests.mjs) | MEM-011；精确数值、下溢、Unicode、重复键、属性保留与工件金样检查 |
 | R12 | 规范化 Profile 地位、完备的不变量至向量映射、具型工件、适配器与独立学习门禁 | [一致性指南](./conformance/README.md), [Brain 评估](./brain/BrainEvaluation_CN.md) | MEM-012–025；向量/报告/Schema 检查与 CI |
 

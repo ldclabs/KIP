@@ -47,9 +47,25 @@ Skill 频繁成功 → 自动赋予物理可执行权限
 
 根据具体部署环境，Maintenance 可被授予读取、检索、投影、维护、归档、留存管理及实体合并权限。除非获得 Governance 的显式特权授予，否则 Maintenance **严禁**擅自行使 `manage_policy`、`manage_trust`、`manage_schema`、`declassify`、`purge`、`assert_as_actor` 或 `elevate_authority` 等控制平面权限。
 
-# 3. 输入数据契约与预算
+# 3. 输入数据契约
 
-维护主体可被授予 `read / search / project / maintain / archive / retention / merge` 等权限。
+```json
+{
+  "trigger": "scheduled",
+  "scope": "full",
+  "timestamp": "2026-08-14T03:00:00.000Z",
+  "budgets": {
+    "max_elements_reviewed": 5000,
+    "max_writes": 500,
+    "max_transactions": 100
+  },
+  "parameters": {
+    "strength_policy": {"artifact_ref": "kip:strength-half-life-30d", "content_digest": "sha256:..."},
+    "event_archive_after_days": 30,
+    "skill_review_after_days": 14
+  }
+}
+```
 
 具体阈值由大脑策略规定，不属于 KIP 协议核心标准。
 
@@ -153,11 +169,11 @@ EXPECT VERSION :lease_version OF FACET "LeaseState"
 
 ```text
 读取来源
-提取结构化 Insight / 提议 Proposition
-以新证据与推断 Assertion 支撑
-以巩固类型的 Activity 记录溯源
-连接回源节点
-更新 MnemonicState
+→ 归并溯源根
+→ 识别候选 Proposition
+→ 评估已有的 Assertion
+→ 理由充分时创建派生 Assertion
+→ 记录 semantic_consolidation Activity
 ```
 
 严禁覆写旧置信度、删除反对意见，或将摘要误计为独立的认知根源。
@@ -173,7 +189,6 @@ MUTATE {
     SET ATTRIBUTES {summary: :summary}
     SET FACET "MnemonicState" {memory_strength: 0.7, salience: 0.8}
     SET STRUCTURAL {
-      ("derived_from", :source_experience)
       ("about", :deployment_topic)
     }
   }
@@ -196,7 +211,7 @@ MUTATE {
 }
 ```
 
-随后通过 `consolidated_to` 将源节点标记为已巩固，使后续周期不再重复推导。因果主张属于背后带有证据支撑的 Assertion，由维护主体在 `inferred` 模式下断言 —— `evidence:` 引用的是 Evidence 元素，绝非观测到它们的 Experience Concept。单纯的步骤顺序绝不代表因果关系，在 Schema 环境中找不到的谓词绝不能凭空捏造 —— 必须先执行 `DESCRIBE`，并让领域模式包提供 Profile 所未涵盖的术语。
+巩固 Activity 的 inputs 使源节点读作已巩固：其计算得出的 `consolidated_to` 此时指名该 Insight，后续周期即可跳过它；该 Insight 计算得出的 `derived_from` 则指名其来源。因果主张属于背后带有证据支撑的 Assertion，由维护主体在 `inferred` 模式下断言 —— `evidence:` 引用的是 Evidence 元素，绝非观测到它们的 Experience Concept。单纯的步骤顺序绝不代表因果关系，在 Schema 环境中找不到的谓词绝不能凭空捏造 —— 必须先执行 `DESCRIBE`，并让领域模式包提供 Profile 所未涵盖的术语。
 
 # 10. 机械重复与证据的界限
 
@@ -204,16 +219,15 @@ MUTATE {
 
 # 11. 程序性技能巩固 (Procedural Consolidation)
 
-寻找可复用的工作流：
+优先选用对照性的 Experience 集合：
 
 ```text
-重复出现的目标
-稳定的步骤序列
-成功经验 + 反例
+成功 + 失败
+成功 + 反例
 不同上下文中的同一程序
 ```
 
-将适用范围、前置条件、执行步骤、成功标准、失败模式与反例编译为 `proposed` 状态的 Skill + 其在 `MnemonicState.utility` 中的准入下注 + 程序性编译 Activity。将必需的 `task_family` 附加到不可变修订版本上：由它选定候选后果，而 TrialRecord 显式冻结可比基线尝试/结果。拒绝编译任何没有任何数据流能够证伪的模式（对此类模式应存储为 Insight）。在首个经过验证的 EvaluationRecord 出现之前，`GradingState` 不存在；未评分的 proposed/trialed 技能仍可作为未经证实的候选被回忆。严禁自动授予可执行权限。
+将适用范围、前置条件、执行步骤、成功标准、失败模式与反例编译为 `proposed` 状态的 Skill + 其在 `MnemonicState.utility` 中的准入下注 + 程序性编译 Activity。将必需的 `task_family` 附加到不可变修订版本上：由它选定候选后果，而 TrialRecord 显式冻结可比基线尝试/结果。拒绝编译任何没有任何数据流能够证伪的模式（对此类模式应存储为 Insight）。在首个经过验证的 EvaluationRecord 出现之前，计算得出的 `GradingState` 视图不存在；未评分的 proposed/trialed 技能仍可作为未经证实的候选被回忆。`compiled_from` 与 `compiled_by` 由下方的编译 Activity 计算得出；绝不要写入它们。严禁授予可执行权限。
 
 ```prolog
 MUTATE {
@@ -230,8 +244,6 @@ MUTATE {
     SET ATTRIBUTES {task_family: "deploy/pre-flight", procedure: :procedure, behavior_digest: :behavior_digest}
     SET STRUCTURAL {
       ("revision_of", ?skill)
-      ("compiled_from", :experience_a)
-      ("compiled_from", :experience_b)
     }
   }
   CREATE ACTIVITY ?compilation {
@@ -251,20 +263,22 @@ MUTATE {
 
 # 12. 技能生命周期裁决 (Skill Lifecycle Verdicts)
 
-生命周期状态流转 `proposed → trialed → adopted → revoked` 仅能通过对 Skill 所属 `task_family` 之下已评定的客观结果证据进行确定性裁决来推动（Profile §14，规范 §15.7）：你的职责是安排裁决时机、执行确定性规则，并将裁决结果记录为一条 `lifecycle_verdict` Activity 外加一条受保护的 UPDATE（规范附录 F.6）—— 绝不能凭主观判断晋升，绝不能将行动者自身的成功报告计为结果。
+生命周期状态流转 `proposed → trialed → adopted → revoked` 仅能通过对 Skill 所属 `task_family` 之下已评定的客观结果证据进行确定性裁决来推动（Profile §14，规范 §15.7），且仅限于实现了[已验证学习配套规范](KIP-2.0-Validated-Learning_CN.md)的部署；没有它，技能保持 `proposed` 且未经证实，Maintenance 只能撤下它们。你的职责是安排裁决时机、执行确定性规则，并将裁决结果记录为一条 `lifecycle_verdict` Activity 外加一条受保护的 UPDATE（已验证学习 §7）—— 绝不能凭主观判断晋升，绝不能将行动者自身的成功报告计为结果。
 
-裁决纪律：处理集是经由 `outcome_observation` Activity 关联至应用了该技能之 `action_gate` 决策的客观结果；对比基线则是冻结在不可变 TrialRecord 中、由 TrialState 所选定的显式可比尝试集 —— 仅碰巧共享相同 `task_family` 的无关结果绝不能计入处理集。采纳属于相对比较（对照记录的基线，表现优于以往）且属于临时地位（数据流会持续打分；一旦成效退化则降级回重新试用）；撤销绝不能比采纳更困难，且一次严重符合条件的失败即可足以触发撤销；撤销后的重新准入将开启全新的试验标识并经由 TrialState 选定其不可变 TrialRecord。即使结果迟延到达，仍保留其预先指派的尝试/试验/修订版本。统计独立尝试次数，而非 Evidence 观测次数；在采纳前必须验证指标、窗口、缺失性及可比性（一致性规范 §5–§6）。
+裁决纪律：处理集是经由 `outcome_observation` Activity 关联至应用了该技能之 `action_gate` 决策的客观结果；对比基线则是冻结在由 `current_trial` 所选定的不可变 TrialRecord 中的显式可比尝试集 —— 仅碰巧共享相同 `task_family` 的无关结果绝不能计入处理集。采纳属于相对比较（对照记录的基线，表现优于以往）且属于临时地位（数据流会持续打分；一旦成效退化则降级回重新试用）；撤销绝不能比采纳更困难，且一次严重符合条件的失败即可足以触发撤销；撤销后的重新准入将开启全新的试验标识并经由 `current_trial` 选定其不可变 TrialRecord。即使结果迟延到达，仍保留其预先指派的尝试/试验/修订版本。统计独立尝试次数，而非 Evidence 观测次数；在采纳前必须验证指标、窗口、缺失性及可比性（已验证学习 §3–§6）。
 
-除裁决本身外，合法的认知操作还包括：`GradingState` 计票更新与 `MnemonicState.utility` 修订、更新技能构件、补充失败模式标注以及链接反例。收窄适用范围或变更恢复/执行程序均需创建新的 SkillRevision；绝不是原地修改行为。权限的变更必须交由 Governance 处理。
+除裁决本身外，合法的认知操作还包括：将 `current_evaluation` 指向该裁决（GradingState 视图随之更新）、`MnemonicState.utility` 修订、更新技能构件、补充失败模式标注以及链接反例。收窄适用范围或变更恢复/执行程序均需创建新的 SkillRevision；绝不是原地修改行为。权限的变更必须交由 Governance 处理。
 
 # 13. 记忆状态代谢 (Mnemonic Metabolism)
 
-衰减的是检索可及性 (`memory_strength`)，绝非事实置信度 (`confidence`)。
+一般性的弃用作用于 `MnemonicState.memory_strength`，而非 Assertion 的置信度 —— 并且它通过计算生效，而非通过写入。`memory_strength` 是最后一次写入的基准值，`last_metabolized_at` 是其时间锚点，`strength_policy` 是钉住的策略（例如半衰期）；引擎在每次求值读取时计算 `effective_strength`（规范 §59.1，Profile §6.1）。不存在衰减扫描；基准值、锚点或策略缺失时，强度即为未知 —— 绝不要用默认值填充。
 
-示例策略公式：
+Maintenance 仅在出现显式信号时写入新的基准值：
 
 ```text
-new_strength = clamp(old_strength × decay + salience protection + explicit reinforcement)
+use           DecisionRecord 的 used_refs，或一批曝光日志（规范 §66.8）
+salience      对承诺、身份、重大失败、已采纳技能的保护
+correction    被更正或撤回的根节点可以削弱建立在其上的内容
 ```
 
 `MnemonicState.utility` 遵循相同的校准纪律：显式地依据结果进行校准 —— 一段简报所使用并产生了助益的记忆、或一次未曾获得回报的下注 —— 绝不能作为读取的副作用随意提高。沿着结果追踪至其尝试与决策；仅实际的 used_refs 是效用校准的候选对象。记录归因方法与不确定性。检索到的记忆或共同应用的修订版本绝不会自动继承整个结果的全部因果信用。它是结果驱动之信任校准（规范 §22.6）在记忆领域的镜像。
@@ -288,7 +302,9 @@ EXPECT VERSION :mnemonic_version OF FACET "MnemonicState"
 
 # 15. 实体对齐与合并审查 (Identity Review)
 
-未经证实的“两者指向同一实体”怀疑应记录为 `same_as` 候选（通过带置信度的 Assertion），而非盲目合并。
+候选重复项可以依据规范身份、稳定键、强别名证据、共享的外部标识符或人工审查来判定。仅凭名称相似是不够的。
+
+未经证实的“两者指向同一实体”怀疑应记录为一条 `same_as` Proposition + Assertion，为审查提供输入。它绝不自动合并，也绝不凭自身确立 `canonical_id`；合并本身是 `MERGE CONCEPT ?source INTO ?target`。
 
 原生合并不具破坏性：源概念保留为已合并的历史身份标识，旧有的原始 Proposition 端点保持可审计性，未来的规范写入自动解析至目标概念。
 
@@ -480,14 +496,7 @@ Maintenance 可以识别物理清除候选对象，但在未获得清除授权�
 
 # 28. 派生认知溯源规范
 
-派生认知必须链接回源节点：
-
-```text
-derived_from
-compiled_from
-consolidated_to
-associated Activity
-```
+巩固/反思使用 Activity 溯源：semantic_consolidation、procedural_consolidation、skill_compilation、self_model_refresh、working_state_refresh、derivation_review、mnemonic_metabolism、entity_merge、human_review。派生来源本身不会成为独立证据。
 
 在巩固 Activity 的 `inputs` 中列出实际依赖的认知输入 —— 证据与断言，而非仅包含它们的外层 Experience。当根节点后续被修订时，`LIST DEPENDENTS` 所遍历的正是该谱系。
 
@@ -568,21 +577,17 @@ CREATE ACTIVITY ?cycle {
 ```json
 {
   "status": "completed",
-  "cycle_start": "2026-03-31T02:00:00Z",
-  "cycle_end": "2026-03-31T02:04:12Z",
-  "space_id": "nexus-prod-01",
-  "basis_seq": 14205,
-  "end_seq": 14289,
-  "counts": {
-    "tasks_claimed": 4,
-    "tasks_completed": 4,
-    "events_consolidated": 12,
-    "skills_compiled": 1,
-    "skills_verdicts": 2,
-    "watches_fired": 1,
-    "decay_swept": 480,
-    "archived": 6
-  }
+  "reviewed": 812,
+  "transactions": 24,
+  "changes": {
+    "semantic_consolidations": 7,
+    "skills_created": 2,
+    "skills_reviewed": 5,
+    "identity_merges": 1,
+    "archived": 13,
+    "purged": 0
+  },
+  "warnings": []
 }
 ```
 

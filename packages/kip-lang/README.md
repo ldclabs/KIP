@@ -49,7 +49,7 @@ error recovery that keeps producing a tree after a mistake.
 `lower` returns the **executable AST**: every construct collapsed to the one
 shape it means, with the open-ended parts of the grammar closed. The `ASSERT`
 sugar desugars to exactly the `ENSURE PROPOSITION` + `CREATE ASSERTION`
-(+ `SUPERSEDE`) it stands for, and nothing more; a filter becomes a
+(+ `TRANSITION ... TO "superseded"`) it stands for, and nothing more; a filter becomes a
 comparison, a logical node, a negation, or a call to a registered function; a
 variable becomes a name and a dot path. Anything the syntax admits but the
 language does not — an unknown filter function, an `UPSERT` identified by name

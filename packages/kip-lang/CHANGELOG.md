@@ -2,6 +2,14 @@
 
 All notable changes to `@ldclabs/kip-lang` are documented here.
 
+## 2.4.2
+
+No syntax or executable-AST change.
+
+- Fix: formatting is idempotent for a one-line block followed by a comment on
+  the same line (`SET FIELDS {name: "x"} // note`). The comment was counted as
+  inside the block, which expanded it on one pass and collapsed it on the next.
+
 ## 2.4.1
 
 Tracks the draft-vocabulary clarifications of the 2.0 draft (Spec §20.16). No

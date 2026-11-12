@@ -727,6 +727,27 @@ describe('formatter', () => {
     assert.match(out, /\/\/ why this type/)
   })
 
+  test('a comment trailing a one-line block does not expand it', () => {
+    // The comment shares the block's last line without being inside it. Read
+    // by line alone it expanded the block on one pass and, once the comment
+    // sat on its own line, collapsed it on the next: formatting was not
+    // idempotent for the commonest way of annotating a clause.
+    for (const source of [
+      'UPSERT CONCEPT ?p {\n  MATCH {type: "A", key: "b"}\n  SET FIELDS { name: "x" } // trailing\n}',
+      'ASSERT (:a, "knows", :b) { by: :me, mode: "stated" } // trailing',
+      'UPDATE ?x SET ATTRIBUTES { a: 1 } // trailing\nWHERE { ?x {type: "A"} }'
+    ]) {
+      const once = format(source)
+      assert.doesNotMatch(once, /\{\n\s+(name|by|a):/, `block expanded:\n${once}`)
+      assert.match(once, /\/\/ trailing/)
+      assert.equal(format(once), once, `not idempotent:\n${once}`)
+    }
+    // A comment that really is inside still keeps its block multi-line.
+    const inside = format('UPDATE ?x SET ATTRIBUTES { // why\n a: 1 }\nWHERE { ?x {type: "A"} }')
+    assert.match(inside, /SET ATTRIBUTES \{\n\s+\/\/ why\n\s+a: 1\n\}/)
+    assert.equal(format(inside), inside)
+  })
+
   test('a comment above a body clause stays above that clause', () => {
     // Bodies hold their clauses in typed slots; the formatter must still
     // print them in source order so each comment lands on its own clause

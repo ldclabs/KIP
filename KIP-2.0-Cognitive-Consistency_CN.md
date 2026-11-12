@@ -8,11 +8,11 @@
 
 ## 1. 冲突完备信念 (Conflict-complete belief)
 
-现见[规范 §21.11](./SPECIFICATION_CN.md#2111-终态信念与槽位冲突)。
+现见[规范 §21.11](./SPECIFICATION_CN.md#2111-终局信念与槽位冲突-final-belief-and-slot-conflicts)。
 
 ## 2. 投影基线、上下文与挂钟时钟 (ProjectionBasis, context and clocks)
 
-ProjectionBasis 与缓存复用：[规范 §21.12](./SPECIFICATION_CN.md#2112-projectionbasis-投影基线)。上下文匹配：[§25.3](./SPECIFICATION_CN.md#253-上下文匹配)。现实世界时间区间与日期：[§25.2](./SPECIFICATION_CN.md#252-现实世界时间区间)，时间继承见 [§25.4](./SPECIFICATION_CN.md#254-时间继承-temporal-succession)，时间界限见 [§25.5](./SPECIFICATION_CN.md#255-时间界限-time-bounds)。历史控制状态：[§48.6](./SPECIFICATION_CN.md#486-历史控制状态)。
+ProjectionBasis 与缓存复用：[规范 §21.12](./SPECIFICATION_CN.md#2112-认知投影基准-projectionbasis)。上下文匹配：[§25.3](./SPECIFICATION_CN.md#253-上下文匹配-context-matching)。现实世界时间区间与日期：[§25.2](./SPECIFICATION_CN.md#252-现实世界时间区间-world-intervals)，时间继承见 [§25.4](./SPECIFICATION_CN.md#254-时间继承-temporal-succession)，时间界限见 [§25.5](./SPECIFICATION_CN.md#255-时间界限-time-bounds)。历史控制状态：[§48.6](./SPECIFICATION_CN.md#486-历史控制状态-historical-control-state)。
 
 ## 3. 不重写历史的依赖健全性 (Dependency validity without rewriting history)
 
@@ -24,7 +24,7 @@ ProjectionBasis 与缓存复用：[规范 §21.12](./SPECIFICATION_CN.md#2112-pr
 
 ## 4. 可修复的身份标识与可移植键 (Repairable identity and portable keys)
 
-现见[规范 §11.5–§11.6](./SPECIFICATION_CN.md#115-身份修复-identity-repair)。
+现见[规范 §11.5–§11.6](./SPECIFICATION_CN.md#115-实体识别修复-identity-repair)。
 
 ### 4.1 录入修复不同于行动者改变心意 (Recording repair is not an actor's change of mind)
 
@@ -52,20 +52,20 @@ ProjectionBasis 与缓存复用：[规范 §21.12](./SPECIFICATION_CN.md#2112-pr
 
 ## 8. 编码、召回覆盖与擦除 (Encoding, recall coverage and erasure)
 
-编码记录：[Profile §10.1](./profiles/CognitiveMemoryProfile-2.0_CN.md#101-编码记录-encoding-records)。召回覆盖：[Profile §20.2](./profiles/CognitiveMemoryProfile-2.0_CN.md#202-召回覆盖与计划-recall-coverage-and-plans)。语义擦除：[规范 §60.7](./SPECIFICATION_CN.md#607-语义擦除-semantic-erasure)。
+编码记录：[Profile §10.1](./profiles/CognitiveMemoryProfile-2.0_CN.md#101-编码记录-encoding-records)。召回覆盖：[Profile §20.2](./profiles/CognitiveMemoryProfile-2.0_CN.md#202-召回覆盖度与计划)。语义擦除：[规范 §60.7](./SPECIFICATION_CN.md#607-语义擦除-semantic-erasure)。
 
 ### 8.1 源因果性与统一任务作用域 (Source causality and uniform task scope)
 
-源顺序：[记忆接口 §5.1](./KIP-2.0-Memory-Interface_CN.md#51-源顺序-source-order)。任务范围：[Profile §20.3](./profiles/CognitiveMemoryProfile-2.0_CN.md#203-记忆范围-memory-scope)。
+源顺序：[记忆接口 §5.1](./KIP-2.0-Memory-Interface_CN.md#51-源顺序-source-order)。任务范围：[Profile §20.3](./profiles/CognitiveMemoryProfile-2.0_CN.md#203-记忆作用域-memory-scope)。
 
 ### 8.2 可验证召回计划 (Verifiable recall plans)
 
-现见[Profile §20.2](./profiles/CognitiveMemoryProfile-2.0_CN.md#202-召回覆盖与计划-recall-coverage-and-plans)。
+现见[Profile §20.2](./profiles/CognitiveMemoryProfile-2.0_CN.md#202-召回覆盖度与计划)。
 
 ### 8.3 交换与可重建状态 (Exchange and rebuildable state)
 
-交换与恢复：[Capsule 规范 §41.7](./KIP-2.0-Capsule-Specification_CN.md#417-恢复与引用映射-restore-and-reference-mapping)。可重建缓存与谱系现为计算视图：[Profile §6.2 与 §7](./profiles/CognitiveMemoryProfile-2.0_CN.md#7-标准结构化字段-standard-structural-fields)。
+交换与恢复：[Capsule 规范 §41.7](./KIP-2.0-Capsule-Specification_CN.md#417-恢复与引用映射-restore-and-reference-mapping)。可重建缓存与谱系现为计算视图：[Profile §6.2 与 §7](./profiles/CognitiveMemoryProfile-2.0_CN.md#7-标准结构字段)。
 
 ## 9. 验收与部署声明 (Acceptance and deployment claims)
 
-现见 [conformance/README_CN.md](./conformance/README_CN.md) 与[规范 §89](./SPECIFICATION_CN.md#89-一致性模型-conformance-model)。
+现见 [conformance/README.md](./conformance/README.md) 与[规范 §89](./SPECIFICATION_CN.md#89-一致性合规模型-conformance-model)。

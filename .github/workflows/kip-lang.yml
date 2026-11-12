@@ -1,9 +1,12 @@
 name: publish-kip-lang
 
+# kip-lang release tags are `v<semver>`. The pattern must start the version with
+# a digit: a bare `v*` also matches the extension's `vscode-kip-v*` release tags
+# and would publish whatever kip-lang version is on that commit.
 on:
   push:
     tags:
-      - "v*"
+      - "v[0-9]*"
 
 jobs:
   publish:

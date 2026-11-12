@@ -103,7 +103,6 @@ Formation 可以产生以下产物：
 创建 Event
 创建 Experience + ExperienceSteps
 创建 Proposition + Assertion
-生成 Preference 制品
 生成 Insight 候选
 创建 Commitment
 创建 Watch
@@ -121,6 +120,48 @@ action_gate Activity + DecisionRecord（来自结构化轨迹：智能体决策�
 仪器化系统附带 attempt_ref、指标/窗口、终端标志 (terminal flag)、observation_key 以及 observer_config_digest。尝试 (attempt) 必须在分发前固定其试验 (trial) 和确切应用的修订版本。对同一次尝试的多次观察不会增加独立样本。
 
 当结构化轨迹显示智能体做出决策时 —— 应用了哪项技能、简报提供了哪些记忆、网关裁定了什么 —— 创建带有 `DecisionRecord` 的 `action_gate` Activity，并在 `inputs` 中列出所应用的记忆与技能。DecisionRecord 区分 retrieved_refs、used_refs 与 applied_revisions 并固定其完整基线。若缺少该记录以及实际的 AttemptRecord，后果通道将不存在可归因的处理尝试 (treatment attempt)。
+
+# 4. 存储门槛
+
+强候选：
+
+```text
+用户明确陈述的持久事实
+更正
+偏好
+关系
+决策
+承诺
+重要事件
+失败/恢复
+预测误差
+新颖的程序
+重要的工具结果
+高价值 Experience
+稳定的自我模型信号
+```
+
+通常跳过：应答性回复、低价值闲聊、临时的格式要求、重复的重试、过程噪声、低价值的推测性推断，以及私有思维链。
+
+存储是一次下注：赌该元素会对未来的某次决策有意义。把这次下注记录下来：凡在形成时设置 `MnemonicState` 之处，同时设置 `utility`，以便 Maintenance 日后依据实际使用情况对其校准，而不是猜测哪些记忆物有所值。
+
+将短期的源 Evidence 与持久的语义产物置于各自独立的显式预算之下。在信息损失事关重大时，记录接纳/推迟/拒绝以及 CompressionRecord，包括提取器/Schema 版本、保留的字段、遗漏以及重新编码资格。无法解析的实体/Schema 可以保持为仅 Evidence。保留摘要并不能恢复被遗漏的事实；仅在已考虑待处理的审阅/重新编码的显式留存决策之下，才清除原始字节。
+
+# 5. 工作流
+
+```text
+0. 获取经授权的执行上下文
+1. 检视 Primer / Schema
+2. 捕获源 Evidence
+3. 解析语义行动者/实体
+4. 对记忆产物分类
+5. 接地确切的 Schema/身份引用
+6. 形成语义 Assertion
+7. 形成 Event / Experience / Commitment
+8. 添加 Activity / Facet / 留存设置
+9. 在一致性有要求之处原子提交
+10. 处理 Receipt / 歧义结果
+```
 
 # 6. 执行上下文就绪
 
@@ -141,6 +182,179 @@ DESCRIBE PRIMER MODE "compact"
 从 Primer 中将 `$self` 解析为精确的 id，并作为绑定参数（`:self`）传入；严禁按名称寻址，严禁硬编码 key。若 Space 维护有 `WorkingState`，接下来读取该状态，并从该状态及其 `basis_seq` 之后的变更流 `CHANGES AFTER SEQ` 恢复上下文，而不是从原始历史中重新推导局面。
 
 严禁根据不可信的消息内容动态选择目标 Space。未授权的输入绝不能被静默重定向到其他 Space。
+
+# 7. 证据捕获
+
+保留一手观测，例如消息、工具结果、测量值、反馈、文档或外部断言。
+
+优先使用运行时摄取上下文（规范 §71.1）或工件句柄：由运行时从传输信封铸造 Evidence，Formation 只引用它（`:key`）。在 KML 文本中重新誊写所观测的载荷，有被静默截断或改写的风险——那就是捏造的“证据”（规范 §88.12）。
+
+优先使用的 Evidence 类别：
+
+```text
+user_statement
+agent_statement
+tool_result
+measurement
+message
+document
+human_feedback
+observation
+```
+
+在可用时，使用源自源消息/事件身份的稳定 `client_key`。
+
+```text
+相同 client_key + 相同不可变载荷 → 重试/不产生重复
+相同 client_key + 不同不可变载荷 → ClientKeyConflict
+```
+
+# 8. 解析语义行动者
+
+解析时应依次优先采用：显式的已验证行动者引用、稳定的应用行动者 ID、受信任的规范身份，然后才是经接地的候选。
+
+仅凭显示名称不构成通用身份。若存在歧义，保留 Evidence 而不将其错误地绑定到某个 Person，而不是去猜测。
+
+# 9. 对记忆产物分类
+
+## 情节性 (Episodic)
+
+`Event`：发生了什么？
+
+## 经验性 (Experience)
+
+`Experience + Steps`：这个过程可复用吗？
+
+## 语义性 (Semantic)
+
+`Proposition + Assertion`：观测到/陈述了/推断出了什么对真值敏感的主张？
+
+## 前瞻性 (Prospective)
+
+`Commitment`：什么未来的义务/提醒是重要的？
+
+## 反思性 (Reflective)
+
+`Insight / SelfModel 候选`：什么持久的教训或自我模式可能是重要的？
+
+不要把每个输入都强行归入每一个类别。
+
+# 10. Event 与 Experience 的取舍
+
+当存在多步骤的目标追求、失败/恢复、预期被违背、策略变更、纠正性反馈、重要的工具调用序列、某项 Skill 的反例或新颖的可复用程序时，创建 Experience。
+
+否则优先选择 Event，或不产生任何情节工件。
+
+# 11. 先接地，后写入
+
+使用 META/SEARCH 解析 Concept ID、确切的 Schema 引用、谓词引用、Facet、结构字段以及合并后的规范目标。
+
+SEARCH 得分仅表示接地相关性：
+
+```text
+_score ≠ confidence ≠ trust ≠ belief support ≠ memory_strength
+```
+
+持久化确切的 Schema 身份，而不是 `@latest`。
+
+# 12. 语义主张的形成
+
+对真值敏感的持久主张：
+
+```text
+Evidence
+→ ENSURE PROPOSITION
+→ CREATE ASSERTION
+```
+
+不要把 `confidence`、`source`、`validity` 或 `asserted_by` 放在 Proposition 上。
+
+# 13. 用户陈述的写法
+
+以 `"I prefer dark mode"` 为例（`prefers` 由认知记忆 Profile 定义；诸如 `timezone` 之类的领域事实假定存在领域包）：
+
+首选路径——运行时摄取上下文（规范 §71.1）从传输信封铸造 `:msg`，由 `ASSERT` 语法糖（规范 §55.1）记录这条带归属的主张：
+
+```prolog
+ASSERT (:alice, "prefers", :dark_mode) {
+  by: :alice,
+  mode: "stated",
+  confidence: :confidence,
+  evidence: :msg
+}
+```
+
+Evidence 载荷从不经过模型生成的文本，因此不可能被模型截断或改写。
+
+脱糖后/无摄取上下文时的等价写法：
+
+```prolog
+MUTATE {
+  CREATE EVIDENCE ?message {
+    CLIENT KEY :message_key
+    SET FIELDS {
+      evidence_class: "user_statement",
+      payload: :payload,
+      observed_at: :time
+    }
+    SET STRUCTURAL {
+      ("source", :alice)
+    }
+  }
+
+  ENSURE PROPOSITION ?p (:alice, "prefers", :dark_mode)
+
+  CREATE ASSERTION ?a {
+    CLIENT KEY :assertion_key
+    SET FIELDS {
+      proposition: ?p,
+      asserted_by: :alice,
+      stance: "support",
+      mode: "stated",
+      confidence: :confidence,
+      asserted_at: :time
+    }
+    SET STRUCTURAL {
+      ("evidence", ?message) {role: "support"}
+    }
+  }
+
+  CREATE ACTIVITY ?formation {
+    SET FIELDS {
+      activity_class: "extraction",
+      status: "completed"
+    }
+    SET FACET "DependencyBasis" {basis_seq: :basis_seq, groups: :dependency_groups, policy_basis: :basis}
+    SET STRUCTURAL {
+      ("inputs", ?message)
+      ("outputs", ?a)
+    }
+  }
+}
+```
+
+引擎起源记录实际经认证的 Principal。绝不要自行编写 `_system.origin`。
+
+# 14. 观测 / 陈述 / 推断
+
+准确使用 mode：
+
+```text
+observed   工具返回了 HTTP 403
+stated     Alice 说时区是 +08
+inferred   Brain 推断令牌很可能已过期
+predicted  Brain 预测将发生故障
+hypothetical 情景分支
+imported   从另一个 Brain 获得的认知
+```
+
+不要把推断升格为观测。
+
+# 15. 置信度
+
+Assertion 的置信度是该断言立场的强度。它不是信任、记忆强度、检索得分或 Skill 效用。
+
+用户的直接陈述可以支持对“**Alice 陈述了 P**”的高置信度，但这并不自动意味着对“**P 客观为真**”的高置信度。归属/mode/Evidence 以及之后的投影保留着这一区分。
 
 # 16. 事实更正规范
 
@@ -163,7 +377,18 @@ DESCRIBE PRIMER MODE "compact"
 
 废弃替代（supersession）意味着 A1 当初就是错的。当现实世界发生改变时 —— Alice 搬家、项目状态推进 —— A1 在其当时是真实的：只需断言新值，注明 `valid: {from: <change>}`。时间继承会在该时刻结束 A1 而无需修改 A1，二者均保持 active 状态，且在变更时刻之前的 `FOR TIME` 查询依然返回旧值（规范 §14.2、§25.4、附录 F.2）。若变更日期未知，则完全无需标注 `from` —— 缺失起点已然代表“不晚于陈述时刻”（规范 §25.2）—— 并将 `asserted_at` 设为陈述时间，因为这正是该主张的起始键（规范 §13.2）；绝不凭空捏造时刻。两条未显式标注 `from` 的 `inferred` 推理断言绝不相互继承结束（规范 §25.4）：两个来源之间的分歧保持为冲突，而非捏造出的世界变迁。某个值单纯终止且无后继值时，表现为 Alice 自终止日起对该命题表达 `stance: "reject"`。当 Formation 无法分辨是更正还是世界变迁时，记录为变迁并披露该歧义。
 
-编码或归属错误采用受保护的 recording_repair 契约（[规范 §57.8](../SPECIFICATION_CN.md#578-录入修复-recording-repair)），而非捏造行动者撤回或篡改可靠的源 Evidence 证据。捕获绑定摘要的源定位符，并保持相关输入处理具有因果顺序（[记忆接口 §5.1](../KIP-2.0-Memory-Interface_CN.md#51-来源次序-source-order)）。对所有产物应用 MemoryScope（[Profile §20.3](../profiles/CognitiveMemoryProfile-2.0_CN.md#203-记忆作用域-memory-scope)）。
+编码或归属错误采用受保护的 recording_repair 契约（[规范 §57.8](../SPECIFICATION_CN.md#578-录入修复-recording-repair)），而非捏造行动者撤回或篡改可靠的源 Evidence 证据。捕获绑定摘要的源定位符，并保持相关输入处理具有因果顺序（[记忆接口 §5.1](../KIP-2.0-Memory-Interface_CN.md#51-源顺序-source-order)）。对所有产物应用 MemoryScope（[Profile §20.3](../profiles/CognitiveMemoryProfile-2.0_CN.md#203-记忆作用域-memory-scope)）。
+
+# 17. 字面量取值的事实
+
+直接使用字面量：
+
+```text
+(Alice, timezone, "+08:00")
+(Service, healthy, true)
+```
+
+除非领域要求具名语义，否则不要为原始值凭空创建 Concept 节点。
 
 # 18. 事件构建规范
 
@@ -197,6 +422,30 @@ MUTATE {
   }
 }
 ```
+
+# 19. Experience 的形成
+
+在可行的情况下，Experience 的形成应当是原子的：
+
+```text
+源 Evidence
+Experience
+ExperienceSteps
+MnemonicState
+形成 Activity
+可选的 Event
+可选的语义 Assertion
+```
+
+确切的合法字段/结构引用由 Profile schema 决定，而非临时拼凑的 KML 字段。
+
+# 20. 失败的 Experience
+
+失败是有效的记忆。保留有用的失败/恢复步骤。一次失败的 Experience 可能比例行的成功具有更高的学习价值。
+
+# 21. 预测误差
+
+若轨迹中明确包含预期观测与实际观测，则两者都保留。不要凭空编造隐藏的预期；若 Brain 推断出一个预期，应将其记录为带溯源的推断。
 
 # 22. 承诺构建规范
 
@@ -244,6 +493,10 @@ CREATE CONCEPT ?watch {
 显式偏好陈述保持为 Evidence + Proposition + Assertion：`(person, prefers, option)`。由于 `prefers` 按照选项类别进行分区（Profile §5.5, §7），选项必须是该类别下的 Concept（例如 `ColorScheme`, `Editor`, …）；当没有已安装的模式包命名该类别时，首先使用 `DEFINE CONCEPT TYPE` 声明它，绝不能使用宽泛类型（如 `Topic`）。同一类别下较新的偏好通过时间继承结束旧偏好。Profile 中没有独立的 Preference 类型：对稳定偏好模式的总结是关于该选项类别的 Insight（带有 `("about", :kind)` 结构引用），通过记录的 Activity 派生生成，且绝不能取代断言的历史记录。
 
 # 24. 自我模型候选 (SelfModel Candidates)
+
+强候选：明确的自我纠正、持久的价值观/使命陈述、新近得到验证的能力、反复出现的行为偏好、重要的局限、重大的身份里程碑。
+
+弱候选通常应推迟交由 Maintenance/反思处理，而不是立即改写 SelfModel。
 
 # 25. 即时知识巩固
 
