@@ -145,7 +145,11 @@ digests, then run the read-only check:
 pnpm --filter @ldclabs/kip-lang build
 node conformance/update-digests.mjs --write
 node conformance/update-digests.mjs
+node conformance/vocabulary-card.mjs --write
 ```
+
+`brain/KIPVocabulary.md` is generated from the two Schema packages and is English
+only; regenerate it rather than editing it.
 
 Do not regenerate digests merely to hide an unexplained integrity failure. Do not
 hand-edit `dist/`, packaged VSIX files or other build output.

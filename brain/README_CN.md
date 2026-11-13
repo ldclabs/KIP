@@ -297,6 +297,7 @@ LLM + Experience + Skill consolidation
 - **[KIPRecall_CN.md](./KIPRecall_CN.md)**：直接只读 KIP 调用者。
 - **[KIPFormation_CN.md](./KIPFormation_CN.md)**：直接形成调用者。
 - **[KIPMaintenance_CN.md](./KIPMaintenance_CN.md)**：由能力门禁控制的维护工作。
+- **[KIPVocabulary.md](./KIPVocabulary.md)**：以每个符号一行的形式列出标准类型、谓词、Facet 与结构字段，由 Schema 包生成（`node conformance/vocabulary-card.mjs --write`），仅英文。
 - **[../KIPSyntax_CN.md](../KIPSyntax_CN.md)**：完整语言参考，按需加载。
 - **`execute_kip`**：Formation 与 Maintenance 执行读写操作所需。
 - **`execute_kip_readonly`**：Recall 所需，且必须拒绝任何改变状态的语义。

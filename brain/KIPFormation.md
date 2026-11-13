@@ -5,6 +5,7 @@
 For a model implementing [Brain Formation](./BrainFormation.md). The host captures
 source bytes, source identities, authorized task scope and retry identity. Obtain
 exact Schema/element refs from the live Primer; do not invent a predicate or actor.
+The [vocabulary card](./KIPVocabulary.md) lists the standard symbols in one line each.
 
 For a general, unscoped attributed claim, runtime-ingested :evidence can be cited
 without re-typing its payload. Missing confidence is allowed. `at` is when the actor

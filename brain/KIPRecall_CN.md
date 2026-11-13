@@ -10,6 +10,8 @@
 DESCRIBE PRIMER MODE "compact"
 ```
 
+[词汇速查卡](./KIPVocabulary.md)（仅英文，由 Schema 包生成）以每个符号一行的形式列出标准类型、谓词、Facet 与结构字段；Primer 会补充本 Space 自己的草稿符号。
+
 接地不熟悉的实体，保留歧义性。关键字搜索是基线；仅在声明支持时使用语义/混合搜索。搜索未命中并非规范意义上的不存在。
 
 ```kip
@@ -43,6 +45,21 @@ FIND(?slot)
 WHERE { ?slot BELIEF SLOT (:subject, :predicate) }
 FOR TIME :world_time
 WITH EPISTEMIC {context_refs: :contexts, purpose: "answer_user", explanation: "ledger"}
+```
+
+读取某个已知实体的全部记录时，用一条有界查询而不是搜索：两个方向的声明，按新到旧，每条附带最终信念和做出它的 Assertion。用游标分页；没有可见声明的实体返回零行，这并不代表不存在。
+
+```kip
+FIND(?p, ?belief.status, ?a)
+WHERE {
+  ?p (:entity, ?predicate, ?object)
+  UNION { ?p (?subject, ?predicate, :entity) }
+  ?a ASSERTION {proposition: ?p}
+  ?belief BELIEF (?p)
+}
+WITH EPISTEMIC {context_refs: :contexts, purpose: "answer_user", policy: "kip:memory-default"}
+ORDER BY ?a.asserted_at DESC
+LIMIT 20
 ```
 
 原始历史仅用于源头核查，绝非通往已采纳信念的捷径：

@@ -2,7 +2,7 @@
 
 **[English](./KIPFormation.md) | [中文](./KIPFormation_CN.md)**
 
-面向实现 [Brain Formation](./BrainFormation_CN.md) 的模型。宿主捕获源字节、源标识、授权任务范围与重试标识。从在线 Primer 获取确切的 Schema/元素引用；切勿捏造谓词或行动者。
+面向实现 [Brain Formation](./BrainFormation_CN.md) 的模型。宿主捕获源字节、源标识、授权任务范围与重试标识。从在线 Primer 获取确切的 Schema/元素引用；切勿捏造谓词或行动者。[词汇速查卡](./KIPVocabulary.md)（仅英文）以每个符号一行的形式列出标准符号。
 
 对于通用的、未限定范围的归因主张，可直接引用运行时摄入的 `:evidence`，而无需重新输入其载荷内容。允许省略置信度 (confidence)。`at` 是行动者提出该主张的时间 —— 亦即源数据的观测时间 —— 绝非本次写入执行的时间：它是该主张的起始键，因此即使是很晚才处理的旧消息也必须携带其旧时间。
 

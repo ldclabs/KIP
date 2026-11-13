@@ -23,7 +23,7 @@ bash formal/run.sh
 
 `KIP_DOC_LANG=en` excludes Chinese mirror reads and comparison when English sources are updated independently; the default language suite validates both. The formal runner returns 3 if prerequisite-dependent suites were skipped, 1 on any failure, and 0 only when every suite ran and passed. Alloy/TLC need the JARs and JVM described in `../formal/README.md`; Node checks require the workspace build.
 
-When intentionally editing a package, schema or policy artifact, regenerate digests with `node conformance/update-digests.mjs --write`, then run the read-only check. It uses the same canonicalizer as consumers; the Profile pins validation-schema digests over the complete transitive reference closure, and dependent packages and Capsules pin the package digest. Never regenerate a digest to conceal a failed integrity check.
+When intentionally editing a package, schema or policy artifact, regenerate digests with `node conformance/update-digests.mjs --write`, then run the read-only check. It uses the same canonicalizer as consumers; the Profile pins validation-schema digests over the complete transitive reference closure, and dependent packages and Capsules pin the package digest. Never regenerate a digest to conceal a failed integrity check. A package edit also changes the generated vocabulary card: `node conformance/vocabulary-card.mjs --write` rewrites `brain/KIPVocabulary.md`, and without `--write` the script checks it.
 
 ## Artifact identities
 

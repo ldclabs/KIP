@@ -321,6 +321,7 @@ and audit, not a mandatory per-turn prompt:
 - **[KIPRecall.md](./KIPRecall.md)**: direct read-only KIP caller.
 - **[KIPFormation.md](./KIPFormation.md)**: direct formation caller.
 - **[KIPMaintenance.md](./KIPMaintenance.md)**: maintenance work, gated by capabilities.
+- **[KIPVocabulary.md](./KIPVocabulary.md)**: the standard types, Predicates, Facets and Structural Fields in one line each, generated from the Schema packages (`node conformance/vocabulary-card.mjs --write`).
 - **[../KIPSyntax.md](../KIPSyntax.md)**: complete language reference, loaded as needed.
 - **`execute_kip`**: required by Formation and Maintenance for read/write operations.
 - **`execute_kip_readonly`**: required by Recall, which must reject state-changing semantics.

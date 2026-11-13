@@ -475,3 +475,17 @@ test('a value-only correction preserves earlier answers without backdating asser
   assert.equal(model.project([old, missingInterval], request).status, 'uncertain')
   assert.equal(replacement.assertions[0].asserted_at, correctionTime)
 })
+
+test('the vocabulary card is generated from the Schema packages and names every symbol once', async () => {
+  const { CARD, renderVocabularyCard, loadPackages } = await import('../../../conformance/vocabulary-card.mjs')
+  const packages = await loadPackages()
+  const card = await readFile(new URL(CARD, base), 'utf8')
+  assert.equal(card, renderVocabularyCard(packages), 'run: node conformance/vocabulary-card.mjs --write')
+  const bullets = [...card.matchAll(/^- `([^`]+)`/gm)].map(match => match[1])
+  const symbols = packages.flatMap(pkg => ['concept_types', 'predicates', 'facets', 'structural_fields']
+    .flatMap(kind => Object.keys(pkg.definitions[kind] ?? {})))
+  assert.deepEqual(bullets, symbols)
+  // A record Facet is abbreviated to the contract that defines it; that document must exist.
+  for (const [, path] of card.matchAll(/record defined in (\S+\.md) §/g))
+    await readFile(new URL(path, base), 'utf8')
+})

@@ -12,6 +12,9 @@ Start from the authorized context and live vocabulary:
 DESCRIBE PRIMER MODE "compact"
 ```
 
+The [vocabulary card](./KIPVocabulary.md) lists the standard types, Predicates, Facets and
+Structural Fields in one line each; the Primer adds this Space's own draft symbols.
+
 Ground unfamiliar entities, preserving ambiguity. Keyword is the baseline; use
 semantic/hybrid only where advertised. A search miss is not canonical absence.
 
@@ -52,6 +55,24 @@ FIND(?slot)
 WHERE { ?slot BELIEF SLOT (:subject, :predicate) }
 FOR TIME :world_time
 WITH EPISTEMIC {context_refs: :contexts, purpose: "answer_user", explanation: "ledger"}
+```
+
+To read everything held about one known entity, use one bounded query instead of a
+search: claims in both directions, newest first, each with its final belief and the
+Assertion that made it. Page with the cursor; an entity with no visible claim returns
+no rows, which is not absence.
+
+```kip
+FIND(?p, ?belief.status, ?a)
+WHERE {
+  ?p (:entity, ?predicate, ?object)
+  UNION { ?p (?subject, ?predicate, :entity) }
+  ?a ASSERTION {proposition: ?p}
+  ?belief BELIEF (?p)
+}
+WITH EPISTEMIC {context_refs: :contexts, purpose: "answer_user", policy: "kip:memory-default"}
+ORDER BY ?a.asserted_at DESC
+LIMIT 20
 ```
 
 Raw history is for source inspection, not a shortcut to accepted belief:
