@@ -119,7 +119,7 @@
     {
       "fixtures": ["request-envelope.json", "query-scope-contracts.json", "epistemic-projection.json"],
       "change": "The semantic_search preflight follows the adapter's advertised capabilities. An ordered two-person read checks normalized IDs. Two cases reject an invalid explanation literal and an explicitly null bound parameter (§49.1).",
-      "verification": "KIP v2.4.3 integration on anda-db base 8ad402736559eba06b81a71f23612d0eff0fd64b. All 434 cases passed with zero skips on the Rust Nexus (conformance.rs blob f0efaa3252936d8986704cb71fec849867f08f57) and kip-do in workerd (ts/kip-do tree 1d3eb70dac37c83fa3572e1743e88c54859ba6ba)."
+      "verification": "Published @ldclabs/kip-lang@2.4.3 integration on anda-db base 8ad402736559eba06b81a71f23612d0eff0fd64b. All 434 cases passed with zero skips on the Rust Nexus (conformance.rs blob f0efaa3252936d8986704cb71fec849867f08f57) and kip-do in workerd (ts/kip-do tree 63f8ff7035107cf45e082e63149ddf69dcafe104)."
     }
   ],
   "not_yet_covered": "No fixture is pending. Promotion of a draft symbol, Capsule mapping of draft symbols, a Principal holding only propose_schema, the exposure log and attention recall have Conformance/Memory Interface vectors and oracle cases only; both engines test promotion and the propose_schema boundary, and the Rust engine Capsule mapping, in their own suites, which is not evidence from this one.",
