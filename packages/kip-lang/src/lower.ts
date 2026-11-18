@@ -12,6 +12,7 @@ import type {
   RawPredicateExpression,
   ObjectPattern,
   ObjectLiteral,
+  ObjectEntry,
   Expression,
   ScalarValue,
   SchemaSymbol,
@@ -63,7 +64,6 @@ import type {
   Transition,
   FacetAssignment,
   FilterExpression,
-  FilterFunction,
   FilterOperand,
   FindExpression,
   HistoryCommand,
@@ -98,6 +98,7 @@ import type {
   WhereClause
 } from './exec-ast.js'
 import type { Range } from './token.js'
+import { FILTER_FUNCTIONS } from './token.js'
 
 const AGGREGATIONS = new Map<string, AggregationFunction>([
   ['COUNT', 'Count'],
@@ -105,20 +106,6 @@ const AGGREGATIONS = new Map<string, AggregationFunction>([
   ['AVG', 'Avg'],
   ['MIN', 'Min'],
   ['MAX', 'Max']
-])
-
-const FILTER_FUNCTIONS = new Map<string, FilterFunction>([
-  ['CONTAINS', 'Contains'],
-  ['STARTS_WITH', 'StartsWith'],
-  ['ENDS_WITH', 'EndsWith'],
-  ['REGEX', 'Regex'],
-  ['IN', 'In'],
-  ['IS_NULL', 'IsNull'],
-  ['IS_NOT_NULL', 'IsNotNull'],
-  ['IS_LITERAL', 'IsLiteral'],
-  ['IS_ELEMENT', 'IsElement'],
-  ['IS_KIND', 'IsKind'],
-  ['LITERAL_TYPE', 'LiteralType']
 ])
 
 const UPDATE_FUNCTIONS = new Map<string, UpdateFunction>([
@@ -178,6 +165,7 @@ const ASSERTION_IMMUTABLE = new Set([
   'asserted_at',
   'valid_time',
   'context_refs',
+  'evidence',
   'evidence_refs'
 ])
 
@@ -254,7 +242,6 @@ export function lowerStatement(stmt: Statement): Command {
     case 'MergeConceptStatement':
     case 'DefineStatement':
       const clauses = lowerMutationClause(stmt, 0)
-      assertUniqueHandles(clauses, stmt.range)
       assertResolvedHandles(clauses, stmt.range)
       return {
         Kml: {
@@ -276,10 +263,9 @@ function lowerFind(stmt: FindStatement): KqlQuery {
   if (stmt.projections.length === 0) {
     throw invalidSyntax('FIND requires at least one projection', stmt.range)
   }
+  const expressions = stmt.projections.map(lowerFindExpression)
   return {
-    find_clause: {
-      expressions: stmt.projections.map((p) => lowerFindExpression(p))
-    },
+    find_clause: { expressions },
     where_clauses: lowerWhere(stmt.where),
     as_of: stmt.asOf ? lowerAsOf(stmt.asOf) : null,
     for_time: stmt.forTime ? lowerScalar(stmt.forTime.value) : null,
@@ -356,25 +342,10 @@ function lowerFindExpression(expr: Expression): FindExpression {
 
 function lowerOrderItem(item: OrderItem): OrderByItem {
   const direction = item.direction === 'DESC' ? 'Desc' : 'Asc'
-  if (item.expression.kind === 'AggregateExpr') {
-    const func = AGGREGATIONS.get(item.expression.name.toUpperCase())
-    if (!func) {
-      throw invalidSyntax(
-        `unknown aggregate ${item.expression.name}`,
-        item.expression.range
-      )
-    }
-    return {
-      variable: lowerDotPath(item.expression.argument),
-      direction,
-      aggregation: func
-    }
-  }
-  return {
-    variable: lowerDotPath(item.expression),
-    direction,
-    aggregation: null
-  }
+  const expr = lowerFindExpression(item.expression)
+  if ('Variable' in expr) return { variable: expr.Variable, direction, aggregation: null }
+  const { func, var: variable, distinct } = expr.Aggregation
+  return { variable, direction, aggregation: func, ...(distinct ? { distinct } : {}) }
 }
 
 /** A projection or sort key must resolve to one variable plus a path. */
@@ -662,17 +633,7 @@ function lowerPropositionSubject(term: CstTerm): Term {
 }
 
 function lowerObjectMatcher(pattern: ObjectPattern): ObjectMatcher {
-  const matcher: ObjectMatcher = {}
-  for (const member of pattern.members) {
-    if (Object.prototype.hasOwnProperty.call(matcher, member.key)) {
-      throw invalidSyntax(
-        `duplicate match field ${member.key}`,
-        member.range
-      )
-    }
-    matcher[member.key] = lowerMatchValue(member.value)
-  }
-  return matcher
+  return Object.fromEntries(lowerEntries(pattern.members, lowerMatchValue))
 }
 
 function lowerMatchValue(expr: Expression): MatchValue {
@@ -734,15 +695,15 @@ function lowerFilter(expr: Expression): FilterExpression {
       )
 
     case 'FunctionCallExpr': {
-      const func = FILTER_FUNCTIONS.get(expr.name.toUpperCase())
-      if (!func) {
+      const signature = FILTER_FUNCTIONS.get(expr.name.toUpperCase())
+      if (!signature) {
         throw invalidSyntax(
           `${expr.name} is not a KIP filter function`,
           expr.range
         )
       }
       return {
-        Function: { func, args: expr.args.map(lowerFilterOperand) }
+        Function: { func: signature[0], args: expr.args.map(lowerFilterOperand) }
       }
     }
 
@@ -821,7 +782,6 @@ function lowerMutate(stmt: MutateStatement): KmlStatement {
   const clauses = stmt.clauses.flatMap((clause, i) =>
     lowerMutationClause(clause, i)
   )
-  assertUniqueHandles(clauses, stmt.range)
   assertResolvedHandles(clauses, stmt.range)
   return { explicit_transaction: true, clauses }
 }
@@ -831,7 +791,7 @@ function lowerMutate(stmt: MutateStatement): KmlStatement {
  * every forward reference to it ambiguous, so the whole plan is rejected
  * rather than resolved by position.
  */
-function assertUniqueHandles(clauses: MutationClause[], range: Range): void {
+function mutationHandles(clauses: MutationClause[], range: Range): Set<string> {
   const seen = new Set<string>()
   for (const clause of clauses) {
     const handle = handleOf(clause)
@@ -844,6 +804,7 @@ function assertUniqueHandles(clauses: MutationClause[], range: Range): void {
     }
     seen.add(handle)
   }
+  return seen
 }
 
 function handleOf(clause: MutationClause): string | null {
@@ -861,19 +822,20 @@ function handleOf(clause: MutationClause): string | null {
  * that clause's WHERE. Parameters remain runtime bindings and are unaffected.
  */
 function assertResolvedHandles(clauses: MutationClause[], range: Range): void {
-  const planHandles = new Set<string>()
-  for (const clause of clauses) {
-    const handle = handleOf(clause)
-    if (handle !== null) planHandles.add(handle)
-  }
+  const planHandles = mutationHandles(clauses, range)
 
   for (const clause of clauses) {
-    const allowed = new Set(planHandles)
-    const body = Object.values(clause)[0] as Record<string, unknown>
-    collectWhereVariables(body.where_clauses, allowed)
+    const body = Object.values(clause)[0] as { where_clauses?: WhereClause[] | null }
+    const allowed = body.where_clauses ? new Set(planHandles) : planHandles
+    if (body.where_clauses) collectVisibleBindings(body.where_clauses, allowed)
 
     const referenced = new Set<string>()
     collectTaggedHandles(body, referenced)
+    if ('EnsureProposition' in clause) {
+      // Tuple endpoints use Term.Variable for references to mutation outputs.
+      collectWhereVariables(clause.EnsureProposition.subject, referenced)
+      collectWhereVariables(clause.EnsureProposition.object, referenced)
+    }
     for (const handle of referenced) {
       if (!allowed.has(handle)) {
         throw invalidSyntax(
@@ -882,6 +844,15 @@ function assertResolvedHandles(clauses: MutationClause[], range: Range): void {
         )
       }
     }
+  }
+}
+
+function collectVisibleBindings(clauses: WhereClause[], out: Set<string>): void {
+  for (const clause of clauses) {
+    if ('Not' in clause || 'Filter' in clause) continue
+    if ('Optional' in clause) collectVisibleBindings(clause.Optional, out)
+    else if ('Union' in clause) collectVisibleBindings(clause.Union, out)
+    else collectWhereVariables(clause, out)
   }
 }
 
@@ -1402,7 +1373,6 @@ function boundKindOf(
           return 'proposition'
         }
         break
-      case 'NotClause':
       case 'OptionalClause':
       case 'UnionClause': {
         const nested = boundKindOf(variable, pattern.patterns)
@@ -1645,13 +1615,7 @@ function lowerBoundValue(
       return isFullyLiteral(expr)
         ? { Value: lowerKipValue(expr) }
         : {
-            Object: expr.entries.map(
-              (e) =>
-                [e.key, lowerBoundValue(e.value, targetVar)] as [
-                  string,
-                  BoundValue
-                ]
-            )
+            Object: lowerEntries(expr.entries, value => lowerBoundValue(value, targetVar))
           }
 
     default:
@@ -2069,9 +2033,7 @@ function lowerKipValue(expr: Expression): KipValue {
       const entries =
         expr.kind === 'ObjectLiteral' ? expr.entries : expr.members
       // Create data properties even for names such as __proto__.
-      return { Object: Object.fromEntries(entries.map(entry =>
-        [entry.key, lowerKipValue(entry.value)]
-      )) }
+      return { Object: Object.fromEntries(lowerEntries(entries, lowerKipValue)) }
     }
     case 'UnaryExpression':
       if (expr.operator === '-' && expr.operand.kind === 'NumberLiteral') {
@@ -2094,9 +2056,17 @@ function lowerKipValue(expr: Expression): KipValue {
  * lets a parameter stand anywhere inside them.
  */
 function lowerBoundObject(object: ObjectLiteral): Record<string, BoundValue> {
-  return Object.fromEntries(object.entries.map(entry =>
-    [entry.key, lowerBoundValue(entry.value, null)]
-  ))
+  return Object.fromEntries(lowerEntries(object.entries, value => lowerBoundValue(value, null)))
+}
+
+/** Check decoded names before a keyed block becomes a list or a JSON object. */
+function lowerEntries<T>(entries: ObjectEntry[], lowerValue: (value: Expression) => T): [string, T][] {
+  const seen = new Set<string>()
+  return entries.map(entry => {
+    if (seen.has(entry.key)) throw invalidSyntax(`duplicate object key ${entry.key}`, entry.range)
+    seen.add(entry.key)
+    return [entry.key, lowerValue(entry.value)]
+  })
 }
 
 /** Strips the `?` sigil; the executable form carries bare names. */

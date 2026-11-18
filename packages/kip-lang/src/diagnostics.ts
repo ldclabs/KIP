@@ -1,6 +1,6 @@
 import type { Range } from './token.js'
 import { tokenize } from './lexer.js'
-import { parse } from './parser.js'
+import { parseTokens } from './parser.js'
 import { analyzeSemantics } from './semantics.js'
 import { lowerStatement } from './lower.js'
 import { KipSyntaxError } from './errors.js'
@@ -20,6 +20,11 @@ export interface Diagnostic {
  * executable-AST validation.
  */
 export function diagnose(source: string): Diagnostic[] {
+  return analyzeSource(source).diagnostics
+}
+
+/** Keep the tokens and tree so the formatter can use the exact input we checked. */
+export function analyzeSource(source: string) {
   const diagnostics: Diagnostic[] = []
 
   // Phase 1: Lexer-level diagnostics
@@ -139,7 +144,7 @@ export function diagnose(source: string): Diagnostic[] {
   }
 
   // Phase 3: Parser diagnostics
-  const { ast, diagnostics: parseDiags } = parse(source)
+  const { ast, diagnostics: parseDiags } = parseTokens(source, tokens)
   diagnostics.push(...parseDiags)
 
   // Phase 4: Semantic checks (only when the AST parsed cleanly, to avoid
@@ -152,7 +157,7 @@ export function diagnose(source: string): Diagnostic[] {
     }
   }
 
-  return diagnostics
+  return { tokens, ast, diagnostics }
 }
 
 /**

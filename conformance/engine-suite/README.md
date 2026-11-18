@@ -33,7 +33,9 @@ skipped (kip-do under a Node shim; see `manifest.json`). At anda-db `985451b` bo
 ran the suite of KIP `11a82ec` — 431 cases in 26 fixtures, including
 `ingest-batch.json` and its multi-operation cases — and again passed every case with
 none skipped, kip-do in its workerd pool. `manifest.json` lists the revisions made
-along the way.
+along the way. The `kip-lang` 2.4.3 integration ran all 434 current cases on
+both the Rust Nexus and kip-do in workerd. Each passed 434 with zero skips.
+The final manifest entry identifies the tested harness and Worker source.
 
 ## Case shape
 
@@ -92,8 +94,18 @@ top-level error, else the first operation error in order, else the first
 result (a KML receipt flattens to its result, usually `null`). A batch case
 therefore passes only when every operation succeeded or the error it expects
 came first; the durable effect of a batch is pinned by the one-command cases
-after it. An `UnsupportedCapability`
-the case did not expect is reported `SKIP_UNSUPPORTED`, never counted as a pass.
+after it. A success requires one result per submitted operation, each marked
+`succeeded` or `no_effect`. A lost response, `outcome_unknown`, or incomplete
+batch stops the run. The report counts a case as executed once its request
+is sent. When a case expects `UnsupportedCapability`, that error satisfies its
+assertion. Otherwise the runner reports a skip only when a capability required by
+the case is absent from the list returned by `describe()`. An unsupported
+operation with no declared missing prerequisite fails the case.
+For an envelope test with `expect.check_requires: true`, the prerequisite
+itself is under test. The adapter must list its supported capabilities.
+The case expects its usual result when all the requested boolean capabilities
+are advertised, and exactly `UnsupportedCapability` when one is missing.
+Either matching outcome passes.
 A case that depends on an optional capability (§67.4) names it in
 `envelope.requires`, including a case that only reads what an earlier optional
 case created: an engine without the capability then skips the whole chain
@@ -108,6 +120,12 @@ numbered before anything under `refs`. Wall-clock timestamps, transaction ids,
 content digests, authorization views and search scores are dropped. Everything
 else is compared exactly; when `ordered` is false a top-level array is compared
 as a multiset.
+
+For an exact expectation with multiple rows containing ID placeholders, supply
+a deterministic row order and set `ordered: true`. For a FIND, use `ORDER BY`
+with enough stable, fixture-controlled values to break ties. The encounter
+order then assigns the same placeholder to every reference to a given element
+on both engines. Rows without placeholders can still be compared as a multiset.
 
 Deployment-extensible answers may instead use `expect.result_contains`:
 object members are matched recursively, an expected array requires a matching

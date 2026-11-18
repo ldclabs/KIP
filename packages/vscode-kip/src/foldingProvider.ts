@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { parse, tokenize, TokenType } from '@ldclabs/kip-lang'
+import { checkBudget, KipSyntaxError, parse, tokenize, TokenType } from '@ldclabs/kip-lang'
 import type {
   Program,
   Statement,
@@ -28,13 +28,15 @@ export class KipFoldingProvider implements vscode.FoldingRangeProvider {
     const ranges: vscode.FoldingRange[] = []
 
     try {
+      checkBudget(source)
       const { ast, diagnostics } = parse(source)
       if (diagnostics.some((d) => d.severity === 'error')) {
         this.collectBraceFolding(document, ranges)
       } else {
         this.collectFromProgram(ast, ranges)
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof KipSyntaxError && error.code === 'KIP_4002') return []
       // Fall back to simple brace matching if parsing fails
       this.collectBraceFolding(document, ranges)
     }

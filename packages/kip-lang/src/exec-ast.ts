@@ -195,6 +195,8 @@ export interface OrderByItem {
   variable: DotPathVar
   direction: OrderDirection
   aggregation: AggregationFunction | null
+  /** Omitted for ordinary sort keys, as in the Rust AST. */
+  distinct?: boolean
 }
 
 export type OrderDirection = 'Asc' | 'Desc'

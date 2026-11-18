@@ -114,14 +114,19 @@ test('REL-006: prospective trials accept future controls, freeze missingness and
 test('REL-007: receiver rejects an old worker after its sender-side preflight passed', () => {
   const receiver=new model.FencedReceiver();receiver.advance('resource',1)
   const request={resource:'resource',attempt_id:'attempt',payload:'effect'}
-  const old={resource:'resource',attempt_id:'attempt',fence:1,expires_at:t2}
+  const old={resource:'resource',attempt_id:'attempt',fence:1,expires_at:t2,request:structuredClone(request)}
+  const uninitialized = new model.FencedReceiver()
+  assert.throws(()=>uninitialized.accept(request,{...old,fence:undefined},t1),/StaleFence/)
   receiver.advance('resource',2)
   assert.throws(()=>receiver.accept(request,old,t1),/StaleFence/)
   const current={...old,fence:2}
+  const changed = { ...request, payload: 'different' }
+  assert.throws(()=>receiver.accept(changed,current,t1),/NotAuthorized/)
+  assert.equal(receiver.effects.size,0)
   assert.equal(receiver.accept(request,current,t1),'applied')
   assert.equal(receiver.accept(request,current,t1),'replayed')
   assert.equal(receiver.effects.size,1)
-  assert.throws(()=>receiver.accept({...request,payload:'different'},current,t1),/IdempotencyConflict/)
+  assert.throws(()=>receiver.accept(changed,{...current, request:changed},t1),/IdempotencyConflict/)
   assert.equal(validates('DispatchContract',{guarantee:'receiver_fenced',linearization_point:'native_admission',receiver_binding:artifact}),false)
 })
 
@@ -201,6 +206,28 @@ test('MIF-019: the session keeps the attention cursor and hands it to attention 
   assert.throws(()=>session.recall({mode:'attention',attention_cursor:''}),/cursor/)
   assert.equal(session.recall({mode:'attention'}).input.attention_cursor,'attention:41')
   assert.throws(()=>new MemorySession({space_id:'S',scope:{},outstanding:[],attention_cursor:''}),/snapshot/)
+})
+
+test('MemorySession validates persisted scope and explicit recall inputs against the wire limits', () => {
+  const valid = { space_id: 'S', scope: {}, outstanding: [] }
+  const session = new MemorySession(valid)
+  const long = 'a'.repeat(1025)
+  for (const snapshot of [
+    { ...valid, space_id: 's'.repeat(513) }, { ...valid, outstanding: [long] },
+    { ...valid, scope: { task_ref: '' } }, { ...valid, scope: { context_refs: [''] } },
+    { ...valid, scope: { context_refs: Array.from({ length: 129 }, (_, i) => String(i)) } }
+  ]) assert.throws(() => new MemorySession(snapshot), /snapshot/)
+  for (const input of [
+    { mode: 'attention', query: '' }, { query: 'q', goal: '' }, { query: 'q', context: 'x'.repeat(4097) },
+    { query: 'q', target_ref: long }, { query: 'q', after: [''] }, { query: 'q', time: {} }
+  ]) assert.throws(() => session.recall(input), RangeError)
+  assert.throws(() => session.recordReceipt('S', long), RangeError)
+  assert.deepEqual(session.snapshot().outstanding, [])
+  const ref = '🌍'.repeat(1024)
+  session.recordReceipt('S', ref)
+  const request = session.recall({ mode: 'attention', attention_cursor: ref })
+  assert.deepEqual(request.input.after, [ref])
+  assert.ok(ajv.validate(prefix+'memory', request), JSON.stringify(ajv.errors))
 })
 
 test('REL-014: scoped ASSERT lowers to the same immutable context_refs field', () => {
@@ -295,6 +322,7 @@ test('time bounds: parseTimePoint accepts exact instants and bounds, never an in
   assert.equal(parseTimePoint(null), null)
   assert.deepEqual(parseTimePoint(t), { earliest: Date.parse(t), latest: Date.parse(t) })
   assert.deepEqual(parseTimePoint({ latest: t }), { earliest: -Infinity, latest: Date.parse(t) })
+  assert.throws(() => parseTimePoint({ earliest: undefined }), /time bound/)
   assert.deepEqual(parseTimePoint({ earliest: t, latest: t2 }), { earliest: Date.parse(t), latest: Date.parse(t2) })
   for (const bad of [{}, { earliest: t2, latest: t }, { at: t }, { latest: '2026-09-23' }, 5, []])
     assert.throws(() => parseTimePoint(bad))

@@ -8,7 +8,7 @@
 
 - **范围已冻结。** 新契约只有连同引擎证据才能进入草案；更正、简化和新证据不受此门槛限制（[规范状态](./SPECIFICATION_CN.md#规范状态-status)）。
 - **名称稳定，修订以摘要区分。** 只有一个记忆包 `kip://profiles/cognitive-memory@2.0.0`、一个通用领域包 `kip://domains/general@1.0.0`、一个标准投影策略 `kip:memory-default`、一个标准强度策略 `kip:strength-half-life-30d`，Schema ID 为 `urn:kip:2.0:schema:*`。草案修订以内容摘要标识；不再保留早先的草案包。
-- **两个参考引擎通过完整的引擎套件**：26 个固件中的 431 个用例，没有标记为待定的用例。[套件清单](./conformance/engine-suite/manifest.json)记录了通过验证的引擎修订。
+- **两个参考引擎通过完整的引擎套件**：26 个固件中的 434 个用例，没有标记为待定的用例。[套件清单](./conformance/engine-suite/manifest.json)记录了通过验证的引擎修订。
 - **不宣称任何学习成效。** 引擎运行、有界模型与结构测试，与实测的 Brain 行为是不同的证据；在 [Brain 评测](./brain/BrainEvaluation_CN.md)实际测量之前，后者保持 `not_run`。
 
 最近一次修订改了什么、如何验证，见[修订记录](./KIP-2.0-Memory-Brain-Resolution_CN.md)。
@@ -50,7 +50,7 @@
 
 变化从不改写过去。三种变化保留三种不同的历史：
 
-- **世界变了。** 从变化时刻起写一条新断言。[时间继承](./SPECIFICATION_CN.md#254-时间继承-temporal-succession)在该时刻结束同一行动者的旧值，因此曾经为真的主张是被结束，而不是被宣布为错误，历史查询仍以它作答。两条推断永不相互继承。
+- **世界变了。** 从变化时刻起写一条新断言。[时间继承](./SPECIFICATION_CN.md#254-时间继承-temporal-succession)在该时刻结束同一行动者的旧值，因此曾经为真的主张是被结束，而不是被宣布为错误，历史查询仍以它作答。推断只有在 `valid_time.from` 中写明起点时才参与时间继承。
 - **主张错了。** 一条新断言[废弃替代](./SPECIFICATION_CN.md#142-已废弃替代-superseded)旧断言，旧断言仍保留在记录中。
 - **大脑记错了。** [录入修复](./SPECIFICATION_CN.md#578-录入修复-recording-repair)使错误的抽取失效；来源字节和每个人的立场都保持原样。
 
@@ -107,8 +107,8 @@ KIP 不定义具体的准入阈值、打断策略、显著性算法、巩固调�
 
 | 组件 | 是什么 | 本仓库中的证据 |
 | --- | --- | --- |
-| [`anda_cognitive_nexus`](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) | 基于 AndaDB 的 Rust KIP 2.0 引擎（Cognitive Nexus） | 通过全部 431 个引擎套件用例（[清单](./conformance/engine-suite/manifest.json)） |
-| [`@ldclabs/kip-do`](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do) | 基于 SQLite Cloudflare Durable Object 的独立 TypeScript KIP 2.0 引擎 | 通过全部 431 个引擎套件用例（[清单](./conformance/engine-suite/manifest.json)） |
+| [`anda_cognitive_nexus`](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) | 基于 AndaDB 的 Rust KIP 2.0 引擎（Cognitive Nexus） | 通过全部 434 个引擎套件用例（[清单](./conformance/engine-suite/manifest.json)） |
+| [`@ldclabs/kip-do`](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do) | 基于 SQLite Cloudflare Durable Object 的独立 TypeScript KIP 2.0 引擎 | 通过全部 434 个引擎套件用例（[清单](./conformance/engine-suite/manifest.json)） |
 | [`anda_kip`](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip) | Rust 解析器、请求/响应类型和面向模型的函数定义；随包提供本仓库的语法速查卡、Profile 和 Brain 角色卡，供模型提示词使用 | — |
 | [Anda Brain](https://github.com/ldclabs/anda-brain) | 自托管记忆服务：基于 Rust 引擎的 Formation / Recall / Maintenance 智能体，在 `memory_basic` 级别提供记忆接口，并附带面向接口与可靠性向量的[测试适配器](https://github.com/ldclabs/anda-brain/tree/main/anda_brain/conformance) | 一份针对早先修订的[历史证据记录](./conformance/Brain-Implementation-Evidence.md)；未记录当前的测试运行 |
 | [Anda Brain Worker](https://github.com/ldclabs/anda-brain/tree/main/anda-brain-worker) | 基于 `kip-do`、运行在 Cloudflare Workers 上的精简 Brain，同样提供 `memory_basic` | — |
@@ -133,7 +133,7 @@ KIP 不定义具体的准入阈值、打断策略、显著性算法、巩固调�
 | [📊 Brain 评测](./brain/BrainEvaluation_CN.md) | 独立的协议、可靠性与行为学习发布门禁（[English](./brain/BrainEvaluation.md)） |
 | [🤖 `$self` / ⚙️ `$system`](./SelfInstructions_CN.md) | 单智能体提示词对，基于 Brain 2.0 的精简增量（[`$system`](./SystemInstructions_CN.md)） |
 | [🔤 语法与 Schema](./grammar/) | 规范性 EBNF，以及[传输层 Schema](./schemas/) |
-| [🧪 一致性测试](./conformance/README.md) | 431 个可执行引擎用例、344 个父向量、30 个认知、20 个记忆接口与 17 个可靠性场景，以及可执行契约模型 |
+| [🧪 一致性测试](./conformance/README.md) | 434 个可执行引擎用例、344 个父向量、30 个认知、20 个记忆接口与 17 个可靠性场景，以及可执行契约模型 |
 | [🔬 形式化验证](./formal/README_CN.md) | Alloy、TLA+ 与 Python 模型（包含世界时间继承），以及其证明结论（[English](./formal/README.md)） |
 | [🔀 从 1.x 迁移](./migration/KIP-2.0-Migration-from-1.x_CN.md) | 升级变更点与遗留语义迁移约束（[English](./migration/KIP-2.0-Migration-from-1.x.md)） |
 | [📋 修订记录](./KIP-2.0-Memory-Brain-Resolution_CN.md) | 最近一次修订的清单与验证；早前版本：[可靠性](./KIP-2.0-Reliability-Resolution_CN.md)、[评审决议](./KIP-2.0-Review-Resolution_CN.md) |

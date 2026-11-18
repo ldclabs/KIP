@@ -149,7 +149,8 @@ export function freezeProspectiveCohort(trial, assignments, observations, cutoff
   return attempts.sort((a,b) => a.attempt_ref.localeCompare(b.attempt_ref))
 }
 
-/** Simulates the receiver's atomic accept+dedupe step, not a sender preflight. */
+/** Simulates the receiver's atomic acceptance. In the model, permit.request
+ * is the request identity supplied by the authenticated receiver binding. */
 export class FencedReceiver {
   constructor() { this.fences = new Map(); this.effects = new Map() }
   advance(resource, fence) {
@@ -157,9 +158,11 @@ export class FencedReceiver {
     this.fences.set(resource, fence)
   }
   accept(request, permit, now) {
-    if (permit.resource !== request.resource || permit.attempt_id !== request.attempt_id ||
-        permit.fence !== this.fences.get(request.resource) || parseTimestamp(now) >= parseTimestamp(permit.expires_at))
+    if (!this.fences.has(request.resource) || permit.resource !== request.resource ||
+        permit.attempt_id !== request.attempt_id || permit.fence !== this.fences.get(request.resource) ||
+        parseTimestamp(now) >= parseTimestamp(permit.expires_at))
       fail('StaleFence')
+    if (!permit.request || !equal(permit.request, request)) fail('NotAuthorized')
     const key = canonicalize([request.resource,request.attempt_id])
     const previous = this.effects.get(key)
     if (previous && !equal(previous, request)) fail('IdempotencyConflict')

@@ -1,6 +1,4 @@
-import { tokenize } from './lexer.js'
-import { parse } from './parser.js'
-import { diagnose } from './diagnostics.js'
+import { analyzeSource } from './diagnostics.js'
 import { Token, TokenType } from './token.js'
 import type { Range } from './token.js'
 import type {
@@ -76,13 +74,11 @@ export function format(source: string, options?: FormatOptions): string {
     sortAttributes: options?.sortAttributes ?? false
   }
 
-  const firstError = diagnose(source).find((d) => d.severity === 'error')
+  const { ast, tokens, diagnostics } = analyzeSource(source)
+  const firstError = diagnostics.find((d) => d.severity === 'error')
   if (firstError) {
     throw new Error(`Cannot format invalid KIP: ${firstError.message}`)
   }
-
-  const tokens = tokenize(source)
-  const { ast } = parse(source)
 
   const formatter = new Formatter(opts, tokens)
   return formatter.formatProgram(ast)
@@ -1171,7 +1167,7 @@ class Formatter {
   }
 
   private fieldName(key: string, isQuoted: boolean): string {
-    return isQuoted ? `"${this.escapeString(key)}"` : key
+    return isQuoted ? JSON.stringify(key) : key
   }
 
   // ────────────────────────────────────────────────────────────────────
@@ -1279,15 +1275,6 @@ class Formatter {
       case 'PropositionTuple':
         return this.tupleToString(expr)
     }
-  }
-
-  private escapeString(s: string): string {
-    return s
-      .replace(/\\/g, '\\\\')
-      .replace(/"/g, '\\"')
-      .replace(/\n/g, '\\n')
-      .replace(/\t/g, '\\t')
-      .replace(/\r/g, '\\r')
   }
 
   private indent(): string {

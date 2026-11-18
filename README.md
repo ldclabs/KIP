@@ -11,7 +11,7 @@ existing deployments or declare the 2.0 protocol stable.
 
 - **The scope is frozen.** A new contract enters the draft only together with engine evidence; corrections, simplifications and new evidence do not need that gate ([Specification Status](./SPECIFICATION.md#status)).
 - **Names are stable; revisions are digests.** There is one memory package, `kip://profiles/cognitive-memory@2.0.0`, one general domain package, `kip://domains/general@1.0.0`, one standard projection policy, `kip:memory-default`, one standard strength policy, `kip:strength-half-life-30d`, and schema IDs `urn:kip:2.0:schema:*`. A draft revision is identified by its content digest; earlier draft packages are not retained.
-- **Both reference engines pass the whole engine suite** — 431 cases in 26 fixtures, none pending. The [suite manifest](./conformance/engine-suite/manifest.json) records the verified engine revision.
+- **Both reference engines pass the whole engine suite** — 434 cases in 26 fixtures, none pending. The [suite manifest](./conformance/engine-suite/manifest.json) records the verified engine revision.
 - **No learning result is claimed.** Engine runs, bounded models and structural tests are separate evidence from measured Brain behavior, which stays `not_run` until a [Brain evaluation](./brain/BrainEvaluation.md) measures it.
 
 What the latest revision changed, and how it was validated, is in the [revision record](./KIP-2.0-Memory-Brain-Resolution.md).
@@ -54,7 +54,7 @@ Proposition exists  ≠  Proposition is true  ≠  Brain accepts Proposition
 
 Change never rewrites the past. Three kinds of change keep three different histories:
 
-- **The world changed.** One new Assertion from the time of the change. [Temporal succession](./SPECIFICATION.md#254-temporal-succession) closes the actor's older value at that point, so a formerly true claim is ended rather than declared wrong, and historical queries still answer with it. Two inferences never succeed one another.
+- **The world changed.** One new Assertion from the time of the change. [Temporal succession](./SPECIFICATION.md#254-temporal-succession) closes the actor's older value at that point, so a formerly true claim is ended rather than declared wrong, and historical queries still answer with it. An inference participates in succession only when it specifies a start in `valid_time.from`.
 - **A claim was wrong.** A new Assertion [supersedes](./SPECIFICATION.md#142-superseded) the old one, which stays on record.
 - **The Brain misrecorded it.** [Recording repair](./SPECIFICATION.md#578-recording-repair) invalidates the wrong extraction; the source bytes and everyone's stance stay as they were.
 
@@ -111,8 +111,8 @@ This repository defines the protocol and its tooling; it does not contain a prod
 
 | Component | What it is | Evidence here |
 | --- | --- | --- |
-| [`anda_cognitive_nexus`](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) | Rust KIP 2.0 engine (Cognitive Nexus) on AndaDB | Passes all 431 engine-suite cases ([manifest](./conformance/engine-suite/manifest.json)) |
-| [`@ldclabs/kip-do`](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do) | Independent TypeScript KIP 2.0 engine on SQLite Cloudflare Durable Objects | Passes all 431 engine-suite cases ([manifest](./conformance/engine-suite/manifest.json)) |
+| [`anda_cognitive_nexus`](https://github.com/ldclabs/anda-db/tree/main/rs/anda_cognitive_nexus) | Rust KIP 2.0 engine (Cognitive Nexus) on AndaDB | Passes all 434 engine-suite cases ([manifest](./conformance/engine-suite/manifest.json)) |
+| [`@ldclabs/kip-do`](https://github.com/ldclabs/anda-db/tree/main/ts/kip-do) | Independent TypeScript KIP 2.0 engine on SQLite Cloudflare Durable Objects | Passes all 434 engine-suite cases ([manifest](./conformance/engine-suite/manifest.json)) |
 | [`anda_kip`](https://github.com/ldclabs/anda-db/tree/main/rs/anda_kip) | Rust parser, request/response types and model-facing function definitions; ships this repository's syntax card, Profile and Brain role cards for model prompts | — |
 | [Anda Brain](https://github.com/ldclabs/anda-brain) | Self-hosted memory service: Formation / Recall / Maintenance agents on the Rust engine, serving the Memory Interface at `memory_basic`, with a [harness adapter](https://github.com/ldclabs/anda-brain/tree/main/anda_brain/conformance) for the Interface and reliability vectors | A [historical evidence record](./conformance/Brain-Implementation-Evidence.md) of an earlier revision; no current harness run is recorded |
 | [Anda Brain Worker](https://github.com/ldclabs/anda-brain/tree/main/anda-brain-worker) | A compact Brain on `kip-do` for Cloudflare Workers, also serving `memory_basic` | — |
@@ -137,7 +137,7 @@ This repository defines the protocol and its tooling; it does not contain a prod
 | [📊 Brain evaluation](./brain/BrainEvaluation.md) | Separate protocol, reliability and behavioral-learning release gates ([中文](./brain/BrainEvaluation_CN.md)) |
 | [🤖 `$self` / ⚙️ `$system`](./SelfInstructions.md) | Single-agent prompt pair, a delta over Brain 2.0 ([`$system`](./SystemInstructions.md)) |
 | [🔤 Grammars & Schemas](./grammar/) | Normative EBNF, plus the [wire schemas](./schemas/) |
-| [🧪 Conformance](./conformance/README.md) | 431 executable engine cases, 344 parent vectors, 30 cognitive, 20 Memory Interface and 17 reliability scenarios, and executable contract models |
+| [🧪 Conformance](./conformance/README.md) | 434 executable engine cases, 344 parent vectors, 30 cognitive, 20 Memory Interface and 17 reliability scenarios, and executable contract models |
 | [🔬 Formal Verification](./formal/README.md) | Alloy, TLA+ and Python models, including world-time succession, and what they proved ([中文](./formal/README_CN.md)) |
 | [🔀 Migration from 1.x](./migration/KIP-2.0-Migration-from-1.x.md) | What changes, and what legacy meaning must not be invented ([中文](./migration/KIP-2.0-Migration-from-1.x_CN.md)) |
 | [📋 Revision records](./KIP-2.0-Memory-Brain-Resolution.md) | The latest revision's checklist and validation; earlier: [reliability](./KIP-2.0-Reliability-Resolution.md), [review](./KIP-2.0-Review-Resolution.md) |

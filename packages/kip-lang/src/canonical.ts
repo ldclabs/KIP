@@ -11,7 +11,7 @@ export function portableNumber(value: number, raw?: string): number {
   return Object.is(value, -0) ? 0 : value
 }
 
-function scalarString(value: string): string {
+function validateUnicode(value: string): void {
   for (let i = 0; i < value.length; i++) {
     const c = value.charCodeAt(i)
     if (c >= 0xd800 && c <= 0xdbff) {
@@ -19,7 +19,18 @@ function scalarString(value: string): string {
       if (!(next >= 0xdc00 && next <= 0xdfff)) throw new Error('unpaired Unicode surrogate')
     } else if (c >= 0xdc00 && c <= 0xdfff) throw new Error('unpaired Unicode surrogate')
   }
+}
+
+function scalarString(value: string): string {
+  validateUnicode(value)
   return JSON.stringify(value)
+}
+
+/** Decode a quoted JSON string in either an artifact or KIP command text. */
+export function decodeJsonString(raw: string): string {
+  const value: string = JSON.parse(raw)
+  validateUnicode(value)
+  return value
 }
 
 /**
@@ -65,9 +76,7 @@ export function parseCanonicalJson(source: string): unknown {
       const c = source[pos++]
       if (c === '\\') { pos++; continue }
       if (c === '"') {
-        const result: string = JSON.parse(source.slice(start, pos))
-        scalarString(result)
-        return result
+        return decodeJsonString(source.slice(start, pos))
       }
     }
     throw new Error('unterminated JSON string')

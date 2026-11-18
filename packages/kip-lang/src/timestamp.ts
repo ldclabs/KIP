@@ -28,7 +28,8 @@ export function parseTimePoint(value: unknown): { earliest: number; latest: numb
   }
   const bound = value as Record<string, unknown>
   const keys = Object.keys(bound)
-  if (keys.length === 0 || keys.some((key) => key !== 'earliest' && key !== 'latest')) {
+  if ((bound.earliest === undefined && bound.latest === undefined) ||
+      keys.some((key) => key !== 'earliest' && key !== 'latest')) {
     throw new RangeError('a time bound has only earliest and/or latest, and at least one of them')
   }
   const earliest = bound.earliest === undefined ? -Infinity : parseTimestamp(bound.earliest)

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { format } from '@ldclabs/kip-lang'
+import { checkBudget, format } from '@ldclabs/kip-lang'
 
 export class KipFormattingProvider
   implements vscode.DocumentFormattingEditProvider
@@ -12,6 +12,7 @@ export class KipFormattingProvider
   ): vscode.TextEdit[] {
     const source = document.getText()
     try {
+      checkBudget(source)
       const formatted = format(source, {
         indentSize: options.tabSize,
         sortAttributes: vscode.workspace

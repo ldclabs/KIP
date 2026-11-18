@@ -2,6 +2,12 @@
 
 All notable changes to the **KIP Language** extension are documented here.
 
+## 2.4.3
+
+- Formatting and folding apply the same input budget as diagnostics.
+- Query diagnostics flag out-of-scope variables, invalid aggregate sort keys
+  and filter calls with missing or extra arguments.
+
 ## 2.4.2
 
 Bundles `@ldclabs/kip-lang` 2.4.2. The version follows the bundled toolkit;

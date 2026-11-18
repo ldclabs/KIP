@@ -1,3 +1,5 @@
+import type { FilterFunction } from './exec-ast.js'
+
 export enum TokenType {
   // Trivia
   Whitespace = 'Whitespace',
@@ -322,19 +324,22 @@ export const AGGREGATES: ReadonlySet<string> = new Set([
  * still parse; this set is what the semantic layer and editor tooling treat
  * as known. Membership is not a parse-time gate.
  */
+export const FILTER_FUNCTIONS = new Map<string, [func: FilterFunction, minArgs: number, maxArgs?: number]>([
+  ['IN', ['In', 2]],
+  ['CONTAINS', ['Contains', 2]],
+  ['STARTS_WITH', ['StartsWith', 2]],
+  ['ENDS_WITH', ['EndsWith', 2]],
+  ['REGEX', ['Regex', 2]],
+  ['IS_NULL', ['IsNull', 1]],
+  ['IS_NOT_NULL', ['IsNotNull', 1]],
+  ['IS_LITERAL', ['IsLiteral', 1]],
+  ['IS_ELEMENT', ['IsElement', 1]],
+  ['IS_KIND', ['IsKind', 2]],
+  ['LITERAL_TYPE', ['LiteralType', 1, 2]]
+])
+
 export const FUNCTIONS: ReadonlySet<string> = new Set([
-  // Filter predicates
-  'IN',
-  'CONTAINS',
-  'STARTS_WITH',
-  'ENDS_WITH',
-  'REGEX',
-  'IS_NULL',
-  'IS_NOT_NULL',
-  'IS_LITERAL',
-  'IS_ELEMENT',
-  'IS_KIND',
-  'LITERAL_TYPE',
+  ...FILTER_FUNCTIONS.keys(),
   // Deterministic update expressions
   'ADD',
   'MUL',

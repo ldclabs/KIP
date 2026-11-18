@@ -301,8 +301,26 @@ test('portable memory vectors validate and the adapter runner detects wrong stat
   const unsupported=await runMemoryVectors(adapter,[vectors[7]])
   assert.equal(unsupported.tests[0].status,'SKIP_UNSUPPORTED')
   assert.equal(unsupported.summary.pass,0)
+  assert.equal(unsupported.extensions['kip.org/evidence'].executed,0)
   assert.equal(unsupported.overall_status,'FAIL')
   assert.ok(ajv.validate('urn:kip:2.0:schema:conformance-report',unsupported),JSON.stringify(ajv.errors))
+  const raw = [{ receipt_ref: 'receipt-1' }]
+  const engine = { ...adapter,
+    describe: async () => ({ kind: 'engine', name: 'runner-unit-test', version: '1' }),
+    harness: async () => ({ ...await adapter.harness(), raw_responses: raw })
+  }
+  const reports = [
+    await runMemoryVectors(engine, [v]),
+    await runMemoryVectors({ ...engine, inspect: async () => { throw new Error('inspection failed') } }, [v])
+  ]
+  assert.deepEqual(reports.map(r => r.tests[0].status), ['PASS','HARNESS_ERROR'])
+  for (const report of reports) {
+    assert.deepEqual(report.tests[0].observed.raw_responses[v.steps[0].id], raw)
+    assert.equal(report.extensions['kip.org/evidence'].executed, 1)
+    assert.ok(ajv.validate('urn:kip:2.0:schema:conformance-report',report), JSON.stringify(ajv.errors))
+  }
+  const unknownSource = { ...v, assertions: [{ ...v.assertions[0], source: 'variable' }] }
+  assert.equal((await runMemoryVectors(adapter,[unknownSource])).tests[0].status, 'HARNESS_ERROR')
 })
 
 test('packages: the memory and general domain packages validate, and prefers is partitioned by kind', async () => {
@@ -411,6 +429,12 @@ test('world time: succession narrows written intervals and ignores arrival order
   }
   // Before any value began, nothing is invented.
   assert.deepEqual(model.project(candidates, { functional: true, valid_at: '2025-06-01T00:00:00.000Z' }).status, 'insufficient')
+  const inferred = { mode: 'inferred', asserted_at: t('06-01') }
+  const dated = [a('beijing', t('01-01'), inferred), a('shanghai', t('05-01'), inferred)]
+  assert.deepEqual(at(dated, '02-01'), ['beijing'])
+  assert.deepEqual(at(dated, '06-01'), ['shanghai'])
+  const undated = [a('beijing', null, { ...inferred, asserted_at: t('02-01') }), a('shanghai', null, inferred)]
+  assert.equal(model.project(undated, { functional: true, valid_at: t('07-01') }).status, 'contested')
   assert.throws(() => model.project([a('x', { earliest: t('05-01'), latest: t('04-01') })], { functional: true, valid_at: t('06-01') }), /time bound/)
 })
 

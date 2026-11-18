@@ -1,4 +1,5 @@
 import { tokenize } from './lexer.js'
+import { decodeJsonString } from './canonical.js'
 import {
   Token,
   TokenType,
@@ -130,9 +131,12 @@ type LiteralNode =
   | NullLiteral
 
 export function parse(source: string): ParseResult {
-  const allTokens = tokenize(source)
-  const parser = new Parser(allTokens, source)
-  return parser.parse()
+  return parseTokens(source, tokenize(source))
+}
+
+/** Parse the tokens already collected for diagnostics and formatting. */
+export function parseTokens(source: string, tokens: Token[]): ParseResult {
+  return new Parser(tokens, source).parse()
 }
 
 class Parser {
@@ -3416,7 +3420,7 @@ class Parser {
   private unescapeString(raw: string, tok?: Token): string {
     if (raw.startsWith('"') && raw.endsWith('"') && raw.length >= 2) {
       try {
-        return JSON.parse(raw) as string
+        return decodeJsonString(raw)
       } catch {
         if (tok) {
           this.error(

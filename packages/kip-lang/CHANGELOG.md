@@ -2,6 +2,20 @@
 
 All notable changes to `@ldclabs/kip-lang` are documented here.
 
+## 2.4.3
+
+- Preserve `DISTINCT` on aggregate sort keys in the executable AST. Diagnostics
+  now check grouping keys, filter argument counts, and variable scope across
+  `NOT`, `OPTIONAL` and `UNION`. The explanation level in `WITH EPISTEMIC`
+  accepts `none`, `summary` or `ledger`.
+- Reject unresolved mutation handles, duplicate nested object keys, unpaired
+  Unicode surrogates and updates to an Assertion's Evidence citations. Match
+  objects preserve every field name as an own data property.
+- Formatting reuses the tokens and syntax tree from diagnostics and preserves
+  JSON escapes in quoted keys. Input budgets count UTF-8 bytes.
+- `MemorySession` checks stored references and recall arguments against the
+  Memory Interface's string, time and collection limits.
+
 ## 2.4.2
 
 No syntax or executable-AST change.

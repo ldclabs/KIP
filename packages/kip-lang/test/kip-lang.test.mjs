@@ -950,9 +950,61 @@ EXPECT VERSION 3`,
   test('refuses to format invalid KIP', () => {
     assert.throws(() => format('FIND(?x WHERE {'), /Cannot format invalid KIP/)
   })
+
+  test('quoted field names keep their JSON escapes on a formatting round trip', () => {
+    const source = 'FIND(?x) WHERE { ?x {"a\\fb\\bc\\u0000": 1} }'
+    const once = format(source)
+    assert.deepEqual(diagnose(once), [])
+    assert.equal(parseOne(once).where.patterns[0].matcher.members[0].key, 'a\fb\bc\0')
+    assert.equal(format(once), once)
+  })
+
+  test('command strings and field names require Unicode scalar values', () => {
+    for (const source of [
+      'FIND(?x) WHERE { ?x {name: "\\ud83d"} }',
+      'FIND(?x) WHERE { ?x {"\\ude00": 1} }'
+    ]) {
+      assert.ok(parseErrors(source).length > 0)
+      assert.throws(() => format(source), /invalid KIP/)
+    }
+    assert.equal(parseOne('FIND(?x) WHERE { ?x {name: "\\ud83d\\ude00"} }')
+      .where.patterns[0].matcher.members[0].value.parsed, '😀')
+  })
 })
 
 describe('semantics', () => {
+  test('a UNION has independent query bindings and keeps explicit mutation handles', () => {
+    const source = 'MUTATE { CREATE CONCEPT ?owner { TYPE "Person" } ' +
+      'UPDATE ?x SET ATTRIBUTES {seen: true} WHERE { ?x {id: :id} UNION { ?x {id: :other} FILTER(IS_ELEMENT(?owner)) } } }'
+    assert.deepEqual(diagnose(source).filter(d => d.severity === 'error'), [])
+  })
+  test('filter calls check their argument counts even in nested conditions', () => {
+    for (const call of ['IS_NULL()', 'IS_KIND(?x)', 'REGEX(?x)', 'IN(?x, [], [])', 'LITERAL_TYPE(?x, "string", 1)']) {
+      const errors = diagnose(`FIND(?x) WHERE { ?x {} FILTER(IS_NULL(?x) || !${call}) }`)
+      assert.ok(errors.some(d => d.severity === 'error' && d.message.includes('argument count')), call)
+    }
+  })
+
+  test('DESCRIBE PRIMER validates literal modes and defers parameters', () => {
+    for (const mode of ['"full"', '"compact"', ':mode']) assert.deepEqual(diagnose('DESCRIBE PRIMER MODE ' + mode), [])
+    for (const mode of ['"verbose"', '0', 'false', 'null']) {
+      assert.ok(diagnose('DESCRIBE PRIMER MODE ' + mode).some(d => d.severity === 'error'))
+    }
+  })
+
+  test('WITH EPISTEMIC uses the closed explanation registry and defers parameters', () => {
+    const query = level => `FIND(?x) WHERE { ?x {id: :id} } WITH EPISTEMIC {explanation: ${level}}`
+    for (const level of ['"none"', '"summary"', '"ledger"', ':level']) {
+      assert.deepEqual(diagnose(query(level)), [])
+      assert.ok(parseOne(query(level)).epistemic)
+    }
+    for (const level of ['"verbose"', '"SUMMARY"', 'null', '1', 'false', '[]', '{}']) {
+      const errors = diagnose(query(level)).filter(d => d.severity === 'error')
+      assert.equal(errors.length, 1, level)
+      assert.equal(errors[0].code, 'KIP_2001')
+      assert.match(errors[0].message, /WITH EPISTEMIC explanation/)
+    }
+  })
   function codes(source) {
     const { ast } = parse(source)
     return analyzeSemantics(ast).map((d) => d.code)
@@ -1095,6 +1147,15 @@ describe('budget', () => {
 
   test('accepts ordinary input', () => {
     assert.doesNotThrow(() => checkBudget('FIND(?x) WHERE { ?x {a: 1} }'))
+  })
+
+  test('counts the same UTF-8 bytes as the engine for multilingual commands', () => {
+    for (const word of ['字', '🌍']) {
+      const bytes = Buffer.byteLength(word)
+      const exact = word.repeat(Math.floor(MAX_KIP_INPUT_LEN / bytes)) + 'x'.repeat(MAX_KIP_INPUT_LEN % bytes)
+      assert.doesNotThrow(() => checkBudget(exact))
+      assert.throws(() => checkBudget(exact + 'x'), error => error.code === 'KIP_4002')
+    }
   })
 
   test('rejects nesting past the ceiling', () => {

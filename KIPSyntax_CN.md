@@ -123,9 +123,11 @@ WHERE { <patterns and filters> }
 [AS OF SEQ :seq]                                  // 认知历史：大脑当时所包含/相信的内容（tx id 或时间戳通过 DESCRIBE TRANSACTION / DESCRIBE SNAPSHOT AT TIME 转为 seq）
 [FOR TIME :world_time]                            // 世界有效时间：在现实世界什么时间适用
 [WITH EPISTEMIC { purpose: "...", risk: "low", policy: "...", include_historical: false,
-                  include_hypothetical: false, explanation: "none|summary|ledger" }]
+                  include_hypothetical: false, explanation: "summary" }]
 [ORDER BY <expr> [ASC|DESC], ...] [LIMIT :n] [CURSOR :cursor]   // 多排序键；默认 ASC；null 排最后
 ```
+
+`explanation` 的取值限定为 `"none"`、`"summary"`、`"ledger"` 三者之一。通过参数传入时也遵循这一规则。
 
 `AS OF` 和 `FOR TIME` 是相互独立的正交时间轴。“大脑在认知时间点 C 相信什么？” = `AS OF C`；“大脑在认知时间点 C 对现实时间点 W 持何种信念？” = `AS OF C` + `FOR TIME W`；“大脑当前对现实时间点 W 持何种信念？” = 仅使用 `FOR TIME W`。投影项可为变量、点路径表达式或聚合；混合普通表达式与聚合将按普通表达式分组。
 

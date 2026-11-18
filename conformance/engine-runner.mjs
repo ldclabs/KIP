@@ -31,12 +31,8 @@ export function normalize(value, tagOf = defaultTag, seen = new Map()) {
   }
   if (Array.isArray(value)) return value.map(item => normalize(item, tagOf, seen))
   if (value !== null && typeof value === 'object') {
-    const out = {}
-    for (const key of Object.keys(value).sort()) {
-      if (VOLATILE.has(key)) continue
-      out[key] = normalize(value[key], tagOf, seen)
-    }
-    return out
+    return Object.fromEntries(Object.keys(value).sort().filter(key => !VOLATILE.has(key))
+      .map(key => [key, normalize(value[key], tagOf, seen)]))
   }
   return value
 }
@@ -48,7 +44,22 @@ export function canonical(value) {
   return JSON.stringify(value) ?? 'null'
 }
 
+function hasIdPlaceholder(value) {
+  if (typeof value === 'string') return /^[A-Z]:<[1-9]\d*>$/.test(value)
+  return value !== null && typeof value === 'object' && Object.values(value).some(hasIdPlaceholder)
+}
+
+export function requiresStableRowOrder(expected) {
+  return Array.isArray(expected) && expected.length > 1 && expected.some(hasIdPlaceholder)
+}
+
+function checkResultOrder(expected, ordered) {
+  if (ordered !== true && requiresStableRowOrder(expected))
+    throw new FixtureSetupError('multi-row results with ID placeholders need a stable row order and ordered: true')
+}
+
 export function sameResult(actual, expected, ordered, tagOf = defaultTag) {
+  checkResultOrder(expected, ordered)
   const left = normalize(actual, tagOf)
   if (!ordered && Array.isArray(left) && Array.isArray(expected)) {
     const sort = list => [...list].map(canonical).sort()
@@ -67,14 +78,16 @@ export function containsResult(actual, expected) {
   return actual === expected
 }
 
+class FixtureSetupError extends Error {}
+
 function captureResult(result, path) {
   if (path === '') return structuredClone(result)
-  if (typeof path !== 'string' || !path.startsWith('/')) throw new Error('capture requires a JSON Pointer')
+  if (typeof path !== 'string' || !path.startsWith('/')) throw new FixtureSetupError('capture requires a JSON Pointer')
   let value = result
   for (const segment of path.slice(1).split('/')) {
     const key = segment.replace(/~1/g, '/').replace(/~0/g, '~')
     if (value === null || typeof value !== 'object' || !Object.hasOwn(value, key))
-      throw new Error(`capture result is missing ${path}`)
+      throw new FixtureSetupError(`capture result is missing ${path}`)
     value = value[key]
   }
   return structuredClone(value)
@@ -85,13 +98,24 @@ function captureResult(result, path) {
  * order, else the first result. For a one-command case that is its error or
  * its result; a batch case passes only when every operation succeeded.
  */
-export function flatten(envelope) {
-  if (envelope?.error) return { error: { code: envelope.error.code, message: envelope.error.message ?? '' } }
-  const first = envelope?.results?.[0]
-  if (!first) return { error: { code: 'InternalError', message: 'the response carried no result' } }
-  const failed = envelope.results.find(result => result?.error)
-  if (failed) return { error: { code: failed.error.code, message: failed.error.message ?? '' } }
-  return { result: first.result === undefined ? null : first.result }
+export function flatten(envelope, expectedCount) {
+  if (envelope?.kip !== '2.0' || !Array.isArray(envelope.results)) throw new Error('invalid KIP response envelope')
+  if (envelope.status === 'outcome_unknown') throw new Error('execution outcome_unknown')
+  const { results, status } = envelope
+  if (!envelope.error && (!results.length || (expectedCount !== undefined && results.length !== expectedCount))) {
+    throw new Error(`expected ${expectedCount ?? 'at least one'} operation results, got ${results.length}`)
+  }
+  const failed = results.find(op => op?.error)
+  const error = envelope.error ?? failed?.error
+  if ((status === 'failed' || status === 'partial') && typeof error?.code === 'string' &&
+      (envelope.error || ['failed', 'skipped', 'rolled_back'].includes(failed?.status))) {
+    return { error: { code: error.code, message: error.message ?? '' } }
+  }
+  if (status !== 'succeeded' || error ||
+      !results.every(op => op?.status === 'succeeded' || op?.status === 'no_effect')) {
+    throw new Error('response did not establish success for every operation or return a KIP error')
+  }
+  return { result: results[0].result ?? null }
 }
 
 const request = (command, parameters = {}, extra = {}) =>
@@ -120,15 +144,17 @@ export async function runEngineSuite(adapter, fixtures) {
   const about = await adapter.describe()
   if (!['engine', 'model'].includes(about.kind)) throw new Error('adapter must disclose engine or model')
   const tagOf = adapter.elementIdTag?.bind(adapter) ?? defaultTag
+  const capabilities = Array.isArray(about.capabilities) ? new Set(about.capabilities) : null
   const tests = []
-  for (const fixture of fixtures) {
+  let executed = 0
+  fixturesLoop: for (const fixture of fixtures) {
     const parameters = Object.create(null)
     try {
       await adapter.resetSpace({ name: fixture.name, packages: fixture.packages ?? [] })
       for (const setup of fixture.setup ?? []) {
         const step = typeof setup === 'string' ? { command: setup } : setup
-        const outcome = flatten(await adapter.execute(request(step.command, { ...parameters, ...step.params })))
-        if (outcome.error) throw new Error(`setup failed with ${outcome.error.code}: ${outcome.error.message}`)
+        const outcome = flatten(await adapter.execute(request(step.command, { ...parameters, ...step.params })), 1)
+        if (outcome.error) throw new FixtureSetupError(`setup failed with ${outcome.error.code}: ${outcome.error.message}`)
         // Capture raw read values, including the engine's actual basis. Never
         // normalize IDs or manufacture snapshot/authorization coordinates.
         for (const [name, path] of Object.entries(step.capture ?? {}))
@@ -136,23 +162,33 @@ export async function runEngineSuite(adapter, fixtures) {
       }
     } catch (error) {
       tests.push({ id: `${fixture.name}/setup`, status: 'HARNESS_ERROR', error: { code: 'AdapterError', message: error.message } })
-      continue
+      if (error instanceof FixtureSetupError) continue
+      break
     }
     for (const testCase of fixture.cases) {
       const id = `${fixture.name}/${testCase.name}`
+      const expect = testCase.expect ?? {}
+      const required = Object.entries(testCase.envelope?.requires ?? {}).filter(([, value]) => value === true)
+      const missingCapability = capabilities && required.some(([name]) => !capabilities.has(name))
+      const expectedError = expect.check_requires && missingCapability ? 'UnsupportedCapability' : expect.error
       let outcome
       try {
-        outcome = flatten(await adapter.execute(caseRequest(testCase, parameters)))
+        checkResultOrder(expect.result, testCase.ordered)
+        if (expect.check_requires && (!capabilities || !required.length))
+          throw new FixtureSetupError('check_requires needs declared capabilities and a true request requirement')
+        const req = caseRequest(testCase, parameters)
+        executed++
+        outcome = flatten(await adapter.execute(req), req.operations.length)
       } catch (error) {
-        // A lost response may still have committed: stop rather than run on an uncertain Space.
-        tests.push({ id, status: 'HARNESS_ERROR', error: { code: 'AdapterError', message: error.message } })
-        break
+        // A lost response may still have committed. An invalid case also stops the run.
+        const code = error instanceof FixtureSetupError ? 'FixtureError' : 'AdapterError'
+        tests.push({ id, status: 'HARNESS_ERROR', error: { code, message: error.message } })
+        break fixturesLoop
       }
-      const expectedError = testCase.expect?.error
       if (outcome.error) {
-        if (outcome.error.code === 'UnsupportedCapability' && expectedError !== 'UnsupportedCapability')
+        if (outcome.error.code === expectedError) tests.push({ id, status: 'PASS' })
+        else if (outcome.error.code === 'UnsupportedCapability' && missingCapability)
           tests.push({ id, status: 'SKIP_UNSUPPORTED', skip: { reason: 'unsupported_capability', message: outcome.error.message } })
-        else if (outcome.error.code === expectedError) tests.push({ id, status: 'PASS' })
         else tests.push({ id, status: 'FAIL', failures: [{ phase: 'assertion',
           message: `expected ${expectedError ?? 'a result'}, got ${outcome.error.code}: ${outcome.error.message}` }] })
         continue
@@ -161,9 +197,9 @@ export async function runEngineSuite(adapter, fixtures) {
         tests.push({ id, status: 'FAIL', failures: [{ phase: 'assertion', message: `expected ${expectedError}, got a result` }] })
         continue
       }
-      const pass = (testCase.expect?.result === undefined ||
-        sameResult(outcome.result, testCase.expect.result, testCase.ordered === true, tagOf)) &&
-        (testCase.expect?.result_contains === undefined || containsResult(outcome.result, testCase.expect.result_contains))
+      const pass = (expect.result === undefined ||
+        sameResult(outcome.result, expect.result, testCase.ordered === true, tagOf)) &&
+        (expect.result_contains === undefined || containsResult(outcome.result, expect.result_contains))
       tests.push(pass ? { id, status: 'PASS' } : { id, status: 'FAIL', failures: [{ phase: 'assertion',
         message: `expected ${JSON.stringify(testCase.expect)}, got ${JSON.stringify(normalize(outcome.result, tagOf))}` }] })
     }
@@ -176,7 +212,7 @@ export async function runEngineSuite(adapter, fixtures) {
     profiles_claimed: [], profiles: {}, summary, tests,
     overall_status: summary.fail || summary.harness_error || !summary.pass ? 'FAIL' : 'PASS',
     warnings: [{ code: 'EngineSuite', message: 'The engine suite is necessary evidence for a conformance level, not sufficient by itself; unsupported cases are listed, never counted as passes.' }],
-    extensions: { 'kip.org/evidence': { critical: false, kind: about.kind, selected: cases, executed: tests.length,
+    extensions: { 'kip.org/evidence': { critical: false, kind: about.kind, selected: cases, executed,
       // Fixtures no engine has verified yet (Specification Status): their passes are evidence, never prior verification.
       pending_engine: fixtures.filter(f => f.status === 'pending_engine').map(f => f.name) } }
   }

@@ -26,24 +26,34 @@ export interface MemoryRecallInput {
   time?: { valid_at?: string; as_of_seq?: number }
   attention_cursor?: string
 }
-const isRef = (value: unknown): value is string =>
-  typeof value === 'string' && value.length > 0 && value.length <= 1024
+// JSON Schema string lengths count Unicode code points.
+const isText = (value: unknown, limit: number): value is string =>
+  typeof value === 'string' && value.length > 0 &&
+  (value.length <= limit || (value.length <= limit * 2 && [...value].length <= limit))
+const isRef = (value: unknown): value is string => isText(value, 1024)
+
 export class MemorySession {
   private readonly state: MemorySessionSnapshot
   constructor(snapshot: MemorySessionSnapshot) {
-    if (!snapshot.space_id || snapshot.outstanding.some(ref => !ref) || snapshot.outstanding.length > 128 ||
+    const refs = snapshot.scope.context_refs ?? []
+    const contexts = Array.isArray(refs) ? [...new Set(refs)] : null
+    if (!isText(snapshot.space_id, 512) ||
+      (snapshot.scope.task_ref !== undefined && !isRef(snapshot.scope.task_ref)) ||
+      !contexts || contexts.length > 128 || contexts.some(ref => !isRef(ref)) ||
+      !Array.isArray(snapshot.outstanding) || snapshot.outstanding.length > 128 || snapshot.outstanding.some(ref => !isRef(ref)) ||
       (snapshot.attention_cursor !== undefined && !isRef(snapshot.attention_cursor))) {
       throw new RangeError('invalid memory session snapshot')
     }
     this.state = {
       space_id: snapshot.space_id,
-      scope: { ...snapshot.scope, context_refs: [...new Set(snapshot.scope.context_refs ?? [])].sort() },
+      scope: { ...snapshot.scope, context_refs: contexts.sort() },
       outstanding: [...new Set(snapshot.outstanding)],
       ...(snapshot.attention_cursor !== undefined ? { attention_cursor: snapshot.attention_cursor } : {})
     }
   }
   recordReceipt(spaceId: string, receiptRef: string): void {
-    if (spaceId !== this.state.space_id || !receiptRef) throw new RangeError('receipt scope mismatch')
+    if (spaceId !== this.state.space_id) throw new RangeError('receipt scope mismatch')
+    if (!isRef(receiptRef)) throw new RangeError('invalid receipt reference')
     if (this.state.outstanding.includes(receiptRef)) return
     if (this.state.outstanding.length >= 128) throw new RangeError('processing barrier limit exceeded; retain receipt externally')
     this.state.outstanding.push(receiptRef)
@@ -54,6 +64,13 @@ export class MemorySession {
     if (!input.query && !input.target_ref && input.mode !== 'attention') {
       throw new RangeError('recall needs a query, a target_ref or mode "attention"')
     }
+    for (const field of ['query', 'goal', 'context'] as const) {
+      if (input[field] !== undefined && !isText(input[field], 4096)) throw new RangeError(`invalid recall ${field}`)
+    }
+    if (input.target_ref !== undefined && !isRef(input.target_ref)) throw new RangeError('invalid target reference')
+    if (input.time !== undefined && input.time.valid_at === undefined && input.time.as_of_seq === undefined) {
+      throw new RangeError('recall time needs valid_at or as_of_seq')
+    }
     if (input.time?.valid_at !== undefined) parseTimestamp(input.time.valid_at)
     if (input.time?.as_of_seq !== undefined &&
       (!Number.isSafeInteger(input.time.as_of_seq) || input.time.as_of_seq < 0)) {
@@ -62,13 +79,14 @@ export class MemorySession {
     if (input.attention_cursor !== undefined && !isRef(input.attention_cursor)) {
       throw new RangeError('invalid attention cursor')
     }
+    if (input.after?.some(ref => !isRef(ref))) throw new RangeError('invalid receipt reference')
     const after = [...new Set([...this.state.outstanding, ...(input.after ?? [])])]
     if (after.length > 128) throw new RangeError('processing barrier limit exceeded')
     const cursor = input.attention_cursor ??
       (input.mode === 'attention' || input.mode === 'resume' ? this.state.attention_cursor : undefined)
     return {
       kip_memory: '2.0' as const, operation: 'recall' as const,
-      space: { id: this.state.space_id }, scope: this.snapshot().scope,
+      space: { id: this.state.space_id }, scope: structuredClone(this.state.scope),
       input: { ...input, after, ...(cursor !== undefined ? { attention_cursor: cursor } : {}) }
     }
   }
@@ -85,7 +103,6 @@ export class MemorySession {
     this.state.attention_cursor = attentionCursor
   }
   snapshot(): MemorySessionSnapshot {
-    return { ...this.state, scope: { ...this.state.scope, context_refs: [...(this.state.scope.context_refs ?? [])] },
-      outstanding: [...this.state.outstanding] }
+    return structuredClone(this.state)
   }
 }

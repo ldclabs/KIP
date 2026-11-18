@@ -38,10 +38,11 @@ Create Activity provenance and its real DependencyBasis where a transformation
 occurred. The host captures actual read pins and digests; it cannot guess which
 sources you used. A fact taken from a document whose author is not a resolvable
 actor is your inference: `by: :self, mode: "inferred"`, citing the Evidence — never
-a `stated` claim by an actor you invented. Two such inferences never end one another;
-the person's own statement outranks them. Unknown Schema material can remain
-Evidence-only and must remain reachable through recall with the unresolved
-interpretation disclosed.
+a `stated` claim by an actor you invented. An inference participates in temporal
+succession only when it specifies a start. At equal context specificity, the
+person's own statement has precedence over third-party inference (§21.13).
+Unknown Schema material can remain Evidence-only and must remain reachable
+through recall with the unresolved interpretation disclosed.
 
 Three revisions look alike and are written differently. A correction — the actor's
 earlier claim was wrong — supersedes it. A value-only correction explicitly preserves

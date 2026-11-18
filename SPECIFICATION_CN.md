@@ -716,7 +716,7 @@ experience:turn:100
 
 字面量以原始 JSON 标量书写 —— 字符串、数字、布尔值或 `null` (§9.5) —— 其 `datatype` 即为书写它时采用的 JSON 类型：
 
-```json
+```text
 "+08:00"
 42
 true
@@ -4116,7 +4116,7 @@ WITH EPISTEMIC {
 
 ## 49.1 解释等级 (Explanation levels)
 
-推荐等级：
+显式提供的 `explanation` **必须**解析为以下区分大小写的字符串之一。通过参数传入时，绑定后的值也须满足这一要求。
 
 ```text
 none (无解释)
@@ -4540,7 +4540,7 @@ CREATE ASSERTION ?a {
   CLIENT KEY :a_key
 
   SET FIELDS {
-    proposition: ?p,
+    proposition: :proposition,
     asserted_by: :alice,
     stance: "support",
     mode: "stated",
@@ -4549,7 +4549,7 @@ CREATE ASSERTION ?a {
   }
 
   SET STRUCTURAL {
-    ("evidence", ?e) {role: "support"}
+    ("evidence", :evidence) {role: "support"}
   }
 }
 ```
@@ -4571,7 +4571,7 @@ CREATE ACTIVITY ?act {
 
   SET STRUCTURAL {
     ("inputs", :input)
-    ("outputs", ?a)
+    ("outputs", :assertion)
   }
 }
 ```
@@ -4625,7 +4625,7 @@ TRANSITION :a TO "retracted"
 ## 57.4 废弃替代 (Supersession)
 
 ```prolog
-TRANSITION :old TO "superseded" BY ?new
+TRANSITION :old TO "superseded" BY :new
 ```
 
 **严禁**仅仅因为另一主体持不同意见就使用废弃替代，亦**严禁**用它来记录现实世界发生的变化：后者属于自变更发生之时起的一条新断言，该新断言通过时间继承终结其前驱断言 (§14.2, §25.4, 附录 F.2)。

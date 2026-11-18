@@ -734,7 +734,7 @@ A Proposition subject MUST NOT be a Literal.
 
 A Literal is written as a primitive JSON scalar — a string, a number, a boolean, or `null` (§9.5) — and its `datatype` is the JSON type it was written in:
 
-```json
+```text
 "+08:00"
 42
 true
@@ -4210,7 +4210,8 @@ WITH EPISTEMIC {
 
 ## 49.1 Explanation levels
 
-Recommended:
+When supplied, `explanation` MUST resolve to one of these case-sensitive string values.
+The same requirement applies to the value of a bound parameter.
 
 ```text
 none
@@ -4675,7 +4676,7 @@ CREATE ASSERTION ?a {
   CLIENT KEY :a_key
 
   SET FIELDS {
-    proposition: ?p,
+    proposition: :proposition,
     asserted_by: :alice,
     stance: "support",
     mode: "stated",
@@ -4684,7 +4685,7 @@ CREATE ASSERTION ?a {
   }
 
   SET STRUCTURAL {
-    ("evidence", ?e) {role: "support"}
+    ("evidence", :evidence) {role: "support"}
   }
 }
 ```
@@ -4706,7 +4707,7 @@ CREATE ACTIVITY ?act {
 
   SET STRUCTURAL {
     ("inputs", :input)
-    ("outputs", ?a)
+    ("outputs", :assertion)
   }
 }
 ```
@@ -4760,7 +4761,7 @@ Retraction preserves historical payload. The move is legal only from `active`; f
 ## 57.4 Supersession
 
 ```prolog
-TRANSITION :old TO "superseded" BY ?new
+TRANSITION :old TO "superseded" BY :new
 ```
 
 Supersession MUST NOT be used merely because another actor disagrees, and it MUST NOT be used to record that the world changed: that is one new Assertion from the time of the change, which ends its predecessor through temporal succession (§14.2, §25.4, F.2).

@@ -34,6 +34,16 @@ function lowerThrows(source) {
 }
 
 describe('lower: KQL', () => {
+  test('aggregate sort keys preserve DISTINCT in the executable AST', () => {
+    const source = 'FIND(COUNT(?x), COUNT(DISTINCT ?x)) WHERE { ?x {} } ' +
+      'ORDER BY COUNT(DISTINCT ?x) DESC, COUNT(?x)'
+    const variable = { var: 'x', path: [] }
+    assert.deepEqual(lowerOne(source).Kql.order_by, [
+      { variable, direction: 'Desc', aggregation: 'Count', distinct: true },
+      { variable, direction: 'Asc', aggregation: 'Count' }
+    ])
+  })
+
   test('a FIND becomes a Kql command with resolved paths', () => {
     const cmd = lowerOne('FIND(?x.name) WHERE { ?x {type: "Person"} }')
     assert.deepEqual(cmd.Kql.find_clause.expressions, [
@@ -161,13 +171,14 @@ describe('lower: KQL', () => {
   })
 
   test('the v2 type-inspection functions are registered', () => {
-    for (const [name, func] of [
-      ['IS_LITERAL', 'IsLiteral'],
-      ['IS_ELEMENT', 'IsElement'],
-      ['IS_KIND', 'IsKind'],
-      ['LITERAL_TYPE', 'LiteralType']
+    for (const [call, func] of [
+      ['IS_LITERAL(?x.v)', 'IsLiteral'],
+      ['IS_ELEMENT(?x.v)', 'IsElement'],
+      ['IS_KIND(?x.v, "Concept")', 'IsKind'],
+      ['LITERAL_TYPE(?x.v)', 'LiteralType'],
+      ['LITERAL_TYPE(?x.v, "string")', 'LiteralType']
     ]) {
-      const cmd = lowerOne(`FIND(?x) WHERE { ?x {a: 1} FILTER(${name}(?x.v)) }`)
+      const cmd = lowerOne(`FIND(?x) WHERE { ?x {a: 1} FILTER(${call}) }`)
       assert.equal(cmd.Kql.where_clauses[1].Filter.expression.Function.func, func)
     }
   })
@@ -408,6 +419,12 @@ describe('lower: KML invariants', () => {
   })
 
   test('local handles must resolve within the command', () => {
+    for (const command of [
+      'ENSURE PROPOSITION (?missing, "related_to", :thing)',
+      'ASSERT (:subject, "related_to", ?missing) {by: :actor, mode: "stated"}',
+      'UPDATE ?missing SET ATTRIBUTES {a: 1} WHERE { NOT { ?missing {id: :id} } }'
+    ]) assert.match(lowerThrows(command).message, /\?missing is not bound/)
+    lowerOne('MUTATE { ENSURE PROPOSITION (?later, "related_to", :thing) CREATE CONCEPT ?later { TYPE "T" } }')
     assert.match(
       lowerThrows('CREATE ACTIVITY ?a { SET STRUCTURAL {("inputs", ?missing)} }').message,
       /not bound by this command/
@@ -428,7 +445,7 @@ describe('lower: KML invariants', () => {
   })
 
   test('Assertion epistemic payload cannot be rewritten by UPDATE', () => {
-    for (const field of ['stance', 'confidence', 'asserted_by', 'asserted_at', 'mode', 'valid_time', 'context_refs']) {
+    for (const field of ['stance', 'confidence', 'asserted_by', 'asserted_at', 'mode', 'valid_time', 'context_refs', 'evidence']) {
       const err = lowerThrows(
         `UPDATE ?a SET FIELDS {${field}: 0.5} WHERE { ?a ASSERTION {id: "A-1"} }`
       )
@@ -697,6 +714,20 @@ describe('lower: what a literal can promise', () => {
     assert.ok(Object.hasOwn(value,'__proto__'))
     assert.equal(value.__proto__.Object.x.Number,1)
     assert.equal(Object.getPrototypeOf(value),Object.prototype)
+    const query = lowerOne('FIND(?x) WHERE { ?x {"__proto__": :value} }')
+    const matcher = query.Kql.where_clauses[0].Concept.matcher
+    assert.ok(Object.hasOwn(matcher, '__proto__'))
+    assert.deepEqual(matcher.__proto__, { Param: 'value' })
+    assert.equal(Object.getPrototypeOf(matcher), Object.prototype)
+  })
+
+  test('duplicate decoded keys are rejected in literals, bound values and options', () => {
+    for (const source of [
+      'CREATE CONCEPT ?c { SET ATTRIBUTES {data: {a: 1, "\\u0061": 2}} }',
+      'CREATE CONCEPT ?c { SET ATTRIBUTES {data: [{a: :first, a: :second}]} }',
+      'FIND(?x) WHERE { ?x {} } WITH EPISTEMIC {purpose: "read", purpose: :other}',
+      'FIND(?x) WHERE { ?x {"__proto__": 1, "__proto__": 2} }'
+    ]) assert.match(lowerThrows(source).message, /duplicate object key/)
   })
   test('portable integer boundaries remain exact in the execution AST', () => {
     for (const n of ['9007199254740991', '-9007199254740991']) {

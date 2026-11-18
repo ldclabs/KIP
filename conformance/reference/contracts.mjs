@@ -1,5 +1,5 @@
 /** Small, test-only contract oracles. These functions are not a Nexus engine. */
-import { canonicalize, parseTimestamp } from '../../packages/kip-lang/dist/index.js'
+import { canonicalize, parseTimestamp, parseTimePoint } from '../../packages/kip-lang/dist/index.js'
 import { validateDependencies } from './reliability.mjs'
 
 export function dependencyValidity(groups, current) {
@@ -16,20 +16,12 @@ export function dependencyValidity(groups, current) {
 const INF = Infinity
 
 function point(value, side, assertedAt) {
-  if (value === undefined || value === null) {
-    if (side !== 'from') return [INF, INF]
-    // A missing from means "no later than the claim": the bound {latest: asserted_at} (§25.2).
-    if (assertedAt === undefined || assertedAt === null) throw new Error('asserted_at is required when from is absent')
-    return [-INF, parseTimestamp(assertedAt)]
-  }
-  if (typeof value === 'string') { const x = parseTimestamp(value); return [x, x] }
-  if (typeof value !== 'object' || Array.isArray(value) ||
-      Object.keys(value).some(k => k !== 'earliest' && k !== 'latest') ||
-      (value.earliest === undefined && value.latest === undefined)) throw new Error('invalid time bound')
-  const lo = value.earliest === undefined ? -INF : parseTimestamp(value.earliest)
-  const hi = value.latest === undefined ? INF : parseTimestamp(value.latest)
-  if (lo > hi) throw new Error('invalid time bound: earliest after latest')
-  return [lo, hi]
+  const bound = parseTimePoint(value)
+  if (bound) return [bound.earliest, bound.latest]
+  if (side !== 'from') return [INF, INF]
+  // A missing from means "no later than the claim" (§25.2).
+  if (assertedAt === undefined || assertedAt === null) throw new Error('asserted_at is required when from is absent')
+  return [-INF, parseTimestamp(assertedAt)]
 }
 const exact = value => typeof value === 'string'
 const strictSuperset = (a = [], b = []) => { const A = new Set(a), B = new Set(b); return A.size > B.size && [...B].every(v => A.has(v)) }
@@ -65,8 +57,8 @@ export function effectiveIntervals(rows, { functional = false, functional_by = f
   }
   const starts = new Map(rows.map(r => [r, [...r.start]]))
   const ends = new Map(rows.map(r => [r, [...r.end]]))
-  const lineStart = new Map()
   for (const [key, line] of lines) {
+    const lineStart = new Map()
     const slot = key.startsWith('slot|')
     const disagree = (x, y) => slot ? x.candidate !== y.candidate : x.a.stance !== y.a.stance
     for (const r of line) {
@@ -76,7 +68,7 @@ export function effectiveIntervals(rows, { functional = false, functional_by = f
         const q = preds.reduce((m, x) => x.sk > m.sk ? x : m)
         s = [Math.max(r.start[0], q.sk), r.sk]
       }
-      lineStart.set(key + '#' + rows.indexOf(r), s)
+      lineStart.set(r, s)
       const cur = starts.get(r); starts.set(r, [Math.max(cur[0], s[0]), Math.max(cur[1], s[1])])
     }
     for (const r of line) {
@@ -86,7 +78,7 @@ export function effectiveIntervals(rows, { functional = false, functional_by = f
       // The nearest successors; a start-key tie combines their starts bound by bound.
       const nearest = Math.min(...succ.map(n => n.sk))
       for (const n of succ.filter(n => n.sk === nearest)) {
-        const e = lineStart.get(key + '#' + rows.indexOf(n))
+        const e = lineStart.get(n)
         const cur = ends.get(r); ends.set(r, [Math.min(cur[0], e[0]), Math.min(cur[1], e[1])])
       }
     }

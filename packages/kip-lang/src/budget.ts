@@ -32,13 +32,16 @@ export const MAX_KIP_BATCH_COMMANDS = 256
  * @throws {KipSyntaxError} `KIP_4002` when a budget is exceeded.
  */
 export function checkBudget(source: string): void {
-  if (source.length > MAX_KIP_INPUT_LEN) {
+  // A UTF-16 code unit uses at most three UTF-8 bytes. Only encode when
+  // the inexpensive length check leaves the byte limit undecided.
+  if (source.length > MAX_KIP_INPUT_LEN ||
+      (source.length > MAX_KIP_INPUT_LEN / 3 &&
+       new TextEncoder().encode(source).byteLength > MAX_KIP_INPUT_LEN)) {
     throw resourceExhausted(
-      `KIP input length ${source.length} exceeds maximum ${MAX_KIP_INPUT_LEN}`
+      `KIP input exceeds maximum ${MAX_KIP_INPUT_LEN} UTF-8 bytes`
     )
   }
 
-  let depth = 0
   const stack: string[] = []
   let inString = false
   let escaped = false
@@ -82,8 +85,7 @@ export function checkBudget(source: string): void {
       inString = true
     } else if (ch === '(' || ch === '[' || ch === '{') {
       stack.push(ch)
-      depth = stack.length
-      if (depth > MAX_KIP_NESTING_DEPTH) {
+      if (stack.length > MAX_KIP_NESTING_DEPTH) {
         throw resourceExhausted(
           `KIP input nesting exceeds maximum ${MAX_KIP_NESTING_DEPTH}`
         )

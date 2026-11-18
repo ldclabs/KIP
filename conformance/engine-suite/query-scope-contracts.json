@@ -6,6 +6,17 @@
   ],
   "cases": [
     {
+      "name": "stable name order preserves the identity of each returned row",
+      "command": "FIND(?p.name, ?p.id) WHERE { ?p CONCEPT {type: \"Person\"} } ORDER BY ?p.name",
+      "ordered": true,
+      "expect": {
+        "result": [
+          ["Alice", "C:<1>"],
+          ["Bob", "C:<2>"]
+        ]
+      }
+    },
+    {
       "name": "NOT filters each incoming binding",
       "command": "FIND(?p.name) WHERE { ?p {type:\"Person\"} NOT { FILTER(?p.name == \"Alice\") } }",
       "expect": {

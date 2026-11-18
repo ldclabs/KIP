@@ -128,9 +128,11 @@ WHERE { <patterns and filters> }
 [AS OF SEQ :seq]                                  // cognitive history: what the Brain contained/believed then (a tx id or instant → seq via DESCRIBE TRANSACTION / DESCRIBE SNAPSHOT AT TIME)
 [FOR TIME :world_time]                            // world-valid time: what was applicable then
 [WITH EPISTEMIC { purpose: "...", risk: "low", policy: "...", include_historical: false,
-                  include_hypothetical: false, explanation: "none|summary|ledger" }]
+                  include_hypothetical: false, explanation: "summary" }]
 [ORDER BY <expr> [ASC|DESC], ...] [LIMIT :n] [CURSOR :cursor]   // several sort keys; ASC default; nulls last
 ```
+
+`explanation` accepts exactly `"none"`, `"summary"` or `"ledger"`, including when supplied by a parameter.
 
 `AS OF` and `FOR TIME` are independent axes. "What did the Brain believe at cognitive time C?" = `AS OF C`; "what did it then believe about world time W?" = `AS OF C` + `FOR TIME W`; "what does it now believe about W?" = `FOR TIME W` only. Projections are variables, dot paths or aggregates; mixing plain expressions with aggregates groups by the plain ones.
 

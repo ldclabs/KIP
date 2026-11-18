@@ -2,6 +2,8 @@ import type { Diagnostic } from './diagnostics.js'
 import type {
   Program,
   Statement,
+  FindStatement,
+  VariableRef,
   MutationClause,
   WhereClause,
   WherePattern,
@@ -16,6 +18,7 @@ import type {
   SetStructuralClause
 } from './ast.js'
 import type { Range } from './token.js'
+import { FILTER_FUNCTIONS } from './token.js'
 import { parseTimestamp } from './timestamp.js'
 
 /**
@@ -52,6 +55,8 @@ const MODES = new Set([
   'imported'
 ])
 const SEARCH_MODES = new Set(['keyword', 'semantic', 'hybrid'])
+const PRIMER_MODES = new Set(['compact', 'full'])
+const EXPLANATION_LEVELS = new Set(['none', 'summary', 'ledger'])
 /**
  * Everything `TRANSITION ... TO` may name (Spec §52.5): Assertion revision,
  * Evidence correction, Activity status, and the storage lifecycle any element
@@ -99,14 +104,25 @@ const TIMESTAMP_FIELDS = new Map<string, { nullable: boolean }>([
 ])
 
 function analyzeStatement(stmt: Statement, diags: Diagnostic[]): void {
+  if ('where' in stmt && stmt.where) {
+    const scope = checkPatternBindings(stmt.where.patterns, new Set(), diags)
+    if (stmt.kind === 'FindStatement') {
+      forEachVariable(stmt.projections, ref => requireBinding(ref, scope, diags))
+      forEachVariable(stmt.orderBy, ref => requireBinding(ref, scope, diags))
+    }
+  }
   switch (stmt.kind) {
     case 'FindStatement':
       checkWhere(stmt.where, !!stmt.limit, diags)
-      checkSearchPatterns(stmt.where.patterns, diags)
+      checkOrderBy(stmt, diags)
+      for (const entry of stmt.epistemic?.options.entries ?? []) {
+        if (entry.key === 'explanation') checkEnum(entry.value, EXPLANATION_LEVELS, 'WITH EPISTEMIC explanation', diags)
+      }
       if (stmt.forTime) checkTimestamp(stmt.forTime.value, 'FOR TIME', diags)
       break
 
     case 'DescribeStatement':
+      if (stmt.target === 'PRIMER' && stmt.mode) checkEnum(stmt.mode, PRIMER_MODES, 'DESCRIBE PRIMER MODE', diags)
       if (stmt.atTime) checkTimestamp(stmt.atTime, 'AT TIME', diags)
       break
 
@@ -346,12 +362,13 @@ function checkEnum(
   diags: Diagnostic[]
 ): void {
   // A parameter is bound at execution time; only a written literal is checkable.
-  if (value.kind !== 'StringLiteral') return
-  if (allowed.has(value.parsed)) return
+  if (!isLiteral(value)) return
+  if (value.kind === 'StringLiteral' && allowed.has(value.parsed)) return
+  const detail = value.kind === 'StringLiteral' ? `got "${value.parsed}"` : 'expected a string'
   diags.push({
     range: value.range,
     severity: 'error',
-    message: `${label} must be one of ${[...allowed].join(', ')}, got "${value.parsed}"`,
+    message: `${label} must be one of ${[...allowed].join(', ')}, ${detail}`,
     code: 'KIP_2001'
   })
 }
@@ -660,17 +677,21 @@ function checkMutate(stmt: MutateStatement, diags: Diagnostic[]): void {
     if (handle) bound.add(handle)
   }
 
-  const referenced: { name: string; range: Range }[] = []
-  for (const clause of stmt.clauses) collectHandleRefs(clause, referenced)
-
-  for (const ref of referenced) {
-    if (!bound.has(ref.name)) {
-      diags.push({
-        range: ref.range,
-        severity: 'error',
-        message: `?${ref.name} is not bound by any clause in this MUTATE block`,
-        code: 'KIP_2102'
-      })
+  for (const clause of stmt.clauses) {
+    const scope = 'where' in clause && clause.where
+      ? checkPatternBindings(clause.where.patterns, new Set(bound), diags, bound)
+      : bound
+    const referenced: { name: string; range: Range }[] = []
+    collectHandleRefs(clause, referenced)
+    for (const ref of referenced) {
+      if (!scope.has(ref.name)) {
+        diags.push({
+          range: ref.range,
+          severity: 'error',
+          message: `?${ref.name} is not bound by this clause's WHERE or any output in this MUTATE block`,
+          code: 'KIP_2102'
+        })
+      }
     }
   }
 }
@@ -758,25 +779,95 @@ function collectHandleRefs(
 }
 
 // ---------------------------------------------------------------------------
-// Unbounded recall
+// Query scopes, filters and ordering
 // ---------------------------------------------------------------------------
 
-/** A Search Pattern takes the same MODE and THRESHOLD registry as SEARCH. */
-function checkSearchPatterns(patterns: WherePattern[], diags: Diagnostic[]): void {
-  for (const pattern of patterns) {
-    if (pattern.kind === 'SearchPattern') {
-      if (pattern.mode) checkEnum(pattern.mode, SEARCH_MODES, 'SEARCH MODE', diags)
-      if (pattern.threshold && pattern.threshold.kind === 'NumberLiteral') {
-        checkUnitInterval('THRESHOLD', pattern.threshold.value, pattern.threshold.range, diags)
-      }
-    } else if (
-      pattern.kind === 'OptionalClause' ||
-      pattern.kind === 'UnionClause' ||
-      pattern.kind === 'NotClause'
-    ) {
-      checkSearchPatterns(pattern.patterns, diags)
+/** Visit variable nodes in the syntax tree, including nested tuples and match objects. */
+function forEachVariable(node: unknown, visit: (ref: VariableRef) => void): void {
+  if (Array.isArray(node)) {
+    for (const child of node) forEachVariable(child, visit)
+  } else if (node && typeof node === 'object' && 'kind' in node) {
+    if (node.kind === 'VariableRef') visit(node as VariableRef)
+    else for (const child of Object.values(node)) forEachVariable(child, visit)
+  }
+}
+
+function requireBinding(ref: VariableRef, scope: Set<string>, diags: Diagnostic[]): void {
+  if (!scope.has(ref.name.slice(1))) diags.push({
+    range: ref.range, severity: 'error', code: 'KIP_1001',
+    message: `${ref.name} has no visible pattern binding site`
+  })
+}
+
+function checkFilterArity(expr: Expression, diags: Diagnostic[]): void {
+  if (expr.kind === 'BinaryExpression') {
+    checkFilterArity(expr.left, diags)
+    checkFilterArity(expr.right, diags)
+  } else if (expr.kind === 'UnaryExpression') {
+    checkFilterArity(expr.operand, diags)
+  } else if (expr.kind === 'FunctionCallExpr') {
+    const signature = FILTER_FUNCTIONS.get(expr.name.toUpperCase())
+    if (!signature) return
+    const [, min, max = min] = signature
+    if (expr.args.length < min || expr.args.length > max) diags.push({
+      range: expr.range, severity: 'error', code: 'KIP_1001',
+      message: `Invalid argument count for ${expr.name}: expected ${min === max ? min : `${min}–${max}`}, found ${expr.args.length}`
+    })
+  }
+}
+
+function checkOrderBy(stmt: FindStatement, diags: Diagnostic[]): void {
+  if (!stmt.orderBy) return
+  const grouped = stmt.projections.some(expr => expr.kind === 'AggregateExpr')
+  function column(expr: Expression): string | undefined {
+    const agg = expr.kind === 'AggregateExpr' ? expr : undefined
+    const operand = agg?.argument ?? expr
+    if (operand.kind !== 'VariableRef' && operand.kind !== 'FieldAccess') return
+    const path = operand.kind === 'VariableRef' ? [operand.name] :
+      [operand.base.name, ...operand.steps.map(step => step.kind === 'DotStep' ? step.name : step.key.parsed)]
+    return JSON.stringify([agg?.name, agg?.distinct, ...path])
+  }
+  const projected = new Set(stmt.projections.map(column))
+  for (const item of stmt.orderBy.items) {
+    if ((grouped || item.expression.kind === 'AggregateExpr') && !projected.has(column(item.expression))) {
+      diags.push({ range: item.range, severity: 'error', code: 'KIP_1001',
+        message: 'ORDER BY must use a projected grouping key or aggregate (Spec §44.7)' })
     }
   }
+}
+
+/** §42.4 and §44.3–5. NOT keeps its locals, OPTIONAL extends the input,
+ * and the right side of UNION starts with an independent scope. */
+function checkPatternBindings(patterns: WherePattern[], scope: Set<string>, diags: Diagnostic[],
+  planHandles?: ReadonlySet<string>): Set<string> {
+  for (const pattern of patterns) {
+    switch (pattern.kind) {
+      case 'FilterClause':
+        forEachVariable(pattern.expression, ref => requireBinding(ref, scope, diags))
+        checkFilterArity(pattern.expression, diags)
+        break
+      case 'NotClause':
+        checkPatternBindings(pattern.patterns, new Set(scope), diags, planHandles)
+        break
+      case 'OptionalClause':
+        checkPatternBindings(pattern.patterns, scope, diags, planHandles)
+        break
+      case 'UnionClause':
+        for (const name of checkPatternBindings(pattern.patterns, new Set(planHandles), diags, planHandles)) scope.add(name)
+        break
+      case 'SearchPattern':
+        if (pattern.mode) checkEnum(pattern.mode, SEARCH_MODES, 'SEARCH MODE', diags)
+        if (pattern.threshold?.kind === 'NumberLiteral') {
+          checkUnitInterval('THRESHOLD', pattern.threshold.value, pattern.threshold.range, diags)
+        }
+        scope.add(pattern.variable.name.slice(1))
+        break
+      default:
+        if (pattern.kind === 'BeliefPattern' && pattern.proposition) requireBinding(pattern.proposition, scope, diags)
+        forEachVariable(pattern, ref => scope.add(ref.name.slice(1)))
+    }
+  }
+  return scope
 }
 
 function checkWhere(

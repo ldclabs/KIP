@@ -4,7 +4,7 @@ Four kinds of evidence live here, and none stands in for another:
 
 | Evidence | What it is | Where |
 | --- | --- | --- |
-| Engine suite | 431 cases in 26 fixtures, all passed on both reference engines at anda-db `985451b`; none is pending | `engine-suite/`, `--suite engine` |
+| Engine suite | 434 cases in 26 fixtures, all passed on both reference engines in the `kip-lang` 2.4.3 integration | `engine-suite/`, `--suite engine` |
 | Vectors | 344 parent-suite vectors in prose, 30 cognitive vectors, 20 Memory Interface scenarios and 17 reliability scenarios; the last three sets ship as JSON harness vectors | `KIP-2.0-*-Tests.md`, `vectors/` |
 | Contract oracles and models | Small executable models of projection, succession, time bounds, dependency validity, learning, processing barriers and attention; bounded formal models | `reference/`, `vectors/cognitive-contracts.json`, `../formal/` |
 | Behavioral evaluation | Held-out, budgeted Brain experiments | `../brain/BrainEvaluation.md` (report status `not_run` until measured) |
@@ -15,13 +15,12 @@ A conformance level (Specification §89) is claimed on engine evidence only: the
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm --filter @ldclabs/kip-lang build
-KIP_DOC_LANG=en pnpm --filter @ldclabs/kip-lang test
+pnpm --filter @ldclabs/kip-lang test
 node conformance/update-digests.mjs
 bash formal/run.sh
 ```
 
-`KIP_DOC_LANG=en` excludes Chinese mirror reads and comparison when English sources are updated independently; the default language suite validates both. The formal runner returns 3 if prerequisite-dependent suites were skipped, 1 on any failure, and 0 only when every suite ran and passed. Alloy/TLC need the JARs and JVM described in `../formal/README.md`; Node checks require the workspace build.
+The language test command builds the toolkit and checks both language mirrors. Set `KIP_DOC_LANG=en` for an explicitly English-only change. The formal runner returns 3 if prerequisite-dependent suites were skipped, 1 on any failure, and 0 only when every suite ran and passed. Alloy/TLC need the JARs and JVM described in `../formal/README.md`; Node checks require the workspace build.
 
 When intentionally editing a package, schema or policy artifact, regenerate digests with `node conformance/update-digests.mjs --write`, then run the read-only check. It uses the same canonicalizer as consumers; the Profile pins validation-schema digests over the complete transitive reference closure, and dependent packages and Capsules pin the package digest. Never regenerate a digest to conceal a failed integrity check. A package edit also changes the generated vocabulary card: `node conformance/vocabulary-card.mjs --write` rewrites `brain/KIPVocabulary.md`, and without `--write` the script checks it.
 
@@ -36,7 +35,7 @@ node conformance/run.mjs --suite engine --list
 node conformance/run.mjs --suite engine --adapter /absolute/path/to/adapter.mjs
 ```
 
-The adapter resets an isolated Space per fixture, executes single-operation KIP requests and returns raw response envelopes. The runner flattens and normalizes answers exactly as both reference engines' harnesses do; see [engine-suite/README.md](engine-suite/README.md). An unexpected `UnsupportedCapability` is reported as `SKIP_UNSUPPORTED`, never as a pass, and a lost response stops the run because the Space is then uncertain.
+The adapter resets an isolated Space per fixture and executes each case as a single request, including multi-operation batches. The runner checks operation outcomes before comparing the normalized result. A lost, indeterminate or incomplete response stops the run. An unexpected `UnsupportedCapability` can skip a case only when its declared prerequisite is missing from the adapter's advertised capabilities. See [engine-suite/README.md](engine-suite/README.md).
 
 ## Harness vectors
 
@@ -64,7 +63,7 @@ export default {
 
 Each vector fixes the expected observations and durable postconditions; its Markdown companion specifies the scenario. Use exact Schema refs: the test domain and the standard memory package share some local names. Do not implement an engine adapter by calling `reference/*.mjs`; that tests a model while claiming an engine. Engine exercises retain raw responses and receipts, and validate each KIP response against the wire schema and each projected or artifact result against its companion schema.
 
-The runner executes the shipped harness vectors only; an unknown step or assertion kind fails as `HARNESS_ERROR`. A timeout stops the suite because a mutation may still be in flight. Optional unadvertised capabilities are skipped; a missing required one fails. A suite with no passing executed tests cannot PASS. Reports keep `profiles_claimed` empty and state partial coverage.
+The runner executes the shipped harness vectors only; an unknown step or assertion kind fails as `HARNESS_ERROR`. A timeout stops the suite because a mutation may still be in flight. Optional unadvertised capabilities are skipped; a missing required one fails. A suite with no passing executed tests cannot PASS. Reports keep `profiles_claimed` empty and state partial coverage. Engine runs include each step's returned evidence in `observed.raw_responses`, including when later inspection fails. The executed count covers vectors that reached a harness call.
 
 ## Memory Interface binding
 

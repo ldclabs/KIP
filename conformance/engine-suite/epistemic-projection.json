@@ -187,6 +187,18 @@
       }
     },
     {
+      "name": "a literal outside the explanation registry is rejected",
+      "command": "FIND(?b.status) WHERE { ?b BELIEF (id: :pid) } WITH EPISTEMIC {explanation: \"verbose\"}",
+      "params": { "pid": "P-1" },
+      "expect": { "error": "ConstraintViolation" }
+    },
+    {
+      "name": "an explicitly null explanation parameter is rejected",
+      "command": "FIND(?b.status) WHERE { ?b BELIEF (id: :pid) } WITH EPISTEMIC {explanation: :level}",
+      "params": { "pid": "P-1", "level": null },
+      "expect": { "error": "ConstraintViolation" }
+    },
+    {
       "name": "a setting WITH EPISTEMIC does not implement is refused, never ignored",
       "command": "FIND(?b.status) WHERE {\n  ?s CONCEPT {name: \"Dave\"}\n  ?o CONCEPT {name: \"Warm\"}\n  ?p PROPOSITION (?s, \"prefers\", ?o)\n  ?b BELIEF (?p)\n} WITH EPISTEMIC { curiosity: 0.5 }",
       "expect": {

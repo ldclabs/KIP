@@ -283,7 +283,7 @@
       }
     },
     {
-      "name": "a capability the engine does not have is refused before the command runs",
+      "name": "requiring semantic search follows its advertised availability",
       "command": "FIND(COUNT(?c)) WHERE { ?c CONCEPT {type: \"Person\"} }",
       "envelope": {
         "requires": {
@@ -291,7 +291,10 @@
         }
       },
       "expect": {
-        "error": "UnsupportedCapability"
+        "check_requires": true,
+        "result": [
+          3
+        ]
       }
     },
     {
