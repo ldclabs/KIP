@@ -110,6 +110,25 @@ test('engine suite: a batch needs an outcome for every operation', () => {
   }
 })
 
+test('engine suite: operation statuses are checked in order independently of the command payload', async () => {
+  const reply = succeeded({ handles: {}, changes: [] }, null)
+  reply.results[1].status = 'no_effect'
+  const adapter = {
+    describe: async () => ({ kind: 'model', name: 'write-status', version: '1' }),
+    resetSpace: async () => {},
+    execute: async () => reply
+  }
+  const run = async expect => (await runEngineSuite(adapter, [{ name: 'writes', cases: [{
+    name: 'batch', operations: [{ command: 'one' }, { command: 'two' }], expect
+  }] }])).tests[0].status
+  assert.equal(await run({ operation_statuses: ['succeeded', 'no_effect'] }), 'PASS')
+  assert.equal(await run({ operation_statuses: ['no_effect', 'succeeded'] }), 'FAIL')
+  assert.equal(await run({ operation_statuses: ['succeeded'] }), 'HARNESS_ERROR')
+  assert.equal(await run({ result: null }), 'FAIL')
+  reply.results[0].result = null
+  assert.equal(await run({ operation_statuses: ['succeeded', 'no_effect'], result: null }), 'PASS')
+})
+
 test('engine suite: a batch case is sent as one multi-operation request', () => {
   const single = caseRequest({ command: 'FIND(?x) WHERE { ?x CONCEPT {} }', params: { a: 1 }, envelope: { read: {} } }, { b: 2 })
   assert.deepEqual(single, { kip: '2.0', operations: [{ command: 'FIND(?x) WHERE { ?x CONCEPT {} }', parameters: { b: 2, a: 1 } }], read: {} })
@@ -171,7 +190,9 @@ test('engine suite: the runner passes a faithful engine and fails a wrong one', 
   const echo = c => {
     if (c.expect.check_requires) return failed('UnsupportedCapability')
     if (c.expect.error) return failed(c.expect.error)
-    return succeeded(c.expect.result ?? c.expect.result_contains ?? null, ...(c.operations ?? []).slice(1).map(() => null))
+    const reply = succeeded(c.expect.result ?? c.expect.result_contains ?? null, ...(c.operations ?? []).slice(1).map(() => null))
+    c.expect.operation_statuses?.forEach((status, i) => { reply.results[i].status = status })
+    return reply
   }
   const faithful = scripted(echo)
   const good = await runEngineSuite(faithful, fixtures)

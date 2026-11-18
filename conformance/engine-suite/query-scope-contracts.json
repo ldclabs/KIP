@@ -221,7 +221,7 @@
       "name": "name equality cannot deduplicate separate identities",
       "command": "MUTATE {CREATE CONCEPT ?a {TYPE \"Person\" NAME \"Same\"} CREATE CONCEPT ?b {TYPE \"Person\" NAME \"Same\"}}",
       "expect": {
-        "result": null
+        "operation_statuses": ["succeeded"]
       }
     },
     {

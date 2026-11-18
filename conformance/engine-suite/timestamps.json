@@ -224,7 +224,7 @@
       "name": "accept canonical observed_at 2024-02-29T12:34:56.000Z",
       "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
       "expect": {
-        "result": null
+        "operation_statuses": ["succeeded"]
       },
       "params": {
         "at": "2024-02-29T12:34:56.000Z"
@@ -234,7 +234,7 @@
       "name": "accept canonical observed_at 2024-02-29T12:34:56.123Z",
       "command": "CREATE EVIDENCE ?e {SET FIELDS {evidence_class:\"timestamp_test\",payload:\"arbitrary text 2026-01-01T00:00:00Z\",observed_at::at}}",
       "expect": {
-        "result": null
+        "operation_statuses": ["succeeded"]
       },
       "params": {
         "at": "2024-02-29T12:34:56.123Z"
@@ -490,7 +490,7 @@
       "name": "nullable profile timestamp permits null",
       "command": "CREATE CONCEPT ?c {TYPE \"TimestampProbe\" SET ATTRIBUTES {nullable_at:null}}",
       "expect": {
-        "result": null
+        "operation_statuses": ["succeeded"]
       }
     },
     {

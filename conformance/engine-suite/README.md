@@ -35,7 +35,7 @@ ran the suite of KIP `11a82ec` — 431 cases in 26 fixtures, including
 none skipped, kip-do in its workerd pool. `manifest.json` lists the revisions made
 along the way. The `kip-lang` 2.4.3 integration ran all 434 current cases on
 both the Rust Nexus and kip-do in workerd. Each passed 434 with zero skips.
-The final manifest entry identifies the tested harness and Worker source.
+The manifest identifies the tested harnesses and Worker source.
 
 ## Case shape
 
@@ -91,13 +91,17 @@ export default {
 The runner sends each command as a single-operation request and a case's
 `operations` as one multi-operation request, and flattens the answer: a
 top-level error, else the first operation error in order, else the first
-result (a KML receipt flattens to its result, usually `null`). A batch case
+result (a missing command payload becomes `null`). A batch case
 therefore passes only when every operation succeeded or the error it expects
 came first; the durable effect of a batch is pinned by the one-command cases
 after it. A success requires one result per submitted operation, each marked
 `succeeded` or `no_effect`. A lost response, `outcome_unknown`, or incomplete
 batch stops the run. The report counts a case as executed once its request
-is sent. When a case expects `UnsupportedCapability`, that error satisfies its
+is sent. A write case can set `expect.operation_statuses` to an ordered array
+of `succeeded` or `no_effect`, one per operation. This checks the effect even
+when bindings use different KML summaries (§81.1). An explicit
+`expect.result: null` still checks the payload for exact equality.
+When a case expects `UnsupportedCapability`, that error satisfies its
 assertion. Otherwise the runner reports a skip only when a capability required by
 the case is absent from the list returned by `describe()`. An unsupported
 operation with no declared missing prerequisite fails the case.

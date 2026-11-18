@@ -59,7 +59,7 @@
       "name": "re-sending the same merge is a no_effect, not a conflict",
       "command": "MERGE CONCEPT ?source INTO ?target WHERE {\n  ?source CONCEPT {key: \"al\", state: \"merged\"}\n  ?target CONCEPT {key: \"alice\"}\n}",
       "expect": {
-        "result": null
+        "operation_statuses": ["no_effect"]
       }
     },
     {
@@ -73,7 +73,7 @@
       "name": "merging a Concept into itself has no effect",
       "command": "MERGE CONCEPT ?source INTO ?target WHERE {\n  ?source CONCEPT {key: \"alice\"}\n  ?target CONCEPT {key: \"alice\"}\n}",
       "expect": {
-        "result": null
+        "operation_statuses": ["no_effect"]
       }
     }
   ],

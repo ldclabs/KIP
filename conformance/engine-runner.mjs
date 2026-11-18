@@ -171,14 +171,19 @@ export async function runEngineSuite(adapter, fixtures) {
       const required = Object.entries(testCase.envelope?.requires ?? {}).filter(([, value]) => value === true)
       const missingCapability = capabilities && required.some(([name]) => !capabilities.has(name))
       const expectedError = expect.check_requires && missingCapability ? 'UnsupportedCapability' : expect.error
-      let outcome
+      let outcome, response
       try {
         checkResultOrder(expect.result, testCase.ordered)
         if (expect.check_requires && (!capabilities || !required.length))
           throw new FixtureSetupError('check_requires needs declared capabilities and a true request requirement')
         const req = caseRequest(testCase, parameters)
+        const statuses = expect.operation_statuses
+        if (statuses !== undefined && (!Array.isArray(statuses) || statuses.length !== req.operations.length ||
+            statuses.some(s => s !== 'succeeded' && s !== 'no_effect') || expect.error !== undefined))
+          throw new FixtureSetupError('operation_statuses needs one success status per operation and no expected error')
         executed++
-        outcome = flatten(await adapter.execute(req), req.operations.length)
+        response = await adapter.execute(req)
+        outcome = flatten(response, req.operations.length)
       } catch (error) {
         // A lost response may still have committed. An invalid case also stops the run.
         const code = error instanceof FixtureSetupError ? 'FixtureError' : 'AdapterError'
@@ -196,6 +201,14 @@ export async function runEngineSuite(adapter, fixtures) {
       if (expectedError !== undefined) {
         tests.push({ id, status: 'FAIL', failures: [{ phase: 'assertion', message: `expected ${expectedError}, got a result` }] })
         continue
+      }
+      if (expect.operation_statuses !== undefined) {
+        const actual = response.results.map(op => op.status)
+        if (actual.some((status, i) => status !== expect.operation_statuses[i])) {
+          tests.push({ id, status: 'FAIL', failures: [{ phase: 'assertion',
+            message: `expected operation statuses ${JSON.stringify(expect.operation_statuses)}, got ${JSON.stringify(actual)}` }] })
+          continue
+        }
       }
       const pass = (expect.result === undefined ||
         sameResult(outcome.result, expect.result, testCase.ordered === true, tagOf)) &&

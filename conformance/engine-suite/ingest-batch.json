@@ -105,7 +105,7 @@
         }
       },
       "expect": {
-        "result": null
+        "operation_statuses": ["succeeded", "succeeded"]
       },
       "vectors": [
         "RT-036"
